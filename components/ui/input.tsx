@@ -12,13 +12,18 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         className={cn(
-          "flex h-10 w-full rounded-md bg-card px-3 py-2 text-sm text-foreground",
-          "border border-border",
+          "flex h-10 w-full rounded-lg px-3 py-2 text-sm",
+          "bg-background text-foreground",
+          "border border-input",
           "placeholder:text-muted-foreground",
           "transition-all duration-200",
-          "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary",
+          // Focus states
+          "focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring",
+          // Disabled state
           "disabled:cursor-not-allowed disabled:opacity-50",
+          // File input styling
           "file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground",
+          // Error state
           error && "border-destructive focus:ring-destructive/50 focus:border-destructive",
           className
         )}
@@ -31,4 +36,3 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 Input.displayName = "Input";
 
 export { Input };
-

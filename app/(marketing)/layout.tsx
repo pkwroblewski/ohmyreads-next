@@ -1,3 +1,6 @@
+import { Navbar } from "@/components/layout/navbar";
+import { Footer } from "@/components/layout/footer";
+
 export default function MarketingLayout({
   children,
 }: {
@@ -5,23 +8,9 @@ export default function MarketingLayout({
 }) {
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navbar slot */}
-      <header className="border-b">
-        <nav className="container mx-auto px-4 py-4">
-          {/* Navbar content */}
-        </nav>
-      </header>
-
-      {/* Main content */}
+      <Navbar />
       <main className="flex-1">{children}</main>
-
-      {/* Footer slot */}
-      <footer className="border-t">
-        <div className="container mx-auto px-4 py-4">
-          {/* Footer content */}
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
-
