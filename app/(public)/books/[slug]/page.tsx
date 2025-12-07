@@ -4,12 +4,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookOpen, Calendar, FileText, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getBookBySlug,
   getBookReviews,
   getRelatedBooks,
   getUserBookStatus,
-  getPopularBooks,
 } from "@/lib/queries/books";
 import { BookListHorizontal } from "@/components/books/book-list-horizontal";
 import { AddToShelfButton } from "@/components/books/add-to-shelf-button";
@@ -56,8 +56,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // Generate static params for popular books
 export async function generateStaticParams() {
-  const books = await getPopularBooks(100);
-  return books.map((book) => ({ slug: book.slug }));
+  try {
+    const supabase = createAdminClient();
+    const { data: books } = await supabase
+      .from("books")
+      .select("slug")
+      .order("ratings_count", { ascending: false })
+      .limit(100);
+    
+    return (books || []).map((book) => ({ slug: book.slug }));
+  } catch (error) {
+    console.error("Error in generateStaticParams:", error);
+    return [];
+  }
 }
 
 export default async function BookPage({ params }: Props) {
@@ -229,9 +240,9 @@ export default async function BookPage({ params }: Props) {
 
               {/* Write Review Button */}
               {user && (
-                <Button variant="outline" asChild>
-                  <a href="#reviews">Write Review</a>
-                </Button>
+                <a href="#reviews">
+                  <Button variant="outline">Write Review</Button>
+                </a>
               )}
 
               {/* Share Button */}
@@ -358,3 +369,4 @@ export default async function BookPage({ params }: Props) {
     </>
   );
 }
+

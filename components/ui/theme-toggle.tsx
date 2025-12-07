@@ -8,10 +8,9 @@ import { cn } from "@/lib/utils";
 
 interface ThemeToggleProps {
   className?: string;
-  variant?: "default" | "dropdown";
 }
 
-export function ThemeToggle({ className, variant = "default" }: ThemeToggleProps) {
+export function ThemeToggle({ className }: ThemeToggleProps) {
   const [mounted, setMounted] = React.useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
 
@@ -44,7 +43,6 @@ export function ThemeToggle({ className, variant = "default" }: ThemeToggleProps
     );
   }
 
-  const Icon = theme === "system" ? Monitor : resolvedTheme === "dark" ? Moon : Sun;
   const label =
     theme === "system"
       ? "System theme"

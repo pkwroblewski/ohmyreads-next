@@ -69,16 +69,6 @@ export function SocialLinksEditor({ links, onChange }: SocialLinksEditorProps) {
     onChange(newLinks.map((link, i) => ({ ...link, display_order: i })));
   };
 
-  const handleMoveDown = (index: number) => {
-    if (index === links.length - 1) return;
-    const newLinks = [...links];
-    [newLinks[index], newLinks[index + 1]] = [
-      newLinks[index + 1],
-      newLinks[index],
-    ];
-    onChange(newLinks.map((link, i) => ({ ...link, display_order: i })));
-  };
-
   return (
     <div className="space-y-3">
       {links.map((link, index) => (

@@ -1,7 +1,19 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { BookOpen, Heart, Users, Target, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+
+export const metadata: Metadata = {
+  title: "About",
+  description:
+    "Learn about OhMyReads - our mission to help readers discover, track, and share their reading journeys with the world.",
+  openGraph: {
+    title: "About OhMyReads",
+    description:
+      "Learn about OhMyReads - our mission to help readers discover, track, and share their reading journeys.",
+  },
+};
 
 const values = [
   {
@@ -21,14 +33,6 @@ const values = [
     title: "Simple & Focused",
     description:
       "No clutter, no distractions. Just the essential tools you need to track and enjoy your reading life.",
-  },
-];
-
-const team = [
-  {
-    name: "Book Lover",
-    role: "Founder",
-    description: "Passionate reader who wanted a better way to track books.",
   },
 ];
 
@@ -138,3 +142,4 @@ export default function AboutPage() {
     </div>
   );
 }
+

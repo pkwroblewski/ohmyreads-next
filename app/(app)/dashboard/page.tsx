@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import type { Book, UserBook, ReadingStats, Profile } from "@/types/database";
 
 export const metadata: Metadata = {
-  title: "Dashboard | OhMyReads",
+  title: "Dashboard",
 };
 
 // Format book status for display

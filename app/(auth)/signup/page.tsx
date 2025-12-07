@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // Google icon SVG component
 function GoogleIcon({ className }: { className?: string }) {
@@ -82,12 +83,15 @@ export default function SignupPage() {
 
       if (signUpError) {
         setError(signUpError.message);
+        toast.error(signUpError.message || "Failed to create account");
         return;
       }
 
       setSuccess(true);
+      toast.success("Check your email to confirm your account!");
     } catch {
       setError("An unexpected error occurred. Please try again.");
+      toast.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -108,10 +112,12 @@ export default function SignupPage() {
 
       if (oauthError) {
         setError(oauthError.message);
+        toast.error(oauthError.message || "Failed to sign up with Google");
         setIsGoogleLoading(false);
       }
     } catch {
       setError("An unexpected error occurred. Please try again.");
+      toast.error("An unexpected error occurred");
       setIsGoogleLoading(false);
     }
   };

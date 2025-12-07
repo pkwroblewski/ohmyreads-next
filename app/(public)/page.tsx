@@ -9,8 +9,15 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { BookRecommendationRow } from "@/components/books/book-recommendation-row";
+import {
+  getCuratedBooks,
+  getTrendingOnPlatform,
+  getTrendingGlobally,
+} from "@/lib/queries/recommendations";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -64,9 +71,66 @@ const stats = [
   { value: "2,000+", label: "Readers", icon: Users },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
+
+  // Get user if logged in
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Fetch all recommendations in parallel
+  const [curatedBooks, trendingPlatform, trendingGlobal] = await Promise.all([
+    getCuratedBooks(user?.id, 12),
+    getTrendingOnPlatform(12),
+    getTrendingGlobally(12),
+  ]);
+
+  const hasBooks =
+    curatedBooks.length > 0 ||
+    trendingPlatform.length > 0 ||
+    trendingGlobal.length > 0;
+
   return (
     <div className="flex flex-col">
+      {/* Organization JSON-LD */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "OhMyReads",
+            url: siteUrl,
+            logo: `${siteUrl}/logo.png`,
+            sameAs: [],
+            description:
+              "Discover books, write reviews, and connect with fellow readers.",
+          }),
+        }}
+      />
+      
+      {/* WebSite JSON-LD with SearchAction */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "OhMyReads",
+            url: siteUrl,
+            potentialAction: {
+              "@type": "SearchAction",
+              target: {
+                "@type": "EntryPoint",
+                urlTemplate: `${siteUrl}/books?q={search_term_string}`,
+              },
+              "query-input": "required name=search_term_string",
+            },
+          }),
+        }}
+      />
       {/* ========================================
           HERO SECTION
           ======================================== */}
@@ -81,7 +145,7 @@ export default function HomePage() {
           <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-accent/20 rounded-full blur-[120px] animate-pulse delay-1000" />
         </div>
 
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
           <div className="max-w-4xl mx-auto text-center">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-8 border border-primary/20">
@@ -125,6 +189,49 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ========================================
+          BOOK RECOMMENDATIONS SECTION
+          ======================================== */}
+      {hasBooks && (
+        <section className="py-12 lg:py-16">
+          <div className="mx-auto max-w-7xl space-y-12">
+            {/* Curated for You */}
+            {curatedBooks.length > 0 && (
+              <BookRecommendationRow
+                title="Curated for You"
+                subtitle={
+                  user
+                    ? "Based on your reading history"
+                    : "Popular highly-rated books"
+                }
+                books={curatedBooks}
+                viewAllHref="/books"
+              />
+            )}
+
+            {/* Trending on OhMyReads */}
+            {trendingPlatform.length > 0 && (
+              <BookRecommendationRow
+                title="Trending on OhMyReads"
+                subtitle="What readers are adding to their shelves"
+                books={trendingPlatform}
+                viewAllHref="/books?sort=trending"
+              />
+            )}
+
+            {/* Trending Globally */}
+            {trendingGlobal.length > 0 && (
+              <BookRecommendationRow
+                title="Trending Globally"
+                subtitle="Most popular books worldwide"
+                books={trendingGlobal}
+                viewAllHref="/books?sort=popular"
+              />
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ========================================
           FEATURES SECTION
@@ -268,3 +375,4 @@ export default function HomePage() {
     </div>
   );
 }
+

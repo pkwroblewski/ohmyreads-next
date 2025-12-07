@@ -24,7 +24,6 @@ import { BookCard } from "@/components/books/book-card";
 import { RatingDisplay } from "@/components/ui/rating-display";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { truncate } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -181,16 +180,12 @@ export default async function ProfilePage() {
                   <BookCard
                     key={userBook.id}
                     book={{
-                      ...userBook.book,
+                      id: userBook.book.id,
+                      title: userBook.book.title,
+                      author: userBook.book.author,
+                      slug: userBook.book.slug,
+                      cover_url: userBook.book.cover_url,
                       average_rating: null,
-                      ratings_count: 0,
-                      description: null,
-                      isbn: null,
-                      published_date: null,
-                      page_count: null,
-                      genres: [],
-                      google_books_id: null,
-                      created_at: "",
                     }}
                     size="sm"
                     showRating={false}
@@ -201,7 +196,7 @@ export default async function ProfilePage() {
         ) : (
           <div className="text-center py-8">
             <p className="text-muted-foreground mb-4">
-              You haven't added any books yet.
+              You haven&apos;t added any books yet.
             </p>
             <Link href="/books">
               <Button>Browse Books</Button>

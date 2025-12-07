@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // Google icon SVG component
 function GoogleIcon({ className }: { className?: string }) {
@@ -38,7 +39,7 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/dashboard";
@@ -64,6 +65,7 @@ export default function LoginPage() {
 
       if (signInError) {
         setError(signInError.message);
+        toast.error(signInError.message || "Failed to sign in");
         return;
       }
 
@@ -71,6 +73,7 @@ export default function LoginPage() {
       router.refresh();
     } catch {
       setError("An unexpected error occurred. Please try again.");
+      toast.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -91,10 +94,12 @@ export default function LoginPage() {
 
       if (oauthError) {
         setError(oauthError.message);
+        toast.error(oauthError.message || "Failed to sign in with Google");
         setIsGoogleLoading(false);
       }
     } catch {
       setError("An unexpected error occurred. Please try again.");
+      toast.error("An unexpected error occurred");
       setIsGoogleLoading(false);
     }
   };
@@ -234,5 +239,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-md mx-auto px-4 text-center">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

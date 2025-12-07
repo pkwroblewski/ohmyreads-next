@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -16,24 +17,66 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "OhMyReads - Track Your Reading Journey",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com"),
+  title: {
+    default: "OhMyReads - Track Your Reading Journey",
+    template: "%s | OhMyReads",
+  },
   description:
-    "Discover books, write reviews, and connect with fellow readers. Your personal book tracking companion.",
-  keywords: ["books", "reading", "book tracking", "reviews", "library", "book club"],
+    "Discover books, write reviews, and connect with fellow readers. The modern way to track and share your reading life.",
+  keywords: [
+    "book tracking",
+    "reading list",
+    "book reviews",
+    "reading tracker",
+    "goodreads alternative",
+    "book recommendations",
+    "reading journey",
+  ],
   authors: [{ name: "OhMyReads" }],
+  creator: "OhMyReads",
+  publisher: "OhMyReads",
   openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: process.env.NEXT_PUBLIC_SITE_URL,
+    siteName: "OhMyReads",
     title: "OhMyReads - Track Your Reading Journey",
     description:
-      "Discover books, write reviews, and connect with fellow readers. Your personal book tracking companion.",
-    type: "website",
-    siteName: "OhMyReads",
+      "Discover books, write reviews, and connect with fellow readers.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "OhMyReads - Track Your Reading Journey",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "OhMyReads - Track Your Reading Journey",
     description:
       "Discover books, write reviews, and connect with fellow readers.",
+    images: ["/og-image.png"],
   },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon-16x16.png",
+    apple: "/apple-touch-icon.png",
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({
@@ -53,6 +96,15 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           {children}
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              className: "!bg-card !text-card-foreground !border-border",
+              duration: 4000,
+            }}
+            richColors
+            closeButton
+          />
         </ThemeProvider>
       </body>
     </html>
