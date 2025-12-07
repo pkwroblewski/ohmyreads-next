@@ -1,0 +1,193 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import {
+  Menu,
+  X,
+  BookOpen,
+  Library,
+  User,
+  Settings,
+  LogOut,
+  LayoutDashboard,
+  Info,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/use-auth";
+import { cn } from "@/lib/utils";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+
+interface NavbarMobileMenuProps {
+  user: SupabaseUser | null;
+}
+
+const publicLinks = [
+  { href: "/books", label: "Browse Books", icon: BookOpen },
+  { href: "/about", label: "About", icon: Info },
+];
+
+const authLinks = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/my-shelf", label: "My Shelf", icon: Library },
+  { href: "/profile", label: "Profile", icon: User },
+  { href: "/settings", label: "Settings", icon: Settings },
+];
+
+export function NavbarMobileMenu({ user }: NavbarMobileMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const { signOut } = useAuth();
+
+  const displayName = user
+    ? user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email?.split("@")[0] ||
+      "User"
+    : null;
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+
+  const handleSignOut = async () => {
+    setIsOpen(false);
+    await signOut();
+  };
+
+  const closeMenu = () => setIsOpen(false);
+
+  return (
+    <>
+      {/* Hamburger Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "p-2 rounded-lg",
+          "text-muted-foreground hover:text-foreground",
+          "hover:bg-muted transition-colors"
+        )}
+        aria-label={isOpen ? "Close menu" : "Open menu"}
+        aria-expanded={isOpen}
+      >
+        {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+      </button>
+
+      {/* Mobile Menu Overlay */}
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 top-16 bg-background/80 backdrop-blur-sm z-40"
+            onClick={closeMenu}
+          />
+
+          {/* Menu Panel */}
+          <div
+            className={cn(
+              "fixed top-16 left-0 right-0 z-50",
+              "bg-card border-b border-border",
+              "shadow-lg shadow-black/10 dark:shadow-black/30",
+              "animate-in slide-in-from-top-2 duration-200"
+            )}
+          >
+            <div className="max-h-[calc(100vh-4rem)] overflow-y-auto">
+              {/* User Section (if logged in) */}
+              {user && (
+                <div className="px-4 py-4 border-b border-border bg-muted/30">
+                  <div className="flex items-center gap-3">
+                    <Avatar size="md">
+                      {avatarUrl ? (
+                        <AvatarImage src={avatarUrl} alt={displayName || ""} />
+                      ) : (
+                        <AvatarFallback
+                          initials={getInitials(displayName || "U")}
+                        />
+                      )}
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {displayName}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation Links */}
+              <div className="py-2">
+                {publicLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={closeMenu}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3",
+                      "text-sm font-medium text-foreground",
+                      "hover:bg-accent/10 transition-colors"
+                    )}
+                  >
+                    <link.icon className="w-5 h-5 text-muted-foreground" />
+                    {link.label}
+                  </Link>
+                ))}
+
+                {user && (
+                  <>
+                    <div className="my-2 border-t border-border" />
+                    {authLinks.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        onClick={closeMenu}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-3",
+                          "text-sm font-medium text-foreground",
+                          "hover:bg-accent/10 transition-colors"
+                        )}
+                      >
+                        <link.icon className="w-5 h-5 text-muted-foreground" />
+                        {link.label}
+                      </Link>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              {/* Auth Section */}
+              <div className="p-4 border-t border-border">
+                {user ? (
+                  <button
+                    onClick={handleSignOut}
+                    className={cn(
+                      "flex items-center justify-center gap-2 w-full",
+                      "px-4 py-3 rounded-lg",
+                      "text-sm font-medium text-destructive",
+                      "bg-destructive/10 hover:bg-destructive/20",
+                      "transition-colors"
+                    )}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <Link href="/login" onClick={closeMenu}>
+                      <Button variant="outline" className="w-full">
+                        Sign In
+                      </Button>
+                    </Link>
+                    <Link href="/signup" onClick={closeMenu}>
+                      <Button className="w-full">Get Started</Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+

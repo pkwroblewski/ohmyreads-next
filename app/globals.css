@@ -266,6 +266,16 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 10px 40px 0 rgba(139, 69, 19, 0.15);
 }
 
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ============================================
    Animations
    ============================================ */
