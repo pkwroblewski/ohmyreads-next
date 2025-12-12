@@ -424,4 +424,3 @@ export default async function BookPage({ params }: Props) {
     </>
   );
 }
-
