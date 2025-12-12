@@ -8,14 +8,20 @@ import {
   Flame,
   Library,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import { BookListHorizontal } from "@/components/books/book-list-horizontal";
+import { RecommendedBooksRow } from "@/components/books/recommended-books-row";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import {
+  getPersonalizedRecommendations,
+  hasEnoughSignals,
+} from "@/lib/queries/recommendations";
 import type { Book, UserBook, ReadingStats, Profile } from "@/types/database";
 
 export const metadata: Metadata = {
@@ -67,33 +73,45 @@ export default async function DashboardPage() {
   }
 
   // Fetch all data in parallel
-  const [profileResult, statsResult, currentlyReadingResult, recentActivityResult] =
-    await Promise.all([
-      // Profile
-      supabase.from("profiles").select("*").eq("id", user.id).single(),
-      // Reading stats
-      supabase.from("reading_stats").select("*").eq("user_id", user.id).single(),
-      // Currently reading books
-      supabase
-        .from("user_books")
-        .select("*, book:books(*)")
-        .eq("user_id", user.id)
-        .eq("status", "reading")
-        .order("updated_at", { ascending: false })
-        .limit(10),
-      // Recent activity
-      supabase
-        .from("user_books")
-        .select("*, book:books(id, title, slug, cover_url)")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(5),
-    ]);
+  const [
+    profileResult,
+    statsResult,
+    currentlyReadingResult,
+    recentActivityResult,
+    hasSignals,
+  ] = await Promise.all([
+    // Profile
+    supabase.from("profiles").select("*").eq("id", user.id).single(),
+    // Reading stats
+    supabase.from("reading_stats").select("*").eq("user_id", user.id).single(),
+    // Currently reading books
+    supabase
+      .from("user_books")
+      .select("*, book:books(*)")
+      .eq("user_id", user.id)
+      .eq("status", "reading")
+      .order("updated_at", { ascending: false })
+      .limit(10),
+    // Recent activity
+    supabase
+      .from("user_books")
+      .select("*, book:books(id, title, slug, cover_url)")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .limit(5),
+    // Check if user has enough signals for recommendations
+    hasEnoughSignals(user.id),
+  ]);
 
   const profile = profileResult.data as Profile | null;
   const stats = statsResult.data as ReadingStats | null;
   const currentlyReading = (currentlyReadingResult.data || []) as UserBookWithBook[];
   const recentActivity = (recentActivityResult.data || []) as ActivityItem[];
+
+  // Fetch personalized recommendations if user has signals
+  const recommendations = hasSignals
+    ? await getPersonalizedRecommendations(user.id, 8)
+    : [];
 
   // Extract book objects for the horizontal list
   const currentlyReadingBooks = currentlyReading
@@ -156,6 +174,52 @@ export default async function DashboardPage() {
         emptyMessage="You're not reading anything yet. Find your next book!"
         viewAllHref="/my-shelf?status=reading"
       />
+
+      {/* ========================================
+          Personalized Recommendations Section
+          ======================================== */}
+      {recommendations.length > 0 ? (
+        <RecommendedBooksRow
+          books={recommendations}
+          title="Recommended for You"
+          viewAllHref="/books"
+        />
+      ) : !hasSignals ? (
+        <section className="mb-8">
+          <div
+            className={cn(
+              "p-5 rounded-xl",
+              "bg-gradient-to-br from-accent/10 via-primary/5 to-accent/5",
+              "border border-accent/20"
+            )}
+          >
+            <div className="flex items-start gap-4">
+              <div className="p-2 rounded-lg bg-accent/20">
+                <Sparkles className="h-5 w-5 text-accent" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold mb-1">Get personalized recommendations</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Help us understand your taste by setting up your reading preferences.
+                  We&apos;ll recommend books you&apos;ll love.
+                </p>
+                <div className="flex gap-2">
+                  <Link href="/onboarding/taste">
+                    <Button size="sm" variant="default">
+                      Set up my taste profile
+                    </Button>
+                  </Link>
+                  <Link href="/settings">
+                    <Button size="sm" variant="outline">
+                      Go to Settings
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* ========================================
           Recent Activity Section

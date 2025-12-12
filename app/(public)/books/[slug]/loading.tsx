@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
+import { ReviewListSkeleton, BookListSkeleton } from "@/components/skeletons";
 
 export default function BookLoading() {
   return (
@@ -49,35 +49,14 @@ export default function BookLoading() {
 
       {/* Reviews */}
       <div className="mb-12">
-        <Skeleton className="h-7 w-32 mb-4" />
-        <div className="space-y-4">
-          {[1, 2].map((i) => (
-            <Card key={i} className="p-4">
-              <div className="flex gap-3">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <Skeleton className="h-7 w-32 mb-6" />
+        <ReviewListSkeleton count={2} />
       </div>
 
       {/* Related Books */}
       <div>
         <Skeleton className="h-7 w-48 mb-4" />
-        <div className="flex gap-4 overflow-hidden">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex-shrink-0 w-36">
-              <Skeleton className="aspect-[2/3] rounded-lg mb-2" />
-              <Skeleton className="h-4 w-full mb-1" />
-              <Skeleton className="h-3 w-2/3" />
-            </div>
-          ))}
-        </div>
+        <BookListSkeleton count={4} />
       </div>
     </div>
   );

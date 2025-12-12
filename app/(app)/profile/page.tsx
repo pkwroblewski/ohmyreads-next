@@ -53,12 +53,14 @@ export default async function ProfilePage() {
   }
 
   // Fetch data in parallel
-  const [stats, books, reviews, socialLinks] = await Promise.all([
+  const [stats, booksResult, reviews, socialLinks] = await Promise.all([
     getUserStats(profile.id),
-    getUserBooks(profile.id, undefined, 12),
+    getUserBooks(profile.id, { limit: 12 }),
     getUserReviews(profile.id, 5),
     getSocialLinks(profile.id),
   ]);
+
+  const books = booksResult.userBooks;
 
   const displayName = profile.display_name || profile.username;
   const memberSince = format(new Date(profile.created_at), "MMMM yyyy");

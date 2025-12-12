@@ -2,51 +2,55 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createCommentSchema } from "@/lib/validation/comment";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { logger } from "@/lib/utils/log";
 
-export async function createComment({
-  reviewId,
-  content,
-  parentId = null,
-}: {
+export async function createComment(input: {
   reviewId: string;
   content: string;
   parentId?: string | null;
 }) {
   try {
+    // Validate input
+    const validationResult = createCommentSchema.safeParse(input);
+    if (!validationResult.success) {
+      return { error: validationResult.error.issues[0]?.message || "Invalid input" };
+    }
+
+    const data = validationResult.data;
     const supabase = await createClient();
 
+    // Get current user
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
-
     if (authError || !user) {
       return { error: "Not authenticated" };
     }
 
-    // Validate content
-    if (content.length < 1) {
-      return { error: "Comment cannot be empty" };
-    }
-    if (content.length > 1000) {
-      return { error: "Comment must be less than 1000 characters" };
+    // Rate limit
+    const { allowed } = checkRateLimit(`comment:${user.id}`, 10, 60000);
+    if (!allowed) {
+      return { error: "Too many comments. Please wait a moment." };
     }
 
-    // If replying, verify parent exists and limit nesting to 2 levels
-    if (parentId) {
-      const { data: parent } = await supabase
+    // If replying, verify parent exists and check nesting level
+    if (data.parentId) {
+      const { data: parent, error: parentError } = await supabase
         .from("comments")
         .select("id, parent_id")
-        .eq("id", parentId)
+        .eq("id", data.parentId)
         .single();
 
-      if (!parent) {
+      if (parentError || !parent) {
         return { error: "Parent comment not found" };
       }
 
       // Don't allow replies to replies (max 2 levels)
       if (parent.parent_id) {
-        return { error: "Cannot reply to a reply" };
+        return { error: "Cannot reply to a reply. Maximum nesting is 2 levels." };
       }
     }
 
@@ -54,24 +58,24 @@ export async function createComment({
     const { data: comment, error } = await supabase
       .from("comments")
       .insert({
-        review_id: reviewId,
+        review_id: data.reviewId,
         user_id: user.id,
-        content,
-        parent_id: parentId,
+        content: data.content.trim(),
+        parent_id: data.parentId || null,
       })
       .select()
       .single();
 
     if (error) {
-      console.error("Error creating comment:", error);
+      logger.error("Error creating comment", { error, userId: user.id });
       return { error: error.message };
     }
 
-    revalidatePath(`/books/[slug]`, "page");
+    revalidatePath("/books/[slug]", "page");
 
     return { success: true, commentId: comment.id };
   } catch (error) {
-    console.error("Error in createComment:", error);
+    logger.error("Unexpected error in createComment", { error });
     return { error: "An unexpected error occurred" };
   }
 }
@@ -84,38 +88,41 @@ export async function deleteComment(commentId: string) {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
-
     if (authError || !user) {
       return { error: "Not authenticated" };
     }
 
     // Verify ownership
-    const { data: comment } = await supabase
+    const { data: comment, error: fetchError } = await supabase
       .from("comments")
       .select("user_id")
       .eq("id", commentId)
       .single();
 
-    if (!comment || comment.user_id !== user.id) {
+    if (fetchError || !comment) {
+      return { error: "Comment not found" };
+    }
+
+    if (comment.user_id !== user.id) {
       return { error: "Not authorized to delete this comment" };
     }
 
-    // Delete comment (and its replies via cascade if set up in DB)
+    // Delete comment (and its replies via cascade if set up)
     const { error } = await supabase
       .from("comments")
       .delete()
       .eq("id", commentId);
 
     if (error) {
+      logger.error("Error deleting comment", { error, commentId });
       return { error: error.message };
     }
 
-    revalidatePath(`/books/[slug]`, "page");
+    revalidatePath("/books/[slug]", "page");
 
     return { success: true };
   } catch (error) {
-    console.error("Error in deleteComment:", error);
+    logger.error("Unexpected error in deleteComment", { error });
     return { error: "An unexpected error occurred" };
   }
 }
-

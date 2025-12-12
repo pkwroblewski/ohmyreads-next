@@ -4,8 +4,8 @@ import { BookOpen, Github, Twitter } from "lucide-react";
 const footerLinks = {
   product: [
     { href: "/books", label: "Browse Books" },
-    { href: "#", label: "Features" },
-    { href: "#", label: "Pricing" },
+    { href: "/features", label: "Features" },
+    { href: "/pricing", label: "Pricing" },
   ],
   company: [
     { href: "/about", label: "About" },
@@ -13,8 +13,8 @@ const footerLinks = {
     { href: "#", label: "Contact" },
   ],
   legal: [
-    { href: "#", label: "Privacy Policy" },
-    { href: "#", label: "Terms of Service" },
+    { href: "/privacy", label: "Privacy Policy" },
+    { href: "/terms", label: "Terms of Service" },
   ],
 };
 

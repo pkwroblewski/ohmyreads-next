@@ -11,11 +11,16 @@ import {
   getRelatedBooks,
   getUserBookStatus,
 } from "@/lib/queries/books";
+import { hasUserReviewedBook } from "@/lib/queries/reviews";
+import { getSimilarBookRecommendations } from "@/lib/queries/recommendations";
 import { BookListHorizontal } from "@/components/books/book-list-horizontal";
+import { RecommendedBooksRow } from "@/components/books/recommended-books-row";
 import { AddToShelfButton } from "@/components/books/add-to-shelf-button";
 import { ShareButton } from "@/components/books/share-button";
 import { RatingDisplay } from "@/components/ui/rating-display";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReviewForm } from "@/components/reviews/review-form";
+import { ReviewCard } from "@/components/reviews/review-card";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -88,38 +93,94 @@ export default async function BookPage({ params }: Props) {
   } = await supabase.auth.getUser();
 
   // Fetch related data in parallel
-  const [reviews, relatedBooks, userBookStatus] = await Promise.all([
+  const [reviews, relatedBooks, similarRecs, userBookStatus, userReviewCheck] = await Promise.all([
     getBookReviews(book.id),
     getRelatedBooks(book.genres, book.id),
+    getSimilarBookRecommendations(book.id, user?.id || null, 6),
     user ? getUserBookStatus(user.id, book.id) : Promise.resolve(null),
+    user ? hasUserReviewedBook(user.id, book.id) : Promise.resolve({ hasReviewed: false, review: null }),
   ]);
+
+  const { hasReviewed, review: userExistingReview } = userReviewCheck;
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
+
+  // Book JSON-LD Schema
+  const bookJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    name: book.title,
+    author: { "@type": "Person", name: book.author },
+    description: book.description,
+    image: book.cover_url,
+    isbn: book.isbn,
+    numberOfPages: book.page_count,
+    datePublished: book.published_date,
+    genre: book.genres,
+    url: `${baseUrl}/books/${book.slug}`,
+    aggregateRating: book.average_rating
+      ? {
+          "@type": "AggregateRating",
+          ratingValue: book.average_rating,
+          reviewCount: book.ratings_count,
+          bestRating: 5,
+          worstRating: 1,
+        }
+      : undefined,
+    review: reviews.slice(0, 5).map((review) => ({
+      "@type": "Review",
+      author: {
+        "@type": "Person",
+        name: review.profile?.display_name || review.profile?.username || "Anonymous",
+      },
+      datePublished: review.created_at,
+      reviewBody: review.summary || review.content?.substring(0, 500),
+      reviewRating: {
+        "@type": "Rating",
+        ratingValue: review.rating,
+        bestRating: 5,
+        worstRating: 1,
+      },
+    })),
+  };
+
+  // Breadcrumb JSON-LD Schema
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: baseUrl,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Books",
+        item: `${baseUrl}/books`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: book.title,
+        item: `${baseUrl}/books/${book.slug}`,
+      },
+    ],
+  };
 
   return (
     <>
-      {/* JSON-LD for SEO */}
+      {/* JSON-LD for SEO - Book Schema */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Book",
-            name: book.title,
-            author: { "@type": "Person", name: book.author },
-            description: book.description,
-            image: book.cover_url,
-            isbn: book.isbn,
-            numberOfPages: book.page_count,
-            datePublished: book.published_date,
-            genre: book.genres,
-            aggregateRating: book.average_rating
-              ? {
-                  "@type": "AggregateRating",
-                  ratingValue: book.average_rating,
-                  reviewCount: book.ratings_count,
-                }
-              : undefined,
-          }),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(bookJsonLd) }}
+      />
+      {/* JSON-LD for SEO - Breadcrumb Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
       {/* Page Content */}
@@ -279,64 +340,46 @@ export default async function BookPage({ params }: Props) {
             Reviews ({reviews.length})
           </h2>
 
-          {/* Review Form Placeholder */}
-          {user && (
+          {/* Review Form - show if user is logged in and hasn't reviewed yet */}
+          {user && !hasReviewed && (
             <div className="mb-8 p-6 rounded-xl border border-border bg-card">
-              <p className="text-muted-foreground text-center">
-                Review form coming soon...
-              </p>
+              <ReviewForm bookId={book.id} bookTitle={book.title} />
+            </div>
+          )}
+
+          {/* Show user's existing review at top if they have one */}
+          {user && hasReviewed && userExistingReview && (
+            <div className="mb-8">
+              <p className="text-sm text-muted-foreground mb-3">Your review:</p>
+              <ReviewCard
+                review={{
+                  ...userExistingReview,
+                  profile: undefined,
+                }}
+                currentUserId={user.id}
+                isAuthenticated={true}
+              />
             </div>
           )}
 
           {/* Reviews List */}
           {reviews.length > 0 ? (
-            <div className="space-y-6">
-              {reviews.map((review) => (
-                <div
-                  key={review.id}
-                  className="p-6 rounded-xl border border-border bg-card"
-                >
-                  {/* Review Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-medium">
-                        {review.profile?.display_name?.[0] ||
-                          review.profile?.username?.[0] ||
-                          "U"}
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {review.profile?.display_name ||
-                            review.profile?.username ||
-                            "Anonymous"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(review.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                    <RatingDisplay
-                      rating={review.rating}
-                      size="sm"
-                      showCount={false}
-                    />
-                  </div>
-
-                  {/* Spoiler Warning */}
-                  {review.is_spoiler && (
-                    <div className="mb-3 px-3 py-1 rounded bg-destructive/10 text-destructive text-sm inline-block">
-                      Contains spoilers
-                    </div>
-                  )}
-
-                  {/* Review Content */}
-                  <p className="text-muted-foreground whitespace-pre-line">
-                    {review.content}
-                  </p>
-                </div>
-              ))}
+            <div className="space-y-4">
+              {reviews
+                .filter((review) => !user || review.user_id !== user.id)
+                .map((review) => (
+                  <ReviewCard
+                    key={review.id}
+                    review={{
+                      ...review,
+                      profile: review.profile || undefined,
+                    }}
+                    currentUserId={user?.id}
+                    isAuthenticated={!!user}
+                  />
+                ))}
             </div>
-          ) : (
+          ) : !hasReviewed ? (
             <EmptyState
               icon={Star}
               title="No reviews yet"
@@ -350,13 +393,25 @@ export default async function BookPage({ params }: Props) {
                     }
               }
             />
-          )}
+          ) : null}
         </section>
 
         {/* ========================================
-            Related Books Section
+            Personalized Recommendations Section
             ======================================== */}
-        {relatedBooks.length > 0 && (
+        {similarRecs.length > 0 && (
+          <section className="mb-12">
+            <RecommendedBooksRow
+              books={similarRecs}
+              title={user ? "Readers like you also enjoyed" : "Readers also enjoyed"}
+            />
+          </section>
+        )}
+
+        {/* ========================================
+            Related Books Section (fallback if no recs)
+            ======================================== */}
+        {similarRecs.length === 0 && relatedBooks.length > 0 && (
           <section>
             <BookListHorizontal
               title="You might also like"

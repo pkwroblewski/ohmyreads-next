@@ -10,6 +10,7 @@ import {
   Settings,
   LogOut,
   BookOpen,
+  BarChart3,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ interface SidebarProps {
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/my-shelf", label: "My Shelf", icon: Library },
+  { href: "/stats", label: "Reading Stats", icon: BarChart3 },
   { href: "/books", label: "Browse", icon: Search },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/settings", label: "Settings", icon: Settings },

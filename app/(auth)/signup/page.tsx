@@ -322,14 +322,14 @@ export default function SignupPage() {
         <p className="text-xs text-center text-muted-foreground mt-4">
           By signing up, you agree to our{" "}
           <Link
-            href="#"
+            href="/terms"
             className="text-primary hover:underline transition-colors"
           >
             Terms of Service
           </Link>{" "}
           and{" "}
           <Link
-            href="#"
+            href="/privacy"
             className="text-primary hover:underline transition-colors"
           >
             Privacy Policy

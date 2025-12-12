@@ -2,14 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import {
+  updateProfileSchema,
+  updateSocialLinksSchema,
+  type UpdateProfileInput,
+  type SocialLinkInput,
+} from "@/lib/validation/profile";
 
-export async function updateProfile(data: {
-  display_name?: string;
-  username?: string;
-  bio?: string;
-  website?: string;
-  avatar_url?: string;
-}) {
+/**
+ * Update user profile
+ */
+export async function updateProfile(input: UpdateProfileInput) {
   try {
     const supabase = await createClient();
 
@@ -22,20 +25,18 @@ export async function updateProfile(data: {
       return { error: "Not authenticated" };
     }
 
-    // Validate username if provided
-    if (data.username) {
-      // Check format: lowercase, alphanumeric, underscores only
-      if (!/^[a-z0-9_]+$/.test(data.username)) {
-        return {
-          error:
-            "Username can only contain lowercase letters, numbers, and underscores",
-        };
-      }
-      if (data.username.length < 3 || data.username.length > 30) {
-        return { error: "Username must be 3-30 characters" };
-      }
+    // Validate input with Zod
+    const validationResult = updateProfileSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
 
-      // Check if username is taken (by someone else)
+    const data = validationResult.data;
+
+    // Check if username is taken (by someone else)
+    if (data.username) {
       const { data: existing } = await supabase
         .from("profiles")
         .select("id")
@@ -48,27 +49,23 @@ export async function updateProfile(data: {
       }
     }
 
-    // Validate bio length
-    if (data.bio && data.bio.length > 500) {
-      return { error: "Bio must be less than 500 characters" };
-    }
+    // Map camelCase to snake_case for database
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
 
-    // Validate website URL
-    if (data.website && data.website.length > 0) {
-      try {
-        new URL(data.website);
-      } catch {
-        return { error: "Invalid website URL" };
-      }
-    }
+    if (data.displayName !== undefined)
+      updateData.display_name = data.displayName || null;
+    if (data.username !== undefined) updateData.username = data.username;
+    if (data.bio !== undefined) updateData.bio = data.bio || null;
+    if (data.website !== undefined) updateData.website = data.website || null;
+    if (data.avatarUrl !== undefined)
+      updateData.avatar_url = data.avatarUrl || null;
 
     // Update profile
     const { error } = await supabase
       .from("profiles")
-      .update({
-        ...data,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", user.id);
 
     if (error) {
@@ -77,6 +74,7 @@ export async function updateProfile(data: {
     }
 
     revalidatePath("/profile");
+    revalidatePath("/settings");
     if (data.username) {
       revalidatePath(`/users/${data.username}`);
     }
@@ -88,13 +86,10 @@ export async function updateProfile(data: {
   }
 }
 
-export async function updateSocialLinks(
-  links: {
-    platform: string;
-    url: string;
-    display_order: number;
-  }[]
-) {
+/**
+ * Update social links for user profile
+ */
+export async function updateSocialLinks(links: SocialLinkInput[]) {
   try {
     const supabase = await createClient();
 
@@ -107,22 +102,21 @@ export async function updateSocialLinks(
       return { error: "Not authenticated" };
     }
 
-    // Validate URLs
-    for (const link of links) {
-      if (link.url) {
-        try {
-          new URL(link.url);
-        } catch {
-          return { error: `Invalid URL for ${link.platform}` };
-        }
-      }
+    // Validate input with Zod
+    const validationResult = updateSocialLinksSchema.safeParse(links);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
+
+    const validatedLinks = validationResult.data;
 
     // Delete existing links
     await supabase.from("social_links").delete().eq("user_id", user.id);
 
     // Insert new links (filter out empty URLs)
-    const validLinks = links.filter((l) => l.url && l.url.trim());
+    const validLinks = validatedLinks.filter((l) => l.url && l.url.trim());
 
     if (validLinks.length > 0) {
       const { error } = await supabase.from("social_links").insert(
@@ -130,7 +124,7 @@ export async function updateSocialLinks(
           user_id: user.id,
           platform: link.platform,
           url: link.url,
-          display_order: link.display_order,
+          display_order: link.displayOrder,
         }))
       );
 
@@ -141,6 +135,7 @@ export async function updateSocialLinks(
     }
 
     revalidatePath("/profile");
+    revalidatePath("/settings");
 
     return { success: true };
   } catch (error) {
@@ -149,3 +144,66 @@ export async function updateSocialLinks(
   }
 }
 
+/**
+ * Get current user's profile
+ */
+export async function getCurrentUserProfile() {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { profile: null };
+    }
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching profile:", error);
+      return { profile: null };
+    }
+
+    return { profile };
+  } catch (error) {
+    console.error("Error in getCurrentUserProfile:", error);
+    return { profile: null };
+  }
+}
+
+/**
+ * Check if a username is available
+ */
+export async function checkUsernameAvailable(username: string) {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let query = supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", username.toLowerCase())
+      .limit(1);
+
+    // Exclude current user if logged in
+    if (user) {
+      query = query.neq("id", user.id);
+    }
+
+    const { data } = await query;
+
+    return { available: !data || data.length === 0 };
+  } catch (error) {
+    console.error("Error in checkUsernameAvailable:", error);
+    return { available: false };
+  }
+}

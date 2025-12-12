@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { Profile, SocialLink } from "@/types/database";
 
-interface SocialLinkInput {
+interface SocialLinkInputLocal {
   id?: string;
   platform: string;
   url: string;
@@ -35,7 +35,7 @@ export default function EditProfilePage() {
   const [website, setWebsite] = useState("");
 
   // Social links
-  const [socialLinks, setSocialLinks] = useState<SocialLinkInput[]>([]);
+  const [socialLinks, setSocialLinks] = useState<SocialLinkInputLocal[]>([]);
 
   useEffect(() => {
     async function loadProfile() {
@@ -96,7 +96,7 @@ export default function EditProfilePage() {
     try {
       // Update profile
       const profileResult = await updateProfile({
-        display_name: displayName || undefined,
+        displayName: displayName || undefined,
         username: username || undefined,
         bio: bio || undefined,
         website: website || undefined,
@@ -109,8 +109,14 @@ export default function EditProfilePage() {
         return;
       }
 
-      // Update social links
-      const linksResult = await updateSocialLinks(socialLinks);
+      // Update social links - map to expected format
+      const linksResult = await updateSocialLinks(
+        socialLinks.map((link) => ({
+          platform: link.platform,
+          url: link.url,
+          displayOrder: link.display_order,
+        }))
+      );
 
       if (linksResult.error) {
         setError(linksResult.error);

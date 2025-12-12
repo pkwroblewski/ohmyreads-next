@@ -43,7 +43,7 @@ export default function AboutPage() {
       <section className="relative overflow-hidden py-20 sm:py-28">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
         
-        <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary mb-6">
               <BookOpen className="w-8 h-8" />
@@ -61,7 +61,7 @@ export default function AboutPage() {
 
       {/* Story Section */}
       <section className="py-20 sm:py-28 bg-muted/30">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-3xl font-bold font-serif mb-6 text-center">
               Our Story
@@ -91,7 +91,7 @@ export default function AboutPage() {
 
       {/* Values Section */}
       <section className="py-20 sm:py-28">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold font-serif mb-4">
               Our Values
@@ -121,7 +121,7 @@ export default function AboutPage() {
 
       {/* CTA Section */}
       <section className="py-20 sm:py-28 bg-muted/30">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl sm:text-4xl font-bold font-serif mb-4">
               Join Our Community

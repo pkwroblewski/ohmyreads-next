@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getPopularBooks } from "@/lib/queries/books";
+import { getPopularBooks, getAllGenres } from "@/lib/queries/books";
 import { BookBrowser } from "@/components/books/book-browser";
 
 export const metadata: Metadata = {
@@ -8,7 +8,8 @@ export const metadata: Metadata = {
     "Discover your next favorite book. Browse our collection, read reviews, and track your reading journey.",
 };
 
-const genres = [
+// Fallback genres if database returns empty
+const FALLBACK_GENRES = [
   "Fiction",
   "Non-Fiction",
   "Fantasy",
@@ -24,8 +25,14 @@ const genres = [
 ];
 
 export default async function BrowseBooksPage() {
-  // Fetch initial popular books on server
-  const initialBooks = await getPopularBooks(20);
+  // Fetch initial data in parallel
+  const [initialBooks, dbGenres] = await Promise.all([
+    getPopularBooks(20),
+    getAllGenres(),
+  ]);
+
+  // Use DB genres if available, otherwise fall back to defaults
+  const genres = dbGenres.length > 0 ? dbGenres : FALLBACK_GENRES;
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">

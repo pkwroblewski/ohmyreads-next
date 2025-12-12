@@ -7,16 +7,16 @@ import {
   Library,
   Search,
   User,
-  Settings,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/my-shelf", label: "Shelf", icon: Library },
   { href: "/books", label: "Browse", icon: Search },
+  { href: "/stats", label: "Stats", icon: BarChart3 },
   { href: "/profile", label: "Profile", icon: User },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function MobileBottomNav() {

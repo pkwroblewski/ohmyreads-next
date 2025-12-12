@@ -236,7 +236,7 @@ export default async function HomePage() {
       {/* ========================================
           FEATURES SECTION
           ======================================== */}
-      <section className="py-20 lg:py-24">
+      <section className="py-16 lg:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
           <div className="text-center mb-16">
@@ -293,7 +293,7 @@ export default async function HomePage() {
       {/* ========================================
           STATS SECTION
           ======================================== */}
-      <section className="py-20 lg:py-24 bg-muted/50">
+      <section className="py-16 lg:py-20 bg-muted/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-4">
             {stats.map((stat, index) => (
@@ -328,7 +328,7 @@ export default async function HomePage() {
       {/* ========================================
           CTA SECTION
           ======================================== */}
-      <section className="py-20 lg:py-24 relative overflow-hidden">
+      <section className="py-16 lg:py-20 relative overflow-hidden">
         {/* Gradient Background */}
         {/* Light mode: warm gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-accent dark:opacity-0" />

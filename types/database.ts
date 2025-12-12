@@ -6,6 +6,7 @@ export interface Profile {
   bio: string | null;
   avatar_url: string | null;
   website: string | null;
+  is_admin: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -43,12 +44,17 @@ export interface UserBook {
   updated_at: string;
 }
 
-// Review
+// Review (with structured review fields and vibe tags)
 export interface Review {
   id: string;
   user_id: string;
   book_id: string;
   content: string;
+  summary: string | null;
+  liked: string | null;
+  disliked: string | null;
+  takeaway: string | null;
+  vibe_tags: string[];
   rating: number;
   likes_count: number;
   is_spoiler: boolean;
@@ -61,9 +67,10 @@ export interface Comment {
   id: string;
   review_id: string;
   user_id: string;
-  parent_id: string | null;
   content: string;
+  parent_id: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 // Social Link
@@ -86,6 +93,125 @@ export interface ReadingStats {
   updated_at: string;
 }
 
+// Reading Goal
+export interface ReadingGoal {
+  id: string;
+  user_id: string;
+  year: number;
+  target_books: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// User Taste Profile (for personalized recommendations)
+export type PacePreference = "slow" | "medium" | "fast";
+export type LengthPreference = "short" | "medium" | "long";
+
+export interface UserTasteProfile {
+  id: string;
+  user_id: string;
+  preferred_genres: string[];
+  preferred_vibes: string[];
+  preferred_pace: PacePreference | null;
+  preferred_length: LengthPreference | null;
+  seed_book_ids: string[];
+  onboarding_completed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Standard Vibe Tags
+export const VIBE_TAGS = {
+  // Emotional tone
+  emotional: [
+    "heartwarming",
+    "dark",
+    "funny",
+    "emotional",
+    "intense",
+    "hopeful",
+    "melancholic",
+    "inspiring",
+  ],
+  // Pacing/Style
+  style: [
+    "slow-burn",
+    "page-turner",
+    "atmospheric",
+    "immersive",
+    "thought-provoking",
+    "cozy",
+    "adventurous",
+  ],
+  // Character focus
+  character: [
+    "character-driven",
+    "plot-driven",
+    "ensemble-cast",
+    "unreliable-narrator",
+  ],
+  // Reading experience
+  experience: [
+    "quick-read",
+    "dense",
+    "literary",
+    "accessible",
+    "challenging",
+  ],
+} as const;
+
+// Flat list of all vibe tags
+export const ALL_VIBE_TAGS = [
+  ...VIBE_TAGS.emotional,
+  ...VIBE_TAGS.style,
+  ...VIBE_TAGS.character,
+  ...VIBE_TAGS.experience,
+] as const;
+
+export type VibeTag = (typeof ALL_VIBE_TAGS)[number];
+
+// Book Submission (for user-submitted books with moderation)
+export type BookSubmissionStatus = "pending" | "approved" | "rejected";
+
+export interface BookSubmission {
+  id: string;
+  submitted_by: string;
+  title: string;
+  author: string;
+  isbn: string | null;
+  slug: string;
+  description: string | null;
+  cover_url: string | null;
+  genres: string[];
+  published_date: string | null;
+  page_count: number | null;
+  status: BookSubmissionStatus;
+  moderated_by: string | null;
+  moderated_at: string | null;
+  rejection_reason: string | null;
+  book_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Book Submission with Submitter profile
+export interface BookSubmissionWithSubmitter extends BookSubmission {
+  submitter?: {
+    id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+}
+
+// Review Like
+export interface ReviewLike {
+  id: string;
+  review_id: string;
+  user_id: string;
+  created_at: string;
+}
+
 // ============================================
 // Helper Types (with relations)
 // ============================================
@@ -102,7 +228,12 @@ export interface ReviewWithUser extends Review {
 
 // Comment with user profile
 export interface CommentWithUser extends Comment {
-  profile: Profile;
+  user?: {
+    id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
 }
 
 // Review with user and book

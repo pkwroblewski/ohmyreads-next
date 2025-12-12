@@ -1,181 +1,261 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Profile, UserBook, Review, SocialLink } from "@/types/database";
+import type { Profile, ReviewWithUser, UserBook, UserBookWithBook } from "@/types/database";
 
+/**
+ * Get profile by username
+ */
 export async function getProfileByUsername(
   username: string
 ): Promise<Profile | null> {
-  try {
-    const supabase = await createClient();
+  const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("username", username)
-      .single();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("username", username)
+    .single();
 
-    if (error) {
-      console.error("Error fetching profile:", error);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Error in getProfileByUsername:", error);
+  if (error) {
+    console.error("Error fetching profile:", error);
     return null;
   }
+
+  return data;
 }
 
-export async function getUserStats(userId: string) {
-  try {
-    const supabase = await createClient();
+/**
+ * Get profile by user ID
+ */
+export async function getProfileById(userId: string): Promise<Profile | null> {
+  const supabase = await createClient();
 
-    // Get counts in parallel
-    const [booksResult, reviewsResult] = await Promise.all([
-      supabase
-        .from("user_books")
-        .select("status")
-        .eq("user_id", userId),
-      supabase
-        .from("reviews")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId),
-    ]);
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
 
-    // Count books by status
-    const books = booksResult.data || [];
-    const booksRead = books.filter((b) => b.status === "read").length;
-    const booksReading = books.filter((b) => b.status === "reading").length;
-    const booksWantToRead = books.filter(
-      (b) => b.status === "want_to_read"
-    ).length;
-
-    return {
-      booksRead,
-      booksReading,
-      booksWantToRead,
-      totalBooks: books.length,
-      reviewsCount: reviewsResult.count || 0,
-    };
-  } catch (error) {
-    console.error("Error in getUserStats:", error);
-    return {
-      booksRead: 0,
-      booksReading: 0,
-      booksWantToRead: 0,
-      totalBooks: 0,
-      reviewsCount: 0,
-    };
+  if (error) {
+    console.error("Error fetching profile:", error);
+    return null;
   }
+
+  return data;
 }
 
-interface UserBookWithBook extends UserBook {
-  book: {
-    id: string;
-    title: string;
-    author: string;
-    slug: string;
-    cover_url: string | null;
-  } | null;
+/**
+ * Get user statistics
+ */
+export async function getUserStats(userId: string) {
+  const supabase = await createClient();
+
+  // Fetch counts in parallel
+  const [booksResult, reviewsResult] = await Promise.all([
+    supabase.from("user_books").select("status").eq("user_id", userId),
+    supabase
+      .from("reviews")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+  ]);
+
+  const books = booksResult.data || [];
+
+  return {
+    booksRead: books.filter((b) => b.status === "read").length,
+    booksReading: books.filter((b) => b.status === "reading").length,
+    booksWantToRead: books.filter((b) => b.status === "want_to_read").length,
+    totalBooks: books.length,
+    reviewsCount: reviewsResult.count || 0,
+  };
 }
 
+/**
+ * Get user's books with book details
+ */
 export async function getUserBooks(
   userId: string,
-  status?: string,
-  limit = 20
-): Promise<UserBookWithBook[]> {
-  try {
-    const supabase = await createClient();
+  options: {
+    status?: "reading" | "read" | "want_to_read";
+    limit?: number;
+    offset?: number;
+  } = {}
+): Promise<{ userBooks: UserBookWithBook[]; total: number }> {
+  const { status, limit = 20, offset = 0 } = options;
 
-    let query = supabase
-      .from("user_books")
-      .select(
-        `
-        *,
-        book:books(id, title, author, slug, cover_url)
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("user_books")
+    .select(
       `
-      )
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(limit);
+      *,
+      book:books(*)
+    `,
+      { count: "exact" }
+    )
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
 
-    if (status) {
-      query = query.eq("status", status);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Error fetching user books:", error);
-      return [];
-    }
-
-    return (data as UserBookWithBook[]) || [];
-  } catch (error) {
-    console.error("Error in getUserBooks:", error);
-    return [];
+  if (status) {
+    query = query.eq("status", status);
   }
+
+  query = query.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("Error fetching user books:", error);
+    return { userBooks: [], total: 0 };
+  }
+
+  return { userBooks: (data || []) as UserBookWithBook[], total: count || 0 };
 }
 
-interface ReviewWithBook extends Review {
-  book: {
+// Type for review with book info
+type ReviewWithBook = ReviewWithUser & {
+  book?: {
     id: string;
     title: string;
     slug: string;
     cover_url: string | null;
     author: string;
-  } | null;
+  };
+};
+
+/**
+ * Get user's reviews with pagination
+ */
+export async function getUserReviewsPaginated(
+  userId: string,
+  options: {
+    page?: number;
+    limit?: number;
+    minRating?: number;
+  } = {}
+): Promise<{ reviews: ReviewWithBook[]; total: number }> {
+  const { page = 1, limit = 10, minRating } = options;
+  const offset = (page - 1) * limit;
+
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("reviews")
+    .select(
+      `
+      id,
+      user_id,
+      book_id,
+      content,
+      summary,
+      liked,
+      disliked,
+      takeaway,
+      rating,
+      likes_count,
+      is_spoiler,
+      created_at,
+      updated_at,
+      book:books(id, title, slug, cover_url, author)
+    `,
+      { count: "exact" }
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (minRating) {
+    query = query.gte("rating", minRating);
+  }
+
+  query = query.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("Error fetching user reviews:", error);
+    return { reviews: [], total: 0 };
+  }
+
+  return { reviews: (data as unknown as ReviewWithBook[]) || [], total: count || 0 };
 }
 
+/**
+ * Get user's reviews (simple, for profile page)
+ */
 export async function getUserReviews(
   userId: string,
-  limit = 10
+  limit = 5
 ): Promise<ReviewWithBook[]> {
-  try {
-    const supabase = await createClient();
+  const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from("reviews")
-      .select(
-        `
-        *,
-        book:books(id, title, slug, cover_url, author)
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(
       `
-      )
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+      id,
+      user_id,
+      book_id,
+      content,
+      summary,
+      liked,
+      disliked,
+      takeaway,
+      rating,
+      likes_count,
+      is_spoiler,
+      created_at,
+      updated_at,
+      book:books(id, title, slug, cover_url, author)
+    `
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
 
-    if (error) {
-      console.error("Error fetching user reviews:", error);
-      return [];
-    }
-
-    return (data as ReviewWithBook[]) || [];
-  } catch (error) {
-    console.error("Error in getUserReviews:", error);
+  if (error) {
+    console.error("Error fetching user reviews:", error);
     return [];
   }
+
+  return (data as unknown as ReviewWithBook[]) || [];
 }
 
-export async function getSocialLinks(userId: string): Promise<SocialLink[]> {
-  try {
-    const supabase = await createClient();
+/**
+ * Get user's social links
+ */
+export async function getSocialLinks(userId: string) {
+  const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from("social_links")
-      .select("*")
-      .eq("user_id", userId)
-      .order("display_order", { ascending: true });
+  const { data, error } = await supabase
+    .from("social_links")
+    .select("*")
+    .eq("user_id", userId)
+    .order("display_order", { ascending: true });
 
-    if (error) {
-      console.error("Error fetching social links:", error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error("Error in getSocialLinks:", error);
+  if (error) {
+    console.error("Error fetching social links:", error);
     return [];
   }
+
+  return data || [];
 }
 
+/**
+ * Check if a user is admin
+ */
+export async function isUserAdmin(userId: string): Promise<boolean> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    console.error("Error checking admin status:", error);
+    return false;
+  }
+
+  return data?.is_admin || false;
+}
