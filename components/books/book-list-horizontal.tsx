@@ -45,7 +45,7 @@ export function BookListHorizontal({
             "flex gap-4 overflow-x-auto pb-4",
             "snap-x snap-mandatory",
             "scrollbar-hide",
-            "-mx-4 px-4" // Extend to edges with padding
+            "-mx-6 px-6 sm:-mx-10 sm:px-10 lg:-mx-16 lg:px-16" // Extend to edges with padding
           )}
         >
           {books.map((book) => (

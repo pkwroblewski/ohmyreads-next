@@ -24,7 +24,7 @@ export function BookRecommendationRow({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-end justify-between px-4 sm:px-6 lg:px-8">
+      <div className="flex items-end justify-between px-6 sm:px-10 lg:px-16">
         <div>
           <h2 className="text-2xl font-bold font-serif">{title}</h2>
           {subtitle && (
@@ -51,7 +51,7 @@ export function BookRecommendationRow({
         <div
           className={cn(
             "flex gap-4 overflow-x-auto scroll-smooth",
-            "px-4 sm:px-6 lg:px-8",
+            "px-6 sm:px-10 lg:px-16",
             "pb-4", // Space for shadow
             "snap-x snap-mandatory",
             "scrollbar-hide"

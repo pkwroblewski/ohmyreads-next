@@ -44,7 +44,7 @@ export function RecommendedBooksRow({
       </div>
 
       {/* Horizontal Scroll Container */}
-      <div className="relative -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
+      <div className="relative -mx-6 px-6 sm:-mx-10 sm:px-10 lg:-mx-16 lg:px-16">
         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
           {books.map((book) => (
             <RecommendedBookCard key={book.id} book={book} />
