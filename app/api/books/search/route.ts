@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
 
     // Parse query parameters
-    const q = searchParams.get("q") || "";
+    const q = (searchParams.get("q") || "").trim();
     const genre = searchParams.get("genre");
     const sort = searchParams.get("sort") || "popular";
     const page = parseInt(searchParams.get("page") || "1");
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     let query = supabase.from("books").select("*", { count: "exact" });
 
     // Apply search filter
-    if (q.trim()) {
+    if (q) {
       query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`);
     }
 

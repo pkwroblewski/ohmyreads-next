@@ -12,9 +12,15 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // If env vars are missing, allow the request through (will fail gracefully in the app)
+  // If env vars are missing, fail closed in production, allow through in dev
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error("Missing Supabase environment variables in middleware");
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Service unavailable" },
+        { status: 503 }
+      );
+    }
     return NextResponse.next({ request });
   }
 
