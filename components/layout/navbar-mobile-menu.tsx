@@ -171,14 +171,16 @@ export function NavbarMobileMenu({ user }: NavbarMobileMenuProps) {
                     Sign Out
                   </button>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    <Link href="/login" onClick={closeMenu}>
-                      <Button variant="outline" className="w-full">
-                        Sign In
-                      </Button>
-                    </Link>
+                  <div className="flex flex-col gap-3">
                     <Link href="/signup" onClick={closeMenu}>
                       <Button className="w-full">Get Started</Button>
+                    </Link>
+                    <Link
+                      href="/login"
+                      onClick={closeMenu}
+                      className="text-sm font-medium text-center text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Already have an account? Sign in
                     </Link>
                   </div>
                 )}

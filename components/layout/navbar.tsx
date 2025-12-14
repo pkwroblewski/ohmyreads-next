@@ -74,10 +74,11 @@ export async function Navbar() {
               <NavbarUserMenu user={user} />
             ) : (
               <>
-                <Link href="/login">
-                  <Button variant="ghost" size="sm">
-                    Sign In
-                  </Button>
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Sign in
                 </Link>
                 <Link href="/signup">
                   <Button size="sm">Get Started</Button>
