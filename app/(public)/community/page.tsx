@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getInitialCommunityFeed, getCommunitySidebar } from "@/lib/queries/community";
 import { getHomeReadingActivity } from "@/lib/queries/home";
 import { GlobalActivityFeed } from "@/components/community/global-activity-feed";
 import { MyShelfPanel } from "@/components/community/my-shelf-panel";
 import { CommunitySidebar } from "@/components/community/community-sidebar";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Community | OhMyReads",
@@ -47,12 +50,22 @@ export default async function CommunityPage() {
       {/* Header */}
       <div className="border-b border-border bg-card/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-2xl sm:text-3xl font-bold font-serif">
-            Community Feed
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            See what readers are discovering and sharing
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold font-serif">
+                Community Feed
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                See what readers are discovering and sharing
+              </p>
+            </div>
+            <Link href="/community/map">
+              <Button variant="outline" className="gap-2">
+                <MapPin className="w-4 h-4" />
+                Reader Map
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 

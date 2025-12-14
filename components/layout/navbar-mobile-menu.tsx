@@ -13,6 +13,7 @@ import {
   LogOut,
   LayoutDashboard,
   Info,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
@@ -27,6 +28,7 @@ interface NavbarMobileMenuProps {
 const publicLinks = [
   { href: "/books", label: "Browse Books", icon: BookOpen },
   { href: "/community", label: "Community", icon: Users },
+  { href: "/community/map", label: "Reader Map", icon: MapPin },
   { href: "/about", label: "About", icon: Info },
 ];
 
