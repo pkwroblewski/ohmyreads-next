@@ -12,6 +12,7 @@ const ALLOWED_REDIRECTS = [
   "/books",
   "/submit-book",
   "/my-submissions",
+  "/admin",
 ];
 
 function isValidRedirect(path: string): boolean {

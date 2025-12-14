@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   BookOpen,
   Bookmark,
@@ -35,6 +36,8 @@ export function AddToShelfButton({
   bookId,
   currentStatus,
 }: AddToShelfButtonProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<ShelfStatus | null>(currentStatus ?? null);
@@ -64,6 +67,11 @@ export function AddToShelfButton({
       const result = await addToShelf(bookId, newStatus);
 
       if (result.error) {
+        // Redirect to login if not authenticated
+        if (result.error === "Not authenticated") {
+          router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+          return;
+        }
         toast.error(result.error);
         return;
       }
