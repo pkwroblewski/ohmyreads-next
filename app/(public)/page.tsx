@@ -194,8 +194,8 @@ export default async function HomePage() {
           BOOK RECOMMENDATIONS SECTION
           ======================================== */}
       {hasBooks && (
-        <section className="py-12 lg:py-16">
-          <div className="mx-auto max-w-7xl space-y-12">
+        <section className="py-16 lg:py-20">
+          <div className="mx-auto max-w-7xl space-y-14 lg:space-y-16">
             {/* Curated for You */}
             {curatedBooks.length > 0 && (
               <BookRecommendationRow
