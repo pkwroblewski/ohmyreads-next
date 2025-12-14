@@ -251,3 +251,38 @@ export interface CommentWithReplies extends CommentWithUser {
   replies?: CommentWithReplies[];
 }
 
+// Activity Feed Item (for community page)
+export type ActivityType = "review" | "started_reading";
+
+export interface ActivityFeedItem {
+  id: string;
+  type: ActivityType;
+  user_id: string;
+  book_id: string;
+  review_id: string | null;
+  created_at: string;
+}
+
+// Activity Feed Item with relations (for display)
+export interface ActivityFeedItemWithRelations extends ActivityFeedItem {
+  user: {
+    id: string;
+    username: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+  book: {
+    id: string;
+    title: string;
+    author: string;
+    slug: string;
+    cover_url: string | null;
+  };
+  review?: {
+    id: string;
+    rating: number;
+    content: string | null;
+    likes_count: number;
+  } | null;
+}
+

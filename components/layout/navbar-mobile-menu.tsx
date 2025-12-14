@@ -8,6 +8,7 @@ import {
   BookOpen,
   Library,
   User,
+  Users,
   Settings,
   LogOut,
   LayoutDashboard,
@@ -25,6 +26,7 @@ interface NavbarMobileMenuProps {
 
 const publicLinks = [
   { href: "/books", label: "Browse Books", icon: BookOpen },
+  { href: "/community", label: "Community", icon: Users },
   { href: "/about", label: "About", icon: Info },
 ];
 

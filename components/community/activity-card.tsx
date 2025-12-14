@@ -1,0 +1,242 @@
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { formatDistanceToNow } from "date-fns";
+import { BookOpen, Heart, MessageCircle, Share2, Star, MoreHorizontal } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage, getInitials } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import type { ActivityFeedItemWithRelations } from "@/types/database";
+
+interface ActivityCardProps {
+  item: ActivityFeedItemWithRelations;
+}
+
+const BLUR_DATA_URL =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg==";
+
+export function ActivityCard({ item }: ActivityCardProps) {
+  const displayName = item.user.display_name || item.user.username || "Reader";
+  const timeAgo = formatDistanceToNow(new Date(item.created_at), { addSuffix: true });
+
+  if (item.type === "started_reading") {
+    return <StartedReadingCard item={item} displayName={displayName} timeAgo={timeAgo} />;
+  }
+
+  return <ReviewCard item={item} displayName={displayName} timeAgo={timeAgo} />;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Started Reading Card
+// ─────────────────────────────────────────────────────────────────────────
+function StartedReadingCard({
+  item,
+  displayName,
+  timeAgo,
+}: {
+  item: ActivityFeedItemWithRelations;
+  displayName: string;
+  timeAgo: string;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4">
+        {/* Header */}
+        <div className="flex items-start gap-3">
+          <Link href={`/users/${item.user.username || item.user.id}`}>
+            <Avatar size="md">
+              {item.user.avatar_url ? (
+                <AvatarImage src={item.user.avatar_url} alt={displayName} />
+              ) : (
+                <AvatarFallback initials={getInitials(displayName)} />
+              )}
+            </Avatar>
+          </Link>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link
+                href={`/users/${item.user.username || item.user.id}`}
+                className="font-medium hover:text-primary transition-colors"
+              >
+                {displayName}
+              </Link>
+              <span className="text-muted-foreground">started reading</span>
+            </div>
+            <p className="text-xs text-muted-foreground">{timeAgo}</p>
+          </div>
+
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Book Card */}
+        <Link
+          href={`/books/${item.book.slug}`}
+          className="mt-3 flex gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
+        >
+          {/* Cover */}
+          <div className="flex-shrink-0 w-12 h-[72px] rounded overflow-hidden bg-muted">
+            {item.book.cover_url ? (
+              <Image
+                src={item.book.cover_url}
+                alt={item.book.title}
+                width={48}
+                height={72}
+                className="object-cover w-full h-full"
+                placeholder="blur"
+                blurDataURL={BLUR_DATA_URL}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-muted-foreground" />
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
+              {item.book.title}
+            </h4>
+            <p className="text-xs text-muted-foreground truncate">{item.book.author}</p>
+          </div>
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Review Card
+// ─────────────────────────────────────────────────────────────────────────
+function ReviewCard({
+  item,
+  displayName,
+  timeAgo,
+}: {
+  item: ActivityFeedItemWithRelations;
+  displayName: string;
+  timeAgo: string;
+}) {
+  const review = item.review;
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4">
+        {/* Header */}
+        <div className="flex items-start gap-3">
+          <Link href={`/users/${item.user.username || item.user.id}`}>
+            <Avatar size="md">
+              {item.user.avatar_url ? (
+                <AvatarImage src={item.user.avatar_url} alt={displayName} />
+              ) : (
+                <AvatarFallback initials={getInitials(displayName)} />
+              )}
+            </Avatar>
+          </Link>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link
+                href={`/users/${item.user.username || item.user.id}`}
+                className="font-medium hover:text-primary transition-colors"
+              >
+                {displayName}
+              </Link>
+              <span className="text-muted-foreground">reviewed</span>
+              <Link
+                href={`/books/${item.book.slug}`}
+                className="font-medium hover:text-primary transition-colors truncate max-w-[200px]"
+              >
+                {item.book.title}
+              </Link>
+            </div>
+            <p className="text-xs text-muted-foreground">{timeAgo}</p>
+          </div>
+
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Review Content */}
+        <div className="mt-3 flex gap-3">
+          {/* Cover */}
+          <Link href={`/books/${item.book.slug}`} className="flex-shrink-0">
+            <div className="w-16 h-24 rounded overflow-hidden bg-muted">
+              {item.book.cover_url ? (
+                <Image
+                  src={item.book.cover_url}
+                  alt={item.book.title}
+                  width={64}
+                  height={96}
+                  className="object-cover w-full h-full"
+                  placeholder="blur"
+                  blurDataURL={BLUR_DATA_URL}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+          </Link>
+
+          {/* Review Text */}
+          <div className="flex-1 min-w-0">
+            {/* Rating */}
+            {review && (
+              <div className="flex items-center gap-0.5 mb-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={cn(
+                      "w-4 h-4",
+                      star <= review.rating
+                        ? "fill-accent text-accent"
+                        : "text-muted-foreground"
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Content */}
+            {review?.content && (
+              <p className="text-sm line-clamp-3">{review.content}</p>
+            )}
+
+            {/* Read more link */}
+            <Link
+              href={`/books/${item.book.slug}#reviews`}
+              className="text-sm text-primary hover:underline mt-1 inline-block"
+            >
+              Read Full Review
+            </Link>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-4 flex items-center gap-4 text-muted-foreground">
+          <button className="flex items-center gap-1.5 text-sm hover:text-primary transition-colors">
+            <Heart className="w-4 h-4" />
+            <span>Like{review?.likes_count ? ` (${review.likes_count})` : ""}</span>
+          </button>
+          <button className="flex items-center gap-1.5 text-sm hover:text-primary transition-colors">
+            <MessageCircle className="w-4 h-4" />
+            <span>Comment</span>
+          </button>
+          <button className="flex items-center gap-1.5 text-sm hover:text-primary transition-colors">
+            <Share2 className="w-4 h-4" />
+            <span>Share</span>
+          </button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
