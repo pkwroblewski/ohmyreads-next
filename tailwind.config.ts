@@ -77,7 +77,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        serif: ["var(--font-playfair)", "Georgia", "Times New Roman", "serif"],
+        serif: ["var(--font-merriweather)", "Georgia", "Times New Roman", "serif"],
       },
       boxShadow: {
         warm: "0 4px 14px 0 rgba(139, 69, 19, 0.1)",

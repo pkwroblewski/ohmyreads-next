@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAllGenres } from "@/lib/queries/books";
 import { getTasteProfile } from "@/lib/actions/taste";
+import { getUserLocation } from "@/lib/queries/geo";
 import { TasteProfileSection } from "@/components/settings/taste-profile-section";
+import { LocationSection } from "@/components/settings/location-section";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Sparkles } from "lucide-react";
+import { Settings, Sparkles, MapPin } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Settings | OhMyReads",
@@ -45,10 +47,11 @@ export default async function SettingsPage() {
     redirect("/login?redirect=/settings");
   }
 
-  // Fetch genres and taste profile in parallel
-  const [genres, { profile: tasteProfile }] = await Promise.all([
+  // Fetch genres, taste profile, and location in parallel
+  const [genres, { profile: tasteProfile }, userLocation] = await Promise.all([
     getAllGenres(),
     getTasteProfile(),
+    getUserLocation(user.id),
   ]);
 
   const availableGenres = genres.length > 0 ? genres : FALLBACK_GENRES;
@@ -85,6 +88,23 @@ export default async function SettingsPage() {
             initialProfile={tasteProfile}
             availableGenres={availableGenres}
           />
+        </CardContent>
+      </Card>
+
+      {/* Location Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-primary" />
+            <CardTitle>Location</CardTitle>
+          </div>
+          <CardDescription>
+            Share your approximate location to discover nearby readers and book-friendly places.
+            Your exact coordinates are never stored or shared.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LocationSection initialLocation={userLocation} />
         </CardContent>
       </Card>
 

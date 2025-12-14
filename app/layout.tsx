@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter, Merriweather } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -10,9 +10,10 @@ const inter = Inter({
   display: "swap",
 });
 
-const playfair = Playfair_Display({
+const merriweather = Merriweather({
   subsets: ["latin"],
-  variable: "--font-playfair",
+  weight: ["400", "700", "900"],
+  variable: "--font-merriweather",
   display: "swap",
 });
 
@@ -87,7 +88,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${playfair.variable} font-sans antialiased min-h-screen`}
+        className={`${inter.variable} ${merriweather.variable} font-sans antialiased min-h-screen`}
       >
         <ThemeProvider
           attribute="class"

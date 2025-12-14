@@ -111,9 +111,9 @@ export default function FeaturesPage() {
         {features.map((feature) => (
           <div
             key={feature.title}
-            className="p-6 rounded-xl border bg-card hover:shadow-lg transition-shadow"
+            className="p-6 rounded-xl border bg-card shadow-sm hover:shadow-md transition-shadow"
           >
-            <feature.icon className="h-10 w-10 text-primary mb-4" />
+            <feature.icon className="h-10 w-10 text-primary mb-4" strokeWidth={1.75} />
             <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
             <p className="text-muted-foreground">{feature.description}</p>
           </div>

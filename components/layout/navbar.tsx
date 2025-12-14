@@ -45,7 +45,7 @@ export async function Navbar() {
                 href={link.href}
                 className={cn(
                   "px-4 py-2 text-sm font-medium rounded-lg",
-                  "text-muted-foreground hover:text-foreground",
+                  "text-muted-foreground hover:text-primary",
                   "hover:bg-accent/10 transition-colors"
                 )}
               >
@@ -59,7 +59,7 @@ export async function Navbar() {
                   href={link.href}
                   className={cn(
                     "px-4 py-2 text-sm font-medium rounded-lg",
-                    "text-muted-foreground hover:text-foreground",
+                    "text-muted-foreground hover:text-primary",
                     "hover:bg-accent/10 transition-colors"
                   )}
                 >

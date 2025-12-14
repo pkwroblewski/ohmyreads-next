@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { isValidGeohash } from "@/lib/utils/geohash";
+import { getNearbyReaders } from "@/lib/queries/geo";
+
+/**
+ * GET /api/geo/readers?geohash=u33d
+ * 
+ * Get readers who have opted in to location sharing near a geohash.
+ * Returns approximate locations only (no precise coordinates).
+ */
+export async function GET(request: NextRequest) {
+  // Rate limit by IP (60 requests per minute)
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const { allowed } = checkRateLimit(`geo-readers:${ip}`, 60, 60000);
+  
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
+  const searchParams = request.nextUrl.searchParams;
+  const geohash = searchParams.get("geohash")?.toLowerCase();
+  const limitParam = searchParams.get("limit");
+  const limit = limitParam ? Math.min(parseInt(limitParam, 10), 100) : 50;
+
+  // Validate geohash
+  if (!geohash || geohash.length < 2 || !isValidGeohash(geohash)) {
+    return NextResponse.json(
+      { error: "Valid geohash of at least 2 characters required" },
+      { status: 400 }
+    );
+  }
+
+  // Use only first 4 chars for privacy (covers ~20km area)
+  const searchPrefix = geohash.slice(0, Math.min(geohash.length, 4));
+
+  try {
+    const readers = await getNearbyReaders(searchPrefix, limit);
+
+    // Don't expose exact geohashes - only show city-level label
+    const sanitizedReaders = readers.map((reader) => ({
+      id: reader.id,
+      username: reader.username,
+      displayName: reader.display_name,
+      avatarUrl: reader.avatar_url,
+      locationLabel: reader.location_label,
+      // Return only prefix of geohash (for clustering, not precise location)
+      geohashPrefix: reader.location_geohash?.slice(0, 4) || null,
+    }));
+
+    return NextResponse.json(
+      { readers: sanitizedReaders },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Error fetching nearby readers:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch readers" },
+      { status: 500 }
+    );
+  }
+}
+

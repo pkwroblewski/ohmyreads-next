@@ -46,26 +46,27 @@ export const metadata: Metadata = {
 const features = [
   {
     icon: BookOpen,
-    title: "Track Your Books",
+    title: "Never Forget a Book",
     description:
-      "Organize with custom shelves: Want to Read, Currently Reading, and Read",
+      "Log your reads, organize your shelves, and build a library of everything you've experienced.",
   },
   {
     icon: PenLine,
-    title: "Write Reviews",
+    title: "Capture Your Thoughts",
     description:
-      "Share your thoughts and help others discover great books",
+      "Write meaningful reviews that help you remember how each book made you feel.",
   },
   {
     icon: BarChart3,
-    title: "Reading Stats",
+    title: "Watch Your Progress",
     description:
-      "Track your progress with beautiful stats and reading streaks",
+      "See your reading stats grow over time with beautiful visual progress tracking.",
   },
   {
     icon: Users,
-    title: "Connect with Readers",
-    description: "Follow friends and see what they're reading",
+    title: "Discover Next Favorites",
+    description:
+      "Get community-powered recommendations based on what you actually enjoy reading.",
   },
 ];
 
@@ -157,10 +158,10 @@ export default async function HomePage() {
           {/* Section Header */}
           <div className="text-center mb-8">
             <h2 className="text-xl sm:text-2xl font-bold font-serif mb-2">
-              Everything you need to track your reading
+              Track Your Reading Life
             </h2>
             <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-              Simple, powerful tools to organize your books and connect with readers.
+              Never forget a book again. Log your reads, organize your shelves, and see your reading stats grow over time.
             </p>
           </div>
 
@@ -172,7 +173,8 @@ export default async function HomePage() {
                 className={cn(
                   "group relative overflow-hidden",
                   "transition-all duration-300",
-                  "bg-card/80 backdrop-blur-sm hover:shadow-md",
+                  "bg-card/80 backdrop-blur-sm",
+                  "shadow-sm hover:shadow-md",
                   "dark:bg-card/50",
                   "dark:hover:border-primary/30"
                 )}
@@ -186,7 +188,7 @@ export default async function HomePage() {
                       "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
                     )}
                   >
-                    <feature.icon className="w-4 h-4" />
+                    <feature.icon className="w-5 h-5" strokeWidth={1.75} />
                   </div>
                   
                   {/* Content */}
