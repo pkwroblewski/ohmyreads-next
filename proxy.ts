@@ -7,7 +7,7 @@ const protectedRoutes = ["/dashboard", "/my-shelf", "/profile", "/settings", "/s
 // Routes only accessible to non-authenticated users
 const authRoutes = ["/login", "/signup"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Check if Supabase env vars are configured
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
