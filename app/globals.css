@@ -37,37 +37,37 @@
 }
 
 /* ============================================
-   DARK MODE - Modern Premium Theme
-   Inspired by Linear, Vercel, and modern apps
+   DARK MODE - Olive + Copper Theme
+   Warm bookish feel with olive background
    ============================================ */
 .dark {
-  --background: 240 10% 4%;
-  --foreground: 0 0% 98%;
+  --background: 132 14% 7%;
+  --foreground: 42 28% 88%;
   
-  --card: 240 6% 8%;
-  --card-foreground: 0 0% 98%;
+  --card: 129 14% 10%;
+  --card-foreground: 42 28% 88%;
   
-  --popover: 240 6% 8%;
-  --popover-foreground: 0 0% 98%;
+  --popover: 128 13% 12%;
+  --popover-foreground: 42 28% 88%;
   
-  --primary: 262 83% 66%;
-  --primary-foreground: 0 0% 100%;
+  --primary: 24 53% 54%;
+  --primary-foreground: 26 37% 7%;
   
-  --secondary: 240 6% 15%;
-  --secondary-foreground: 0 0% 98%;
+  --secondary: 137 17% 16%;
+  --secondary-foreground: 42 28% 88%;
   
-  --muted: 240 4% 16%;
-  --muted-foreground: 240 5% 65%;
+  --muted: 127 13% 12%;
+  --muted-foreground: 42 12% 68%;
   
-  --accent: 187 86% 43%;
-  --accent-foreground: 0 0% 100%;
+  --accent: 158 28% 61%;
+  --accent-foreground: 132 14% 7%;
   
-  --destructive: 0 84% 60%;
+  --destructive: 5 70% 59%;
   --destructive-foreground: 0 0% 100%;
   
-  --border: 240 4% 16%;
-  --input: 240 4% 16%;
-  --ring: 262 83% 66%;
+  --border: 120 12% 17%;
+  --input: 120 12% 17%;
+  --ring: 24 53% 54%;
 }
 
 /* ============================================
@@ -151,10 +151,10 @@ h1, h2, h3, h4, h5, h6 {
   color: hsl(30 27% 13%);
 }
 
-/* Dark mode: Violet selection */
+/* Dark mode: Copper selection */
 .dark ::selection {
-  background-color: hsl(262 83% 66% / 0.3);
-  color: hsl(0 0% 100%);
+  background-color: hsl(24 53% 54% / 0.35);
+  color: hsl(42 28% 88%);
 }
 
 /* ============================================
@@ -229,13 +229,13 @@ h1, h2, h3, h4, h5, h6 {
   background-clip: text;
 }
 
-/* Dark mode gradients */
+/* Dark mode gradients - Copper to Teal-sage */
 .dark .gradient-primary {
-  background: linear-gradient(135deg, hsl(262 83% 66%) 0%, hsl(187 86% 43%) 100%);
+  background: linear-gradient(135deg, hsl(24 53% 54%) 0%, hsl(158 28% 61%) 100%);
 }
 
 .dark .gradient-text {
-  background: linear-gradient(135deg, hsl(262 83% 66%) 0%, hsl(187 86% 43%) 100%);
+  background: linear-gradient(135deg, hsl(24 53% 54%) 0%, hsl(158 28% 61%) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
