@@ -253,10 +253,10 @@ export function BookBrowser({ initialBooks, genres }: BookBrowserProps) {
           </Button>
         </div>
       ) : (
-        // Book grid
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
+        // Book grid - items-stretch ensures uniform height
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6 items-stretch">
           {books.map((book) => (
-            <BookCard key={book.id} book={book} size="md" showActions />
+            <BookCard key={book.id} book={book} variant="grid" showActions />
           ))}
         </div>
       )}
