@@ -2,15 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Star, BookOpen, TrendingUp } from "lucide-react";
+import { Star, BookOpen, TrendingUp, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AddToShelfButton } from "@/components/books/add-to-shelf-button";
 import type { Book } from "@/types/database";
 
 interface TrendingNowListProps {
   books: Book[];
   title?: string;
   maxItems?: number;
+  variant?: "sidebar" | "panel";
 }
 
 // Placeholder blur data URL
@@ -32,6 +32,7 @@ export function TrendingNowList({
   books,
   title = "Trending Now",
   maxItems = 5,
+  variant = "panel",
 }: TrendingNowListProps) {
   const displayBooks = books.slice(0, maxItems);
 
@@ -40,47 +41,60 @@ export function TrendingNowList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <TrendingUp className="w-5 h-5 text-accent" />
-        <h3 className="text-lg font-semibold font-serif">{title}</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold font-serif flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-accent" />
+          {title}
+        </h3>
+        <Link
+          href="/books?sort=trending"
+          className="text-xs text-primary hover:text-primary/80 transition-colors"
+        >
+          See all
+        </Link>
       </div>
 
       {/* Book list */}
-      <div className="space-y-3">
+      <div className="flex-1 space-y-2">
         {displayBooks.map((book, index) => (
-          <TrendingBookItem key={book.id} book={book} rank={index + 1} />
+          <TrendingBookItem
+            key={book.id}
+            book={book}
+            rank={index + 1}
+            compact={variant === "panel"}
+          />
         ))}
       </div>
-
-      {/* View all link */}
-      <Link
-        href="/books?sort=trending"
-        className="block text-sm text-primary hover:text-primary/80 transition-colors text-center pt-2"
-      >
-        View all trending books →
-      </Link>
     </div>
   );
 }
 
-function TrendingBookItem({ book, rank }: { book: Book; rank: number }) {
+function TrendingBookItem({
+  book,
+  rank,
+  compact,
+}: {
+  book: Book;
+  rank: number;
+  compact?: boolean;
+}) {
   const coverUrl = getHighResCoverUrl(book.cover_url);
 
   return (
     <div
       className={cn(
-        "group flex gap-3 p-2 -mx-2 rounded-lg",
+        "group flex gap-2 p-1.5 -mx-1.5 rounded-lg",
         "transition-all duration-200",
         "hover:bg-muted/50"
       )}
     >
       {/* Rank number */}
-      <div className="flex-shrink-0 w-6 flex items-center justify-center">
+      <div className="flex-shrink-0 w-5 flex items-start justify-center pt-1">
         <span
           className={cn(
-            "text-lg font-bold",
+            "text-sm font-bold",
             rank <= 3 ? "text-accent" : "text-muted-foreground"
           )}
         >
@@ -92,8 +106,8 @@ function TrendingBookItem({ book, rank }: { book: Book; rank: number }) {
       <Link href={`/books/${book.slug}`} className="flex-shrink-0">
         <div
           className={cn(
-            "relative w-12 h-[72px] rounded overflow-hidden",
-            "bg-muted shadow-sm",
+            "relative rounded overflow-hidden bg-muted",
+            compact ? "w-8 h-12" : "w-10 h-[60px]",
             "transition-transform duration-200",
             "group-hover:scale-105"
           )}
@@ -107,11 +121,11 @@ function TrendingBookItem({ book, rank }: { book: Book; rank: number }) {
               placeholder="blur"
               blurDataURL={BLUR_DATA_URL}
               className="object-cover"
-              sizes="48px"
+              sizes="40px"
             />
           ) : (
             <div className="flex items-center justify-center w-full h-full">
-              <BookOpen className="w-5 h-5 text-muted-foreground" />
+              <BookOpen className="w-4 h-4 text-muted-foreground" />
             </div>
           )}
         </div>
@@ -120,28 +134,35 @@ function TrendingBookItem({ book, rank }: { book: Book; rank: number }) {
       {/* Book info */}
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <Link href={`/books/${book.slug}`}>
-          <h4 className="font-medium text-sm leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+          <p className="text-xs font-medium leading-tight line-clamp-1 group-hover:text-primary transition-colors">
             {book.title}
-          </h4>
+          </p>
         </Link>
-        <p className="text-xs text-muted-foreground truncate mt-0.5">
+        <p className="text-[10px] text-muted-foreground truncate">
           {book.author}
         </p>
         {book.average_rating !== null && (
-          <div className="flex items-center gap-1 mt-1">
-            <Star className="w-3 h-3 fill-accent text-accent" />
-            <span className="text-xs font-medium">
+          <div className="flex items-center gap-0.5 mt-0.5">
+            <Star className="w-2.5 h-2.5 fill-accent text-accent" />
+            <span className="text-[10px] font-medium">
               {book.average_rating.toFixed(1)}
             </span>
           </div>
         )}
       </div>
 
-      {/* Add to shelf button (compact) */}
-      <div className="flex-shrink-0 flex items-center">
-        <AddToShelfButton bookId={book.id} />
-      </div>
+      {/* Compact action */}
+      <button
+        className={cn(
+          "flex-shrink-0 self-center",
+          "p-1.5 rounded-md",
+          "text-muted-foreground hover:text-primary hover:bg-primary/10",
+          "transition-colors"
+        )}
+        title="Add to shelf"
+      >
+        <Bookmark className="w-4 h-4" />
+      </button>
     </div>
   );
 }
-

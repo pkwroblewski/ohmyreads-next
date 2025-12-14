@@ -1,86 +1,68 @@
-import { BookRecommendationRow } from "@/components/books/book-recommendation-row";
+import { Card, CardContent } from "@/components/ui/card";
+import { ReadingActivityPanel } from "./reading-activity-panel";
+import { CuratedMiniGrid } from "./curated-mini-grid";
 import { TrendingNowList } from "./trending-now-list";
 import type { Book } from "@/types/database";
+import type { HomeReadingActivity } from "@/lib/queries/home";
 
 interface HomeFeedProps {
+  activity: HomeReadingActivity | null;
   curatedBooks: Book[];
-  trendingPlatform: Book[];
-  trendingGlobal: Book[];
-  isLoggedIn?: boolean;
+  trendingBooks: Book[];
+  isLoggedIn: boolean;
 }
 
 export function HomeFeed({
+  activity,
   curatedBooks,
-  trendingPlatform,
-  trendingGlobal,
+  trendingBooks,
   isLoggedIn,
 }: HomeFeedProps) {
-  const hasMainContent = curatedBooks.length > 0 || trendingPlatform.length > 0;
-  const hasSidebar = trendingGlobal.length > 0;
+  const hasContent = curatedBooks.length > 0 || trendingBooks.length > 0;
 
-  if (!hasMainContent && !hasSidebar) {
+  if (!hasContent && !isLoggedIn) {
     return null;
   }
 
   return (
-    <section className="py-10 lg:py-14">
-      <div className="mx-auto max-w-7xl">
-        {/* Two-column layout on desktop */}
-        <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
-          {/* Main column: Book carousels */}
-          <div className="space-y-10 lg:space-y-12">
-            {/* Curated / Personalized */}
-            {curatedBooks.length > 0 && (
-              <BookRecommendationRow
-                title={isLoggedIn ? "Recommended for You" : "Curated for You"}
-                subtitle={
-                  isLoggedIn
-                    ? "Based on your reading history"
-                    : "Popular highly-rated books"
-                }
+    <section className="py-8 lg:py-10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* 3-panel layout on desktop, stacked on mobile */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+          {/* Panel 1: Reading Activity */}
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+            <CardContent className="p-4 lg:p-5 h-full">
+              <ReadingActivityPanel
+                activity={activity}
+                isLoggedIn={isLoggedIn}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Panel 2: Curated / Personalized */}
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+            <CardContent className="p-4 lg:p-5 h-full">
+              <CuratedMiniGrid
                 books={curatedBooks}
-                viewAllHref="/books"
+                title={isLoggedIn ? "Personalized Recommendations" : "Curated for You"}
+                isLoggedIn={isLoggedIn}
               />
-            )}
+            </CardContent>
+          </Card>
 
-            {/* Trending on Platform */}
-            {trendingPlatform.length > 0 && (
-              <BookRecommendationRow
-                title="Trending on OhMyReads"
-                subtitle="What readers are adding to their shelves"
-                books={trendingPlatform}
-                viewAllHref="/books?sort=trending"
+          {/* Panel 3: Trending Now */}
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+            <CardContent className="p-4 lg:p-5 h-full">
+              <TrendingNowList
+                books={trendingBooks}
+                title="Trending Now"
+                maxItems={5}
+                variant="panel"
               />
-            )}
-          </div>
-
-          {/* Sidebar: Trending Now list */}
-          {hasSidebar && (
-            <aside className="hidden lg:block">
-              <div className="sticky top-24 rounded-xl border border-border bg-card/50 backdrop-blur-sm p-4">
-                <TrendingNowList
-                  books={trendingGlobal}
-                  title="Trending Now"
-                  maxItems={6}
-                />
-              </div>
-            </aside>
-          )}
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Mobile: Show trending globally as a carousel */}
-        {hasSidebar && (
-          <div className="lg:hidden mt-10">
-            <BookRecommendationRow
-              title="Trending Globally"
-              subtitle="Most popular books worldwide"
-              books={trendingGlobal}
-              viewAllHref="/books?sort=popular"
-            />
-          </div>
-        )}
       </div>
     </section>
   );
 }
-

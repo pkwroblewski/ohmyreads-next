@@ -5,7 +5,6 @@ import {
   PenLine,
   BarChart3,
   Users,
-  Star,
   ArrowRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -13,11 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { HomeHero } from "@/components/home/home-hero";
 import { HomeFeed } from "@/components/home/home-feed";
+import { CommunityFeed } from "@/components/home/community-feed";
 import {
   getCuratedBooks,
-  getTrendingOnPlatform,
   getTrendingGlobally,
 } from "@/lib/queries/recommendations";
+import {
+  getHomeReadingActivity,
+  getCommunityFeed,
+} from "@/lib/queries/home";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -74,17 +77,14 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Fetch all recommendations in parallel
-  const [curatedBooks, trendingPlatform, trendingGlobal] = await Promise.all([
-    getCuratedBooks(user?.id, 10),
-    getTrendingOnPlatform(10),
-    getTrendingGlobally(8),
-  ]);
-
-  const hasBooks =
-    curatedBooks.length > 0 ||
-    trendingPlatform.length > 0 ||
-    trendingGlobal.length > 0;
+  // Fetch all data in parallel
+  const [curatedBooks, trendingBooks, activity, communityFeed] =
+    await Promise.all([
+      getCuratedBooks(user?.id, 4), // Only need 4 for mini grid
+      getTrendingGlobally(5), // 5 for trending list
+      user ? getHomeReadingActivity(user.id) : Promise.resolve(null),
+      getCommunityFeed(6), // 6 recent reviews
+    ]);
 
   return (
     <div className="flex flex-col">
@@ -132,34 +132,39 @@ export default async function HomePage() {
       <HomeHero isLoggedIn={!!user} />
 
       {/* ========================================
-          BOOK FEED SECTION - Two-column layout
+          3-PANEL FEED SECTION
           ======================================== */}
-      {hasBooks && (
-        <HomeFeed
-          curatedBooks={curatedBooks}
-          trendingPlatform={trendingPlatform}
-          trendingGlobal={trendingGlobal}
-          isLoggedIn={!!user}
-        />
+      <HomeFeed
+        activity={activity}
+        curatedBooks={curatedBooks}
+        trendingBooks={trendingBooks}
+        isLoggedIn={!!user}
+      />
+
+      {/* ========================================
+          COMMUNITY FEED SECTION
+          ======================================== */}
+      {communityFeed.length > 0 && (
+        <CommunityFeed items={communityFeed} title="Community Feed" />
       )}
 
       {/* ========================================
           FEATURES SECTION
           ======================================== */}
-      <section className="py-12 lg:py-16 bg-muted/30">
+      <section className="py-12 lg:py-14 bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
-          <div className="text-center mb-10">
-            <h2 className="text-2xl sm:text-3xl font-bold font-serif mb-3">
+          <div className="text-center mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold font-serif mb-2">
               Everything you need to track your reading
             </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
+            <p className="text-sm text-muted-foreground max-w-lg mx-auto">
               Simple, powerful tools to organize your books and connect with readers.
             </p>
           </div>
 
           {/* Features Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {features.map((feature) => (
               <Card
                 key={feature.title}
@@ -171,21 +176,21 @@ export default async function HomePage() {
                   "dark:hover:border-primary/30"
                 )}
               >
-                <CardContent className="p-5">
+                <CardContent className="p-4">
                   {/* Icon */}
                   <div
                     className={cn(
-                      "w-10 h-10 rounded-lg flex items-center justify-center mb-3",
+                      "w-9 h-9 rounded-lg flex items-center justify-center mb-2",
                       "transition-colors duration-300",
                       "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
                     )}
                   >
-                    <feature.icon className="w-5 h-5" />
+                    <feature.icon className="w-4 h-4" />
                   </div>
                   
                   {/* Content */}
-                  <h3 className="font-semibold mb-1">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="font-semibold text-sm mb-1">{feature.title}</h3>
+                  <p className="text-xs text-muted-foreground">
                     {feature.description}
                   </p>
                 </CardContent>
@@ -196,30 +201,30 @@ export default async function HomePage() {
       </section>
 
       {/* ========================================
-          CTA SECTION - Lighter
+          CTA SECTION - Compact
           ======================================== */}
-      <section className="py-12 lg:py-16 relative overflow-hidden">
+      <section className="py-10 lg:py-12 relative overflow-hidden">
         {/* Gradient Background */}
         <div className="absolute inset-0 bg-gradient-to-r from-primary/90 to-accent/90" />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-2xl mx-auto text-center">
+          <div className="max-w-xl mx-auto text-center">
             {/* Heading */}
-            <h2 className="text-2xl sm:text-3xl font-bold font-serif mb-3 text-primary-foreground">
+            <h2 className="text-xl sm:text-2xl font-bold font-serif mb-2 text-primary-foreground">
               Ready to start your reading journey?
             </h2>
             
             {/* Subheading */}
-            <p className="text-primary-foreground/80 mb-6">
+            <p className="text-sm text-primary-foreground/80 mb-5">
               Join thousands of readers tracking their books on OhMyReads.
             </p>
             
             {/* CTA Button */}
             <Link href="/signup">
               <Button
-                size="lg"
+                size="default"
                 className={cn(
-                  "text-base px-6",
+                  "text-sm px-6",
                   "bg-white text-primary hover:bg-white/90",
                   "dark:bg-background dark:text-foreground dark:hover:bg-background/90"
                 )}
@@ -230,7 +235,7 @@ export default async function HomePage() {
             </Link>
             
             {/* Small text */}
-            <p className="text-xs text-primary-foreground/60 mt-3">
+            <p className="text-xs text-primary-foreground/60 mt-2">
               No credit card required
             </p>
           </div>
