@@ -22,6 +22,7 @@ import {
   getCommunityFeed,
 } from "@/lib/queries/home";
 import { cn } from "@/lib/utils";
+import { safeJsonLd } from "@/lib/utils/jsonld";
 
 export const metadata: Metadata = {
   title: "OhMyReads - Track Your Reading Journey",
@@ -92,7 +93,7 @@ export default async function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: safeJsonLd({
             "@context": "https://schema.org",
             "@type": "Organization",
             name: "OhMyReads",
@@ -109,7 +110,7 @@ export default async function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: safeJsonLd({
             "@context": "https://schema.org",
             "@type": "WebSite",
             name: "OhMyReads",

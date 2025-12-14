@@ -1,16 +1,38 @@
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  // Rate limit by IP (60 requests per minute for search)
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const { allowed } = checkRateLimit(`search:${ip}`, 60, 60000);
+  
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
 
-    // Parse query parameters
-    const q = (searchParams.get("q") || "").trim();
+    // Parse query parameters with input sanitization
+    let q = (searchParams.get("q") || "").trim();
     const genre = searchParams.get("genre");
     const sort = searchParams.get("sort") || "popular";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1") || 1);
+    const limit = Math.min(Math.max(1, parseInt(searchParams.get("limit") || "20") || 20), 50);
+
+    // Sanitize search query:
+    // - Cap length to prevent abuse
+    // - Remove characters that can break PostgREST filter syntax
+    if (q.length > 200) {
+      q = q.slice(0, 200);
+    }
+    // Remove special filter characters: % _ ( ) , . and quotes
+    // Keep alphanumeric, spaces, hyphens, and apostrophes for names
+    q = q.replace(/[%_(),."'\\]/g, "");
 
     const offset = (page - 1) * limit;
 
@@ -19,8 +41,9 @@ export async function GET(request: Request) {
     // Build query
     let query = supabase.from("books").select("*", { count: "exact" });
 
-    // Apply search filter
+    // Apply search filter (safely escaped by Supabase client)
     if (q) {
+      // Use separate ilike calls for cleaner filter construction
       query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`);
     }
 

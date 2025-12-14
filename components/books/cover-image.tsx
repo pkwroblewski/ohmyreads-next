@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,11 @@ interface CoverImageProps {
   width?: number;
   /** Custom height in pixels (overrides size preset) */
   height?: number;
+  /** 
+   * Fill mode: image fills its parent container.
+   * When true, width/height/size are ignored and parent must have position:relative.
+   */
+  fill?: boolean;
   /** Add hover animation */
   hover?: boolean;
   /** Custom className for the container */
@@ -45,26 +51,33 @@ const SIZE_PRESETS: Record<CoverSize, { width: number; height: number }> = {
  * - Automatic cover URL resolution (Google Books → Open Library → ISBN → placeholder)
  * - Consistent styling with rounded corners, shadows, and optional hover effects
  * - Optimized blur placeholder for loading states
- * - Fallback to modern gradient placeholder with book icon
+ * - Fallback to modern gradient placeholder with book icon on load error
  * - Object-position top to crop barcodes on scanned covers
+ * - Fill mode for responsive parent-sized layouts
  */
 export function CoverImage({
   book,
   size = "md",
   width,
   height,
+  fill = false,
   hover = true,
   className,
   priority = false,
 }: CoverImageProps) {
-  const dimensions = width && height 
-    ? { width, height } 
-    : SIZE_PRESETS[size];
+  const [hasError, setHasError] = useState(false);
+  
+  const dimensions = fill 
+    ? null 
+    : (width && height ? { width, height } : SIZE_PRESETS[size]);
   
   const coverUrl = resolveCoverUrl(book);
+  const showPlaceholder = !coverUrl || hasError;
 
   // Responsive sizes hint for next/image
-  const sizes = `(max-width: 640px) ${dimensions.width}px, ${dimensions.width * 1.5}px`;
+  const sizes = fill 
+    ? "(max-width: 640px) 50vw, 200px"
+    : `(max-width: 640px) ${dimensions?.width}px, ${(dimensions?.width || 128) * 1.5}px`;
 
   return (
     <div
@@ -74,14 +87,14 @@ export function CoverImage({
         "shadow-md",
         hover && "transition-all duration-300",
         hover && "group-hover:shadow-xl dark:group-hover:shadow-primary/10",
+        fill && "w-full h-full",
         className
       )}
-      style={{
-        width: dimensions.width,
-        height: dimensions.height,
-      }}
+      style={dimensions ? { width: dimensions.width, height: dimensions.height } : undefined}
     >
-      {coverUrl ? (
+      {showPlaceholder ? (
+        <PlaceholderCover title={book.title} author={book.author} />
+      ) : (
         <Image
           src={coverUrl}
           alt={`Cover of ${book.title}`}
@@ -98,14 +111,8 @@ export function CoverImage({
             hover && "transition-transform duration-300",
             hover && "group-hover:scale-[1.03]"
           )}
-          onError={(e) => {
-            // On error, hide the broken image (fallback will show)
-            const target = e.target as HTMLImageElement;
-            target.style.display = "none";
-          }}
+          onError={() => setHasError(true)}
         />
-      ) : (
-        <PlaceholderCover title={book.title} author={book.author} />
       )}
     </div>
   );
@@ -122,9 +129,6 @@ function PlaceholderCover({
   title: string;
   author?: string;
 }) {
-  // Get first letter for the minimal design
-  const initial = title.charAt(0).toUpperCase();
-
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
       {/* Subtle pattern overlay */}
@@ -160,7 +164,9 @@ export function CoverImageMini({
   book: BookCoverData & { title: string };
   className?: string;
 }) {
+  const [hasError, setHasError] = useState(false);
   const coverUrl = resolveCoverUrl(book);
+  const showPlaceholder = !coverUrl || hasError;
 
   return (
     <div
@@ -170,7 +176,11 @@ export function CoverImageMini({
         className
       )}
     >
-      {coverUrl ? (
+      {showPlaceholder ? (
+        <div className="w-full h-full flex items-center justify-center">
+          <BookOpen className="w-4 h-4 text-muted-foreground/50" />
+        </div>
+      ) : (
         <Image
           src={coverUrl}
           alt={book.title}
@@ -178,13 +188,9 @@ export function CoverImageMini({
           sizes="40px"
           quality={75}
           className="object-cover object-[center_top]"
+          onError={() => setHasError(true)}
         />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <BookOpen className="w-4 h-4 text-muted-foreground/50" />
-        </div>
       )}
     </div>
   );
 }
-

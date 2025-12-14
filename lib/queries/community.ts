@@ -34,6 +34,33 @@ export interface CommunitySidebarData {
 // FEED QUERY (cursor pagination)
 // ============================================
 
+// UUID regex for cursor validation
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ISO date regex (simplified: YYYY-MM-DDTHH:MM:SS with optional microseconds and Z)
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
+
+/**
+ * Validate and parse a cursor string.
+ * Returns null if cursor is invalid (treated as first page).
+ */
+function parseCursor(cursor: string | null | undefined): { date: string; id: string } | null {
+  if (!cursor) return null;
+  
+  const parts = cursor.split("|");
+  if (parts.length !== 2) return null;
+  
+  const [cursorDate, cursorId] = parts;
+  
+  // Validate date format
+  if (!cursorDate || !ISO_DATE_REGEX.test(cursorDate)) return null;
+  
+  // Validate UUID format
+  if (!cursorId || !UUID_REGEX.test(cursorId)) return null;
+  
+  return { date: cursorDate, id: cursorId };
+}
+
 /**
  * Fetch a page of the community activity feed.
  * Uses cursor pagination for efficient "Load more".
@@ -65,15 +92,13 @@ export async function getCommunityFeedPage(options: {
     .order("id", { ascending: false })
     .limit(limit + 1); // Fetch one extra to check if there's more
 
-  // Apply cursor filter if provided
-  if (cursor) {
-    const [cursorDate, cursorId] = cursor.split("|");
-    if (cursorDate && cursorId) {
-      // Get items older than cursor
-      query = query.or(
-        `created_at.lt.${cursorDate},and(created_at.eq.${cursorDate},id.lt.${cursorId})`
-      );
-    }
+  // Apply cursor filter if provided and valid
+  const parsedCursor = parseCursor(cursor);
+  if (parsedCursor) {
+    // Get items older than cursor
+    query = query.or(
+      `created_at.lt.${parsedCursor.date},and(created_at.eq.${parsedCursor.date},id.lt.${parsedCursor.id})`
+    );
   }
 
   const { data, error } = await query;

@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchExternalBooks } from "@/lib/utils/external-book-search";
 import { createPublicClient } from "@/lib/supabase/server";
-import { normalizeTitle, normalizeAuthor } from "@/lib/utils/external-book-search";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 export async function GET(request: NextRequest) {
+  // Rate limit by IP (30 requests per minute for external search - more expensive)
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const { allowed } = checkRateLimit(`external-search:${ip}`, 30, 60000);
+  
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get("q")?.trim();
   const limitParam = searchParams.get("limit");
@@ -87,10 +98,18 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      results: enrichedResults,
-      total: enrichedResults.length,
-    });
+    return NextResponse.json(
+      {
+        results: enrichedResults,
+        total: enrichedResults.length,
+      },
+      {
+        headers: {
+          // Cache external search results for 5 minutes (expensive API call)
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (error) {
     console.error("External book search error:", error);
     return NextResponse.json(

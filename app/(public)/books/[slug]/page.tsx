@@ -24,6 +24,7 @@ import { ReviewCard } from "@/components/reviews/review-card";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { safeJsonLd } from "@/lib/utils/jsonld";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -175,12 +176,12 @@ export default async function BookPage({ params }: Props) {
       {/* JSON-LD for SEO - Book Schema */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(bookJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(bookJsonLd) }}
       />
       {/* JSON-LD for SEO - Breadcrumb Schema */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
       />
 
       {/* Page Content */}

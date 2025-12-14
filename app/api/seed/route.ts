@@ -13,6 +13,16 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const force = searchParams.get("force") === "true";
+  const token = searchParams.get("token");
+
+  // If SEED_TOKEN is set in env, require it for destructive operations
+  const requiredToken = process.env.SEED_TOKEN;
+  if (force && requiredToken && token !== requiredToken) {
+    return NextResponse.json(
+      { error: "Invalid or missing seed token. Use ?token=YOUR_SEED_TOKEN&force=true" },
+      { status: 401 }
+    );
+  }
 
   try {
     // Use admin client to bypass RLS

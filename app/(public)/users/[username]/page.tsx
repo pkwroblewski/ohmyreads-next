@@ -24,6 +24,7 @@ import { RatingDisplay } from "@/components/ui/rating-display";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { truncate } from "@/lib/utils";
+import { safeJsonLd } from "@/lib/utils/jsonld";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -92,7 +93,7 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: safeJsonLd({
             "@context": "https://schema.org",
             "@type": "Person",
             name: displayName,
