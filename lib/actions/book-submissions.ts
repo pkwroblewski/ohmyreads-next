@@ -128,6 +128,11 @@ export async function submitBook(input: CreateBookSubmissionInput) {
         published_date: data.publishedDate || null,
         page_count: data.pageCount || null,
         status: "pending",
+        // External IDs for better cover resolution
+        google_books_id: data.googleBooksId || null,
+        open_library_id: data.openLibraryId || null,
+        open_library_cover_id: data.openLibraryCoverId || null,
+        cover_source: data.coverSource || null,
       })
       .select()
       .single();
@@ -482,6 +487,11 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
         genres: submission.genres,
         published_date: submission.published_date,
         page_count: submission.page_count,
+        // External IDs for better cover resolution
+        google_books_id: submission.google_books_id || null,
+        open_library_id: submission.open_library_id || null,
+        open_library_cover_id: submission.open_library_cover_id || null,
+        cover_source: submission.cover_source || null,
       })
       .select()
       .single();

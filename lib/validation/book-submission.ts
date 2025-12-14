@@ -36,6 +36,11 @@ export const createBookSubmissionSchema = z.object({
     .positive("Page count must be positive")
     .max(50000, "Page count seems too high")
     .optional(),
+  // External IDs for better cover resolution and deduplication
+  googleBooksId: z.string().optional(),
+  openLibraryId: z.string().optional(),
+  openLibraryCoverId: z.number().int().positive().optional(),
+  coverSource: z.enum(["google", "openlibrary", "user", "other"]).optional(),
 });
 
 export const updateBookSubmissionSchema = createBookSubmissionSchema.partial();

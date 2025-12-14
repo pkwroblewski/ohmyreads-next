@@ -24,6 +24,9 @@ export interface Book {
   page_count: number | null;
   genres: string[];
   google_books_id: string | null;
+  open_library_id: string | null;
+  open_library_cover_id: number | null;
+  cover_source: "google" | "openlibrary" | "user" | "other" | null;
   average_rating: number | null;
   ratings_count: number;
   created_at: string;

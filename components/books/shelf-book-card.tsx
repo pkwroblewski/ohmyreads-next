@@ -2,7 +2,6 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   BookOpen,
   Check,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RatingDisplay } from "@/components/ui/rating-display";
+import { CoverImage } from "@/components/books/cover-image";
 import { addToShelf, removeFromShelf } from "@/lib/actions/books";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -119,26 +119,17 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
       )}
     >
       {/* Book Cover */}
-      <Link href={`/books/${book.slug}`} className="block">
-        <div className="relative aspect-[2/3] bg-muted">
-          {book.cover_url ? (
-            <Image
-              src={book.cover_url}
-              alt={book.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-            </div>
-          )}
+      <Link href={`/books/${book.slug}`} className="block relative group">
+        <div className="relative aspect-[2/3]">
+          <CoverImage
+            book={book}
+            className="absolute inset-0 w-full h-full rounded-none rounded-t-xl"
+          />
 
           {/* Status Badge */}
           <div
             className={cn(
-              "absolute top-2 left-2 flex items-center gap-1",
+              "absolute top-2 left-2 flex items-center gap-1 z-10",
               "px-2 py-1 rounded-full text-xs font-medium",
               "bg-background/90 backdrop-blur-sm",
               config.color
@@ -150,7 +141,7 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
 
           {/* Rating Badge */}
           {userBook.rating && (
-            <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-background/90 backdrop-blur-sm">
+            <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-background/90 backdrop-blur-sm z-10">
               <Star className="h-3 w-3 fill-accent text-accent" />
               {userBook.rating}
             </div>

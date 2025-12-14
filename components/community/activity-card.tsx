@@ -1,21 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
 import { BookOpen, Heart, MessageCircle, Share2, Star, MoreHorizontal } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { CoverImage } from "@/components/books/cover-image";
 import { cn } from "@/lib/utils";
 import type { ActivityFeedItemWithRelations } from "@/types/database";
 
 interface ActivityCardProps {
   item: ActivityFeedItemWithRelations;
 }
-
-const BLUR_DATA_URL =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg==";
 
 export function ActivityCard({ item }: ActivityCardProps) {
   const displayName = item.user.display_name || item.user.username || "Reader";
@@ -79,23 +76,14 @@ function StartedReadingCard({
           className="mt-3 flex gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
         >
           {/* Cover */}
-          <div className="flex-shrink-0 w-12 h-[72px] rounded overflow-hidden bg-muted">
-            {item.book.cover_url ? (
-              <Image
-                src={item.book.cover_url}
-                alt={item.book.title}
-                width={48}
-                height={72}
-                className="object-cover w-full h-full"
-                placeholder="blur"
-                blurDataURL={BLUR_DATA_URL}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-muted-foreground" />
-              </div>
-            )}
-          </div>
+          <CoverImage
+            book={item.book}
+            size="xs"
+            width={48}
+            height={72}
+            hover={false}
+            className="flex-shrink-0"
+          />
 
           {/* Info */}
           <div className="flex-1 min-w-0">
@@ -166,24 +154,14 @@ function ReviewCard({
         {/* Review Content */}
         <div className="mt-3 flex gap-3">
           {/* Cover */}
-          <Link href={`/books/${item.book.slug}`} className="flex-shrink-0">
-            <div className="w-16 h-24 rounded overflow-hidden bg-muted">
-              {item.book.cover_url ? (
-                <Image
-                  src={item.book.cover_url}
-                  alt={item.book.title}
-                  width={64}
-                  height={96}
-                  className="object-cover w-full h-full"
-                  placeholder="blur"
-                  blurDataURL={BLUR_DATA_URL}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-muted-foreground" />
-                </div>
-              )}
-            </div>
+          <Link href={`/books/${item.book.slug}`} className="flex-shrink-0 group">
+            <CoverImage
+              book={item.book}
+              size="sm"
+              width={64}
+              height={96}
+              hover={true}
+            />
           </Link>
 
           {/* Review Text */}

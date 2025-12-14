@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Star, BookOpen, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resolveCoverUrl } from "@/lib/utils/covers";
 import { AddToShelfButton } from "./add-to-shelf-button";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -12,6 +13,8 @@ interface BookCardProps {
     author: string;
     slug: string;
     cover_url: string | null;
+    google_books_id?: string | null;
+    isbn?: string | null;
     average_rating: number | null;
     ratings_count?: number;
   };
@@ -45,18 +48,7 @@ const sizeClasses = {
 
 // Placeholder blur data URL for nicer loading
 const BLUR_DATA_URL =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMjIyIi8+PC9zdmc+";
-
-/**
- * Upgrade OpenLibrary cover URLs from -S or -M to -L for higher resolution
- */
-function getHighResCoverUrl(url: string | null): string | null {
-  if (!url) return null;
-  if (url.includes("covers.openlibrary.org")) {
-    return url.replace(/-[SM]\.jpg$/i, "-L.jpg");
-  }
-  return url;
-}
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyYTJhMmEiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxYTFhMWEiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2cpIi8+PC9zdmc+";
 
 /**
  * Compact rating display: "4.6 ★ · 220"
@@ -92,8 +84,8 @@ export function BookCard({
     `${book.title} ${book.author}`
   )}`;
 
-  // Get high-res cover URL
-  const coverUrl = getHighResCoverUrl(book.cover_url);
+  // Resolve best available cover URL
+  const coverUrl = resolveCoverUrl(book);
 
   // Compact rating for grid variant
   const compactRating = formatCompactRating(
@@ -137,12 +129,13 @@ export function BookCard({
                 quality={85}
                 placeholder="blur"
                 blurDataURL={BLUR_DATA_URL}
-                className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                className="object-cover object-[center_top] transition-transform duration-300 group-hover:scale-[1.03]"
                 sizes={imageSizes}
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <BookOpen className="w-8 h-8 text-muted-foreground/50" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
+                <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
               </div>
             )}
           </div>
@@ -243,12 +236,13 @@ export function BookCard({
                 quality={85}
                 placeholder="blur"
                 blurDataURL={BLUR_DATA_URL}
-                className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                className="object-cover object-[center_top] transition-transform duration-300 group-hover:scale-[1.03]"
                 sizes={imageSizes}
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <BookOpen className="w-8 h-8 text-muted-foreground/50" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
+                <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
               </div>
             )}
           </div>

@@ -1,10 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
-import { BookOpen, Target, ArrowRight, Sparkles } from "lucide-react";
+import { BookOpen, ArrowRight, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { CoverImage } from "@/components/books/cover-image";
 import type { HomeReadingActivity } from "@/lib/queries/home";
 
 interface MyShelfPanelProps {
@@ -16,9 +15,6 @@ interface MyShelfPanelProps {
     avatar_url?: string | null;
   } | null;
 }
-
-const BLUR_DATA_URL =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg==";
 
 export function MyShelfPanel({ activity, user }: MyShelfPanelProps) {
   // Logged out state
@@ -109,23 +105,13 @@ export function MyShelfPanel({ activity, user }: MyShelfPanelProps) {
                   href={`/books/${item.book.slug}`}
                   className="flex gap-3 group"
                 >
-                  <div className="flex-shrink-0 w-10 h-[60px] rounded overflow-hidden bg-muted">
-                    {item.book.cover_url ? (
-                      <Image
-                        src={item.book.cover_url}
-                        alt={item.book.title}
-                        width={40}
-                        height={60}
-                        className="object-cover w-full h-full"
-                        placeholder="blur"
-                        blurDataURL={BLUR_DATA_URL}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
+                  <CoverImage
+                    book={item.book}
+                    width={40}
+                    height={60}
+                    hover={false}
+                    className="flex-shrink-0"
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium line-clamp-1 group-hover:text-primary transition-colors">
                       {item.book.title}

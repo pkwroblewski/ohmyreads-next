@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { Star, BookOpen, TrendingUp, Bookmark } from "lucide-react";
+import { Star, TrendingUp, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CoverImage } from "@/components/books/cover-image";
 import type { Book } from "@/types/database";
 
 interface TrendingNowListProps {
@@ -11,21 +11,6 @@ interface TrendingNowListProps {
   title?: string;
   maxItems?: number;
   variant?: "sidebar" | "panel";
-}
-
-// Placeholder blur data URL
-const BLUR_DATA_URL =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg==";
-
-/**
- * Upgrade OpenLibrary cover URLs to -L for higher resolution
- */
-function getHighResCoverUrl(url: string | null): string | null {
-  if (!url) return null;
-  if (url.includes("covers.openlibrary.org")) {
-    return url.replace(/-[SM]\.jpg$/i, "-L.jpg");
-  }
-  return url;
 }
 
 export function TrendingNowList({
@@ -80,8 +65,6 @@ function TrendingBookItem({
   rank: number;
   compact?: boolean;
 }) {
-  const coverUrl = getHighResCoverUrl(book.cover_url);
-
   return (
     <div
       className={cn(
@@ -103,32 +86,17 @@ function TrendingBookItem({
       </div>
 
       {/* Book cover */}
-      <Link href={`/books/${book.slug}`} className="flex-shrink-0">
-        <div
+      <Link href={`/books/${book.slug}`} className="flex-shrink-0 group">
+        <CoverImage
+          book={book}
+          width={compact ? 32 : 40}
+          height={compact ? 48 : 60}
+          hover={true}
           className={cn(
-            "relative rounded overflow-hidden bg-muted",
-            compact ? "w-8 h-12" : "w-10 h-[60px]",
             "transition-transform duration-200",
             "group-hover:scale-105"
           )}
-        >
-          {coverUrl ? (
-            <Image
-              src={coverUrl}
-              alt={book.title}
-              fill
-              quality={75}
-              placeholder="blur"
-              blurDataURL={BLUR_DATA_URL}
-              className="object-cover"
-              sizes="40px"
-            />
-          ) : (
-            <div className="flex items-center justify-center w-full h-full">
-              <BookOpen className="w-4 h-4 text-muted-foreground" />
-            </div>
-          )}
-        </div>
+        />
       </Link>
 
       {/* Book info */}

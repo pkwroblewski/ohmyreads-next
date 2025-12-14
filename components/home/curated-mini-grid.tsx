@@ -1,31 +1,15 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, Sparkles, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AddToShelfButton } from "@/components/books/add-to-shelf-button";
+import { CoverImage } from "@/components/books/cover-image";
 import type { Book } from "@/types/database";
 
 interface CuratedMiniGridProps {
   books: Book[];
   title?: string;
   isLoggedIn?: boolean;
-}
-
-// Placeholder blur
-const BLUR_DATA_URL =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iOTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzMzMyIvPjwvc3ZnPg==";
-
-/**
- * Upgrade OpenLibrary cover URLs to -L for higher resolution
- */
-function getHighResCoverUrl(url: string | null): string | null {
-  if (!url) return null;
-  if (url.includes("covers.openlibrary.org")) {
-    return url.replace(/-[SM]\.jpg$/i, "-L.jpg");
-  }
-  return url;
 }
 
 export function CuratedMiniGrid({
@@ -81,41 +65,27 @@ export function CuratedMiniGrid({
 }
 
 function MiniBookCard({ book }: { book: Book }) {
-  const coverUrl = getHighResCoverUrl(book.cover_url);
-
   return (
     <div className="group flex flex-col">
       {/* Cover */}
-      <Link href={`/books/${book.slug}`}>
+      <Link href={`/books/${book.slug}`} className="relative">
         <div
           className={cn(
-            "relative w-full rounded-lg overflow-hidden mb-2",
-            "bg-muted shadow-sm",
+            "relative w-full mb-2",
             "transition-all duration-200",
-            "group-hover:shadow-md group-hover:scale-[1.02]"
+            "group-hover:scale-[1.02]"
           )}
           style={{ aspectRatio: "2/3" }}
         >
-          {coverUrl ? (
-            <Image
-              src={coverUrl}
-              alt={book.title}
-              fill
-              quality={80}
-              placeholder="blur"
-              blurDataURL={BLUR_DATA_URL}
-              className="object-cover"
-              sizes="(max-width: 640px) 100px, 120px"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-muted-foreground" />
-            </div>
-          )}
+          <CoverImage
+            book={book}
+            className="absolute inset-0 w-full h-full shadow-sm group-hover:shadow-md"
+            hover={false}
+          />
 
           {/* Rating badge */}
           {book.average_rating !== null && (
-            <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-background/90 text-xs font-medium">
+            <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-background/90 text-xs font-medium z-10">
               ★ {book.average_rating.toFixed(1)}
             </div>
           )}
