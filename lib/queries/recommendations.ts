@@ -430,12 +430,11 @@ export async function getCuratedBooks(
     }
   }
 
-  // Fallback: get popular highly-rated books
+  // Fallback: get popular books (including those without ratings yet)
   const { data: books, error } = await supabase
     .from("books")
     .select("*")
-    .gte("average_rating", 3.5)
-    .order("ratings_count", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error || !books) {
@@ -447,7 +446,9 @@ export async function getCuratedBooks(
     score: book.ratings_count || 0,
     reason: {
       type: "highly_rated" as RecommendationReasonType,
-      label: `${book.average_rating?.toFixed(1) || "N/A"}★ rating`,
+      label: book.average_rating 
+        ? `${book.average_rating.toFixed(1)}★ rating`
+        : "Recently added",
     },
   }));
 }
@@ -508,12 +509,12 @@ export async function getTrendingGlobally(
 ): Promise<RecommendedBook[]> {
   const supabase = await createClient();
 
-  // Get most popular books by ratings count
+  // Get most popular books - prioritize those with ratings, then by creation date
   const { data: books, error } = await supabase
     .from("books")
     .select("*")
-    .not("average_rating", "is", null)
-    .order("ratings_count", { ascending: false })
+    .order("ratings_count", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error || !books) {
@@ -525,7 +526,9 @@ export async function getTrendingGlobally(
     score: book.ratings_count || 0,
     reason: {
       type: "popular_in_genre" as RecommendationReasonType,
-      label: `${book.ratings_count || 0} ratings`,
+      label: book.ratings_count 
+        ? `${book.ratings_count} ratings`
+        : "Recently added",
     },
   }));
 }

@@ -123,7 +123,8 @@ export async function getCommunityFeed(
 ): Promise<CommunityFeedItem[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  // First, fetch reviews with books (this FK exists: reviews.book_id -> books.id)
+  const { data: reviewsData, error: reviewsError } = await supabase
     .from("reviews")
     .select(
       `
@@ -131,30 +132,53 @@ export async function getCommunityFeed(
       rating,
       content,
       created_at,
-      user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
-      book:books!reviews_book_id_fkey(id, title, author, slug, cover_url)
+      user_id,
+      book:books(id, title, author, slug, cover_url)
     `
     )
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (error) {
-    console.error("Error fetching community feed:", error);
+  if (reviewsError) {
+    console.error("Error fetching community feed:", reviewsError);
     return [];
   }
 
-  // Filter out items with missing user or book
-  return (data || [])
-    .filter((item) => item.user && item.book)
+  if (!reviewsData || reviewsData.length === 0) {
+    return [];
+  }
+
+  // Get unique user IDs from reviews
+  const userIds = [...new Set(reviewsData.map((r) => r.user_id))];
+
+  // Fetch profiles for these users (profiles.id = auth.users.id = reviews.user_id)
+  const { data: profilesData } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url")
+    .in("id", userIds);
+
+  // Create a map for quick lookup
+  const profilesMap = new Map(
+    (profilesData || []).map((p) => [p.id, p])
+  );
+
+  // Combine reviews with profiles
+  return reviewsData
+    .filter((item) => item.book && profilesMap.has(item.user_id))
     .map((item) => {
-      const userData = item.user as unknown as CommunityFeedItem["user"];
       const bookData = item.book as unknown as CommunityFeedItem["book"];
+      const userData = profilesMap.get(item.user_id)!;
       return {
         id: item.id,
         rating: item.rating,
         content: item.content,
         created_at: item.created_at,
-        user: userData,
+        user: {
+          id: userData.id,
+          username: userData.username,
+          display_name: userData.display_name,
+          avatar_url: userData.avatar_url,
+        },
         book: bookData,
       };
     });

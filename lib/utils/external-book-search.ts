@@ -136,6 +136,7 @@ interface GoogleBooksVolumeInfo {
   publishedDate?: string;
   pageCount?: number;
   categories?: string[];
+  language?: string;
   industryIdentifiers?: Array<{ type: string; identifier: string }>;
   imageLinks?: {
     thumbnail?: string;
@@ -290,5 +291,329 @@ export function normalizeAuthor(author: string): string {
     .replace(/[^a-z\s]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// ============================================
+// SINGLE BOOK ENRICHMENT (For seeding)
+// ============================================
+
+export interface BookEnrichmentInput {
+  title: string;
+  author: string;
+  isbn?: string;
+  genres: string[];
+}
+
+export interface EnrichedBookData {
+  title: string;
+  author: string;
+  isbn: string | null;
+  description: string | null;
+  coverUrl: string | null;
+  publishedDate: string | null;
+  pageCount: number | null;
+  genres: string[];
+  googleBooksId: string | null;
+  openLibraryId: string | null;
+  openLibraryCoverId: number | null;
+  coverSource: "google" | "openlibrary" | null;
+}
+
+/**
+ * Search Google Books by ISBN (most precise)
+ */
+export async function searchGoogleBooksByIsbn(
+  isbn: string
+): Promise<ExternalBookResult | null> {
+  const url = new URL("https://www.googleapis.com/books/v1/volumes");
+  url.searchParams.set("q", `isbn:${isbn}`);
+  url.searchParams.set("maxResults", "1");
+  url.searchParams.set("printType", "books");
+
+  try {
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data: GoogleBooksResponse = await response.json();
+
+    if (!data.items || data.items.length === 0) {
+      return null;
+    }
+
+    const item = data.items[0];
+    const vol = item.volumeInfo;
+    const foundIsbn =
+      vol.industryIdentifiers?.find((id) => id.type === "ISBN_13")?.identifier ||
+      vol.industryIdentifiers?.find((id) => id.type === "ISBN_10")?.identifier ||
+      isbn;
+
+    return {
+      source: "google" as const,
+      externalId: item.id,
+      title: vol.title,
+      author: vol.authors?.[0] || "Unknown Author",
+      isbn: foundIsbn,
+      description: vol.description || null,
+      coverUrl: getGoogleBooksCoverUrl(item.id, 1),
+      publishedDate: vol.publishedDate || null,
+      pageCount: vol.pageCount || null,
+      genres: (vol.categories || []).slice(0, 5),
+      googleBooksId: item.id,
+      openLibraryId: null,
+      openLibraryCoverId: null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Search Google Books by title + author
+ */
+export async function searchGoogleBooksByTitleAuthor(
+  title: string,
+  author: string
+): Promise<ExternalBookResult | null> {
+  const url = new URL("https://www.googleapis.com/books/v1/volumes");
+  // Use intitle: and inauthor: for more precise matching
+  url.searchParams.set("q", `intitle:${title} inauthor:${author}`);
+  url.searchParams.set("maxResults", "5");
+  url.searchParams.set("printType", "books");
+
+  try {
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data: GoogleBooksResponse = await response.json();
+
+    if (!data.items || data.items.length === 0) {
+      return null;
+    }
+
+    // Find best match using title/author similarity
+    const normalizedInputTitle = normalizeTitle(title);
+    const normalizedInputAuthor = normalizeAuthor(author);
+
+    let bestMatch: GoogleBooksItem | null = null;
+    let bestScore = 0;
+
+    for (const item of data.items) {
+      const vol = item.volumeInfo;
+      const itemTitle = normalizeTitle(vol.title);
+      const itemAuthor = normalizeAuthor(vol.authors?.[0] || "");
+
+      // Simple scoring: exact title match + author contains input
+      let score = 0;
+      if (itemTitle === normalizedInputTitle) {
+        score += 10;
+      } else if (itemTitle.includes(normalizedInputTitle) || normalizedInputTitle.includes(itemTitle)) {
+        score += 5;
+      }
+
+      if (itemAuthor === normalizedInputAuthor) {
+        score += 10;
+      } else if (itemAuthor.includes(normalizedInputAuthor) || normalizedInputAuthor.includes(itemAuthor)) {
+        score += 5;
+      }
+
+      // Prefer books with covers and page counts
+      if (vol.imageLinks?.thumbnail) score += 2;
+      if (vol.pageCount) score += 1;
+      
+      // Prefer English language books
+      if (!vol.language || vol.language === "en") score += 1;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = item;
+      }
+    }
+
+    if (!bestMatch || bestScore < 10) {
+      return null; // Require at least a title or author match
+    }
+
+    const vol = bestMatch.volumeInfo;
+    const isbn =
+      vol.industryIdentifiers?.find((id) => id.type === "ISBN_13")?.identifier ||
+      vol.industryIdentifiers?.find((id) => id.type === "ISBN_10")?.identifier ||
+      null;
+
+    return {
+      source: "google" as const,
+      externalId: bestMatch.id,
+      title: vol.title,
+      author: vol.authors?.[0] || author,
+      isbn,
+      description: vol.description || null,
+      coverUrl: getGoogleBooksCoverUrl(bestMatch.id, 1),
+      publishedDate: vol.publishedDate || null,
+      pageCount: vol.pageCount || null,
+      genres: (vol.categories || []).slice(0, 5),
+      googleBooksId: bestMatch.id,
+      openLibraryId: null,
+      openLibraryCoverId: null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Search Open Library by ISBN
+ */
+export async function searchOpenLibraryByIsbn(
+  isbn: string
+): Promise<ExternalBookResult | null> {
+  const url = new URL("https://openlibrary.org/search.json");
+  url.searchParams.set("isbn", isbn);
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("fields", "key,title,author_name,first_publish_year,isbn,cover_i,subject,number_of_pages_median");
+
+  try {
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data: OpenLibrarySearchResponse = await response.json();
+
+    if (!data.docs || data.docs.length === 0) {
+      return null;
+    }
+
+    const doc = data.docs[0];
+    const coverId = doc.cover_i || null;
+
+    return {
+      source: "openlibrary" as const,
+      externalId: doc.key.replace("/works/", ""),
+      title: doc.title,
+      author: doc.author_name?.[0] || "Unknown Author",
+      isbn: doc.isbn?.[0] || isbn,
+      description: null,
+      coverUrl: coverId ? getOpenLibraryCoverById(coverId, "L") : null,
+      publishedDate: doc.first_publish_year ? `${doc.first_publish_year}-01-01` : null,
+      pageCount: doc.number_of_pages_median || null,
+      genres: (doc.subject || []).slice(0, 5),
+      googleBooksId: null,
+      openLibraryId: doc.key.replace("/works/", ""),
+      openLibraryCoverId: coverId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Enrich a single book entry with external metadata
+ * Priority: Google Books (ISBN) > Google Books (title+author) > Open Library (ISBN) > fallback to input data
+ */
+export async function enrichBookEntry(
+  input: BookEnrichmentInput
+): Promise<EnrichedBookData> {
+  let result: ExternalBookResult | null = null;
+
+  // 1. Try Google Books by ISBN first (most precise)
+  if (input.isbn) {
+    result = await searchGoogleBooksByIsbn(input.isbn);
+  }
+
+  // 2. Try Google Books by title + author
+  if (!result) {
+    result = await searchGoogleBooksByTitleAuthor(input.title, input.author);
+  }
+
+  // 3. Try Open Library by ISBN as fallback
+  if (!result && input.isbn) {
+    result = await searchOpenLibraryByIsbn(input.isbn);
+  }
+
+  // 4. If we found something, return enriched data
+  if (result) {
+    return {
+      title: result.title || input.title,
+      author: result.author || input.author,
+      isbn: result.isbn || input.isbn || null,
+      description: result.description,
+      coverUrl: result.coverUrl,
+      publishedDate: result.publishedDate,
+      pageCount: result.pageCount,
+      // Merge genres: prefer input genres (curated) but add any new ones from API
+      genres: mergeGenres(input.genres, result.genres),
+      googleBooksId: result.googleBooksId,
+      openLibraryId: result.openLibraryId,
+      openLibraryCoverId: result.openLibraryCoverId,
+      coverSource: result.source === "google" ? "google" : "openlibrary",
+    };
+  }
+
+  // 5. Fallback: return input data without enrichment
+  return {
+    title: input.title,
+    author: input.author,
+    isbn: input.isbn || null,
+    description: null,
+    coverUrl: null,
+    publishedDate: null,
+    pageCount: null,
+    genres: input.genres,
+    googleBooksId: null,
+    openLibraryId: null,
+    openLibraryCoverId: null,
+    coverSource: null,
+  };
+}
+
+/**
+ * Merge genre arrays, preferring curated genres but adding unique API genres
+ */
+function mergeGenres(curated: string[], fromApi: string[]): string[] {
+  const combined = [...curated];
+  const normalizedCurated = new Set(curated.map(g => g.toLowerCase()));
+  
+  for (const genre of fromApi) {
+    if (!normalizedCurated.has(genre.toLowerCase())) {
+      combined.push(genre);
+    }
+  }
+  
+  return combined.slice(0, 8); // Limit to 8 genres
+}
+
+/**
+ * Batch enrich multiple books with rate limiting
+ */
+export async function enrichBooksWithRateLimit(
+  books: BookEnrichmentInput[],
+  delayMs: number = 200, // 200ms between requests to avoid rate limiting
+  onProgress?: (current: number, total: number, title: string) => void
+): Promise<EnrichedBookData[]> {
+  const results: EnrichedBookData[] = [];
+  
+  for (let i = 0; i < books.length; i++) {
+    const book = books[i];
+    
+    if (onProgress) {
+      onProgress(i + 1, books.length, book.title);
+    }
+    
+    const enriched = await enrichBookEntry(book);
+    results.push(enriched);
+    
+    // Rate limit delay (except for last item)
+    if (i < books.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+  
+  return results;
 }
 
