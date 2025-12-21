@@ -39,9 +39,9 @@ export default async function ReaderMapPage() {
           </Link>
         </div>
 
-        {/* Floating Action Buttons - Top Left (below back button) */}
+        {/* Floating Action Buttons - Top Right */}
         {user && (
-          <div className="absolute top-16 left-4 z-30 flex flex-col gap-2">
+          <div className="absolute top-4 right-4 z-30 flex gap-2">
             <Link href="/settings">
               <Button
                 variant="secondary"
