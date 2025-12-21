@@ -7,6 +7,8 @@ export interface Profile {
   avatar_url: string | null;
   website: string | null;
   is_admin: boolean;
+  followers_count: number;
+  following_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -140,6 +142,24 @@ export interface UserBadge {
   user_id: string;
   badge_id: string;
   unlocked_at: string;
+}
+
+// Follow relationship
+export interface Follow {
+  id: string;
+  follower_id: string;
+  following_id: string;
+  created_at: string;
+}
+
+// Follow with user profile info
+export interface FollowWithProfile extends Follow {
+  profile: {
+    id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
 }
 
 // User Taste Profile (for personalized recommendations)

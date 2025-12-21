@@ -11,6 +11,7 @@ import {
   Globe,
   Calendar,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 import {
   getProfileByUsername,
   getUserStats,
@@ -19,7 +20,10 @@ import {
   getSocialLinks,
 } from "@/lib/queries/users";
 import { getUserBadgesWithDefinitions } from "@/lib/queries/badges";
+import { isFollowing, getFollowCounts } from "@/lib/queries/follows";
 import { SocialLinksDisplay } from "@/components/social/social-links-display";
+import FollowButton from "@/components/social/follow-button";
+import FollowStats from "@/components/social/follow-stats";
 import BadgesSection from "@/components/badges/badges-section";
 import { BookCard } from "@/components/books/book-card";
 import { RatingDisplay } from "@/components/ui/rating-display";
@@ -57,11 +61,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function UserProfilePage({ params, searchParams }: Props) {
   const { username } = await params;
   const { tab } = await searchParams;
+
+  // Get current user
+  const supabase = await createClient();
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser();
+
   const profile = await getProfileByUsername(username);
 
   if (!profile) {
     notFound();
   }
+
+  // Check if viewing own profile
+  const isOwnProfile = currentUser?.id === profile.id;
 
   // Determine active tab
   const activeTab = tab || "all";
@@ -77,12 +91,14 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
             : undefined;
 
   // Fetch data in parallel
-  const [stats, booksResult, reviews, socialLinks, badges] = await Promise.all([
+  const [stats, booksResult, reviews, socialLinks, badges, followCounts, isFollowingUser] = await Promise.all([
     getUserStats(profile.id),
     getUserBooks(profile.id, { status: statusFilter, limit: 12 }),
     getUserReviews(profile.id, 5),
     getSocialLinks(profile.id),
     getUserBadgesWithDefinitions(profile.id),
+    getFollowCounts(profile.id),
+    currentUser && !isOwnProfile ? isFollowing(currentUser.id, profile.id) : Promise.resolve(false),
   ]);
 
   const books = booksResult.userBooks;
@@ -125,10 +141,29 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
 
             {/* Info */}
             <div className="flex-1 text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-bold font-serif mb-1">
-                {displayName}
-              </h1>
-              <p className="text-muted-foreground mb-3">@{profile.username}</p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold font-serif mb-1">
+                    {displayName}
+                  </h1>
+                  <p className="text-muted-foreground">@{profile.username}</p>
+                </div>
+                {currentUser && !isOwnProfile && (
+                  <FollowButton
+                    targetUserId={profile.id}
+                    initialIsFollowing={isFollowingUser}
+                    size="sm"
+                  />
+                )}
+              </div>
+
+              {/* Follow Stats */}
+              <FollowStats
+                username={profile.username}
+                followersCount={followCounts.followers}
+                followingCount={followCounts.following}
+                className="mb-4"
+              />
 
               {profile.bio && (
                 <p className="text-muted-foreground mb-4 max-w-xl">
