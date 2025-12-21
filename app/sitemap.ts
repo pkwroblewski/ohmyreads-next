@@ -1,5 +1,7 @@
 import { MetadataRoute } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { getAllAuthors } from "@/lib/queries/authors";
+import { CURATED_LISTS } from "@/lib/data/curated-lists";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
@@ -17,6 +19,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/authors`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/lists`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
     },
     {
       url: `${baseUrl}/features`,
@@ -92,6 +106,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticPages, ...bookPages, ...userPages];
+  // Author pages
+  const authors = await getAllAuthors();
+  const authorPages: MetadataRoute.Sitemap = authors.slice(0, 200).map((author) => ({
+    url: `${baseUrl}/authors/${author.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  }));
+
+  // Curated list pages
+  const listPages: MetadataRoute.Sitemap = CURATED_LISTS.map((list) => ({
+    url: `${baseUrl}/lists/${list.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  }));
+
+  return [...staticPages, ...bookPages, ...userPages, ...authorPages, ...listPages];
 }
 

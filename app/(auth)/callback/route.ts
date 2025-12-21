@@ -8,11 +8,14 @@ const ALLOWED_REDIRECTS = [
   "/profile",
   "/settings",
   "/stats",
+  "/challenges",
   "/onboarding",
   "/books",
   "/submit-book",
   "/my-submissions",
   "/admin",
+  "/reset-password",
+  "/import",
 ];
 
 function isValidRedirect(path: string): boolean {

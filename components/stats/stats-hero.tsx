@@ -1,13 +1,15 @@
 "use client";
 
 import { BookOpen, FileText, Star, TrendingUp } from "lucide-react";
+import { ShareDropdown } from "@/components/ui/share-dropdown";
 import type { ReadingStats } from "@/lib/queries/stats";
 
 interface StatsHeroProps {
   stats: ReadingStats;
+  userId: string;
 }
 
-export default function StatsHero({ stats }: StatsHeroProps) {
+export default function StatsHero({ stats, userId }: StatsHeroProps) {
   const currentYear = new Date().getFullYear();
 
   // Calculate goal percentage
@@ -30,9 +32,16 @@ export default function StatsHero({ stats }: StatsHeroProps) {
           <h1 className="text-3xl md:text-4xl font-bold font-serif mb-2">
             Your Reading Journey
           </h1>
-          <p className="text-muted-foreground text-lg">
+          <p className="text-muted-foreground text-lg mb-4">
             {currentYear} so far — keep turning those pages!
           </p>
+          <ShareDropdown
+            url="/"
+            title={`My ${currentYear} Reading Stats`}
+            text={`I've read ${stats.booksThisYear} books and ${stats.pagesThisYear.toLocaleString()} pages in ${currentYear}! Track your reading on OhMyReads.`}
+            variant="outline"
+            size="sm"
+          />
         </div>
 
         {/* Headline Metrics Grid */}

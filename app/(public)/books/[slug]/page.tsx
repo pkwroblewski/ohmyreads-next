@@ -39,6 +39,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Book Not Found" };
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
+  const ogImageUrl = `${baseUrl}/api/og/book?slug=${encodeURIComponent(slug)}`;
+
   return {
     title: `${book.title} by ${book.author}`,
     description:
@@ -54,8 +57,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `${book.title} by ${book.author}`,
       description: book.description?.slice(0, 160),
-      images: book.cover_url ? [book.cover_url] : [],
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${book.title} by ${book.author}`,
+        },
+      ],
       type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${book.title} by ${book.author}`,
+      description: book.description?.slice(0, 160),
+      images: [ogImageUrl],
     },
   };
 }

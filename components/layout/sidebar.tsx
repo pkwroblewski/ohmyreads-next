@@ -11,6 +11,8 @@ import {
   LogOut,
   BookOpen,
   BarChart3,
+  Upload,
+  Target,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -29,9 +31,11 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/my-shelf", label: "My Shelf", icon: Library },
   { href: "/stats", label: "Reading Stats", icon: BarChart3 },
+  { href: "/challenges", label: "Challenges", icon: Target },
   { href: "/books", label: "Browse", icon: Search },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/import", label: "Import", icon: Upload },
 ];
 
 export function Sidebar({ user, profile }: SidebarProps) {

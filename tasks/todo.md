@@ -1,222 +1,245 @@
-# Security & Architecture Review
+# Phase 1: Growth Tools Implementation
 
-## Current Task
-Comprehensive security audit focusing on secrets management and system flow
+## Overview
+Focus on user acquisition and viral growth through import tools, shareable content, and SEO.
 
-## Secrets Flow Diagram
+---
 
+## 1. Goodreads Import Tool (Highest Priority) ✅ COMPLETE
+
+### Why
+- Every frustrated Goodreads user is a potential customer
+- Major acquisition lever - lets users migrate their reading history
+- Reduces friction for new signups
+
+### Implementation Steps
+
+- [x] **1.1 Create import page UI** (`app/(app)/import/page.tsx`)
+- [x] **1.2 Parse Goodreads CSV format** (`lib/utils/csv-parser.ts`)
+- [x] **1.3 Book matching logic** (`lib/actions/import.ts`)
+- [x] **1.4 Server action for import** (used server action instead of API route)
+- [x] **1.5 Handle missing books** - Shows "not found" list with link to submit
+- [x] **1.6 Navigation** - Added to sidebar
+
+### Files Created
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         SECRETS FLOW                                     │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  SUPABASE DASHBOARD                                                      │
-│  ┌─────────────────┐                                                     │
-│  │ • Anon Key      │──────┐                                              │
-│  │ • Service Role  │      │                                              │
-│  │ • Project URL   │      │                                              │
-│  └─────────────────┘      │                                              │
-│                           ▼                                              │
-│  VERCEL DASHBOARD    ┌─────────────────┐                                 │
-│  ┌───────────────┐   │  Environment    │                                 │
-│  │ Environment   │◄──│  Variables      │                                 │
-│  │ Variables     │   │  (Manual Copy)  │                                 │
-│  └───────┬───────┘   └─────────────────┘                                 │
-│          │                                                               │
-│          │ Injected at build/runtime                                     │
-│          ▼                                                               │
-│  ┌─────────────────────────────────────────────────────────────┐        │
-│  │                    NEXT.JS APP                               │        │
-│  │  ┌─────────────────────┐  ┌───────────────────────────────┐ │        │
-│  │  │  SERVER SIDE        │  │  CLIENT SIDE (Browser)        │ │        │
-│  │  │  ───────────────    │  │  ──────────────────────       │ │        │
-│  │  │  • Service Role Key │  │  • NEXT_PUBLIC_URL     ✓     │ │        │
-│  │  │  • All env vars     │  │  • NEXT_PUBLIC_ANON_KEY ✓    │ │        │
-│  │  │                     │  │  • (Anon key is PUBLIC)       │ │        │
-│  │  └─────────────────────┘  └───────────────────────────────┘ │        │
-│  └─────────────────────────────────────────────────────────────┘        │
-│                           │                                              │
-│                           │ RLS-protected queries                        │
-│                           ▼                                              │
-│  ┌─────────────────────────────────────────────────────────────┐        │
-│  │                    SUPABASE                                  │        │
-│  │  • Row Level Security (RLS) enforced                        │        │
-│  │  • Anon key = limited permissions                           │        │
-│  │  • Service role = bypasses RLS (server-only)                │        │
-│  └─────────────────────────────────────────────────────────────┘        │
-│                                                                          │
-│  GITHUB                                                                  │
-│  ┌─────────────────┐                                                     │
-│  │ • Source code   │  ← NO SECRETS (gitignore blocks .env*)              │
-│  │ • No .env files │                                                     │
-│  └─────────────────┘                                                     │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
+app/(app)/import/page.tsx              # Import page
+lib/actions/import.ts                  # Import server action
+lib/utils/csv-parser.ts                # CSV parser utility
+components/import/goodreads-import.tsx # Import component with UI
 ```
 
-## Security Assessment Summary
+### Features
+- Drag & drop or click to upload CSV
+- Progress indicator during import
+- Book matching by ISBN13 → ISBN → title+author fuzzy match
+- Shows matched, not found, and skipped (already on shelf) counts
+- Lists all not-found books with link to submit
+- Lists all successfully imported books with status
+- Preserves ratings and reading dates from Goodreads
 
-### PASS - No Critical Vulnerabilities Found
+---
 
-| Area | Status | Details |
-|------|--------|---------|
-| Git History | ✅ CLEAN | No .env files ever committed |
-| .gitignore | ✅ SECURE | Properly excludes `.env*` |
-| next.config.ts | ✅ SAFE | Only image domains, no secrets |
-| vercel.json | ✅ SAFE | Only build config |
-| Service Role Key | ✅ PROTECTED | Server-side only, not in NEXT_PUBLIC |
-| Client Bundle | ✅ SAFE | Only NEXT_PUBLIC vars exposed (by design) |
-| RLS Policies | ✅ COMPREHENSIVE | All tables protected |
+## 2. Social Sharing Images (Viral Growth) ✅ COMPLETE
 
-## Detailed Findings
+### Why
+- Users share stats/reviews → friends discover platform
+- Shareable content = free marketing
+- Vercel OG is free and fast
 
-### 1. Environment Variables (SECURE)
+### Implementation Steps
 
-**Server-Only (Protected):**
-- `SUPABASE_SERVICE_ROLE_KEY` - Never exposed to client
+- [x] **2.1 Set up Vercel OG** - Installed @vercel/og package
+- [x] **2.2 Stats share image** (`app/api/og/stats/route.tsx`)
+- [x] **2.3 Review share image** (`app/api/og/review/route.tsx`)
+- [x] **2.4 Book share image** (`app/api/og/book/route.tsx`)
+- [x] **2.5 Add share buttons to UI** - ShareDropdown component + stats page
+- [x] **2.6 Meta tags for social preview** - Book pages have OG meta tags
 
-**Client-Safe (Intentionally Public):**
-- `NEXT_PUBLIC_SUPABASE_URL` - Project identifier
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Limited by RLS, safe to expose
-- `NEXT_PUBLIC_SITE_URL` - App URL
-
-**Why Anon Key is Safe:**
-- Supabase anon key is DESIGNED to be public
-- It only allows operations permitted by RLS policies
-- It cannot bypass Row Level Security
-- It's equivalent to a "public API key" pattern
-
-### 2. Supabase Client Architecture (SECURE)
-
+### Files Created
 ```
-lib/supabase/
-├── client.ts   → Browser client (anon key) ✅
-├── server.ts   → Server client (anon key + cookies) ✅
-└── admin.ts    → Admin client (service role) ✅ SERVER-ONLY
+app/api/og/stats/route.tsx         # Stats share image (1200x630)
+app/api/og/review/route.tsx        # Review share image
+app/api/og/book/route.tsx          # Book share image
+components/ui/share-dropdown.tsx   # Reusable share dropdown (X, LinkedIn, copy)
 ```
 
-**Admin Client Protection:**
-- Only imported in server-side code
-- Only used in `api/seed/route.ts` (dev-only)
-- Never bundled into client JavaScript
+### Features
+- Branded OG images for stats, books, and reviews
+- Share dropdown with X, LinkedIn, and copy link options
+- Dynamic OG meta tags on book pages
+- 1200x630px images optimized for social media
+- Edge runtime for fast image generation
 
-### 3. Row Level Security (COMPREHENSIVE)
+---
 
-All 9 tables have RLS enabled:
-- ✅ `profiles` - Users can only edit their own
-- ✅ `books` - Public read, authenticated write
-- ✅ `user_books` - Users see only their own
-- ✅ `reviews` - Public read, users manage their own
-- ✅ `comments` - Public read, users manage their own
-- ✅ `book_submissions` - Users see own + approved
-- ✅ `review_likes` - Users manage their own
-- ✅ `reading_stats` - Users see only their own
-- ✅ `social_links` - Users manage their own
+## 3. SEO Enhancements (Organic Discovery) ✅ COMPLETE
 
-### 4. Authentication Flow (SECURE)
+### Why
+- Organic search = free traffic
+- Author pages rank well for author searches
+- Curated lists attract browsing users
 
+### Implementation Steps
+
+- [x] **3.1 Author listing page** (`/authors`)
+- [x] **3.2 Author detail page** (`/authors/[slug]`)
+- [x] **3.3 Generate author slugs** - Derived from book data, no new table
+- [x] **3.4 Curated reading lists** - 12 genre/theme-based lists
+- [x] **3.5 JSON-LD structured data** - Author & list pages have schema.org markup
+- [x] **3.6 Sitemap improvements** - Authors & lists included
+
+### Files Created
 ```
-User → Google OAuth → Supabase Auth → Callback → Session Cookie
-                                          ↓
-                           Redirect whitelist validation ✅
+app/(public)/authors/page.tsx         # Author listing with A-Z navigation
+app/(public)/authors/[slug]/page.tsx  # Author detail with books grid
+app/(public)/lists/page.tsx           # Lists index with card grid
+app/(public)/lists/[slug]/page.tsx    # List detail with books
+lib/data/curated-lists.ts             # 12 curated reading lists
+lib/queries/authors.ts                # Author queries from book data
+lib/queries/lists.ts                  # List book fetching
 ```
 
-- OAuth handled by Supabase (no secrets in our code)
-- Session stored in httpOnly cookies
-- Redirect validation prevents open redirect attacks
+### Features
+- Author pages derived from existing book data (no DB changes)
+- A-Z letter navigation on authors page
+- 12 curated lists by genre/theme
+- JSON-LD structured data (Person, ItemList, BreadcrumbList)
+- Sitemap includes all authors (top 200) and all lists
 
-### 5. Config Files (CLEAN)
+---
 
-**next.config.ts:**
-- Only image remote patterns
-- No secrets, no sensitive config
+## Recommended Order
 
-**vercel.json:**
-- Build commands only
-- Region config (iad1)
-- Function duration limits
-- NO SECRETS
+1. **Goodreads Import** - Start here, highest impact
+2. **Social Sharing** - Quick win with Vercel OG
+3. **SEO** - Can be done incrementally
 
-### 6. What's in Git vs What's Not
+---
 
-**In Git (Safe):**
-- `.env.example` with placeholder values
-- All source code
-- Config files
+## Questions to Clarify
 
-**NOT in Git (Protected):**
-- `.env.local` (blocked by `.gitignore`)
-- `.vercel/` directory
-- `node_modules/`
+1. **Goodreads missing books**: Auto-create or require manual submission?
+2. **Author pages**: Simple derived approach or full authors table?
+3. **Curated lists**: Hardcoded or database-driven?
 
-## Recommendations
+---
 
-### Already Fixed (This Session)
-- [x] Open redirect vulnerability
-- [x] Middleware fail-closed in production
-- [x] Search API input trimming
+## Current Progress
 
-### For Production Deployment
-- [ ] **Replace in-memory rate limiting with Redis**
-  - Current rate limiter won't work across serverless instances
-  - Use Upstash Redis or Vercel KV
+- [x] Phase 1.1: Goodreads Import Tool ✅
+- [x] Phase 1.2: Social Sharing Images ✅
+- [x] Phase 1.3: SEO Enhancements ✅
 
-- [ ] **Add security headers** in next.config.ts:
-  ```typescript
-  headers: async () => [
-    {
-      source: '/(.*)',
-      headers: [
-        { key: 'X-Frame-Options', value: 'DENY' },
-        { key: 'X-Content-Type-Options', value: 'nosniff' },
-        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-      ],
-    },
-  ]
-  ```
+---
 
-- [ ] **Consider CSP (Content Security Policy)**
-  - Prevents XSS attacks
-  - Restricts script sources
+## Phase 1 Complete! 🎉
 
-### Local Development Best Practice
-- Restrict `.env.local` file permissions: `chmod 600 .env.local`
-- Never share `.env.local` files via chat/email
+All Phase 1 Growth Tools have been implemented:
 
-## Vercel Deployment Checklist
+| Feature | Status | Key Files |
+|---------|--------|-----------|
+| Goodreads Import | ✅ | `/import`, `lib/actions/import.ts` |
+| Social Sharing | ✅ | `/api/og/*`, OG images for stats/books/reviews |
+| SEO Pages | ✅ | `/authors`, `/lists`, sitemap |
 
-When deploying to Vercel, set these environment variables in the dashboard:
+---
 
-| Variable | Where to Get |
-|----------|--------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → API |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → API |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API |
-| `NEXT_PUBLIC_SITE_URL` | Your Vercel domain |
+## Phase 2: Foundation Fixes
 
-**NEVER commit actual values to git!**
+### 2.1 Password Reset Flow ✅ COMPLETE
 
-## Review
+#### Implementation
+- [x] Forgot password page (`/forgot-password`)
+- [x] Reset password page (`/reset-password`)
+- [x] Supabase password reset email integration
+- [x] Session validation for reset links
 
-### Architecture Security Score: A-
+#### Files Created
+```
+app/(auth)/forgot-password/page.tsx  # Request reset email
+app/(auth)/reset-password/page.tsx   # Set new password
+```
 
-**Strengths:**
-- Clean separation of client/server secrets
-- Comprehensive RLS policies
-- Proper input validation with Zod
-- OAuth delegated to Supabase (no credential handling)
-- Git history is clean
+#### Features
+- Email input with validation
+- Success state with email confirmation
+- Expired/invalid link handling
+- Password confirmation with validation
+- Minimum 8 character requirement
+- Auto-redirect to dashboard on success
 
-**Minor Gaps:**
-- In-memory rate limiting (needs Redis for prod)
-- No security headers configured
-- No CSP headers
+### 2.2 Email Welcome/Onboarding
+- [ ] Welcome email on signup
+- [ ] Onboarding email sequence
+- [ ] Email service integration (Resend/SendGrid)
 
-### Conclusion
-The secrets management is **secure**. The flow between Supabase → Vercel → Code → Client is properly architected. No secrets are exposed in git, client bundles, or config files. The anon key exposure in the client is intentional and safe due to RLS protection.
+### 2.3 Reading Challenges ✅ COMPLETE
 
-The website **cannot be hacked** through secret exposure because:
-1. Service role key is never sent to the browser
-2. All client operations are RLS-protected
-3. Git history contains no secrets
-4. Config files contain no secrets
+#### Implementation
+- [x] Database schema for challenges table
+- [x] TypeScript types for challenges
+- [x] Server actions (CRUD + progress sync)
+- [x] Challenge progress calculation from user_books
+- [x] ChallengeCard component with progress visualization
+- [x] CreateChallengeForm with type selection
+- [x] Challenges management page (`/challenges`)
+- [x] Dashboard integration with active challenges widget
+- [x] Sidebar navigation link
+
+#### Files Created
+```
+supabase/migrations/008_reading_challenges.sql
+lib/actions/challenges.ts
+components/challenges/challenge-card.tsx
+components/challenges/create-challenge-form.tsx
+components/challenges/active-challenges-widget.tsx
+app/(app)/challenges/page.tsx
+```
+
+#### Features
+- Three challenge types: Books Count, Pages Count, Genre-specific
+- Flexible duration: This month, This year, or custom date range
+- Real-time progress tracking based on books marked as read
+- On-track indicator (linear progress comparison)
+- Status management: Active, Completed, Failed, Abandoned
+- Dashboard widget showing active challenges
+- Abandon/delete functionality
+
+### 2.4 Achievement Badges ✅ COMPLETE
+
+#### Implementation
+- [x] Badge definitions (25 badges across 6 categories)
+- [x] Database migration for user_badges table
+- [x] TypeScript types for badges
+- [x] Badge calculation logic from user stats
+- [x] Unlock criteria checking and auto-unlock
+- [x] BadgeCard and BadgeIcon UI components
+- [x] BadgesSection for profile display
+- [x] Integration with public and private profiles
+
+#### Files Created
+```
+supabase/migrations/009_user_badges.sql
+lib/data/badges.ts                      # Badge definitions
+lib/queries/badges.ts                   # Badge queries & calculation
+lib/actions/badges.ts                   # Server actions
+components/badges/badge-card.tsx        # Full badge display
+components/badges/badge-icon.tsx        # Compact badge icon
+components/badges/badges-section.tsx    # Profile section
+```
+
+#### Badge Categories
+- **Reading**: First Steps, Bookworm, Avid Reader, Bibliophile, Library Legend
+- **Pages**: Page Turner, Marathon Reader, Page Master, Endless Reader
+- **Reviews**: Voice Found, Thoughtful Reviewer, Literary Critic, Super Fan
+- **Dedication**: Monthly Reader, Year of Reading, Dedicated Reader, Book a Week, Challenge Champion
+- **Genres**: Fantasy Explorer, Mystery Maven, Sci-Fi Voyager, Hopeless Romantic, Knowledge Seeker
+- **Special**: Early Adopter, Loyal Reader
+
+#### Features
+- 4 tier system: Bronze, Silver, Gold, Platinum
+- Automatic unlock based on reading activity
+- Progress tracking toward locked badges
+- Compact display on profiles with tooltips
+- Full badge cards with unlock date

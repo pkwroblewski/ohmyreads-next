@@ -34,7 +34,7 @@ export default async function StatsPage() {
   return (
     <div className="min-h-screen">
       {/* Hero Section with Key Stats */}
-      <StatsHero stats={stats} />
+      <StatsHero stats={stats} userId={user.id} />
 
       {/* Reading Goal Progress */}
       <div className="container max-w-6xl py-8">

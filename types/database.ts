@@ -106,6 +106,42 @@ export interface ReadingGoal {
   updated_at: string;
 }
 
+// Reading Challenge
+export type ChallengeType = "books_count" | "pages_count" | "genre_books";
+export type ChallengeStatus = "active" | "completed" | "failed" | "abandoned";
+
+export interface ReadingChallenge {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  challenge_type: ChallengeType;
+  target_value: number;
+  genre: string | null;
+  start_date: string;
+  end_date: string;
+  current_value: number;
+  status: ChallengeStatus;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Challenge with computed progress
+export interface ChallengeWithProgress extends ReadingChallenge {
+  progress_percentage: number;
+  days_remaining: number;
+  is_on_track: boolean;
+}
+
+// User Badge (earned achievement)
+export interface UserBadge {
+  id: string;
+  user_id: string;
+  badge_id: string;
+  unlocked_at: string;
+}
+
 // User Taste Profile (for personalized recommendations)
 export type PacePreference = "slow" | "medium" | "fast";
 export type LengthPreference = "short" | "medium" | "long";

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"C:\\\\Users\\\\bitpk\\\\Documents\\\\ohmyreads-next\\\\app\\\\\\(public\\)\" -name \"page.tsx\" -o -name \"layout.tsx\")",
+      "Bash(cat:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(findstr:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

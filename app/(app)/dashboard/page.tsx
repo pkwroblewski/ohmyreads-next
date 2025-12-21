@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import { BookListHorizontal } from "@/components/books/book-list-horizontal";
 import { RecommendedBooksRow } from "@/components/books/recommended-books-row";
+import ActiveChallengesWidget from "@/components/challenges/active-challenges-widget";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/utils";
@@ -22,6 +23,7 @@ import {
   getPersonalizedRecommendations,
   hasEnoughSignals,
 } from "@/lib/queries/recommendations";
+import { getChallenges } from "@/lib/actions/challenges";
 import type { Book, UserBook, ReadingStats, Profile } from "@/types/database";
 
 export const metadata: Metadata = {
@@ -79,6 +81,7 @@ export default async function DashboardPage() {
     currentlyReadingResult,
     recentActivityResult,
     hasSignals,
+    challengesResult,
   ] = await Promise.all([
     // Profile
     supabase.from("profiles").select("*").eq("id", user.id).single(),
@@ -101,12 +104,15 @@ export default async function DashboardPage() {
       .limit(5),
     // Check if user has enough signals for recommendations
     hasEnoughSignals(user.id),
+    // Active challenges
+    getChallenges(),
   ]);
 
   const profile = profileResult.data as Profile | null;
   const stats = statsResult.data as ReadingStats | null;
   const currentlyReading = (currentlyReadingResult.data || []) as UserBookWithBook[];
   const recentActivity = (recentActivityResult.data || []) as ActivityItem[];
+  const challenges = challengesResult.data || [];
 
   // Fetch personalized recommendations if user has signals
   const recommendations = hasSignals
@@ -164,6 +170,11 @@ export default async function DashboardPage() {
           trend={stats?.current_streak && stats.current_streak > 0 ? "up" : "neutral"}
         />
       </div>
+
+      {/* ========================================
+          Active Challenges Section
+          ======================================== */}
+      <ActiveChallengesWidget challenges={challenges} />
 
       {/* ========================================
           Currently Reading Section

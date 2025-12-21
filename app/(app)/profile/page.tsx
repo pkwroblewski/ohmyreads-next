@@ -19,7 +19,9 @@ import {
   getUserReviews,
   getSocialLinks,
 } from "@/lib/queries/users";
+import { getUserBadgesWithDefinitions } from "@/lib/queries/badges";
 import { SocialLinksDisplay } from "@/components/social/social-links-display";
+import BadgesSection from "@/components/badges/badges-section";
 import { BookCard } from "@/components/books/book-card";
 import { RatingDisplay } from "@/components/ui/rating-display";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -53,11 +55,12 @@ export default async function ProfilePage() {
   }
 
   // Fetch data in parallel
-  const [stats, booksResult, reviews, socialLinks] = await Promise.all([
+  const [stats, booksResult, reviews, socialLinks, badges] = await Promise.all([
     getUserStats(profile.id),
     getUserBooks(profile.id, { limit: 12 }),
     getUserReviews(profile.id, 5),
     getSocialLinks(profile.id),
+    getUserBadgesWithDefinitions(profile.id),
   ]);
 
   const books = booksResult.userBooks;
@@ -159,6 +162,16 @@ export default async function ProfilePage() {
           </div>
         </div>
       </section>
+
+      {/* ========================================
+          Achievements Section
+          ======================================== */}
+      <BadgesSection
+        badges={badges}
+        userId={profile.id}
+        isOwnProfile={true}
+        variant="compact"
+      />
 
       {/* ========================================
           My Books Section
