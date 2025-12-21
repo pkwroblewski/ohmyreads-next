@@ -1,6 +1,5 @@
 "use client";
 
-import { Users, BookOpen, Building2, Coffee, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LayerState {
@@ -20,26 +19,26 @@ const layerConfig = [
   {
     key: "readers" as const,
     label: "Readers",
-    icon: Users,
-    dotColor: "bg-primary",
+    activeColor: "bg-emerald-500",
+    inactiveColor: "bg-emerald-500/30",
   },
   {
     key: "bookstores" as const,
     label: "Bookstores",
-    icon: BookOpen,
-    dotColor: "bg-amber-500",
+    activeColor: "bg-amber-500",
+    inactiveColor: "bg-amber-500/30",
   },
   {
     key: "libraries" as const,
     label: "Libraries",
-    icon: Building2,
-    dotColor: "bg-blue-500",
+    activeColor: "bg-sky-500",
+    inactiveColor: "bg-sky-500/30",
   },
   {
     key: "cafes" as const,
     label: "Cafes",
-    icon: Coffee,
-    dotColor: "bg-orange-500",
+    activeColor: "bg-orange-400",
+    inactiveColor: "bg-orange-400/30",
   },
 ];
 
@@ -51,61 +50,54 @@ export function MapLayerControls({
   return (
     <div
       className={cn(
-        "bg-card/95 backdrop-blur-sm rounded-xl border shadow-warm p-1 min-w-[140px]",
+        "bg-white/80 dark:bg-card/80 backdrop-blur-md rounded-xl border border-white/50 dark:border-border shadow-lg",
         className
       )}
     >
-      {layerConfig.map(({ key, label, icon: Icon, dotColor }) => {
-        const isActive = layers[key];
-        return (
-          <button
-            key={key}
-            onClick={() => onToggle(key)}
-            className={cn(
-              "flex items-center gap-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200",
-              "hover:bg-muted/50",
-              isActive && "bg-muted/30"
-            )}
-          >
-            {/* Colored indicator dot */}
-            <span
-              className={cn(
-                "w-2 h-2 rounded-full transition-opacity duration-200",
-                dotColor,
-                isActive ? "opacity-100" : "opacity-30"
-              )}
-            />
+      {/* Header */}
+      <div className="px-3 py-2 border-b border-border/50">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Show on map
+        </span>
+      </div>
 
-            {/* Icon */}
-            <Icon
+      {/* Filter options */}
+      <div className="p-1.5">
+        {layerConfig.map(({ key, label, activeColor, inactiveColor }) => {
+          const isActive = layers[key];
+          return (
+            <button
+              key={key}
+              onClick={() => onToggle(key)}
               className={cn(
-                "h-4 w-4 transition-colors duration-200",
-                isActive ? "text-foreground" : "text-muted-foreground"
-              )}
-            />
-
-            {/* Label */}
-            <span
-              className={cn(
-                "text-sm font-medium flex-1 text-left transition-colors duration-200",
-                isActive ? "text-foreground" : "text-muted-foreground"
+                "flex items-center gap-3 w-full px-2.5 py-2 rounded-lg transition-all duration-150",
+                "hover:bg-black/5 dark:hover:bg-white/5",
+                isActive && "bg-black/[0.03] dark:bg-white/[0.03]"
               )}
             >
-              {label}
-            </span>
+              {/* Colored indicator dot */}
+              <span
+                className={cn(
+                  "w-2.5 h-2.5 rounded-full transition-all duration-150 shrink-0",
+                  isActive ? activeColor : inactiveColor
+                )}
+              />
 
-            {/* Check indicator */}
-            <Check
-              className={cn(
-                "h-3.5 w-3.5 transition-all duration-200",
-                isActive
-                  ? "opacity-100 text-primary"
-                  : "opacity-0"
-              )}
-            />
-          </button>
-        );
-      })}
+              {/* Label */}
+              <span
+                className={cn(
+                  "text-sm transition-colors duration-150 flex-1 text-left",
+                  isActive
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground"
+                )}
+              >
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

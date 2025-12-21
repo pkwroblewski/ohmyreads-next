@@ -236,7 +236,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
         const el = document.createElement("div");
         el.className = "reader-marker";
         el.innerHTML = `
-          <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white">
+          <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
         `;
@@ -264,8 +264,8 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
         place.type === "bookstore"
           ? "bg-amber-500"
           : place.type === "library"
-            ? "bg-blue-500"
-            : "bg-orange-500";
+            ? "bg-sky-500"
+            : "bg-orange-400";
 
       const icon =
         place.type === "bookstore"
