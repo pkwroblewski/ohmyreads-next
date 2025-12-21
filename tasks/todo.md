@@ -368,3 +368,25 @@ components/community/community-sidebar.tsx
 - "Readers Like You" section with best matches
 - Enhanced sidebar suggestions with compatibility
 - Link to discover page from community sidebar
+
+---
+
+## UI Improvements
+
+### Map Layer Controls Redesign ✅ COMPLETE
+
+#### Problem
+Original filter chips looked basic and "cheesy" - simple colored pills that didn't match a premium book app aesthetic.
+
+#### Solution
+Redesigned as an elegant floating card with:
+- Frosted glass effect (`backdrop-blur-sm`)
+- Vertical toggle rows with colored indicator dots
+- Check mark icons for active state
+- Subtle hover states and smooth transitions
+- Uses existing `shadow-warm` design system
+
+#### Files Modified
+```
+components/geo/map-layer-controls.tsx
+```
