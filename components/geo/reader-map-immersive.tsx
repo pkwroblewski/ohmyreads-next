@@ -508,7 +508,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
           libraries: [...places.community, ...places.osm].filter(p => p.type === "library").length,
           cafes: [...places.community, ...places.osm].filter(p => p.type === "cafe").length,
         }}
-        className="absolute top-20 left-4 z-10"
+        className="absolute top-[72px] left-4 z-10"
       />
 
       {/* Detail Panel - Bottom (mobile) / Right (desktop) */}
