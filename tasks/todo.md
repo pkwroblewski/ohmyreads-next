@@ -390,3 +390,83 @@ Redesigned as an elegant floating card with:
 ```
 components/geo/map-layer-controls.tsx
 ```
+
+---
+
+## Session: December 21, 2024
+
+### Reader Map Premium Redesign ✅ COMPLETE
+
+#### Changes Made
+1. **Removed AI integration**
+   - Deleted Anthropic SDK, cron jobs, AI event summaries
+   - Files removed: `lib/ai/events-summary.ts`, `app/api/geo/events/summary/route.ts`, `app/api/cron/scan-events/route.ts`
+
+2. **Migrated to Mapbox GL v3**
+   - Replaced MapLibre with Mapbox GL
+   - Enabled 3D buildings, fog, dynamic lighting
+   - Theme-aware lighting (day/night based on system theme)
+
+3. **Glass morphism UI**
+   - Updated panels with backdrop-blur effects
+   - Files: `map-detail-panel.tsx`, `map-events-panel.tsx`
+
+#### Commits
+- `554c029` - Premium Reader Map: Mapbox GL v3 + Remove AI
+
+---
+
+### Location Settings UX Redesign ✅ COMPLETE
+
+#### Changes Made
+- Two-button flow: "Use Current Location" or "Search for a Place"
+- Mini-map preview with privacy radius circle
+- One-click confirm (visual confirmation instead of form)
+- Auto-detect place name via reverse geocoding
+
+#### Files Created/Modified
+```
+components/settings/location-mini-map.tsx  # NEW - Mapbox mini-map preview
+components/settings/location-section.tsx   # REWRITTEN - New UX flow
+```
+
+#### Commits
+- `a60ea1c` - UX: Redesign location settings with map preview
+
+---
+
+### Reader Map UI Overlap Fixes ✅ COMPLETE
+
+#### Problem
+- Settings and Add Place buttons overlapped with Filters panel
+- Multiple UI elements competing for top-left space
+
+#### Solution
+1. Moved Filters panel from `top-20` to `top-[72px]`
+2. Relocated Settings + Add Place buttons to **top-right** corner
+
+#### Layout Now
+- Top-left: Back button only
+- Top-right: Settings ⚙️ + Add Place ➕ buttons (horizontal)
+- Below back button: Filters panel (no overlap)
+
+#### Files Modified
+```
+components/geo/reader-map-immersive.tsx    # Filters position
+app/(public)/community/map/page.tsx        # Button relocation
+```
+
+#### Commits
+- `cd0f0fd` - Fix: Adjust Filters panel position
+- `baacc6e` - Fix: Move Settings + Add Place buttons to top-right
+
+---
+
+## Environment Notes
+
+### Can Be Removed from Vercel Env Vars
+- `ANTHROPIC_API_KEY` - No longer used (AI removed)
+- `CRON_SECRET` - No longer used (cron job deleted)
+
+### Required
+- `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` - Already configured, needed for 3D map
