@@ -161,7 +161,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
       zoom: 10,
     });
 
-    map.current.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.current.addControl(new maplibregl.NavigationControl(), "bottom-right");
 
     map.current.on("load", () => {
       setIsLoading(false);
@@ -417,6 +417,17 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
                 <X className="h-4 w-4" />
               </Button>
             )}
+            {/* Geolocate button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 hover:bg-primary/10"
+              onClick={handleCenterOnUser}
+              title="Center on my location"
+              disabled={!userLocation}
+            >
+              <Locate className={cn("h-4 w-4", userLocation ? "text-primary" : "text-muted-foreground")} />
+            </Button>
           </div>
 
           {/* Search Results Dropdown */}
@@ -448,21 +459,15 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
       <MapLayerControls
         layers={layers}
         onToggle={handleLayerToggle}
+        counts={{
+          readers: readers.length,
+          bookstores: [...places.community, ...places.osm].filter(p => p.type === "bookstore").length,
+          libraries: [...places.community, ...places.osm].filter(p => p.type === "library").length,
+          cafes: [...places.community, ...places.osm].filter(p => p.type === "cafe").length,
+        }}
         className="absolute top-20 left-4 z-10"
       />
 
-      {/* Center on User Button - Bottom Right */}
-      {userLocation && (
-        <Button
-          size="icon"
-          variant="secondary"
-          className="absolute bottom-6 right-6 z-10 shadow-lg h-12 w-12 rounded-full"
-          onClick={handleCenterOnUser}
-          title="Center on my location"
-        >
-          <Locate className="h-5 w-5" />
-        </Button>
-      )}
 
       {/* Detail Panel - Bottom (mobile) / Right (desktop) */}
       <MapDetailPanel

@@ -8,6 +8,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const VALID_TYPES = ["bookstore", "library", "cafe", "bookclub", "popup", "other"];
 const OSM_TYPES = ["bookstore", "library", "cafe"];
 
+// Simple in-memory rate limiter for Overpass API
+// Overpass allows ~2 requests per second for anonymous users
+let lastOverpassRequest = 0;
+const OVERPASS_MIN_INTERVAL = 1500; // 1.5 seconds between requests
+
+async function waitForOverpassSlot(): Promise<void> {
+  const now = Date.now();
+  const elapsed = now - lastOverpassRequest;
+  if (elapsed < OVERPASS_MIN_INTERVAL) {
+    await new Promise(resolve => setTimeout(resolve, OVERPASS_MIN_INTERVAL - elapsed));
+  }
+  lastOverpassRequest = Date.now();
+}
+
 /**
  * GET /api/geo/places?geohash=u33d&types=bookstore,library,cafe
  * 
@@ -120,9 +134,12 @@ async function fetchFromOverpass(
   geohash: string,
   placeType: string
 ): Promise<CachedPlaceData[]> {
+  // Wait for rate limit slot before making request
+  await waitForOverpassSlot();
+
   // Decode geohash to get bounding box
   const { lat, lng, latErr, lngErr } = decodeGeohash(geohash);
-  
+
   // Create a bounding box (south, west, north, east)
   const bbox = {
     south: lat - latErr * 3,
@@ -133,7 +150,7 @@ async function fetchFromOverpass(
 
   // Map our types to OSM tags
   const osmQuery = getOsmQuery(placeType, bbox);
-  
+
   try {
     const response = await fetch("https://overpass-api.de/api/interpreter", {
       method: "POST",

@@ -14,7 +14,9 @@
       "Bash(git commit:*)",
       "mcp__plugin_supabase_supabase__apply_migration",
       "Bash(wc:*)",
-      "mcp__plugin_supabase_supabase__list_projects"
+      "mcp__plugin_supabase_supabase__list_projects",
+      "WebFetch(domain:ohmyreads-next-git-main-pawels-projects-293cb507.vercel.app)",
+      "WebFetch(domain:www.ohmyreads.com)"
     ]
   }
 }
