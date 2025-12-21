@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import { useTheme } from "next-themes";
 import { Loader2, Locate, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,8 +41,9 @@ interface ReaderMapImmersiveProps {
 
 export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmersiveProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const markers = useRef<maplibregl.Marker[]>([]);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const markers = useRef<mapboxgl.Marker[]>([]);
+  const { resolvedTheme } = useTheme();
 
   const [isLoading, setIsLoading] = useState(true);
   const [readers, setReaders] = useState<ReaderPin[]>([]);
@@ -102,69 +104,71 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     }
   };
 
-  // Initialize map - exactly like the working ReaderMap
+  // Initialize map with Mapbox GL v3
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Get Mapbox token
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
-    // Build style - use Mapbox raster tiles if token available
-    const style: maplibregl.StyleSpecification = mapboxToken
-      ? {
-          version: 8,
-          sources: {
-            "mapbox-streets": {
-              type: "raster",
-              tiles: [
-                `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`,
-              ],
-              tileSize: 512,
-              attribution: '© <a href="https://www.mapbox.com/">Mapbox</a>',
-            },
-          },
-          layers: [
-            {
-              id: "mapbox-streets-layer",
-              type: "raster",
-              source: "mapbox-streets",
-            },
-          ],
-        }
-      : {
-          version: 8,
-          sources: {
-            osm: {
-              type: "raster",
-              tiles: [
-                "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              ],
-              tileSize: 256,
-              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-            },
-          },
-          layers: [
-            {
-              id: "osm",
-              type: "raster",
-              source: "osm",
-            },
-          ],
-        };
+    if (!mapboxToken) {
+      console.error("Mapbox token not found");
+      setIsLoading(false);
+      return;
+    }
 
-    map.current = new maplibregl.Map({
+    // Set the access token
+    mapboxgl.accessToken = mapboxToken;
+
+    // Create map with Mapbox Standard style and 3D features
+    map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style,
+      style: "mapbox://styles/mapbox/standard",
       center: [-74.006, 40.7128], // NYC default
-      zoom: 10,
+      zoom: 11,
+      pitch: 45, // 3D perspective
+      bearing: -15, // Slight rotation for visual interest
+      antialias: true,
     });
 
-    map.current.addControl(new maplibregl.NavigationControl(), "bottom-right");
+    // Add navigation controls
+    map.current.addControl(
+      new mapboxgl.NavigationControl({
+        visualizePitch: true,
+      }),
+      "bottom-right"
+    );
+
+    // Add scale control
+    map.current.addControl(
+      new mapboxgl.ScaleControl({
+        maxWidth: 100,
+        unit: "metric",
+      }),
+      "bottom-left"
+    );
 
     map.current.on("load", () => {
       setIsLoading(false);
+
+      // Add fog for atmospheric depth
+      map.current?.setFog({
+        range: [0.5, 10],
+        color: resolvedTheme === "dark" ? "#1a1a2e" : "#ffffff",
+        "high-color": resolvedTheme === "dark" ? "#000022" : "#add8e6",
+        "horizon-blend": 0.1,
+        "star-intensity": resolvedTheme === "dark" ? 0.15 : 0,
+        "space-color": resolvedTheme === "dark" ? "#000011" : "#d8f2ff",
+      });
+
+      // Set light preset based on theme
+      try {
+        map.current?.setConfigProperty("basemap", "lightPreset",
+          resolvedTheme === "dark" ? "night" : "day"
+        );
+      } catch {
+        // Standard style config might not be available in all versions
+        console.log("Light preset configuration not available");
+      }
     });
 
     map.current.on("moveend", () => {
@@ -174,15 +178,20 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
       }
     });
 
-    // Try to get user's location - first browser, then IP fallback
+    // Get user's location
     const getIPLocation = async () => {
       try {
-        // Use ipapi.co for free HTTPS IP geolocation
         const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
         if (data.latitude && data.longitude) {
-          map.current?.setCenter([data.longitude, data.latitude]);
-          map.current?.setZoom(11);
+          map.current?.flyTo({
+            center: [data.longitude, data.latitude],
+            zoom: 12,
+            pitch: 50,
+            bearing: 0,
+            duration: 2000,
+            essential: true,
+          });
           setUserLocation({ lat: data.latitude, lng: data.longitude });
           fetchDataForLocation(data.latitude, data.longitude);
         } else {
@@ -198,17 +207,21 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
         (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation({ lat: latitude, lng: longitude });
-          map.current?.setCenter([longitude, latitude]);
-          map.current?.setZoom(12);
+          map.current?.flyTo({
+            center: [longitude, latitude],
+            zoom: 13,
+            pitch: 50,
+            bearing: 0,
+            duration: 2000,
+            essential: true,
+          });
           fetchDataForLocation(latitude, longitude);
         },
         () => {
-          // Browser geolocation denied - try IP geolocation
           getIPLocation();
         }
       );
     } else {
-      // No browser geolocation - try IP geolocation
       getIPLocation();
     }
 
@@ -217,6 +230,30 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update fog and lighting when theme changes
+  useEffect(() => {
+    if (!map.current || isLoading) return;
+
+    // Update fog colors for theme
+    map.current.setFog({
+      range: [0.5, 10],
+      color: resolvedTheme === "dark" ? "#1a1a2e" : "#ffffff",
+      "high-color": resolvedTheme === "dark" ? "#000022" : "#add8e6",
+      "horizon-blend": 0.1,
+      "star-intensity": resolvedTheme === "dark" ? 0.15 : 0,
+      "space-color": resolvedTheme === "dark" ? "#000011" : "#d8f2ff",
+    });
+
+    // Update light preset
+    try {
+      map.current.setConfigProperty("basemap", "lightPreset",
+        resolvedTheme === "dark" ? "night" : "day"
+      );
+    } catch {
+      // Config might not be available
+    }
+  }, [resolvedTheme, isLoading]);
 
   // Update markers when data changes
   useEffect(() => {
@@ -242,7 +279,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
         `;
         el.addEventListener("click", () => setSelectedItem(reader));
 
-        const marker = new maplibregl.Marker({ element: el })
+        const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([lng, lat])
           .addTo(map.current!);
         markers.current.push(marker);
@@ -281,19 +318,23 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
       `;
       el.addEventListener("click", () => setSelectedItem(place));
 
-      const marker = new maplibregl.Marker({ element: el })
+      const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([place.lng, place.lat])
         .addTo(map.current!);
       markers.current.push(marker);
     });
   }, [readers, places, layers]);
 
-  // Center on user location
+  // Center on user location with smooth 3D animation
   const handleCenterOnUser = () => {
     if (userLocation && map.current) {
       map.current.flyTo({
         center: [userLocation.lng, userLocation.lat],
-        zoom: 13,
+        zoom: 14,
+        pitch: 50,
+        bearing: 0,
+        duration: 2000,
+        essential: true,
       });
     }
   };
@@ -312,7 +353,6 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
 
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
     if (!mapboxToken) {
-      // Fallback: use Nominatim (OSM) geocoding
       setIsSearching(true);
       try {
         const res = await fetch(
@@ -350,16 +390,20 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     setIsSearching(false);
   };
 
-  // Handle search result selection
+  // Handle search result selection with smooth 3D animation
   const handleSelectPlace = (center: [number, number], placeName: string) => {
     if (map.current) {
       map.current.flyTo({
         center,
-        zoom: 12,
+        zoom: 13,
+        pitch: 50,
+        bearing: -15,
+        duration: 2500,
+        essential: true,
       });
       fetchDataForLocation(center[1], center[0]);
     }
-    setSearchQuery(placeName.split(",")[0]); // Just show city name
+    setSearchQuery(placeName.split(",")[0]);
     setSearchResults([]);
     setShowSearch(false);
   };
@@ -380,10 +424,10 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
 
       {/* Loading Overlay */}
       {isLoading && (
-        <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Loading map...</p>
+            <p className="text-sm text-muted-foreground">Loading 3D map...</p>
           </div>
         </div>
       )}
@@ -391,7 +435,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
       {/* Search Bar - Top Center */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4">
         <div className="relative">
-          <div className="flex items-center gap-2 bg-card/95 backdrop-blur-sm rounded-full shadow-lg border px-4 py-2">
+          <div className="flex items-center gap-2 bg-white/90 dark:bg-card/90 backdrop-blur-xl rounded-full shadow-lg border border-white/50 dark:border-border/50 px-4 py-2.5">
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
             <Input
               type="text"
@@ -417,7 +461,6 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
                 <X className="h-4 w-4" />
               </Button>
             )}
-            {/* Geolocate button */}
             <Button
               variant="ghost"
               size="icon"
@@ -432,11 +475,11 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
 
           {/* Search Results Dropdown */}
           {showSearch && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-card rounded-lg shadow-lg border overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 dark:bg-card/95 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 dark:border-border/50 overflow-hidden">
               {searchResults.map((result, index) => (
                 <button
                   key={index}
-                  className="w-full px-4 py-3 text-left text-sm hover:bg-muted transition-colors border-b last:border-0"
+                  className="w-full px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0"
                   onClick={() => handleSelectPlace(result.center, result.place_name)}
                 >
                   {result.place_name}
@@ -447,7 +490,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
 
           {/* Searching indicator */}
           {isSearching && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-card rounded-lg shadow-lg border p-4 text-center text-sm text-muted-foreground">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 dark:bg-card/95 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 dark:border-border/50 p-4 text-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
               Searching...
             </div>
@@ -467,7 +510,6 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
         }}
         className="absolute top-20 left-4 z-10"
       />
-
 
       {/* Detail Panel - Bottom (mobile) / Right (desktop) */}
       <MapDetailPanel

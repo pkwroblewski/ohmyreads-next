@@ -68,9 +68,9 @@ export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelP
       {/* Panel */}
       <div
         className={cn(
-          "fixed z-30 bg-card border shadow-xl transition-transform duration-300 ease-out",
+          "fixed z-30 bg-white/95 dark:bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl transition-transform duration-300 ease-out",
           // Mobile: bottom sheet
-          "inset-x-0 bottom-0 rounded-t-2xl max-h-[60vh] lg:max-h-none",
+          "inset-x-0 bottom-0 rounded-t-3xl max-h-[60vh] lg:max-h-none",
           // Desktop: right sidebar
           "lg:inset-y-0 lg:right-0 lg:left-auto lg:w-96 lg:rounded-none lg:border-l lg:border-t-0 lg:border-b-0 lg:border-r-0",
           // Animation
@@ -85,7 +85,7 @@ export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelP
         </div>
 
         {/* Header */}
-        <div className="flex items-start justify-between p-4 border-b">
+        <div className="flex items-start justify-between p-4 border-b border-border/50">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {isReader(item) ? (
               <>

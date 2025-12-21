@@ -1,16 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Sparkles, CalendarDays, MapPin, ChevronRight, Loader2, BookOpen } from "lucide-react";
+import { CalendarDays, MapPin, ChevronRight, Loader2, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EventCard, type BookEvent } from "./event-card";
 import { Button } from "@/components/ui/button";
-
-interface EventsSummary {
-  summary: string;
-  event_count: number;
-  generated_at: string;
-}
 
 interface MapEventsPanelProps {
   geohash?: string;
@@ -26,7 +20,6 @@ export function MapEventsPanel({
   className,
 }: MapEventsPanelProps) {
   const [events, setEvents] = useState<BookEvent[]>([]);
-  const [summary, setSummary] = useState<EventsSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,19 +34,11 @@ export function MapEventsPanel({
       setError(null);
 
       try {
-        const [eventsRes, summaryRes] = await Promise.all([
-          fetch(`/api/geo/events?geohash=${geohash}&limit=20`),
-          fetch(`/api/geo/events/summary?geohash=${geohash}`),
-        ]);
+        const eventsRes = await fetch(`/api/geo/events?geohash=${geohash}&limit=20`);
 
         if (eventsRes.ok) {
           const eventsData = await eventsRes.json();
           setEvents(eventsData.events || []);
-        }
-
-        if (summaryRes.ok) {
-          const summaryData = await summaryRes.json();
-          setSummary(summaryData.summary || null);
         }
       } catch (err) {
         console.error("Error fetching events:", err);
@@ -81,24 +66,6 @@ export function MapEventsPanel({
           </p>
         )}
       </div>
-
-      {/* AI Summary Card */}
-      {summary && (
-        <div className="p-4 border-b border-border bg-gradient-to-br from-primary/5 via-accent/5 to-primary/5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 rounded-lg bg-primary/10">
-              <Sparkles className="h-4 w-4 text-primary" />
-            </div>
-            <span className="font-medium text-sm">This Week&apos;s Highlights</span>
-          </div>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {summary.summary}
-          </p>
-          <p className="text-xs text-muted-foreground/70 mt-2">
-            {summary.event_count} events nearby
-          </p>
-        </div>
-      )}
 
       {/* Events List */}
       <div className="flex-1 overflow-y-auto">

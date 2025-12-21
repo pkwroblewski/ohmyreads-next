@@ -7,12 +7,6 @@
     "app/**/*.ts": {
       "maxDuration": 30
     }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/scan-events",
-      "schedule": "0 6 * * 1"
-    }
-  ]
+  }
 }
 
