@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, BookOpen, Building2, Coffee, MapPin, Globe, Navigation, Users, Star, MessageSquare } from "lucide-react";
+import { X, BookOpen, Building2, Coffee, MapPin, Globe, Navigation, Users, MessageSquare, Camera } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { ReaderPin, PlacePin, MapItem } from "./reader-map-immersive";
 import { PlaceReviewsList } from "./place-reviews-list";
+import { PlacePhotosList } from "./place-photos-list";
 
 interface MapDetailPanelProps {
   item: MapItem | null;
@@ -222,17 +223,16 @@ function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId
                 <MessageSquare className="h-4 w-4 mr-1.5" />
                 Reviews
               </TabsTrigger>
-              <TabsTrigger value="photos" className="flex-1" disabled>
+              <TabsTrigger value="photos" className="flex-1">
+                <Camera className="h-4 w-4 mr-1.5" />
                 Photos
               </TabsTrigger>
             </TabsList>
             <TabsContent value="reviews" className="mt-4">
               <PlaceReviewsList placeId={place.id} currentUserId={currentUserId} />
             </TabsContent>
-            <TabsContent value="photos">
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Photos coming soon
-              </p>
+            <TabsContent value="photos" className="mt-4">
+              <PlacePhotosList placeId={place.id} currentUserId={currentUserId} />
             </TabsContent>
           </Tabs>
         </div>
