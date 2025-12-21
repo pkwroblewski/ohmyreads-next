@@ -61,7 +61,7 @@ export function Sidebar({ user, profile }: SidebarProps) {
     <div className="flex h-full flex-col bg-card border-r border-border">
       {/* Logo Section */}
       <div className="p-6">
-        <Link href="/dashboard" className="flex items-center gap-2.5 group">
+        <Link href="/" className="flex items-center gap-2.5 group">
           <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-105">
             <BookOpen className="w-5 h-5" />
           </div>

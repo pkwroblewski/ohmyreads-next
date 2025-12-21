@@ -4,9 +4,11 @@ import { MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getInitialCommunityFeed, getCommunitySidebar } from "@/lib/queries/community";
 import { getHomeReadingActivity } from "@/lib/queries/home";
-import { GlobalActivityFeed } from "@/components/community/global-activity-feed";
+import { getSuggestedFollows } from "@/lib/queries/follows";
+import { CommunityFeedTabs } from "@/components/community/community-feed-tabs";
 import { MyShelfPanel } from "@/components/community/my-shelf-panel";
 import { CommunitySidebar } from "@/components/community/community-sidebar";
+import { SuggestedFollows } from "@/components/social/suggested-follows";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -39,10 +41,11 @@ export default async function CommunityPage() {
   }
 
   // Fetch all data in parallel
-  const [initialFeed, sidebarData, activity] = await Promise.all([
+  const [initialFeed, sidebarData, activity, suggestions] = await Promise.all([
     getInitialCommunityFeed(),
     getCommunitySidebar(),
     user ? getHomeReadingActivity(user.id) : Promise.resolve(null),
+    user ? getSuggestedFollows(user.id, 5) : Promise.resolve([]),
   ]);
 
   return (
@@ -81,12 +84,18 @@ export default async function CommunityPage() {
 
           {/* Center - Activity Feed */}
           <main>
-            <GlobalActivityFeed initialData={initialFeed} />
+            <CommunityFeedTabs
+              initialGlobalData={initialFeed}
+              isLoggedIn={!!user}
+            />
           </main>
 
           {/* Right Sidebar - Community */}
           <aside className="hidden lg:block">
-            <div className="sticky top-20">
+            <div className="sticky top-20 space-y-4">
+              {user && suggestions.length > 0 && (
+                <SuggestedFollows suggestions={suggestions} />
+              )}
               <CommunitySidebar data={sidebarData} />
             </div>
           </aside>
@@ -95,6 +104,9 @@ export default async function CommunityPage() {
         {/* Mobile: Show sidebars below feed */}
         <div className="lg:hidden mt-8 space-y-6">
           <MyShelfPanel activity={activity} user={userProfile} />
+          {user && suggestions.length > 0 && (
+            <SuggestedFollows suggestions={suggestions} />
+          )}
           <CommunitySidebar data={sidebarData} />
         </div>
       </div>

@@ -84,7 +84,7 @@ export default async function ReaderMapPage() {
       </div>
 
       {/* Full-Page Map */}
-      <ReaderMapImmersive />
+      <ReaderMapImmersive currentUserId={user?.id} />
     </div>
   );
 }

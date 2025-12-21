@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createPublicClient, createClient } from "@/lib/supabase/server";
 import type { ActivityFeedItemWithRelations } from "@/types/database";
+import { getFollowingIds } from "./follows";
 
 // ============================================
 // TYPES
@@ -136,6 +137,96 @@ export async function getCommunityFeedPage(options: {
   const lastItem = items[items.length - 1];
   const nextCursor = hasMore && lastItem 
     ? `${lastItem.created_at}|${lastItem.id}` 
+    : null;
+
+  return { items, nextCursor, hasMore };
+}
+
+// ============================================
+// FOLLOWING FEED (filtered by who user follows)
+// ============================================
+
+/**
+ * Fetch a page of activity from users the current user follows.
+ * Uses cursor pagination for efficient "Load more".
+ */
+export async function getFollowingFeedPage(options: {
+  userId: string;
+  limit?: number;
+  cursor?: string | null;
+}): Promise<CommunityFeedPage> {
+  const { userId, limit = 10, cursor } = options;
+
+  // Get IDs of users the current user follows
+  const followingIds = await getFollowingIds(userId);
+
+  // If not following anyone, return empty feed
+  if (followingIds.length === 0) {
+    return { items: [], nextCursor: null, hasMore: false };
+  }
+
+  const supabase = createPublicClient();
+
+  let query = supabase
+    .from("activity_feed")
+    .select(
+      `
+      id,
+      type,
+      user_id,
+      book_id,
+      review_id,
+      created_at,
+      user:profiles!activity_feed_user_id_fkey(id, username, display_name, avatar_url),
+      book:books!activity_feed_book_id_fkey(id, title, author, slug, cover_url),
+      review:reviews!activity_feed_review_id_fkey(id, rating, content, likes_count)
+    `
+    )
+    .in("user_id", followingIds)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit + 1);
+
+  // Apply cursor filter if provided and valid
+  const parsedCursor = parseCursor(cursor);
+  if (parsedCursor) {
+    query = query.or(
+      `created_at.lt.${parsedCursor.date},and(created_at.eq.${parsedCursor.date},id.lt.${parsedCursor.id})`
+    );
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching following feed:", error);
+    return { items: [], nextCursor: null, hasMore: false };
+  }
+
+  const items = (data || [])
+    .filter((item) => item.user && item.book)
+    .slice(0, limit)
+    .map((item) => {
+      const userData = item.user as unknown as ActivityFeedItemWithRelations["user"];
+      const bookData = item.book as unknown as ActivityFeedItemWithRelations["book"];
+      const reviewData = item.review as unknown as ActivityFeedItemWithRelations["review"];
+
+      return {
+        id: item.id,
+        type: item.type as "review" | "started_reading",
+        user_id: item.user_id,
+        book_id: item.book_id,
+        review_id: item.review_id,
+        created_at: item.created_at,
+        user: userData,
+        book: bookData,
+        review: reviewData || null,
+      };
+    });
+
+  const hasMore = (data?.length || 0) > limit;
+  const lastItem = items[items.length - 1];
+  const nextCursor = hasMore && lastItem
+    ? `${lastItem.created_at}|${lastItem.id}`
     : null;
 
   return { items, nextCursor, hasMore };

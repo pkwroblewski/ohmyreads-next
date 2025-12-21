@@ -35,9 +35,10 @@ export type MapItem = ReaderPin | PlacePin;
 
 interface ReaderMapImmersiveProps {
   className?: string;
+  currentUserId?: string;
 }
 
-export function ReaderMapImmersive({ className }: ReaderMapImmersiveProps) {
+export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmersiveProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
@@ -466,6 +467,7 @@ export function ReaderMapImmersive({ className }: ReaderMapImmersiveProps) {
       <MapDetailPanel
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
+        currentUserId={currentUserId}
       />
     </div>
   );

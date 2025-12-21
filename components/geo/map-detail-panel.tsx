@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, BookOpen, Building2, Coffee, MapPin, Globe, Navigation, Users } from "lucide-react";
+import { X, BookOpen, Building2, Coffee, MapPin, Globe, Navigation, Users, Star, MessageSquare } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { ReaderPin, PlacePin, MapItem } from "./reader-map-immersive";
+import { PlaceReviewsList } from "./place-reviews-list";
 
 interface MapDetailPanelProps {
   item: MapItem | null;
   onClose: () => void;
+  currentUserId?: string;
 }
 
 function isReader(item: MapItem): item is ReaderPin {
@@ -33,7 +36,7 @@ const placeColors: Record<string, string> = {
   cafe: "text-orange-500",
 };
 
-export function MapDetailPanel({ item, onClose }: MapDetailPanelProps) {
+export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   // Handle animation
@@ -140,7 +143,7 @@ export function MapDetailPanel({ item, onClose }: MapDetailPanelProps) {
           {isReader(item) ? (
             <ReaderContent reader={item} />
           ) : (
-            <PlaceContent place={item} />
+            <PlaceContent place={item} currentUserId={currentUserId} />
           )}
         </div>
       </div>
@@ -171,7 +174,10 @@ function ReaderContent({ reader }: { reader: ReaderPin }) {
   );
 }
 
-function PlaceContent({ place }: { place: PlacePin }) {
+function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId?: string }) {
+  // Only community places have real IDs for reviews
+  const canShowReviews = place.source === "community" && !place.id.startsWith("osm-");
+
   return (
     <div className="space-y-4">
       {place.address && (
@@ -207,12 +213,38 @@ function PlaceContent({ place }: { place: PlacePin }) {
         )}
       </div>
 
-      {/* Future: Tabs for Reviews, Photos, Check-ins will go here */}
-      <div className="pt-4 border-t">
-        <p className="text-sm text-muted-foreground text-center">
-          Reviews and photos coming soon
-        </p>
-      </div>
+      {/* Reviews Section - Only for community places */}
+      {canShowReviews ? (
+        <div className="pt-4 border-t">
+          <Tabs defaultValue="reviews" className="w-full">
+            <TabsList className="w-full">
+              <TabsTrigger value="reviews" className="flex-1">
+                <MessageSquare className="h-4 w-4 mr-1.5" />
+                Reviews
+              </TabsTrigger>
+              <TabsTrigger value="photos" className="flex-1" disabled>
+                Photos
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="reviews" className="mt-4">
+              <PlaceReviewsList placeId={place.id} currentUserId={currentUserId} />
+            </TabsContent>
+            <TabsContent value="photos">
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Photos coming soon
+              </p>
+            </TabsContent>
+          </Tabs>
+        </div>
+      ) : (
+        <div className="pt-4 border-t">
+          <p className="text-sm text-muted-foreground text-center">
+            {place.source === "osm"
+              ? "This is an OSM place. Submit it as a community place to enable reviews."
+              : "Reviews coming soon"}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
