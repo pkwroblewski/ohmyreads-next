@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { BookOpen, Heart, MessageCircle, Share2, Star, MoreHorizontal } from "lucide-react";
+import { BookOpen, Heart, MessageCircle, Share2, Star, MoreHorizontal, MapPin } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +22,10 @@ export function ActivityCard({ item }: ActivityCardProps) {
     return <StartedReadingCard item={item} displayName={displayName} timeAgo={timeAgo} />;
   }
 
+  if (item.type === "checkin") {
+    return <CheckinCard item={item} displayName={displayName} timeAgo={timeAgo} />;
+  }
+
   return <ReviewCard item={item} displayName={displayName} timeAgo={timeAgo} />;
 }
 
@@ -37,6 +41,9 @@ function StartedReadingCard({
   displayName: string;
   timeAgo: string;
 }) {
+  const book = item.book;
+  if (!book) return null;
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
@@ -72,12 +79,12 @@ function StartedReadingCard({
 
         {/* Book Card */}
         <Link
-          href={`/books/${item.book.slug}`}
+          href={`/books/${book.slug}`}
           className="mt-3 flex gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
         >
           {/* Cover */}
           <CoverImage
-            book={item.book}
+            book={book}
             size="xs"
             width={48}
             height={72}
@@ -88,11 +95,109 @@ function StartedReadingCard({
           {/* Info */}
           <div className="flex-1 min-w-0">
             <h4 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
-              {item.book.title}
+              {book.title}
             </h4>
-            <p className="text-xs text-muted-foreground truncate">{item.book.author}</p>
+            <p className="text-xs text-muted-foreground truncate">{book.author}</p>
           </div>
         </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Check-in Card
+// ─────────────────────────────────────────────────────────────────────────
+function CheckinCard({
+  item,
+  displayName,
+  timeAgo,
+}: {
+  item: ActivityFeedItemWithRelations;
+  displayName: string;
+  timeAgo: string;
+}) {
+  const place = item.place;
+  const checkin = item.checkin;
+
+  if (!place) return null;
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4">
+        {/* Header */}
+        <div className="flex items-start gap-3">
+          <Link href={`/users/${item.user.username || item.user.id}`}>
+            <Avatar size="md">
+              {item.user.avatar_url ? (
+                <AvatarImage src={item.user.avatar_url} alt={displayName} />
+              ) : (
+                <AvatarFallback initials={getInitials(displayName)} />
+              )}
+            </Avatar>
+          </Link>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link
+                href={`/users/${item.user.username || item.user.id}`}
+                className="font-medium hover:text-primary transition-colors"
+              >
+                {displayName}
+              </Link>
+              <span className="text-muted-foreground">checked in at</span>
+              <Link
+                href="/community/map"
+                className="font-medium hover:text-primary transition-colors truncate max-w-[200px]"
+              >
+                {place.name}
+              </Link>
+            </div>
+            <p className="text-xs text-muted-foreground">{timeAgo}</p>
+          </div>
+
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Place Card */}
+        <div className="mt-3 p-3 rounded-lg bg-muted/50">
+          <div className="flex items-center gap-2 text-sm">
+            <MapPin className="h-4 w-4 text-primary" />
+            <span className="font-medium">{place.name}</span>
+            <span className="text-muted-foreground capitalize">({place.place_type})</span>
+          </div>
+
+          {/* Note if present */}
+          {checkin?.note && (
+            <p className="mt-2 text-sm text-muted-foreground">{checkin.note}</p>
+          )}
+
+          {/* Book if attached */}
+          {item.book && (
+            <Link
+              href={`/books/${item.book.slug}`}
+              className="mt-3 flex gap-3 p-2 rounded-lg bg-background hover:bg-muted/50 transition-colors group"
+            >
+              <CoverImage
+                book={item.book}
+                size="xs"
+                width={40}
+                height={60}
+                hover={false}
+                className="flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground mb-0.5">Currently reading</p>
+                <h4 className="font-medium text-sm line-clamp-1 group-hover:text-primary transition-colors">
+                  {item.book.title}
+                </h4>
+                <p className="text-xs text-muted-foreground truncate">{item.book.author}</p>
+              </div>
+            </Link>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -111,6 +216,9 @@ function ReviewCard({
   timeAgo: string;
 }) {
   const review = item.review;
+  const book = item.book;
+
+  if (!book) return null;
 
   return (
     <Card className="overflow-hidden">
@@ -137,10 +245,10 @@ function ReviewCard({
               </Link>
               <span className="text-muted-foreground">reviewed</span>
               <Link
-                href={`/books/${item.book.slug}`}
+                href={`/books/${book.slug}`}
                 className="font-medium hover:text-primary transition-colors truncate max-w-[200px]"
               >
-                {item.book.title}
+                {book.title}
               </Link>
             </div>
             <p className="text-xs text-muted-foreground">{timeAgo}</p>
@@ -154,9 +262,9 @@ function ReviewCard({
         {/* Review Content */}
         <div className="mt-3 flex gap-3">
           {/* Cover */}
-          <Link href={`/books/${item.book.slug}`} className="flex-shrink-0 group">
+          <Link href={`/books/${book.slug}`} className="flex-shrink-0 group">
             <CoverImage
-              book={item.book}
+              book={book}
               size="sm"
               width={64}
               height={96}
@@ -190,7 +298,7 @@ function ReviewCard({
 
             {/* Read more link */}
             <Link
-              href={`/books/${item.book.slug}#reviews`}
+              href={`/books/${book.slug}#reviews`}
               className="text-sm text-primary hover:underline mt-1 inline-block"
             >
               Read Full Review

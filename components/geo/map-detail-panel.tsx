@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import type { ReaderPin, PlacePin, MapItem } from "./reader-map-immersive";
 import { PlaceReviewsList } from "./place-reviews-list";
 import { PlacePhotosList } from "./place-photos-list";
+import { PlaceCheckinsList } from "./place-checkins-list";
+import { CheckinButton } from "./checkin-button";
 
 interface MapDetailPanelProps {
   item: MapItem | null;
@@ -189,13 +191,21 @@ function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId
       )}
 
       {/* Quick Actions */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        {/* Check-in button - only for community places */}
+        {canShowReviews && (
+          <CheckinButton
+            placeId={place.id}
+            placeName={place.name}
+            currentUserId={currentUserId}
+          />
+        )}
         {place.website && (
           <a
             href={place.website}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex-1")}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           >
             <Globe className="h-4 w-4 mr-2" />
             Website
@@ -206,7 +216,7 @@ function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId
             href={`https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex-1")}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           >
             <Navigation className="h-4 w-4 mr-2" />
             Directions
@@ -217,8 +227,12 @@ function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId
       {/* Reviews Section - Only for community places */}
       {canShowReviews ? (
         <div className="pt-4 border-t">
-          <Tabs defaultValue="reviews" className="w-full">
+          <Tabs defaultValue="checkins" className="w-full">
             <TabsList className="w-full">
+              <TabsTrigger value="checkins" className="flex-1">
+                <MapPin className="h-4 w-4 mr-1.5" />
+                Check-ins
+              </TabsTrigger>
               <TabsTrigger value="reviews" className="flex-1">
                 <MessageSquare className="h-4 w-4 mr-1.5" />
                 Reviews
@@ -228,6 +242,9 @@ function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId
                 Photos
               </TabsTrigger>
             </TabsList>
+            <TabsContent value="checkins" className="mt-4">
+              <PlaceCheckinsList placeId={place.id} currentUserId={currentUserId} />
+            </TabsContent>
             <TabsContent value="reviews" className="mt-4">
               <PlaceReviewsList placeId={place.id} currentUserId={currentUserId} />
             </TabsContent>

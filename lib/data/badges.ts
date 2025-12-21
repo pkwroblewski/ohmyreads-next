@@ -7,6 +7,7 @@ export type BadgeCategory =
   | "reviews"
   | "streaks"
   | "genres"
+  | "checkins"
   | "special";
 
 export type BadgeTier = "bronze" | "silver" | "gold" | "platinum";
@@ -29,6 +30,8 @@ export interface BadgeDefinition {
     accountAgeDays?: number;
     booksInOneMonth?: number;
     booksInOneYear?: number;
+    totalCheckins?: number;
+    checkinStreak?: number;
   };
 }
 
@@ -63,6 +66,7 @@ export const CATEGORY_INFO: Record<BadgeCategory, { label: string; icon: string 
   reviews: { label: "Reviews", icon: "✍️" },
   streaks: { label: "Dedication", icon: "🔥" },
   genres: { label: "Genres", icon: "🎭" },
+  checkins: { label: "Check-ins", icon: "📍" },
   special: { label: "Special", icon: "⭐" },
 };
 
@@ -293,6 +297,64 @@ export const BADGES: BadgeDefinition[] = [
     category: "genres",
     tier: "silver",
     criteria: { genreBooksRead: { genre: "Non-Fiction", count: 10 } },
+  },
+
+  // ========================================
+  // CHECK-IN BADGES
+  // ========================================
+  {
+    id: "first-checkin",
+    name: "Explorer",
+    description: "Check in at your first reading spot",
+    icon: "📍",
+    category: "checkins",
+    tier: "bronze",
+    criteria: { totalCheckins: 1 },
+  },
+  {
+    id: "regular-visitor",
+    name: "Regular Visitor",
+    description: "Check in 10 times at reading spots",
+    icon: "🏪",
+    category: "checkins",
+    tier: "bronze",
+    criteria: { totalCheckins: 10 },
+  },
+  {
+    id: "local-reader",
+    name: "Local Reader",
+    description: "Check in 50 times at reading spots",
+    icon: "🏘️",
+    category: "checkins",
+    tier: "silver",
+    criteria: { totalCheckins: 50 },
+  },
+  {
+    id: "reading-nomad",
+    name: "Reading Nomad",
+    description: "Check in 100 times at reading spots",
+    icon: "🌍",
+    category: "checkins",
+    tier: "gold",
+    criteria: { totalCheckins: 100 },
+  },
+  {
+    id: "weekly-wanderer",
+    name: "Weekly Wanderer",
+    description: "Maintain a 7-day check-in streak",
+    icon: "🔥",
+    category: "checkins",
+    tier: "silver",
+    criteria: { checkinStreak: 7 },
+  },
+  {
+    id: "monthly-explorer",
+    name: "Monthly Explorer",
+    description: "Maintain a 30-day check-in streak",
+    icon: "🏆",
+    category: "checkins",
+    tier: "platinum",
+    criteria: { checkinStreak: 30 },
   },
 
   // ========================================

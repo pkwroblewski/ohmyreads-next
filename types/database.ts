@@ -310,15 +310,59 @@ export interface CommentWithReplies extends CommentWithUser {
   replies?: CommentWithReplies[];
 }
 
+// Place Check-in
+export interface PlaceCheckin {
+  id: string;
+  place_id: string;
+  user_id: string;
+  book_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+// Check-in with relations (for display)
+export interface CheckinWithRelations extends PlaceCheckin {
+  user: {
+    id: string;
+    username: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+  book?: {
+    id: string;
+    title: string;
+    author: string;
+    slug: string;
+    cover_url: string | null;
+  } | null;
+  place: {
+    id: string;
+    name: string;
+    place_type: string;
+  };
+}
+
+// User check-in stats (for streaks)
+export interface UserCheckinStats {
+  user_id: string;
+  total_checkins: number;
+  current_streak: number;
+  longest_streak: number;
+  last_checkin_date: string | null;
+  updated_at: string;
+}
+
 // Activity Feed Item (for community page)
-export type ActivityType = "review" | "started_reading";
+export type ActivityType = "review" | "started_reading" | "checkin";
 
 export interface ActivityFeedItem {
   id: string;
   type: ActivityType;
   user_id: string;
-  book_id: string;
+  book_id: string | null;
   review_id: string | null;
+  place_id: string | null;
+  checkin_id: string | null;
   created_at: string;
 }
 
@@ -330,18 +374,67 @@ export interface ActivityFeedItemWithRelations extends ActivityFeedItem {
     display_name: string | null;
     avatar_url: string | null;
   };
-  book: {
+  book?: {
     id: string;
     title: string;
     author: string;
     slug: string;
     cover_url: string | null;
-  };
+  } | null;
   review?: {
     id: string;
     rating: number;
     content: string | null;
     likes_count: number;
   } | null;
+  place?: {
+    id: string;
+    name: string;
+    place_type: string;
+  } | null;
+  checkin?: {
+    id: string;
+    note: string | null;
+  } | null;
+}
+
+// ============================================
+// Reader Discovery Types
+// ============================================
+
+// Compatibility level for reader matching
+export type CompatibilityLevel = "high" | "medium" | "low" | "unknown";
+
+// Reader with compatibility data (for discovery)
+export interface ReaderWithCompatibility {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  followers_count: number;
+  following_count: number;
+  books_count: number;
+  reviews_count: number;
+  compatibility: CompatibilityLevel;
+  compatibility_score: number; // 0-100 for sorting
+  shared_books: number;
+  shared_genres: string[];
+  shared_vibes: string[];
+}
+
+// Filters for reader search/browse
+export interface ReaderSearchFilters {
+  query?: string;
+  genres?: string[];
+  activityLevel?: "any" | "active" | "prolific";
+  sortBy?: "compatibility" | "activity" | "followers" | "recent";
+}
+
+// Taste data for compatibility calculation
+export interface ReaderTasteData {
+  genres: string[];
+  vibes: string[];
+  bookIds: string[];
 }
 

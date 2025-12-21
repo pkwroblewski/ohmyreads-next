@@ -169,10 +169,11 @@ app/(auth)/reset-password/page.tsx   # Set new password
 - Minimum 8 character requirement
 - Auto-redirect to dashboard on success
 
-### 2.2 Email Welcome/Onboarding
-- [ ] Welcome email on signup
-- [ ] Onboarding email sequence
-- [ ] Email service integration (Resend/SendGrid)
+### 2.2 Email Welcome/Onboarding ✅ COMPLETE
+- [x] Welcome email on signup
+- [x] Email service integration (Resend)
+- [ ] **TODO: Add Resend API key to Vercel** (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`)
+- [ ] Onboarding email sequence (future enhancement)
 
 ### 2.3 Reading Challenges ✅ COMPLETE
 
@@ -243,3 +244,127 @@ components/badges/badges-section.tsx    # Profile section
 - Progress tracking toward locked badges
 - Compact display on profiles with tooltips
 - Full badge cards with unlock date
+
+---
+
+## Phase 4: Check-ins
+
+### Overview
+Users can check in at reading places (bookstores, libraries, cafes) with optional book association and notes. Check-ins appear in the activity feed and on place pages. Includes streak tracking and badges for gamification.
+
+### Implementation
+
+- [x] Database migration (013_place_checkins.sql)
+- [x] TypeScript types for check-ins
+- [x] Check-in badge definitions (6 new badges)
+- [x] Server actions for check-ins
+- [x] Badge query updates for check-in criteria
+- [x] Community feed updates for check-in activities
+- [x] UI components (CheckinButton, CheckinFormDialog, PlaceCheckinsList)
+- [x] MapDetailPanel integration (Check-ins tab + button)
+- [x] ActivityCard for check-in activities
+
+#### Files Created
+```
+supabase/migrations/013_place_checkins.sql
+lib/actions/checkins.ts
+components/geo/checkin-button.tsx
+components/geo/checkin-form-dialog.tsx
+components/geo/place-checkins-list.tsx
+```
+
+#### Files Modified
+```
+types/database.ts
+lib/data/badges.ts
+lib/queries/badges.ts
+lib/queries/community.ts
+components/geo/map-detail-panel.tsx
+components/community/activity-card.tsx
+```
+
+#### Database Tables
+- `place_checkins` - id, place_id, user_id, book_id (optional), note (optional), created_at
+- `user_checkin_stats` - user_id, total_checkins, current_streak, longest_streak, last_checkin_date
+
+#### New Badges (Check-ins Category)
+| Badge | Tier | Criteria |
+|-------|------|----------|
+| Explorer | Bronze | 1 check-in |
+| Regular Visitor | Bronze | 10 check-ins |
+| Local Reader | Silver | 50 check-ins |
+| Reading Nomad | Gold | 100 check-ins |
+| Weekly Wanderer | Silver | 7-day streak |
+| Monthly Explorer | Platinum | 30-day streak |
+
+#### Features
+- Check in at community places with optional book + note
+- 4-hour rate limit per place to prevent spam
+- Streak tracking (consecutive days with check-ins)
+- Check-ins appear in community activity feed
+- Check-ins tab on place detail panel
+- Badge unlocking for check-in milestones and streaks
+
+---
+
+## Phase 5: Reader Discovery ✅ COMPLETE
+
+### Overview
+Find readers with similar taste through user search, taste-based matching, and compatibility indicators. Browse the reader directory and see personalized recommendations.
+
+### Implementation
+
+- [x] Database migration with text search indexes (pg_trgm)
+- [x] TypeScript types for compatibility and discovery
+- [x] Core discover queries with compatibility algorithm
+- [x] Compatibility badge component (High/Medium/Low)
+- [x] Reader card component with compatibility display
+- [x] Readers Like You recommendations section
+- [x] Reader browser with search and filters
+- [x] Discover page (`/discover`)
+- [x] API route for browsing readers
+- [x] Enhanced sidebar with compatibility badges
+- [x] "Find More Readers" link in community sidebar
+
+#### Files Created
+```
+supabase/migrations/014_reader_discovery.sql
+lib/queries/discover.ts
+app/api/discover/browse/route.ts
+components/discover/compatibility-badge.tsx
+components/discover/reader-card.tsx
+components/discover/readers-like-you.tsx
+components/discover/reader-browser.tsx
+app/(public)/discover/page.tsx
+app/(public)/discover/loading.tsx
+```
+
+#### Files Modified
+```
+types/database.ts
+lib/queries/follows.ts
+components/social/suggested-follows.tsx
+components/community/community-sidebar.tsx
+```
+
+#### Compatibility Algorithm
+- **Shared Books (40%)**: Direct book overlap in user libraries
+- **Shared Genres (35%)**: Overlap in genres from books read
+- **Shared Vibes (25%)**: Overlap in vibe_tags from reviews
+
+#### Compatibility Levels
+| Level | Score | Color |
+|-------|-------|-------|
+| High | 70-100% | Green |
+| Medium | 30-69% | Amber |
+| Low | 0-29% | Gray |
+
+#### Features
+- Search readers by username or display name
+- Browse reader directory with sorting options
+- Taste-based recommendations for logged-in users
+- Compatibility badges on reader cards
+- Shared books/genres/vibes display
+- "Readers Like You" section with best matches
+- Enhanced sidebar suggestions with compatibility
+- Link to discover page from community sidebar

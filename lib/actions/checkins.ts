@@ -1,0 +1,412 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, getRateLimitStatus } from "@/lib/utils/rate-limit";
+import type { CheckinWithRelations, UserCheckinStats } from "@/types/database";
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+const FOUR_HOURS_MS = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
+
+// ============================================
+// TYPES
+// ============================================
+
+interface CreateCheckinInput {
+  placeId: string;
+  bookId?: string | null;
+  note?: string | null;
+}
+
+interface CreateCheckinResult {
+  success?: boolean;
+  checkinId?: string;
+  newBadges?: Array<{ id: string; name: string; icon: string }>;
+  error?: string;
+}
+
+// ============================================
+// CREATE CHECK-IN
+// ============================================
+
+/**
+ * Create a check-in at a place
+ * Rate limited: 1 check-in per place per 4 hours
+ */
+export async function createCheckin(input: CreateCheckinInput): Promise<CreateCheckinResult> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { error: "You must be logged in to check in" };
+    }
+
+    // Rate limit: 1 check-in per place per 4 hours
+    const rateLimitKey = `checkin:${user.id}:${input.placeId}`;
+    const { allowed, resetIn } = checkRateLimit(rateLimitKey, 1, FOUR_HOURS_MS);
+
+    if (!allowed) {
+      const hoursRemaining = Math.ceil(resetIn / (60 * 60 * 1000));
+      return {
+        error: `You've already checked in here recently. Try again in ${hoursRemaining} hour${hoursRemaining !== 1 ? "s" : ""}.`,
+      };
+    }
+
+    // Validate place exists
+    const { data: place, error: placeError } = await supabase
+      .from("places")
+      .select("id")
+      .eq("id", input.placeId)
+      .single();
+
+    if (placeError || !place) {
+      return { error: "Place not found" };
+    }
+
+    // Validate book if provided
+    if (input.bookId) {
+      const { data: book, error: bookError } = await supabase
+        .from("books")
+        .select("id")
+        .eq("id", input.bookId)
+        .single();
+
+      if (bookError || !book) {
+        return { error: "Book not found" };
+      }
+    }
+
+    // Validate note length
+    if (input.note && input.note.length > 500) {
+      return { error: "Note must be 500 characters or less" };
+    }
+
+    // Create the check-in
+    const { data: checkin, error } = await supabase
+      .from("place_checkins")
+      .insert({
+        place_id: input.placeId,
+        user_id: user.id,
+        book_id: input.bookId || null,
+        note: input.note?.trim() || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating check-in:", error);
+      return { error: "Failed to create check-in" };
+    }
+
+    // Check for new badges (after stats are updated by trigger)
+    const newBadges = await checkAndUnlockCheckinBadges(user.id);
+
+    revalidatePath("/community");
+    revalidatePath("/community/map");
+
+    return {
+      success: true,
+      checkinId: checkin.id,
+      newBadges,
+    };
+  } catch (error) {
+    console.error("Error in createCheckin:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+// ============================================
+// GET PLACE CHECK-INS
+// ============================================
+
+/**
+ * Get check-ins for a specific place
+ */
+export async function getPlaceCheckins(
+  placeId: string,
+  limit = 20
+): Promise<{ checkins: CheckinWithRelations[] }> {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("place_checkins")
+      .select(
+        `
+        id,
+        place_id,
+        user_id,
+        book_id,
+        note,
+        created_at,
+        user:profiles!place_checkins_user_id_fkey (
+          id,
+          username,
+          display_name,
+          avatar_url
+        ),
+        book:books!place_checkins_book_id_fkey (
+          id,
+          title,
+          author,
+          slug,
+          cover_url
+        ),
+        place:places!place_checkins_place_id_fkey (
+          id,
+          name,
+          place_type
+        )
+      `
+      )
+      .eq("place_id", placeId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("Error fetching check-ins:", error);
+      return { checkins: [] };
+    }
+
+    // Transform data to match CheckinWithRelations type
+    // Supabase returns relations as arrays, so we need to handle that
+    const checkins: CheckinWithRelations[] = (data || []).map((item) => {
+      const user = Array.isArray(item.user) ? item.user[0] : item.user;
+      const book = Array.isArray(item.book) ? item.book[0] : item.book;
+      const place = Array.isArray(item.place) ? item.place[0] : item.place;
+
+      return {
+        id: item.id,
+        place_id: item.place_id,
+        user_id: item.user_id,
+        book_id: item.book_id,
+        note: item.note,
+        created_at: item.created_at,
+        user: user as CheckinWithRelations["user"],
+        book: book as CheckinWithRelations["book"],
+        place: place as CheckinWithRelations["place"],
+      };
+    });
+
+    return { checkins };
+  } catch (error) {
+    console.error("Error in getPlaceCheckins:", error);
+    return { checkins: [] };
+  }
+}
+
+// ============================================
+// GET USER CHECK-IN STATS
+// ============================================
+
+/**
+ * Get user's check-in stats (for streaks)
+ */
+export async function getUserCheckinStats(userId: string): Promise<{ stats: UserCheckinStats | null }> {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("user_checkin_stats")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 = not found, which is OK
+      console.error("Error fetching check-in stats:", error);
+    }
+
+    if (!data) {
+      return {
+        stats: {
+          user_id: userId,
+          total_checkins: 0,
+          current_streak: 0,
+          longest_streak: 0,
+          last_checkin_date: null,
+          updated_at: new Date().toISOString(),
+        },
+      };
+    }
+
+    return { stats: data };
+  } catch (error) {
+    console.error("Error in getUserCheckinStats:", error);
+    return { stats: null };
+  }
+}
+
+// ============================================
+// CAN CHECK-IN AT PLACE
+// ============================================
+
+/**
+ * Check if user can check in at a place (rate limit check)
+ */
+export async function canCheckinAtPlace(
+  placeId: string
+): Promise<{ canCheckin: boolean; reason?: string; hoursRemaining?: number }> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { canCheckin: false, reason: "not_authenticated" };
+    }
+
+    const rateLimitKey = `checkin:${user.id}:${placeId}`;
+    const status = getRateLimitStatus(rateLimitKey, 1);
+
+    if (status && status.remaining === 0) {
+      const hoursRemaining = Math.ceil(status.resetIn / (60 * 60 * 1000));
+      return {
+        canCheckin: false,
+        reason: "rate_limited",
+        hoursRemaining,
+      };
+    }
+
+    return { canCheckin: true };
+  } catch (error) {
+    console.error("Error in canCheckinAtPlace:", error);
+    return { canCheckin: false, reason: "error" };
+  }
+}
+
+// ============================================
+// DELETE CHECK-IN
+// ============================================
+
+/**
+ * Delete a check-in (user can only delete their own)
+ */
+export async function deleteCheckin(checkinId: string): Promise<{ success?: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { error: "You must be logged in" };
+    }
+
+    // Check ownership
+    const { data: checkin, error: fetchError } = await supabase
+      .from("place_checkins")
+      .select("id, user_id")
+      .eq("id", checkinId)
+      .single();
+
+    if (fetchError || !checkin) {
+      return { error: "Check-in not found" };
+    }
+
+    if (checkin.user_id !== user.id) {
+      return { error: "You can only delete your own check-ins" };
+    }
+
+    const { error } = await supabase.from("place_checkins").delete().eq("id", checkinId);
+
+    if (error) {
+      console.error("Error deleting check-in:", error);
+      return { error: "Failed to delete check-in" };
+    }
+
+    revalidatePath("/community");
+    revalidatePath("/community/map");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error in deleteCheckin:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+// ============================================
+// CHECK AND UNLOCK CHECK-IN BADGES
+// ============================================
+
+/**
+ * Check and unlock check-in related badges
+ */
+async function checkAndUnlockCheckinBadges(
+  userId: string
+): Promise<Array<{ id: string; name: string; icon: string }>> {
+  try {
+    const supabase = await createClient();
+
+    // Get user's check-in stats
+    const { data: stats } = await supabase
+      .from("user_checkin_stats")
+      .select("total_checkins, current_streak")
+      .eq("user_id", userId)
+      .single();
+
+    if (!stats) return [];
+
+    const totalCheckins = stats.total_checkins || 0;
+    const currentStreak = stats.current_streak || 0;
+
+    // Get user's existing badges
+    const { data: existingBadges } = await supabase
+      .from("user_badges")
+      .select("badge_id")
+      .eq("user_id", userId);
+
+    const existingIds = new Set((existingBadges || []).map((b) => b.badge_id));
+
+    // Define check-in badges with their criteria
+    const checkinBadges = [
+      { id: "first-checkin", name: "Explorer", icon: "📍", totalCheckins: 1 },
+      { id: "regular-visitor", name: "Regular Visitor", icon: "🏪", totalCheckins: 10 },
+      { id: "local-reader", name: "Local Reader", icon: "🏘️", totalCheckins: 50 },
+      { id: "reading-nomad", name: "Reading Nomad", icon: "🌍", totalCheckins: 100 },
+      { id: "weekly-wanderer", name: "Weekly Wanderer", icon: "🔥", checkinStreak: 7 },
+      { id: "monthly-explorer", name: "Monthly Explorer", icon: "🏆", checkinStreak: 30 },
+    ];
+
+    const newlyUnlocked: Array<{ id: string; name: string; icon: string }> = [];
+
+    for (const badge of checkinBadges) {
+      if (existingIds.has(badge.id)) continue;
+
+      let shouldUnlock = false;
+
+      if (badge.totalCheckins !== undefined) {
+        shouldUnlock = totalCheckins >= badge.totalCheckins;
+      } else if (badge.checkinStreak !== undefined) {
+        shouldUnlock = currentStreak >= badge.checkinStreak;
+      }
+
+      if (shouldUnlock) {
+        const { error } = await supabase
+          .from("user_badges")
+          .insert({ user_id: userId, badge_id: badge.id });
+
+        if (!error) {
+          newlyUnlocked.push({ id: badge.id, name: badge.name, icon: badge.icon });
+        }
+      }
+    }
+
+    return newlyUnlocked;
+  } catch (error) {
+    console.error("Error checking badges:", error);
+    return [];
+  }
+}

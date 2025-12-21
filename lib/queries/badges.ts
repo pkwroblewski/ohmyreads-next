@@ -20,6 +20,8 @@ interface BadgeStats {
   accountAgeDays: number;
   booksThisMonth: number;
   booksThisYear: number;
+  totalCheckins: number;
+  checkinStreak: number;
 }
 
 // Get user's unlocked badges from database
@@ -82,6 +84,7 @@ async function calculateBadgeStats(userId: string): Promise<BadgeStats> {
     fiveStarResult,
     challengesResult,
     profileResult,
+    checkinStatsResult,
   ] = await Promise.all([
     // User books with book details
     supabase
@@ -112,6 +115,13 @@ async function calculateBadgeStats(userId: string): Promise<BadgeStats> {
 
     // Profile for account age
     supabase.from("profiles").select("created_at").eq("id", userId).single(),
+
+    // Check-in stats
+    supabase
+      .from("user_checkin_stats")
+      .select("total_checkins, current_streak")
+      .eq("user_id", userId)
+      .single(),
   ]);
 
   const userBooks = userBooksResult.data || [];
@@ -170,6 +180,8 @@ async function calculateBadgeStats(userId: string): Promise<BadgeStats> {
     accountAgeDays,
     booksThisMonth,
     booksThisYear,
+    totalCheckins: checkinStatsResult.data?.total_checkins || 0,
+    checkinStreak: checkinStatsResult.data?.current_streak || 0,
   };
 }
 
@@ -223,6 +235,14 @@ function checkBadgeCriteria(
 
   if (criteria.booksInOneYear !== undefined) {
     return stats.booksThisYear >= criteria.booksInOneYear;
+  }
+
+  if (criteria.totalCheckins !== undefined) {
+    return stats.totalCheckins >= criteria.totalCheckins;
+  }
+
+  if (criteria.checkinStreak !== undefined) {
+    return stats.checkinStreak >= criteria.checkinStreak;
   }
 
   return false;
@@ -315,6 +335,12 @@ export async function getBadgeProgress(
     } else if (criteria.accountAgeDays !== undefined) {
       current = stats.accountAgeDays;
       target = criteria.accountAgeDays;
+    } else if (criteria.totalCheckins !== undefined) {
+      current = stats.totalCheckins;
+      target = criteria.totalCheckins;
+    } else if (criteria.checkinStreak !== undefined) {
+      current = stats.checkinStreak;
+      target = criteria.checkinStreak;
     }
 
     if (target > 0) {

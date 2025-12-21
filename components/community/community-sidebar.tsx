@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -49,6 +50,13 @@ export function CommunitySidebar({ data }: CommunitySidebarProps) {
                 </div>
               );
             })}
+            <Link
+              href="/discover"
+              className="flex items-center justify-center gap-1.5 mt-2 pt-2 border-t text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Find More Readers
+            </Link>
           </CardContent>
         </Card>
       )}

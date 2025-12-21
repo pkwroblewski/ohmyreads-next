@@ -8,7 +8,13 @@
       "Bash(ls:*)",
       "Bash(findstr:*)",
       "Bash(find:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nPhase 2: Foundation features + engagement tools\n\nPassword Reset:\n- Forgot password page with email reset flow\n- Reset password page with code exchange\n- Supabase auth integration\n\nReading Challenges:\n- Challenge types: books count, pages, genre-specific\n- Duration options: month, year, custom dates\n- Progress tracking from user_books\n- Dashboard widget for active challenges\n- Full management page at /challenges\n\nAchievement Badges:\n- 25 badges across 6 categories\n- 4-tier system \\(bronze, silver, gold, platinum\\)\n- Auto-unlock based on reading activity\n- Badge display on public and private profiles\n\nAlso includes Phase 1 features from previous session:\n- Goodreads CSV import tool\n- Social sharing OG images \\(stats, books, reviews\\)\n- Author pages derived from book data\n- Curated reading lists \\(12 genre collections\\)\n- Enhanced sitemap with authors and lists\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "mcp__plugin_supabase_supabase__apply_migration",
+      "Bash(wc:*)",
+      "mcp__plugin_supabase_supabase__list_projects"
     ]
   }
 }

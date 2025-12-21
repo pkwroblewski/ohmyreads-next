@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { BookOpen, UserPlus } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
+import { CompatibilityBadge } from "@/components/discover/compatibility-badge";
 import FollowButton from "./follow-button";
 import type { SuggestedFollow } from "@/lib/queries/follows";
 
@@ -44,12 +45,17 @@ export function SuggestedFollows({
               </Link>
 
               <div className="flex-1 min-w-0">
-                <Link
-                  href={`/users/${user.username}`}
-                  className="block font-medium text-sm truncate hover:text-primary transition-colors"
-                >
-                  {displayName}
-                </Link>
+                <div className="flex items-center gap-1.5">
+                  <Link
+                    href={`/users/${user.username}`}
+                    className="font-medium text-sm truncate hover:text-primary transition-colors"
+                  >
+                    {displayName}
+                  </Link>
+                  {user.compatibility && (
+                    <CompatibilityBadge level={user.compatibility} size="sm" />
+                  )}
+                </div>
                 {user.shared_books > 0 && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <BookOpen className="w-3 h-3" />

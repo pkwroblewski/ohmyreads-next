@@ -83,10 +83,14 @@ export async function getCommunityFeedPage(options: {
       user_id,
       book_id,
       review_id,
+      place_id,
+      checkin_id,
       created_at,
       user:profiles!activity_feed_user_id_fkey(id, username, display_name, avatar_url),
       book:books!activity_feed_book_id_fkey(id, title, author, slug, cover_url),
-      review:reviews!activity_feed_review_id_fkey(id, rating, content, likes_count)
+      review:reviews!activity_feed_review_id_fkey(id, rating, content, likes_count),
+      place:places!activity_feed_place_id_fkey(id, name, place_type),
+      checkin:place_checkins!activity_feed_checkin_id_fkey(id, note)
     `
     )
     .order("created_at", { ascending: false })
@@ -110,23 +114,30 @@ export async function getCommunityFeedPage(options: {
   }
 
   const items = (data || [])
-    .filter((item) => item.user && item.book)
+    // For check-ins, book is optional; for other types, book is required
+    .filter((item) => item.user && (item.type === "checkin" ? item.place : item.book))
     .slice(0, limit) // Remove the extra item we fetched
     .map((item) => {
       const userData = item.user as unknown as ActivityFeedItemWithRelations["user"];
       const bookData = item.book as unknown as ActivityFeedItemWithRelations["book"];
       const reviewData = item.review as unknown as ActivityFeedItemWithRelations["review"];
+      const placeData = item.place as unknown as ActivityFeedItemWithRelations["place"];
+      const checkinData = item.checkin as unknown as ActivityFeedItemWithRelations["checkin"];
 
       return {
         id: item.id,
-        type: item.type as "review" | "started_reading",
+        type: item.type as "review" | "started_reading" | "checkin",
         user_id: item.user_id,
         book_id: item.book_id,
         review_id: item.review_id,
+        place_id: item.place_id,
+        checkin_id: item.checkin_id,
         created_at: item.created_at,
         user: userData,
-        book: bookData,
+        book: bookData || null,
         review: reviewData || null,
+        place: placeData || null,
+        checkin: checkinData || null,
       };
     });
 
@@ -176,10 +187,14 @@ export async function getFollowingFeedPage(options: {
       user_id,
       book_id,
       review_id,
+      place_id,
+      checkin_id,
       created_at,
       user:profiles!activity_feed_user_id_fkey(id, username, display_name, avatar_url),
       book:books!activity_feed_book_id_fkey(id, title, author, slug, cover_url),
-      review:reviews!activity_feed_review_id_fkey(id, rating, content, likes_count)
+      review:reviews!activity_feed_review_id_fkey(id, rating, content, likes_count),
+      place:places!activity_feed_place_id_fkey(id, name, place_type),
+      checkin:place_checkins!activity_feed_checkin_id_fkey(id, note)
     `
     )
     .in("user_id", followingIds)
@@ -203,23 +218,30 @@ export async function getFollowingFeedPage(options: {
   }
 
   const items = (data || [])
-    .filter((item) => item.user && item.book)
+    // For check-ins, book is optional; for other types, book is required
+    .filter((item) => item.user && (item.type === "checkin" ? item.place : item.book))
     .slice(0, limit)
     .map((item) => {
       const userData = item.user as unknown as ActivityFeedItemWithRelations["user"];
       const bookData = item.book as unknown as ActivityFeedItemWithRelations["book"];
       const reviewData = item.review as unknown as ActivityFeedItemWithRelations["review"];
+      const placeData = item.place as unknown as ActivityFeedItemWithRelations["place"];
+      const checkinData = item.checkin as unknown as ActivityFeedItemWithRelations["checkin"];
 
       return {
         id: item.id,
-        type: item.type as "review" | "started_reading",
+        type: item.type as "review" | "started_reading" | "checkin",
         user_id: item.user_id,
         book_id: item.book_id,
         review_id: item.review_id,
+        place_id: item.place_id,
+        checkin_id: item.checkin_id,
         created_at: item.created_at,
         user: userData,
-        book: bookData,
+        book: bookData || null,
         review: reviewData || null,
+        place: placeData || null,
+        checkin: checkinData || null,
       };
     });
 

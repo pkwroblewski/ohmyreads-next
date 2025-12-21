@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { CompatibilityLevel } from "@/types/database";
 
 export interface FollowerProfile {
   id: string;
@@ -154,13 +155,15 @@ export async function getFollowingIds(userId: string): Promise<string[]> {
   return (data || []).map((row) => row.following_id);
 }
 
-// Suggested follow profile with shared books count
+// Suggested follow profile with shared books count and compatibility
 export interface SuggestedFollow {
   id: string;
   username: string | null;
   display_name: string | null;
   avatar_url: string | null;
   shared_books: number;
+  compatibility?: CompatibilityLevel;
+  compatibility_score?: number;
 }
 
 /**
