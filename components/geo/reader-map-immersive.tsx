@@ -177,13 +177,14 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     // Try to get user's location - first browser, then IP fallback
     const getIPLocation = async () => {
       try {
-        // Use ip-api.com for free IP geolocation
-        const res = await fetch("http://ip-api.com/json/?fields=lat,lon,city,country");
+        // Use ipapi.co for free HTTPS IP geolocation
+        const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
-        if (data.lat && data.lon) {
-          map.current?.setCenter([data.lon, data.lat]);
+        if (data.latitude && data.longitude) {
+          map.current?.setCenter([data.longitude, data.latitude]);
           map.current?.setZoom(11);
-          fetchDataForLocation(data.lat, data.lon);
+          setUserLocation({ lat: data.latitude, lng: data.longitude });
+          fetchDataForLocation(data.latitude, data.longitude);
         } else {
           fetchDataForLocation(40.7128, -74.006);
         }
