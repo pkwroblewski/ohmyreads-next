@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, BookOpen, Star, Users } from "lucide-react";
+import { ArrowRight, BookOpen, Users, Sparkles, Shield, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface HomeHeroProps {
@@ -41,16 +41,16 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
         <div className="max-w-xl lg:max-w-2xl">
           {/* Heading */}
           <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight mb-4 lg:mb-6">
-            Find Your Next{" "}
             <span className="font-serif italic text-primary">
-              Great Read
-            </span>
+              Independent Minds,
+            </span>{" "}
+            Shared Stories
           </h1>
 
           {/* Subheading */}
           <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-lg mb-6 lg:mb-8">
-            Discover books, track your reading, write reviews, and connect
-            with readers who love the same stories.
+            The reading community where you own your data, AI helps you
+            discover (never manipulates), and books come first.
           </p>
 
           {/* CTA Buttons */}
@@ -81,19 +81,35 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
             </Link>
           </div>
 
-          {/* Quick stats - social proof */}
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-muted-foreground">
+          {/* Value proposition badges - honest messaging */}
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-muted-foreground mb-6">
             <div className="flex items-center gap-1.5 bg-background/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
               <BookOpen className="w-4 h-4 text-primary" />
-              <span>10k+ Books</span>
+              <span>Curated Catalog</span>
             </div>
             <div className="flex items-center gap-1.5 bg-background/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
-              <Star className="w-4 h-4 text-amber-500" />
-              <span>5k+ Reviews</span>
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>AI Discovery</span>
             </div>
             <div className="flex items-center gap-1.5 bg-background/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
               <Users className="w-4 h-4 text-primary" />
-              <span>2k+ Readers</span>
+              <span>Growing Community</span>
+            </div>
+          </div>
+
+          {/* Why OhMyReads - Independence messaging */}
+          <div className="flex flex-wrap gap-3 text-xs">
+            <div className="flex items-center gap-1.5 bg-background/70 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/50">
+              <Building2 className="w-3.5 h-3.5 text-primary" />
+              <span className="text-muted-foreground">Independent • Not Amazon-owned</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-background/70 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/50">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span className="text-muted-foreground">AI helps you discover</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-background/70 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/50">
+              <Shield className="w-3.5 h-3.5 text-primary" />
+              <span className="text-muted-foreground">Your data stays yours</span>
             </div>
           </div>
         </div>

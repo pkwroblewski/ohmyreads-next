@@ -1,10 +1,17 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BookOpen, Sparkles, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "@/components/books/cover-image";
 import type { Book } from "@/types/database";
+
+interface CuratedPick {
+  bookId: string;
+  reason: string;
+  matchType: "mood" | "theme" | "author" | "genre" | "vibe";
+}
 
 interface CuratedMiniGridProps {
   books: Book[];
@@ -19,6 +26,30 @@ export function CuratedMiniGrid({
 }: CuratedMiniGridProps) {
   // Only show first 4 books
   const displayBooks = books.slice(0, 4);
+  const [picks, setPicks] = useState<Map<string, CuratedPick>>(new Map());
+
+  // Fetch AI-generated reasons on mount
+  useEffect(() => {
+    if (displayBooks.length === 0) return;
+
+    const fetchPicks = async () => {
+      try {
+        const response = await fetch("/api/ai/curated-picks");
+        if (response.ok) {
+          const data = await response.json();
+          const picksMap = new Map<string, CuratedPick>();
+          for (const pick of data.picks || []) {
+            picksMap.set(pick.bookId, pick);
+          }
+          setPicks(picksMap);
+        }
+      } catch (error) {
+        console.error("Failed to fetch curated picks:", error);
+      }
+    };
+
+    fetchPicks();
+  }, [displayBooks.length]);
 
   if (displayBooks.length === 0) {
     return (
@@ -47,7 +78,7 @@ export function CuratedMiniGrid({
           {title}
         </h3>
         <Link
-          href="/books"
+          href="/recommendations"
           className="text-xs text-primary hover:text-primary/80 transition-colors"
         >
           See more
@@ -55,16 +86,26 @@ export function CuratedMiniGrid({
       </div>
 
       {/* 2x2 grid */}
-      <div className="flex-1 grid grid-cols-2 gap-3">
+      <div className="flex-1 grid grid-cols-2 gap-4">
         {displayBooks.map((book) => (
-          <MiniBookCard key={book.id} book={book} />
+          <MiniBookCard key={book.id} book={book} pick={picks.get(book.id)} />
         ))}
       </div>
+
+      {/* AI Badge */}
+      {picks.size > 0 && (
+        <div className="mt-3 pt-2 border-t border-border/50">
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            AI-personalized picks
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-function MiniBookCard({ book }: { book: Book }) {
+function MiniBookCard({ book, pick }: { book: Book; pick?: CuratedPick }) {
   return (
     <div className="group flex flex-col">
       {/* Cover */}
@@ -101,6 +142,13 @@ function MiniBookCard({ book }: { book: Book }) {
           {book.author}
         </p>
       </Link>
+
+      {/* AI-generated reason */}
+      {pick && (
+        <p className="text-[10px] text-primary/80 line-clamp-2 mt-1 italic">
+          {pick.reason}
+        </p>
+      )}
 
       {/* Compact action */}
       <button

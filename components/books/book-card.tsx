@@ -151,25 +151,13 @@ export function BookCard({
           </div>
         </Link>
 
-        {/* Rating - compact single line */}
-        <div
-          className={cn(
-            "flex items-center gap-1 text-xs whitespace-nowrap mt-1",
-            book.average_rating !== null
-              ? "text-accent"
-              : "text-muted-foreground"
-          )}
-        >
-          <Star
-            className={cn(
-              "w-3 h-3 flex-shrink-0",
-              book.average_rating !== null && "fill-current"
-            )}
-          />
-          <span className="truncate">
-            {compactRating || "No ratings"}
-          </span>
-        </div>
+        {/* Rating - only show if book has ratings */}
+        {compactRating && (
+          <div className="flex items-center gap-1 text-xs whitespace-nowrap mt-1 text-accent">
+            <Star className="w-3 h-3 flex-shrink-0 fill-current" />
+            <span className="truncate">{compactRating}</span>
+          </div>
+        )}
 
         {/* Actions - anchored at bottom */}
         <div className="mt-auto pt-3 space-y-2">
@@ -264,25 +252,13 @@ export function BookCard({
           </div>
         </Link>
 
-        <div
-          className={cn(
-            "flex items-center gap-1 mt-1",
-            classes.rating,
-            book.average_rating !== null
-              ? "text-accent"
-              : "text-muted-foreground"
-          )}
-        >
-          <Star
-            className={cn(
-              "w-3 h-3",
-              book.average_rating !== null && "fill-current"
-            )}
-          />
-          <span className="whitespace-nowrap truncate">
-            {compactRating || "No ratings"}
-          </span>
-        </div>
+        {/* Rating - only show if book has ratings */}
+        {compactRating && (
+          <div className={cn("flex items-center gap-1 mt-1 text-accent", classes.rating)}>
+            <Star className="w-3 h-3 fill-current" />
+            <span className="whitespace-nowrap truncate">{compactRating}</span>
+          </div>
+        )}
 
         <div className="mt-3 space-y-2">
           <AddToShelfButton bookId={book.id} />

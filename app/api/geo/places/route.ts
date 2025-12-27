@@ -68,22 +68,26 @@ export async function GET(request: NextRequest) {
     // Fetch community places from our DB
     const communityPlaces = await getNearbyPlaces(searchPrefix, requestedTypes, limit);
 
+    // Calculate per-type limit to ensure fair distribution
+    const perTypeLimit = Math.ceil(limit / Math.max(osmTypesToFetch.length, 1));
+
     // Fetch OSM places (from cache or Overpass)
     const osmPlaces: CachedPlaceData[] = [];
-    
+
     for (const placeType of osmTypesToFetch) {
       const cached = await getCachedPlaces(searchPrefix, placeType);
-      
+
       if (cached && !cached.isStale) {
-        // Use cached data
-        osmPlaces.push(...cached.data);
+        // Use cached data - apply per-type limit
+        osmPlaces.push(...cached.data.slice(0, perTypeLimit));
       } else {
         // Fetch from Overpass and cache
         const freshData = await fetchFromOverpass(geohash, placeType);
         if (freshData.length > 0) {
           await cacheOsmPlaces(searchPrefix, placeType, freshData);
         }
-        osmPlaces.push(...freshData);
+        // Apply per-type limit
+        osmPlaces.push(...freshData.slice(0, perTypeLimit));
       }
     }
 
@@ -109,7 +113,14 @@ export async function GET(request: NextRequest) {
         address: p.address || null,
         lat: p.lat,
         lng: p.lng,
+        // Extract all useful OSM tags
         website: p.tags?.website || p.tags?.["contact:website"] || null,
+        phone: p.tags?.phone || p.tags?.["contact:phone"] || null,
+        email: p.tags?.email || p.tags?.["contact:email"] || null,
+        opening_hours: p.tags?.opening_hours || null,
+        wheelchair: p.tags?.wheelchair || null,
+        description: p.tags?.description || null,
+        image: p.tags?.image || p.tags?.wikimedia_commons || null,
       })),
     };
 

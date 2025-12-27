@@ -7,7 +7,8 @@ export type RecommendationReasonType =
   | "vibe_match"
   | "similar_to_loved"
   | "popular_in_genre"
-  | "highly_rated";
+  | "highly_rated"
+  | "trending";
 
 export interface RecommendationReason {
   type: RecommendationReasonType;
@@ -19,6 +20,18 @@ export interface RecommendationReason {
 
 export interface RecommendedBook extends Book {
   score: number;
+  reason: RecommendationReason;
+}
+
+export interface TrendingMetrics {
+  recentReviews: number;
+  recentAdds: number;
+}
+
+export interface TrendingBook extends Book {
+  score: number;
+  rank: number;
+  metrics: TrendingMetrics;
   reason: RecommendationReason;
 }
 
@@ -430,25 +443,73 @@ export async function getCuratedBooks(
     }
   }
 
-  // Fallback: get popular books (including those without ratings yet)
+  // Fallback: get diverse highly-rated books across different genres
+  // This provides a better "curated" experience than just newest books
   const { data: books, error } = await supabase
     .from("books")
     .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .gte("average_rating", 3.8) // Only well-rated books
+    .gte("ratings_count", 5) // With enough reviews to be reliable
+    .order("ratings_count", { ascending: false })
+    .limit(limit * 3); // Get more to allow for genre diversity
 
-  if (error || !books) {
-    return [];
+  if (error || !books || books.length === 0) {
+    // Ultimate fallback: just get popular books
+    const { data: fallbackBooks } = await supabase
+      .from("books")
+      .select("*")
+      .order("ratings_count", { ascending: false, nullsFirst: false })
+      .limit(limit);
+
+    return (fallbackBooks || []).map((book) => ({
+      ...book,
+      score: book.ratings_count || 0,
+      reason: {
+        type: "popular_in_genre" as RecommendationReasonType,
+        label: "Popular choice",
+      },
+    }));
   }
 
-  return books.map((book) => ({
+  // Ensure genre diversity - pick books from different genres
+  const selectedBooks: typeof books = [];
+  const usedGenres = new Set<string>();
+
+  for (const book of books) {
+    if (selectedBooks.length >= limit) break;
+
+    // Get primary genre
+    const primaryGenre = book.genres?.[0];
+
+    // If we haven't selected from this genre yet, prefer it
+    if (primaryGenre && !usedGenres.has(primaryGenre)) {
+      selectedBooks.push(book);
+      usedGenres.add(primaryGenre);
+    } else if (selectedBooks.length < limit / 2) {
+      // For the first half, prioritize diversity
+      continue;
+    } else {
+      // After half filled, allow repeats
+      selectedBooks.push(book);
+    }
+  }
+
+  // Fill remaining slots if needed
+  for (const book of books) {
+    if (selectedBooks.length >= limit) break;
+    if (!selectedBooks.includes(book)) {
+      selectedBooks.push(book);
+    }
+  }
+
+  return selectedBooks.map((book) => ({
     ...book,
-    score: book.ratings_count || 0,
+    score: (book.average_rating || 0) * 20 + (book.ratings_count || 0),
     reason: {
       type: "highly_rated" as RecommendationReasonType,
-      label: book.average_rating 
-        ? `${book.average_rating.toFixed(1)}★ rating`
-        : "Recently added",
+      label: book.average_rating
+        ? `${book.average_rating.toFixed(1)}★ curated pick`
+        : "Staff pick",
     },
   }));
 }
@@ -526,11 +587,157 @@ export async function getTrendingGlobally(
     score: book.ratings_count || 0,
     reason: {
       type: "popular_in_genre" as RecommendationReasonType,
-      label: book.ratings_count 
+      label: book.ratings_count
         ? `${book.ratings_count} ratings`
         : "Recently added",
     },
   }));
+}
+
+// In-memory cache for trending results (1 hour TTL)
+const trendingCache = new Map<string, { data: TrendingBook[]; timestamp: number }>();
+const TRENDING_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Get truly trending books based on recent activity
+ * Scores based on reviews and shelf adds in the time window
+ */
+export async function getTrulyTrending(
+  limit: number = 12,
+  daysWindow: number = 7,
+  genre?: string
+): Promise<TrendingBook[]> {
+  const cacheKey = `trending:${daysWindow}:${genre || "all"}:${limit}`;
+  const cached = trendingCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < TRENDING_CACHE_TTL) {
+    return cached.data;
+  }
+
+  const supabase = await createClient();
+  const windowStart = new Date();
+  windowStart.setDate(windowStart.getDate() - daysWindow);
+  const windowStartISO = windowStart.toISOString();
+
+  // Count recent reviews per book
+  const { data: recentReviews } = await supabase
+    .from("reviews")
+    .select("book_id")
+    .gte("created_at", windowStartISO);
+
+  // Count recent shelf adds per book
+  const { data: recentAdds } = await supabase
+    .from("user_books")
+    .select("book_id")
+    .gte("updated_at", windowStartISO);
+
+  // Calculate metrics per book
+  const reviewCounts = new Map<string, number>();
+  const addCounts = new Map<string, number>();
+
+  for (const r of recentReviews || []) {
+    reviewCounts.set(r.book_id, (reviewCounts.get(r.book_id) || 0) + 1);
+  }
+  for (const a of recentAdds || []) {
+    addCounts.set(a.book_id, (addCounts.get(a.book_id) || 0) + 1);
+  }
+
+  // Calculate trending scores (reviews worth more than adds)
+  const scores = new Map<string, number>();
+  const allBookIds = new Set([...reviewCounts.keys(), ...addCounts.keys()]);
+
+  for (const bookId of allBookIds) {
+    const reviews = reviewCounts.get(bookId) || 0;
+    const adds = addCounts.get(bookId) || 0;
+    scores.set(bookId, reviews * 10 + adds * 3);
+  }
+
+  // Get top scoring book IDs
+  const topEntries = [...scores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit * 2); // Get more to allow for genre filtering
+
+  const topIds = topEntries.map(([id]) => id);
+
+  // Fetch book details for books with recent activity
+  let trendingBooks: TrendingBook[] = [];
+
+  if (topIds.length > 0) {
+    let query = supabase.from("books").select("*").in("id", topIds);
+
+    if (genre) {
+      query = query.contains("genres", [genre]);
+    }
+
+    const { data: books } = await query;
+
+    // Sort by score, add rank and metrics
+    trendingBooks = (books || [])
+      .sort((a, b) => (scores.get(b.id) || 0) - (scores.get(a.id) || 0))
+      .map((book) => ({
+        ...book,
+        score: scores.get(book.id) || 0,
+        rank: 0, // Will be set below
+        metrics: {
+          recentReviews: reviewCounts.get(book.id) || 0,
+          recentAdds: addCounts.get(book.id) || 0,
+        },
+        reason: {
+          type: "trending" as RecommendationReasonType,
+          label: daysWindow === 7 ? "Trending this week" :
+                 daysWindow === 30 ? "Trending this month" : "Popular all time",
+        },
+      }));
+  }
+
+  // If we don't have enough trending books, fill with popular books
+  if (trendingBooks.length < limit) {
+    const existingIds = new Set(trendingBooks.map((b) => b.id));
+    const needed = limit - trendingBooks.length;
+
+    // Get popular books to fill the gap
+    let popularQuery = supabase
+      .from("books")
+      .select("*")
+      .order("ratings_count", { ascending: false, nullsFirst: false })
+      .limit(needed + 10); // Get extra in case some are already included
+
+    if (genre) {
+      popularQuery = popularQuery.contains("genres", [genre]);
+    }
+
+    const { data: popularBooks } = await popularQuery;
+
+    // Add popular books that aren't already in the list
+    const fillerBooks = (popularBooks || [])
+      .filter((b) => !existingIds.has(b.id))
+      .slice(0, needed)
+      .map((book) => ({
+        ...book,
+        score: 0,
+        rank: 0,
+        metrics: { recentReviews: 0, recentAdds: 0 },
+        reason: {
+          type: "popular_in_genre" as RecommendationReasonType,
+          label: book.ratings_count
+            ? `${book.ratings_count.toLocaleString()} ratings`
+            : "Popular",
+        },
+      }));
+
+    trendingBooks = [...trendingBooks, ...fillerBooks];
+  }
+
+  // Assign ranks and limit to requested amount
+  const result = trendingBooks.slice(0, limit).map((book, index) => ({
+    ...book,
+    rank: index + 1,
+  }));
+
+  // Cache the results
+  trendingCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+  return result;
 }
 
 /**

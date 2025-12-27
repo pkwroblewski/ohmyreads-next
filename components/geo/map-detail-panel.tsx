@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, BookOpen, Building2, Coffee, MapPin, Globe, Navigation, Users, MessageSquare, Camera } from "lucide-react";
+import { X, BookMarked, Landmark, Coffee, MapPin, Globe, Navigation, Users, MessageSquare, Camera, Star, Clock, Loader2, ExternalLink, Phone, Share2, Mail, Accessibility, Copy, Check, MapPinned } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +12,7 @@ import { PlaceReviewsList } from "./place-reviews-list";
 import { PlacePhotosList } from "./place-photos-list";
 import { PlaceCheckinsList } from "./place-checkins-list";
 import { CheckinButton } from "./checkin-button";
+import { isOpenNow, formatHoursForDisplay } from "@/lib/utils/opening-hours";
 
 interface MapDetailPanelProps {
   item: MapItem | null;
@@ -27,16 +28,34 @@ function isPlace(item: MapItem): item is PlacePin {
   return "type" in item && !("username" in item);
 }
 
-const placeIcons: Record<string, typeof BookOpen> = {
-  bookstore: BookOpen,
-  library: Building2,
-  cafe: Coffee,
-};
-
-const placeColors: Record<string, string> = {
-  bookstore: "text-amber-500",
-  library: "text-blue-500",
-  cafe: "text-orange-500",
+const placeConfig: Record<string, {
+  icon: typeof BookMarked;
+  color: string;
+  bgColor: string;
+  label: string;
+  description: string;
+}> = {
+  bookstore: {
+    icon: BookMarked,
+    color: "text-amber-600 dark:text-amber-400",
+    bgColor: "bg-amber-500/15",
+    label: "Bookstore",
+    description: "A place to browse and buy books. Perfect for discovering your next read.",
+  },
+  library: {
+    icon: Landmark,
+    color: "text-sky-600 dark:text-sky-400",
+    bgColor: "bg-sky-500/15",
+    label: "Library",
+    description: "A public library with books to borrow. Often hosts reading events and book clubs.",
+  },
+  cafe: {
+    icon: Coffee,
+    color: "text-orange-600 dark:text-orange-400",
+    bgColor: "bg-orange-500/15",
+    label: "Book Cafe",
+    description: "A cozy cafe great for reading. Grab a coffee and enjoy your book.",
+  },
 };
 
 export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelProps) {
@@ -70,9 +89,9 @@ export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelP
         className={cn(
           "fixed z-30 bg-white/95 dark:bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl transition-transform duration-300 ease-out",
           // Mobile: bottom sheet
-          "inset-x-0 bottom-0 rounded-t-3xl max-h-[60vh] lg:max-h-none",
-          // Desktop: right sidebar
-          "lg:inset-y-0 lg:right-0 lg:left-auto lg:w-96 lg:rounded-none lg:border-l lg:border-t-0 lg:border-b-0 lg:border-r-0",
+          "inset-x-0 bottom-0 rounded-t-3xl max-h-[70vh]",
+          // Desktop: floating card on the right
+          "lg:top-24 lg:bottom-auto lg:right-4 lg:left-auto lg:w-80 lg:max-h-[calc(100vh-7rem)] lg:rounded-2xl lg:border",
           // Animation
           isVisible
             ? "translate-y-0 lg:translate-x-0"
@@ -80,61 +99,88 @@ export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelP
         )}
       >
         {/* Drag handle - mobile only */}
-        <div className="flex justify-center pt-3 pb-1 lg:hidden">
-          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+        <div className="flex justify-center pt-2 pb-1 lg:hidden">
+          <div className="w-8 h-1 rounded-full bg-muted-foreground/30" />
         </div>
 
-        {/* Header */}
-        <div className="flex items-start justify-between p-4 border-b border-border/50">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {isReader(item) ? (
-              <>
-                <Avatar className="h-12 w-12">
-                  {item.avatarUrl && <AvatarImage src={item.avatarUrl} />}
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {(item.displayName || item.username || "?")[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <h3 className="font-semibold truncate">
-                    {item.displayName || item.username}
-                  </h3>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    Reader
-                  </p>
+        {/* Header - Compact with close button */}
+        <div className="flex items-start gap-2 p-3 lg:p-3">
+          {isReader(item) ? (
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
+                {item.avatarUrl && <AvatarImage src={item.avatarUrl} />}
+                <AvatarFallback className="bg-emerald-500 text-white text-sm">
+                  {(item.displayName || item.username || "?")[0].toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-semibold truncate text-sm">
+                  {item.displayName || item.username}
+                </h2>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Users className="h-3 w-3 text-emerald-500" />
+                  <span>Reader</span>
+                  {item.locationLabel && (
+                    <>
+                      <span>·</span>
+                      <span className="truncate">{item.locationLabel}</span>
+                    </>
+                  )}
                 </div>
-              </>
-            ) : (
-              <>
-                {(() => {
-                  const Icon = placeIcons[item.type] || MapPin;
-                  const color = placeColors[item.type] || "text-muted-foreground";
-                  return (
-                    <div className={cn("p-3 rounded-xl bg-muted", color)}>
-                      <Icon className="h-6 w-6" />
-                    </div>
-                  );
-                })()}
-                <div className="min-w-0">
-                  <h3 className="font-semibold truncate">{item.name}</h3>
-                  <p className="text-sm text-muted-foreground capitalize flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {item.type}
-                    {item.source === "community" && (
-                      <span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                        Community
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 min-w-0">
+              {(() => {
+                const config = placeConfig[item.type] || {
+                  icon: MapPin,
+                  color: "text-muted-foreground",
+                  bgColor: "bg-muted",
+                  label: item.type,
+                  description: "A literary place in your area.",
+                };
+                const Icon = config.icon;
+
+                return (
+                  <>
+                    {/* Type badge row */}
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className={cn(
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
+                        config.bgColor, config.color
+                      )}>
+                        <Icon className="h-3 w-3" />
+                        {config.label}
                       </span>
+                      {item.source === "community" && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
+                          Community
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Name */}
+                    <h2 className="font-semibold leading-snug pr-6 text-sm">
+                      {item.name}
+                    </h2>
+
+                    {/* Address */}
+                    {item.address && (
+                      <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                        <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
+                        <span className="line-clamp-1">{item.address}</span>
+                      </p>
                     )}
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="h-7 w-7 shrink-0 -mt-0.5 -mr-1"
             onClick={onClose}
           >
             <X className="h-4 w-4" />
@@ -142,7 +188,7 @@ export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelP
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto max-h-[40vh] lg:max-h-[calc(100vh-200px)]">
+        <div className="px-3 pb-3 overflow-y-auto max-h-[50vh] lg:max-h-[calc(100vh-12rem)]">
           {isReader(item) ? (
             <ReaderContent reader={item} />
           ) : (
@@ -177,52 +223,260 @@ function ReaderContent({ reader }: { reader: ReaderPin }) {
   );
 }
 
+interface PlaceEnrichment {
+  found: boolean;
+  rating?: number;
+  reviewCount?: number;
+  photoUrl?: string;
+  hours?: string[];
+  website?: string;
+  googleMapsUrl?: string;
+}
+
 function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId?: string }) {
+  const [enrichment, setEnrichment] = useState<PlaceEnrichment | null>(null);
+  const [isEnriching, setIsEnriching] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showAllHours, setShowAllHours] = useState(false);
+
   // Only community places have real IDs for reviews
   const canShowReviews = place.source === "community" && !place.id.startsWith("osm-");
+  const isOsmPlace = place.source === "osm";
+
+  // Parse OSM opening hours
+  const openStatus = isOpenNow(place.opening_hours);
+  const formattedHours = formatHoursForDisplay(place.opening_hours);
+
+  // Get place config for description
+  const config = placeConfig[place.type] || {
+    icon: MapPin,
+    color: "text-muted-foreground",
+    bgColor: "bg-muted",
+    label: place.type,
+    description: "A literary place in your area.",
+  };
+
+  // Fetch enrichment data for OSM places
+  useEffect(() => {
+    if (isOsmPlace && place.lat && place.lng) {
+      setIsEnriching(true);
+      fetch(
+        `/api/geo/places/enrich?name=${encodeURIComponent(place.name)}&lat=${place.lat}&lng=${place.lng}&osm_id=${place.id}`
+      )
+        .then((res) => res.json())
+        .then((data) => setEnrichment(data.found ? data : null))
+        .catch(() => setEnrichment(null))
+        .finally(() => setIsEnriching(false));
+    }
+  }, [place, isOsmPlace]);
+
+  // Use OSM data first, fallback to enrichment
+  const websiteUrl = place.website || enrichment?.website;
+  const phoneNumber = place.phone;
+  const emailAddress = place.email;
+  const googleMapsUrl = enrichment?.googleMapsUrl || (place.lat && place.lng ? `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}` : null);
+  const directionsUrl = place.lat && place.lng ? `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}` : null;
+
+  // Share functionality
+  const handleShare = async () => {
+    const shareUrl = googleMapsUrl || window.location.href;
+    const shareData = {
+      title: place.name,
+      text: `Check out ${place.name}${place.address ? ` at ${place.address}` : ""}`,
+      url: shareUrl,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // User cancelled or share failed
+      }
+    } else {
+      // Fallback: copy to clipboard
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // Get photo URL (OSM image or Google Places)
+  const photoUrl = place.image || enrichment?.photoUrl;
+
+  // Check if we have any details to show
+  const hasDetails = openStatus || formattedHours || enrichment?.hours || phoneNumber || emailAddress || websiteUrl || place.wheelchair;
 
   return (
-    <div className="space-y-4">
-      {place.address && (
-        <div className="flex items-start gap-2 text-sm">
-          <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-          <span>{place.address}</span>
+    <div className="space-y-3">
+      {/* Quick Action Buttons - Compact row */}
+      <div className="flex items-center gap-1.5">
+        <a
+          href={directionsUrl || "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
+        >
+          <Navigation className="h-3.5 w-3.5" />
+          <span>Directions</span>
+        </a>
+
+        {websiteUrl ? (
+          <a
+            href={websiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-muted/60 hover:bg-muted text-xs font-medium transition-colors"
+          >
+            <Globe className="h-3.5 w-3.5" />
+            <span>Website</span>
+          </a>
+        ) : (
+          <div className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground/50">
+            <Globe className="h-3.5 w-3.5" />
+            <span>Website</span>
+          </div>
+        )}
+
+        <button
+          onClick={handleShare}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-muted/60 hover:bg-muted text-xs font-medium transition-colors"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-green-500" />
+              <span className="text-green-600">Copied</span>
+            </>
+          ) : (
+            <>
+              <Share2 className="h-3.5 w-3.5" />
+              <span>Share</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Photo section - smaller */}
+      {photoUrl && (
+        <div className="relative rounded-lg overflow-hidden">
+          <img
+            src={photoUrl}
+            alt={place.name}
+            className="w-full h-28 object-cover"
+          />
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-2">
-        {/* Check-in button - only for community places */}
-        {canShowReviews && (
+      {/* Loading indicator */}
+      {isEnriching && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          <span>Loading details...</span>
+        </div>
+      )}
+
+      {/* About + Rating - compact */}
+      <div className="p-2.5 rounded-lg bg-muted/30">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {place.description || config.description}
+        </p>
+        {enrichment?.rating && (
+          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+            <span className="text-xs font-medium">{enrichment.rating.toFixed(1)}</span>
+            {enrichment.reviewCount && (
+              <span className="text-xs text-muted-foreground">
+                ({enrichment.reviewCount.toLocaleString()} reviews)
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Details section - compact */}
+      {hasDetails && (
+        <div className="space-y-2">
+          {/* Open/Closed Status */}
+          {openStatus && (
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
+                openStatus.isOpen
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+              )}>
+                <span className={cn("w-1 h-1 rounded-full", openStatus.isOpen ? "bg-green-500" : "bg-red-500")} />
+                {openStatus.isOpen ? "Open" : "Closed"}
+              </span>
+              {openStatus.nextChange && (
+                <span className="text-[10px] text-muted-foreground">{openStatus.nextChange}</span>
+              )}
+            </div>
+          )}
+
+          {/* Opening Hours - collapsible */}
+          {(formattedHours || enrichment?.hours) && (
+            <button
+              onClick={() => setShowAllHours(!showAllHours)}
+              className="flex items-center gap-1.5 text-xs text-left hover:text-primary transition-colors w-full"
+            >
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="flex-1">Hours</span>
+              <span className="text-[10px] text-primary">{showAllHours ? "Hide" : "Show"}</span>
+            </button>
+          )}
+          {showAllHours && (formattedHours || enrichment?.hours) && (
+            <div className="ml-5 space-y-0.5 p-2 rounded bg-muted/40">
+              {(formattedHours || enrichment?.hours || []).map((h, i) => (
+                <p key={i} className="text-[10px] text-muted-foreground">{h}</p>
+              ))}
+            </div>
+          )}
+
+          {/* Phone */}
+          {phoneNumber && (
+            <a href={`tel:${phoneNumber.replace(/\s/g, "")}`} className="flex items-center gap-1.5 text-xs hover:text-primary">
+              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>{phoneNumber}</span>
+            </a>
+          )}
+
+          {/* Website link */}
+          {websiteUrl && (
+            <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs hover:text-primary">
+              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="truncate flex-1">{websiteUrl.replace(/^https?:\/\//, "").split("/")[0]}</span>
+              <ExternalLink className="h-3 w-3 text-muted-foreground" />
+            </a>
+          )}
+
+          {/* Email */}
+          {emailAddress && (
+            <a href={`mailto:${emailAddress}`} className="flex items-center gap-1.5 text-xs hover:text-primary">
+              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="truncate">{emailAddress}</span>
+            </a>
+          )}
+
+          {/* Wheelchair */}
+          {place.wheelchair && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Accessibility className="h-3.5 w-3.5" />
+              <span>{place.wheelchair === "yes" ? "Accessible" : place.wheelchair === "limited" ? "Limited access" : "Not accessible"}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Check-in button - only for community places */}
+      {canShowReviews && (
+        <div className="pt-2">
           <CheckinButton
             placeId={place.id}
             placeName={place.name}
             currentUserId={currentUserId}
           />
-        )}
-        {place.website && (
-          <a
-            href={place.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
-            <Globe className="h-4 w-4 mr-2" />
-            Website
-          </a>
-        )}
-        {place.lat && place.lng && (
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
-            <Navigation className="h-4 w-4 mr-2" />
-            Directions
-          </a>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Reviews Section - Only for community places */}
       {canShowReviews ? (
@@ -254,12 +508,21 @@ function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId
           </Tabs>
         </div>
       ) : (
-        <div className="pt-4 border-t">
-          <p className="text-sm text-muted-foreground text-center">
-            {place.source === "osm"
-              ? "This is an OSM place. Submit it as a community place to enable reviews."
-              : "Reviews coming soon"}
+        <div className="pt-3 border-t text-center">
+          <p className="text-xs text-muted-foreground">
+            Data from OpenStreetMap{enrichment ? " & Google" : ""}
           </p>
+          {googleMapsUrl && (
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+            >
+              View on Google Maps
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
         </div>
       )}
     </div>

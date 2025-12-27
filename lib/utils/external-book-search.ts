@@ -126,6 +126,112 @@ export async function getOpenLibraryBookDetails(
 }
 
 // ============================================
+// OPEN LIBRARY RATINGS
+// ============================================
+
+export interface OpenLibraryRatings {
+  average: number | null;
+  count: number;
+}
+
+/**
+ * Fetch ratings from Open Library for a work ID
+ * API: https://openlibrary.org/works/{work_id}/ratings.json
+ */
+export async function getOpenLibraryRatings(
+  workId: string
+): Promise<OpenLibraryRatings | null> {
+  try {
+    // Normalize work ID - remove "/works/" prefix if present
+    const normalizedId = workId.replace("/works/", "").replace("OL", "").replace("W", "");
+    const fullWorkId = `OL${normalizedId}W`;
+
+    const response = await fetch(
+      `https://openlibrary.org/works/${fullWorkId}/ratings.json`,
+      {
+        next: { revalidate: 86400 }, // Cache for 24 hours
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+
+    // Open Library returns ratings in summary.average and summary.count
+    if (data.summary) {
+      return {
+        average: data.summary.average || null,
+        count: data.summary.count || 0,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`Error fetching Open Library ratings for ${workId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch ratings by ISBN from Open Library
+ * First looks up the work ID, then fetches ratings
+ */
+export async function getOpenLibraryRatingsByIsbn(
+  isbn: string
+): Promise<OpenLibraryRatings | null> {
+  try {
+    // First, get the book info by ISBN to find the work ID
+    const bookResult = await searchOpenLibraryByIsbn(isbn);
+
+    if (!bookResult?.openLibraryId) {
+      return null;
+    }
+
+    // Then fetch ratings using the work ID
+    return getOpenLibraryRatings(bookResult.openLibraryId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch ratings by title + author from Open Library
+ */
+export async function getOpenLibraryRatingsByTitleAuthor(
+  title: string,
+  author: string
+): Promise<{ ratings: OpenLibraryRatings; workId: string } | null> {
+  try {
+    const url = new URL("https://openlibrary.org/search.json");
+    url.searchParams.set("title", title);
+    url.searchParams.set("author", author);
+    url.searchParams.set("limit", "1");
+    url.searchParams.set("fields", "key");
+
+    const response = await fetch(url.toString());
+
+    if (!response.ok) return null;
+
+    const data: OpenLibrarySearchResponse = await response.json();
+
+    if (!data.docs || data.docs.length === 0) {
+      return null;
+    }
+
+    const workId = data.docs[0].key.replace("/works/", "");
+    const ratings = await getOpenLibraryRatings(workId);
+
+    if (!ratings) return null;
+
+    return { ratings, workId };
+  } catch {
+    return null;
+  }
+}
+
+// ============================================
 // GOOGLE BOOKS SEARCH
 // ============================================
 
@@ -156,6 +262,7 @@ interface GoogleBooksResponse {
 
 /**
  * Search Google Books by title/author/isbn
+ * Restricts to English language books only
  */
 export async function searchGoogleBooks(
   query: string,
@@ -163,8 +270,9 @@ export async function searchGoogleBooks(
 ): Promise<ExternalBookResult[]> {
   const url = new URL("https://www.googleapis.com/books/v1/volumes");
   url.searchParams.set("q", query);
-  url.searchParams.set("maxResults", String(limit));
+  url.searchParams.set("maxResults", String(Math.min(limit * 2, 20))); // Fetch more to filter
   url.searchParams.set("printType", "books");
+  url.searchParams.set("langRestrict", "en"); // Prefer English results
 
   try {
     const response = await fetch(url.toString(), {
@@ -180,31 +288,39 @@ export async function searchGoogleBooks(
 
     if (!data.items) return [];
 
-    return data.items.map((item) => {
-      const vol = item.volumeInfo;
-      const isbn =
-        vol.industryIdentifiers?.find((id) => id.type === "ISBN_13")
-          ?.identifier ||
-        vol.industryIdentifiers?.find((id) => id.type === "ISBN_10")
-          ?.identifier ||
-        null;
+    // Filter to English books and map to results
+    return data.items
+      .filter((item) => {
+        // Only include English language books
+        const lang = item.volumeInfo.language;
+        return !lang || lang === "en";
+      })
+      .slice(0, limit)
+      .map((item) => {
+        const vol = item.volumeInfo;
+        const isbn =
+          vol.industryIdentifiers?.find((id) => id.type === "ISBN_13")
+            ?.identifier ||
+          vol.industryIdentifiers?.find((id) => id.type === "ISBN_10")
+            ?.identifier ||
+          null;
 
-      return {
-        source: "google" as const,
-        externalId: item.id,
-        title: vol.title,
-        author: vol.authors?.[0] || "Unknown Author",
-        isbn,
-        description: vol.description || null,
-        coverUrl: getGoogleBooksCoverUrl(item.id, 1),
-        publishedDate: vol.publishedDate || null,
-        pageCount: vol.pageCount || null,
-        genres: (vol.categories || []).slice(0, 5),
-        googleBooksId: item.id,
-        openLibraryId: null,
-        openLibraryCoverId: null,
-      };
-    });
+        return {
+          source: "google" as const,
+          externalId: item.id,
+          title: vol.title,
+          author: vol.authors?.[0] || "Unknown Author",
+          isbn,
+          description: vol.description || null,
+          coverUrl: getGoogleBooksCoverUrl(item.id, 1),
+          publishedDate: vol.publishedDate || null,
+          pageCount: vol.pageCount || null,
+          genres: (vol.categories || []).slice(0, 5),
+          googleBooksId: item.id,
+          openLibraryId: null,
+          openLibraryCoverId: null,
+        };
+      });
   } catch (error) {
     console.error("Google Books search error:", error);
     return [];

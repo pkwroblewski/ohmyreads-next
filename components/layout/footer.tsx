@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Github, Twitter } from "lucide-react";
+import { BookOpen, Leaf } from "lucide-react";
 
 const footerLinks = {
   product: [
@@ -9,8 +9,6 @@ const footerLinks = {
   ],
   company: [
     { href: "/about", label: "About" },
-    { href: "#", label: "Blog" },
-    { href: "#", label: "Contact" },
   ],
   legal: [
     { href: "/privacy", label: "Privacy Policy" },
@@ -34,25 +32,13 @@ export function Footer() {
                 OhMyReads
               </span>
             </Link>
-            <p className="text-sm text-muted-foreground mb-6">
-              Track your reading journey
+            <p className="text-sm text-muted-foreground mb-4">
+              Independent Minds, Shared Stories
             </p>
-            {/* Social Icons */}
-            <div className="flex items-center gap-2">
-              <a
-                href="#"
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-colors"
-                aria-label="Twitter"
-              >
-                <Twitter className="w-4 h-4" />
-              </a>
-              <a
-                href="#"
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-colors"
-                aria-label="GitHub"
-              >
-                <Github className="w-4 h-4" />
-              </a>
+            {/* Independence badge */}
+            <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1.5 rounded-md mb-4">
+              <Leaf className="w-3.5 h-3.5 text-green-600 dark:text-green-500" />
+              <span>Independent project • Not corporate-owned</span>
             </div>
           </div>
 

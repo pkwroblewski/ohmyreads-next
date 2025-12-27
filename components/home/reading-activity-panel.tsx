@@ -82,7 +82,7 @@ export function ReadingActivityPanel({
             />
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Example goal progress
+            See your progress when you sign up
           </p>
         </div>
 
@@ -97,7 +97,7 @@ export function ReadingActivityPanel({
                 {/* Gradient placeholder cover */}
                 <div
                   className={cn(
-                    "flex-shrink-0 w-10 h-[60px] rounded overflow-hidden",
+                    "flex-shrink-0 w-12 h-[72px] rounded overflow-hidden",
                     "bg-gradient-to-br",
                     book.coverGradient
                   )}
@@ -120,7 +120,7 @@ export function ReadingActivityPanel({
             ))}
           </div>
           <p className="text-[10px] text-muted-foreground mt-2 italic">
-            Example books
+            Track books like these
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export function ReadingActivityPanel({
             </Button>
           </Link>
           <p className="text-xs text-center text-muted-foreground">
-            Join 2k+ readers tracking their goals
+            Free forever, no credit card required
           </p>
         </div>
       </div>
@@ -205,17 +205,17 @@ export function ReadingActivityPanel({
             <p className="text-xs text-muted-foreground mb-2">
               Once you start, you'll see:
             </p>
-            <div className="space-y-2 opacity-50">
+            <div className="space-y-3 opacity-50">
               {/* Skeleton book card */}
               <div className="flex gap-3">
-                <div className="w-8 h-12 rounded bg-muted animate-pulse" />
+                <div className="w-12 h-[72px] rounded bg-muted animate-pulse" />
                 <div className="flex-1 space-y-1.5">
                   <div className="h-3 w-3/4 rounded bg-muted animate-pulse" />
                   <div className="h-2 w-1/2 rounded bg-muted animate-pulse" />
                 </div>
               </div>
               <div className="flex gap-3">
-                <div className="w-8 h-12 rounded bg-muted animate-pulse" />
+                <div className="w-12 h-[72px] rounded bg-muted animate-pulse" />
                 <div className="flex-1 space-y-1.5">
                   <div className="h-3 w-2/3 rounded bg-muted animate-pulse" />
                   <div className="h-2 w-1/3 rounded bg-muted animate-pulse" />
@@ -297,8 +297,8 @@ export function ReadingActivityPanel({
               >
                 <CoverImage
                   book={item.book}
-                  width={40}
-                  height={60}
+                  width={48}
+                  height={72}
                   hover={false}
                   className="flex-shrink-0"
                 />

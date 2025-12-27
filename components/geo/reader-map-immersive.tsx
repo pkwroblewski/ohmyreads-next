@@ -30,6 +30,13 @@ export interface PlacePin {
   lat: number | null;
   lng: number | null;
   website: string | null;
+  // OSM extended fields
+  phone: string | null;
+  email: string | null;
+  opening_hours: string | null;
+  wheelchair: string | null;
+  description: string | null;
+  image: string | null;
 }
 
 export type MapItem = ReaderPin | PlacePin;
@@ -304,11 +311,12 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
             ? "bg-sky-500"
             : "bg-orange-400";
 
+      // Bookstore: Open book icon, Library: Landmark/building with columns, Cafe: Coffee cup
       const icon =
         place.type === "bookstore"
-          ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>'
+          ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>'
           : place.type === "library"
-            ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></svg>'
+            ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>'
             : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>';
 
       el.innerHTML = `
@@ -498,7 +506,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
         </div>
       </div>
 
-      {/* Layer Controls - Below search */}
+      {/* Layer Controls - Centered below search */}
       <MapLayerControls
         layers={layers}
         onToggle={handleLayerToggle}
@@ -508,7 +516,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
           libraries: [...places.community, ...places.osm].filter(p => p.type === "library").length,
           cafes: [...places.community, ...places.osm].filter(p => p.type === "cafe").length,
         }}
-        className="absolute top-[72px] left-4 z-10"
+        className="absolute top-[76px] left-1/2 -translate-x-1/2 z-10"
       />
 
       {/* Detail Panel - Bottom (mobile) / Right (desktop) */}

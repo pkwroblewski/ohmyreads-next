@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Search, SlidersHorizontal } from "lucide-react";
+import { Loader2, Search, SlidersHorizontal, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { BookCard } from "@/components/books/book-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AIBookSearch } from "@/components/ai/ai-book-search";
 import { cn } from "@/lib/utils";
 import type { Book } from "@/types/database";
 
@@ -33,6 +34,8 @@ export function BookBrowser({ initialBooks, genres }: BookBrowserProps) {
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(initialBooks.length);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [showAISearch, setShowAISearch] = useState(false);
+  const [showAllGenres, setShowAllGenres] = useState(false);
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
@@ -137,22 +140,32 @@ export function BookBrowser({ initialBooks, genres }: BookBrowserProps) {
   return (
     <div className="space-y-6">
       {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search by title or author..."
-          value={searchQuery}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="pl-12 h-12 text-base"
-        />
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search by title or author..."
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-12 h-12 text-base"
+          />
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowAISearch(true)}
+          className="h-12 px-4 gap-2 bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/20 hover:border-primary/40 hover:bg-primary/10"
+        >
+          <Sparkles className="h-5 w-5 text-primary" />
+          <span className="hidden sm:inline">AI Search</span>
+        </Button>
       </div>
 
       {/* Filters Row */}
       <div className="flex flex-col sm:flex-row gap-4">
         {/* Genre Pills */}
         <div className="flex-1 overflow-x-auto scrollbar-hide">
-          <div className="flex gap-2 pb-2">
+          <div className="flex flex-wrap gap-2 pb-2">
             <button
               onClick={() => handleGenreChange(null)}
               className={cn(
@@ -164,7 +177,7 @@ export function BookBrowser({ initialBooks, genres }: BookBrowserProps) {
             >
               All
             </button>
-            {genres.map((genre) => (
+            {(showAllGenres ? genres : genres.slice(0, 10)).map((genre) => (
               <button
                 key={genre}
                 onClick={() => handleGenreChange(genre)}
@@ -178,6 +191,14 @@ export function BookBrowser({ initialBooks, genres }: BookBrowserProps) {
                 {genre}
               </button>
             ))}
+            {genres.length > 10 && (
+              <button
+                onClick={() => setShowAllGenres(!showAllGenres)}
+                className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors bg-muted/50 text-primary hover:bg-muted border border-primary/20"
+              >
+                {showAllGenres ? "Show less" : `+${genres.length - 10} more`}
+              </button>
+            )}
           </div>
         </div>
 
@@ -288,6 +309,9 @@ export function BookBrowser({ initialBooks, genres }: BookBrowserProps) {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       )}
+
+      {/* AI Book Search Dialog */}
+      <AIBookSearch open={showAISearch} onOpenChange={setShowAISearch} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Sparkles, Heart, BookMarked, Star, TrendingUp } from "lucide-react";
+import { Sparkles, Heart, BookMarked, Star, TrendingUp, Flame } from "lucide-react";
 import type { RecommendationReasonType } from "@/lib/queries/recommendations";
 
 interface RecommendationReasonProps {
@@ -17,6 +17,7 @@ const REASON_ICONS: Record<RecommendationReasonType, typeof Sparkles> = {
   similar_to_loved: BookMarked,
   popular_in_genre: TrendingUp,
   highly_rated: Star,
+  trending: Flame,
 };
 
 const REASON_COLORS: Record<RecommendationReasonType, string> = {
@@ -25,6 +26,7 @@ const REASON_COLORS: Record<RecommendationReasonType, string> = {
   similar_to_loved: "text-amber-500",
   popular_in_genre: "text-blue-500",
   highly_rated: "text-yellow-500",
+  trending: "text-orange-500",
 };
 
 export function RecommendationReason({

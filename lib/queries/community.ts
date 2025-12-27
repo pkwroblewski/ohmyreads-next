@@ -72,85 +72,95 @@ export async function getCommunityFeedPage(options: {
   cursor?: string | null;
 }): Promise<CommunityFeedPage> {
   const { limit = 10, cursor } = options;
-  const supabase = createPublicClient();
 
-  let query = supabase
-    .from("activity_feed")
-    .select(
+  try {
+    const supabase = createPublicClient();
+
+    let query = supabase
+      .from("activity_feed")
+      .select(
+        `
+        id,
+        type,
+        user_id,
+        book_id,
+        review_id,
+        place_id,
+        checkin_id,
+        created_at,
+        user:profiles!activity_feed_user_id_profiles_fkey(id, username, display_name, avatar_url),
+        book:books!activity_feed_book_id_fkey(id, title, author, slug, cover_url),
+        review:reviews!activity_feed_review_id_fkey(id, rating, content, likes_count),
+        place:places!activity_feed_place_id_fkey(id, name, place_type),
+        checkin:place_checkins!activity_feed_checkin_id_fkey(id, note)
       `
-      id,
-      type,
-      user_id,
-      book_id,
-      review_id,
-      place_id,
-      checkin_id,
-      created_at,
-      user:profiles!activity_feed_user_id_fkey(id, username, display_name, avatar_url),
-      book:books!activity_feed_book_id_fkey(id, title, author, slug, cover_url),
-      review:reviews!activity_feed_review_id_fkey(id, rating, content, likes_count),
-      place:places!activity_feed_place_id_fkey(id, name, place_type),
-      checkin:place_checkins!activity_feed_checkin_id_fkey(id, note)
-    `
-    )
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(limit + 1); // Fetch one extra to check if there's more
+      )
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(limit + 1); // Fetch one extra to check if there's more
 
-  // Apply cursor filter if provided and valid
-  const parsedCursor = parseCursor(cursor);
-  if (parsedCursor) {
-    // Get items older than cursor
-    query = query.or(
-      `created_at.lt.${parsedCursor.date},and(created_at.eq.${parsedCursor.date},id.lt.${parsedCursor.id})`
-    );
-  }
+    // Apply cursor filter if provided and valid
+    const parsedCursor = parseCursor(cursor);
+    if (parsedCursor) {
+      // Get items older than cursor
+      query = query.or(
+        `created_at.lt.${parsedCursor.date},and(created_at.eq.${parsedCursor.date},id.lt.${parsedCursor.id})`
+      );
+    }
 
-  const { data, error } = await query;
+    const { data, error } = await query;
 
-  if (error) {
-    console.error("Error fetching community feed:", error);
+    if (error) {
+      console.error("Error fetching community feed:", JSON.stringify(error, null, 2));
+      return { items: [], nextCursor: null, hasMore: false };
+    }
+
+    if (!data || data.length === 0) {
+      return { items: [], nextCursor: null, hasMore: false };
+    }
+
+    const items = data
+      // For check-ins, book is optional; for other types, book is required
+      .filter((item) => item.user && (item.type === "checkin" ? item.place : item.book))
+      .slice(0, limit) // Remove the extra item we fetched
+      .map((item) => {
+        const userData = item.user as unknown as ActivityFeedItemWithRelations["user"];
+        const bookData = item.book as unknown as ActivityFeedItemWithRelations["book"];
+        const reviewData = item.review as unknown as ActivityFeedItemWithRelations["review"];
+        const placeData = item.place as unknown as ActivityFeedItemWithRelations["place"];
+        const checkinData = item.checkin as unknown as ActivityFeedItemWithRelations["checkin"];
+
+        return {
+          id: item.id,
+          type: item.type as "review" | "started_reading" | "checkin",
+          user_id: item.user_id,
+          book_id: item.book_id,
+          review_id: item.review_id,
+          place_id: item.place_id,
+          checkin_id: item.checkin_id,
+          created_at: item.created_at,
+          user: userData,
+          book: bookData || null,
+          review: reviewData || null,
+          place: placeData || null,
+          checkin: checkinData || null,
+        };
+      });
+
+    // Determine if there are more items
+    const hasMore = data.length > limit;
+
+    // Build next cursor from last item
+    const lastItem = items[items.length - 1];
+    const nextCursor = hasMore && lastItem
+      ? `${lastItem.created_at}|${lastItem.id}`
+      : null;
+
+    return { items, nextCursor, hasMore };
+  } catch (err) {
+    console.error("Unexpected error in getCommunityFeedPage:", err);
     return { items: [], nextCursor: null, hasMore: false };
   }
-
-  const items = (data || [])
-    // For check-ins, book is optional; for other types, book is required
-    .filter((item) => item.user && (item.type === "checkin" ? item.place : item.book))
-    .slice(0, limit) // Remove the extra item we fetched
-    .map((item) => {
-      const userData = item.user as unknown as ActivityFeedItemWithRelations["user"];
-      const bookData = item.book as unknown as ActivityFeedItemWithRelations["book"];
-      const reviewData = item.review as unknown as ActivityFeedItemWithRelations["review"];
-      const placeData = item.place as unknown as ActivityFeedItemWithRelations["place"];
-      const checkinData = item.checkin as unknown as ActivityFeedItemWithRelations["checkin"];
-
-      return {
-        id: item.id,
-        type: item.type as "review" | "started_reading" | "checkin",
-        user_id: item.user_id,
-        book_id: item.book_id,
-        review_id: item.review_id,
-        place_id: item.place_id,
-        checkin_id: item.checkin_id,
-        created_at: item.created_at,
-        user: userData,
-        book: bookData || null,
-        review: reviewData || null,
-        place: placeData || null,
-        checkin: checkinData || null,
-      };
-    });
-
-  // Determine if there are more items
-  const hasMore = (data?.length || 0) > limit;
-
-  // Build next cursor from last item
-  const lastItem = items[items.length - 1];
-  const nextCursor = hasMore && lastItem 
-    ? `${lastItem.created_at}|${lastItem.id}` 
-    : null;
-
-  return { items, nextCursor, hasMore };
 }
 
 // ============================================
@@ -190,7 +200,7 @@ export async function getFollowingFeedPage(options: {
       place_id,
       checkin_id,
       created_at,
-      user:profiles!activity_feed_user_id_fkey(id, username, display_name, avatar_url),
+      user:profiles!activity_feed_user_id_profiles_fkey(id, username, display_name, avatar_url),
       book:books!activity_feed_book_id_fkey(id, title, author, slug, cover_url),
       review:reviews!activity_feed_review_id_fkey(id, rating, content, likes_count),
       place:places!activity_feed_place_id_fkey(id, name, place_type),

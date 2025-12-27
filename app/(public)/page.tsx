@@ -15,7 +15,7 @@ import { HomeFeed } from "@/components/home/home-feed";
 import { CommunityFeed } from "@/components/home/community-feed";
 import {
   getCuratedBooks,
-  getTrendingGlobally,
+  getTrulyTrending,
 } from "@/lib/queries/recommendations";
 import {
   getHomeReadingActivity,
@@ -25,20 +25,22 @@ import { cn } from "@/lib/utils";
 import { safeJsonLd } from "@/lib/utils/jsonld";
 
 export const metadata: Metadata = {
-  title: "OhMyReads - Track Your Reading Journey",
+  title: "OhMyReads - Independent Minds, Shared Stories",
   description:
-    "Discover books, write reviews, and connect with fellow readers. The modern way to track and share your reading life.",
+    "The independent reading community where you own your data, AI helps you discover books, and readers come first. Track your reading journey without corporate interference.",
   keywords: [
     "book tracking",
-    "reading",
+    "reading community",
     "book reviews",
     "goodreads alternative",
+    "independent book platform",
+    "AI book discovery",
     "reading list",
   ],
   openGraph: {
-    title: "OhMyReads - Track Your Reading Journey",
+    title: "OhMyReads - Independent Minds, Shared Stories",
     description:
-      "Discover books, write reviews, and connect with fellow readers.",
+      "The independent reading community where you own your data and AI helps you discover books.",
     type: "website",
   },
 };
@@ -83,7 +85,7 @@ export default async function HomePage() {
   const [curatedBooks, trendingBooks, activity, communityFeed] =
     await Promise.all([
       getCuratedBooks(user?.id, 4), // Only need 4 for mini grid
-      getTrendingGlobally(5), // 5 for trending list
+      getTrulyTrending(7, 7), // 7 books, 7-day window for real trending
       user ? getHomeReadingActivity(user.id) : Promise.resolve(null),
       getCommunityFeed(6), // 6 recent reviews
     ]);

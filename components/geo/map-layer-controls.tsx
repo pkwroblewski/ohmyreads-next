@@ -1,8 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Users, BookOpen, Building2, Coffee, SlidersHorizontal } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { Users, BookMarked, Landmark, Coffee } from "lucide-react";
 
 interface LayerState {
   readers: boolean;
@@ -30,29 +29,29 @@ const layerConfig = [
     key: "readers" as const,
     label: "Readers",
     icon: Users,
-    activeColor: "text-emerald-500",
-    activeBg: "bg-emerald-500/10",
+    activeColor: "text-emerald-600 dark:text-emerald-400",
+    activeBg: "bg-emerald-500/20",
   },
   {
     key: "bookstores" as const,
-    label: "Bookstores",
-    icon: BookOpen,
-    activeColor: "text-amber-500",
-    activeBg: "bg-amber-500/10",
+    label: "Books",
+    icon: BookMarked,
+    activeColor: "text-amber-600 dark:text-amber-400",
+    activeBg: "bg-amber-500/20",
   },
   {
     key: "libraries" as const,
     label: "Libraries",
-    icon: Building2,
-    activeColor: "text-sky-500",
-    activeBg: "bg-sky-500/10",
+    icon: Landmark,
+    activeColor: "text-sky-600 dark:text-sky-400",
+    activeBg: "bg-sky-500/20",
   },
   {
     key: "cafes" as const,
     label: "Cafes",
     icon: Coffee,
-    activeColor: "text-orange-400",
-    activeBg: "bg-orange-400/10",
+    activeColor: "text-orange-600 dark:text-orange-400",
+    activeBg: "bg-orange-500/20",
   },
 ];
 
@@ -65,72 +64,41 @@ export function MapLayerControls({
   return (
     <div
       className={cn(
-        "bg-card/95 backdrop-blur-xl rounded-2xl border border-border/50 shadow-lg overflow-hidden",
-        "min-w-[200px]",
+        "inline-flex items-center gap-1.5 p-1.5 rounded-full",
+        "bg-white/90 dark:bg-card/90 backdrop-blur-xl",
+        "border border-border/50 shadow-lg",
         className
       )}
     >
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2">
-        <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Filters</span>
-      </div>
+      {layerConfig.map(({ key, label, icon: Icon, activeColor, activeBg }) => {
+        const isActive = layers[key];
+        const count = counts?.[key];
 
-      {/* Filter options */}
-      <div className="p-2">
-        {layerConfig.map(({ key, label, icon: Icon, activeColor, activeBg }) => {
-          const isActive = layers[key];
-          const count = counts?.[key];
-
-          return (
-            <div
-              key={key}
-              className={cn(
-                "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all duration-200 cursor-pointer",
-                "hover:bg-muted/50",
-                isActive && activeBg
-              )}
-              onClick={() => onToggle(key)}
-            >
-              {/* Icon */}
-              <Icon className={cn(
-                "h-4 w-4 shrink-0 transition-colors duration-200",
-                isActive ? activeColor : "text-muted-foreground"
-              )} />
-
-              {/* Label */}
-              <span
-                className={cn(
-                  "text-sm transition-colors duration-200 flex-1",
-                  isActive ? "text-foreground font-medium" : "text-muted-foreground"
-                )}
-              >
-                {label}
+        return (
+          <button
+            key={key}
+            onClick={() => onToggle(key)}
+            className={cn(
+              "inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-medium",
+              "transition-all duration-200 whitespace-nowrap",
+              isActive
+                ? cn(activeBg, activeColor)
+                : "text-muted-foreground hover:bg-muted/50"
+            )}
+          >
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden sm:inline">{label}</span>
+            {count !== undefined && count > 0 && (
+              <span className={cn(
+                "text-[10px] tabular-nums",
+                isActive ? "opacity-80" : "opacity-60"
+              )}>
+                {count}
               </span>
-
-              {/* Count badge */}
-              {count !== undefined && count > 0 && (
-                <span className={cn(
-                  "text-xs px-1.5 py-0.5 rounded-full transition-all duration-200",
-                  isActive
-                    ? "bg-foreground/10 text-foreground"
-                    : "bg-muted text-muted-foreground"
-                )}>
-                  {count}
-                </span>
-              )}
-
-              {/* Switch */}
-              <Switch
-                checked={isActive}
-                onCheckedChange={() => onToggle(key)}
-                className="scale-75"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          );
-        })}
-      </div>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
