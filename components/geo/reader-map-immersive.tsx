@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { encodeGeohash, decodeGeohash } from "@/lib/utils/geohash";
 import { MapLayerControls } from "./map-layer-controls";
 import { MapDetailPanel } from "./map-detail-panel";
+import { IsochroneControls } from "./isochrone-controls";
+import { AIPlaceSearch } from "./ai-place-search";
 
 export interface ReaderPin {
   id: string;
@@ -74,6 +76,14 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     libraries: true,
     cafes: false,
   });
+
+  // Isochrone state
+  const [isochroneData, setIsochroneData] = useState<{
+    geometry: GeoJSON.Polygon;
+    center: [number, number];
+    minutes: number;
+    profile: "walking" | "cycling" | "driving";
+  } | null>(null);
 
   // Fetch data for a location
   const fetchDataForLocation = async (lat: number, lng: number) => {
@@ -425,6 +435,69 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layers.readers, layers.bookstores, layers.libraries, layers.cafes]);
 
+  // Update isochrone layer when data changes
+  useEffect(() => {
+    if (!map.current || isLoading) return;
+
+    const mapInstance = map.current;
+
+    // Remove existing isochrone layer and source
+    if (mapInstance.getLayer("isochrone-fill")) {
+      mapInstance.removeLayer("isochrone-fill");
+    }
+    if (mapInstance.getLayer("isochrone-outline")) {
+      mapInstance.removeLayer("isochrone-outline");
+    }
+    if (mapInstance.getSource("isochrone")) {
+      mapInstance.removeSource("isochrone");
+    }
+
+    // Add new isochrone if data exists
+    if (isochroneData) {
+      mapInstance.addSource("isochrone", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: isochroneData.geometry,
+        },
+      });
+
+      // Add fill layer
+      mapInstance.addLayer({
+        id: "isochrone-fill",
+        type: "fill",
+        source: "isochrone",
+        paint: {
+          "fill-color":
+            isochroneData.profile === "walking"
+              ? "#10b981"
+              : isochroneData.profile === "cycling"
+                ? "#0ea5e9"
+                : "#f59e0b",
+          "fill-opacity": 0.15,
+        },
+      });
+
+      // Add outline layer
+      mapInstance.addLayer({
+        id: "isochrone-outline",
+        type: "line",
+        source: "isochrone",
+        paint: {
+          "line-color":
+            isochroneData.profile === "walking"
+              ? "#10b981"
+              : isochroneData.profile === "cycling"
+                ? "#0ea5e9"
+                : "#f59e0b",
+          "line-width": 2,
+          "line-opacity": 0.8,
+        },
+      });
+    }
+  }, [isochroneData, isLoading]);
+
   return (
     <div className={cn("relative w-full", className)} style={{ height: "calc(100vh - 4rem)" }}>
       {/* Map Container */}
@@ -517,6 +590,42 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
           cafes: [...places.community, ...places.osm].filter(p => p.type === "cafe").length,
         }}
         className="absolute top-[76px] left-1/2 -translate-x-1/2 z-10"
+      />
+
+      {/* Isochrone Controls - Bottom Left */}
+      <IsochroneControls
+        onIsochroneChange={setIsochroneData}
+        userLocation={userLocation}
+        className="absolute bottom-24 left-4 z-10 lg:bottom-4"
+      />
+
+      {/* AI Place Search - Bottom Left (above isochrone on mobile) */}
+      <AIPlaceSearch
+        userLocation={userLocation}
+        onPlaceSelect={(place) => {
+          // Fly to the selected place
+          if (map.current) {
+            map.current.flyTo({
+              center: [place.lng, place.lat],
+              zoom: 15,
+              pitch: 50,
+              bearing: -15,
+              duration: 2000,
+              essential: true,
+            });
+          }
+          // Find and select the place in our data if it exists
+          const allPlaces = [...places.community, ...places.osm];
+          const foundPlace = allPlaces.find(
+            (p) =>
+              p.id === place.id ||
+              (p.lat === place.lat && p.lng === place.lng)
+          );
+          if (foundPlace) {
+            setSelectedItem(foundPlace);
+          }
+        }}
+        className="absolute bottom-36 left-4 z-10 lg:bottom-16"
       />
 
       {/* Detail Panel - Bottom (mobile) / Right (desktop) */}

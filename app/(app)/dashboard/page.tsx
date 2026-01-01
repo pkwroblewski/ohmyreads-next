@@ -24,6 +24,7 @@ import {
   hasEnoughSignals,
 } from "@/lib/queries/recommendations";
 import { getChallenges } from "@/lib/actions/challenges";
+import { PlacesNearYou } from "@/components/dashboard/places-near-you";
 import type { Book, UserBook, ReadingStats, Profile } from "@/types/database";
 
 export const metadata: Metadata = {
@@ -185,6 +186,11 @@ export default async function DashboardPage() {
         emptyMessage="You're not reading anything yet. Find your next book!"
         viewAllHref="/my-shelf?status=reading"
       />
+
+      {/* ========================================
+          Places Near You Section
+          ======================================== */}
+      <PlacesNearYou />
 
       {/* ========================================
           Personalized Recommendations Section

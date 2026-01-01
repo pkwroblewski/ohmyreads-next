@@ -12,6 +12,7 @@ import { PlaceReviewsList } from "./place-reviews-list";
 import { PlacePhotosList } from "./place-photos-list";
 import { PlaceCheckinsList } from "./place-checkins-list";
 import { CheckinButton } from "./checkin-button";
+import { DirectionsDisplay } from "./directions-display";
 import { isOpenNow, formatHoursForDisplay } from "@/lib/utils/opening-hours";
 
 interface MapDetailPanelProps {
@@ -238,6 +239,7 @@ function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId
   const [isEnriching, setIsEnriching] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showAllHours, setShowAllHours] = useState(false);
+  const [showDirections, setShowDirections] = useState(false);
 
   // Only community places have real IDs for reviews
   const canShowReviews = place.source === "community" && !place.id.startsWith("osm-");
@@ -310,15 +312,18 @@ function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId
     <div className="space-y-3">
       {/* Quick Action Buttons - Compact row */}
       <div className="flex items-center gap-1.5">
-        <a
-          href={directionsUrl || "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
+        <button
+          onClick={() => setShowDirections(!showDirections)}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-medium transition-colors",
+            showDirections
+              ? "bg-primary text-primary-foreground"
+              : "bg-primary/10 hover:bg-primary/20 text-primary"
+          )}
         >
           <Navigation className="h-3.5 w-3.5" />
           <span>Directions</span>
-        </a>
+        </button>
 
         {websiteUrl ? (
           <a
@@ -354,6 +359,17 @@ function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId
           )}
         </button>
       </div>
+
+      {/* Directions Panel */}
+      {showDirections && place.lat && place.lng && (
+        <DirectionsDisplay
+          destination={{
+            lat: place.lat,
+            lng: place.lng,
+            name: place.name,
+          }}
+        />
+      )}
 
       {/* Photo section - smaller */}
       {photoUrl && (
