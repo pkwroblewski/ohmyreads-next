@@ -48,7 +48,7 @@ export const metadata: Metadata = {
       "Discover books, write reviews, and connect with fellow readers.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/opengraph-image",
         width: 1200,
         height: 630,
         alt: "OhMyReads - Track Your Reading Journey",
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
     title: "OhMyReads - Track Your Reading Journey",
     description:
       "Discover books, write reviews, and connect with fellow readers.",
-    images: ["/og-image.png"],
+    images: ["/opengraph-image"],
   },
   robots: {
     index: true,
@@ -75,12 +75,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icon", type: "image/png" },
+      { url: "/icons/icon-192", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512", sizes: "512x512", type: "image/png" },
     ],
     apple: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/apple-icon", type: "image/png" },
     ],
   },
   manifest: "/site.webmanifest",
