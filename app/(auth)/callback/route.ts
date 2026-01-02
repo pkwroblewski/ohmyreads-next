@@ -71,12 +71,22 @@ export async function GET(request: Request) {
           metadata.avatar_url ||
           null;
 
+        // Check if user should be admin based on ADMIN_EMAILS env var
+        const adminEmails = (process.env.ADMIN_EMAILS || "")
+          .split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
+        const isAdmin = user.email
+          ? adminEmails.includes(user.email.toLowerCase())
+          : false;
+
         // Try inserting profile
         const { error: insertError } = await supabase.from("profiles").insert({
           id: user.id,
           username: username,
           display_name: displayName,
           avatar_url: avatarUrl,
+          is_admin: isAdmin,
         });
 
         // If username taken (unique constraint), append random suffix
@@ -87,6 +97,7 @@ export async function GET(request: Request) {
             username: username,
             display_name: displayName,
             avatar_url: avatarUrl,
+            is_admin: isAdmin,
           });
         }
 
