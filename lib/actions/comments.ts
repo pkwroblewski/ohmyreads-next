@@ -31,7 +31,7 @@ export async function createComment(input: {
     }
 
     // Rate limit
-    const { allowed } = checkRateLimit(`comment:${user.id}`, 10, 60000);
+    const { allowed } = await checkRateLimit(`comment:${user.id}`, 10, 60000);
     if (!allowed) {
       return { error: "Too many comments. Please wait a moment." };
     }

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Rate limiting: 30 requests per minute per IP
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-    const { allowed } = checkRateLimit(`ai-chat:${ip}`, 30, 60000);
+    const { allowed } = await checkRateLimit(`ai-chat:${ip}`, 30, 60000);
 
     if (!allowed) {
       return new Response(

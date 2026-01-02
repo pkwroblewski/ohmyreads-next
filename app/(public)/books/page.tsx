@@ -3,9 +3,13 @@ import { getPopularBooks, getAllGenres } from "@/lib/queries/books";
 import { BookBrowser } from "@/components/books/book-browser";
 
 export const metadata: Metadata = {
-  title: "Browse Books",
+  title: "Browse Books - Find Your Next Great Read",
   description:
-    "Discover your next favorite book. Browse our collection, read reviews, and track your reading journey.",
+    "Discover your next favorite book from thousands of titles. Browse by genre, read authentic reviews from readers like you, and add books to your personal shelf on OhMyReads.",
+  openGraph: {
+    title: "Browse Books - Find Your Next Great Read | OhMyReads",
+    description: "Discover your next favorite book from thousands of titles. Browse by genre, read authentic reviews, and track your reading journey.",
+  },
 };
 
 // Fallback genres if database returns empty

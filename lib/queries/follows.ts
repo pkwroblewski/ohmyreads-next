@@ -246,6 +246,89 @@ export async function getSuggestedFollows(
     .sort((a, b) => b.shared_books - a.shared_books);
 }
 
+// Friend activity item type
+export interface FriendActivity {
+  id: string;
+  user_id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  activity_type: "added_book" | "reviewed";
+  book_id: string;
+  book_title: string;
+  book_slug: string;
+  book_cover_url: string | null;
+  status?: string;
+  rating?: number;
+  created_at: string;
+}
+
+/**
+ * Get recent activity from users the current user follows.
+ * Returns book additions and reviews from friends.
+ */
+export async function getFriendsActivity(
+  userId: string,
+  limit = 10
+): Promise<FriendActivity[]> {
+  const supabase = await createClient();
+
+  // Get IDs of users being followed
+  const followingIds = await getFollowingIds(userId);
+
+  if (followingIds.length === 0) {
+    return [];
+  }
+
+  // Fetch recent user_books from followed users
+  const { data: bookActivity, error: bookError } = await supabase
+    .from("user_books")
+    .select(
+      `
+      id,
+      user_id,
+      status,
+      created_at,
+      book:books(id, title, slug, cover_url),
+      profile:profiles(username, display_name, avatar_url)
+    `
+    )
+    .in("user_id", followingIds)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (bookError) {
+    console.error("Error fetching friends book activity:", bookError);
+    return [];
+  }
+
+  // Map to activity items
+  const activities: FriendActivity[] = (bookActivity || [])
+    .filter((item) => item.book && item.profile)
+    .map((item) => {
+      const book = Array.isArray(item.book) ? item.book[0] : item.book;
+      const profile = Array.isArray(item.profile)
+        ? item.profile[0]
+        : item.profile;
+      return {
+        id: item.id,
+        user_id: item.user_id,
+        username: profile?.username || null,
+        display_name: profile?.display_name || null,
+        avatar_url: profile?.avatar_url || null,
+        activity_type: "added_book" as const,
+        book_id: book?.id || "",
+        book_title: book?.title || "",
+        book_slug: book?.slug || "",
+        book_cover_url: book?.cover_url || null,
+        status: item.status,
+        created_at: item.created_at,
+      };
+    });
+
+  return activities;
+}
+
 /**
  * Fallback: suggest active readers when no shared books found.
  */

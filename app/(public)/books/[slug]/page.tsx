@@ -317,10 +317,14 @@ export default async function BookPage({ params }: Props) {
               )}
 
               {/* Write Review Button */}
-              {user && (
+              {user ? (
                 <a href="#reviews">
                   <Button variant="outline">Write Review</Button>
                 </a>
+              ) : (
+                <Link href={`/login?redirect=/books/${book.slug}#reviews`}>
+                  <Button variant="outline">Sign in to Review</Button>
+                </Link>
               )}
 
               {/* Share Button */}

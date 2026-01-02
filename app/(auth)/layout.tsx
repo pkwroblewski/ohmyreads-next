@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen, ArrowLeft } from "lucide-react";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: true },
+};
 
 export default function AuthLayout({
   children,

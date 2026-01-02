@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus, ArrowLeft, Settings, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ReaderMapImmersive } from "@/components/geo/reader-map-immersive";
 import { MapEventsPanel } from "@/components/geo/map-events-panel";
+import { ReaderMapLazy } from "@/components/geo/reader-map-lazy";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -84,8 +84,8 @@ export default async function ReaderMapPage() {
             </Link>
           </div>
 
-          {/* Map Component */}
-          <ReaderMapImmersive currentUserId={user?.id} />
+          {/* Map Component - Lazy loaded */}
+          <ReaderMapLazy currentUserId={user?.id} />
         </div>
 
         {/* Events Panel - Desktop only */}

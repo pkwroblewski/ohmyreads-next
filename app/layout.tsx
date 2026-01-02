@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Merriweather } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -73,9 +74,21 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
   },
   manifest: "/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "OhMyReads",
+  },
 };
 
 export default function RootLayout({
@@ -94,6 +107,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
+          <ServiceWorkerRegistration />
           {children}
           <Toaster
             position="bottom-right"

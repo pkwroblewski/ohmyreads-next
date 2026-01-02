@@ -5,7 +5,7 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 export async function GET(request: NextRequest) {
   // Rate limit by IP (100 requests per minute for feed pagination)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-  const { allowed } = checkRateLimit(`feed:${ip}`, 100, 60000);
+  const { allowed } = await checkRateLimit(`feed:${ip}`, 100, 60000);
   
   if (!allowed) {
     return NextResponse.json(

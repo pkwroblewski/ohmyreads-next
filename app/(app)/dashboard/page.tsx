@@ -9,6 +9,7 @@ import {
   Library,
   ArrowRight,
   Sparkles,
+  Upload,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
@@ -24,7 +25,9 @@ import {
   hasEnoughSignals,
 } from "@/lib/queries/recommendations";
 import { getChallenges } from "@/lib/actions/challenges";
+import { getFriendsActivity } from "@/lib/queries/follows";
 import { PlacesNearYou } from "@/components/dashboard/places-near-you";
+import { FriendsActivity } from "@/components/dashboard/friends-activity";
 import type { Book, UserBook, ReadingStats, Profile } from "@/types/database";
 
 export const metadata: Metadata = {
@@ -83,6 +86,7 @@ export default async function DashboardPage() {
     recentActivityResult,
     hasSignals,
     challengesResult,
+    friendsActivityData,
   ] = await Promise.all([
     // Profile
     supabase.from("profiles").select("*").eq("id", user.id).single(),
@@ -107,6 +111,8 @@ export default async function DashboardPage() {
     hasEnoughSignals(user.id),
     // Active challenges
     getChallenges(),
+    // Friends activity
+    getFriendsActivity(user.id, 5),
   ]);
 
   const profile = profileResult.data as Profile | null;
@@ -191,6 +197,11 @@ export default async function DashboardPage() {
           Places Near You Section
           ======================================== */}
       <PlacesNearYou />
+
+      {/* ========================================
+          Friends Activity Section
+          ======================================== */}
+      <FriendsActivity activities={friendsActivityData} />
 
       {/* ========================================
           Personalized Recommendations Section
@@ -308,6 +319,11 @@ export default async function DashboardPage() {
               label: "Browse Books",
               href: "/books",
             }}
+            secondaryAction={{
+              label: "Import from Goodreads",
+              href: "/import",
+              icon: Upload,
+            }}
           />
         )}
       </section>
@@ -330,12 +346,20 @@ export default async function DashboardPage() {
             <p className="text-muted-foreground mb-4">
               Discover books, track your progress, and connect with other readers.
             </p>
-            <Link href="/books">
-              <Button>
-                Browse Books
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/books">
+                <Button>
+                  Browse Books
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+              <Link href="/import">
+                <Button variant="outline">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import from Goodreads
+                </Button>
+              </Link>
+            </div>
           </div>
         </section>
       )}

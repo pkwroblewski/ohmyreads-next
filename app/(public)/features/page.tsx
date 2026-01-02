@@ -111,9 +111,11 @@ export default function FeaturesPage() {
         {features.map((feature) => (
           <div
             key={feature.title}
-            className="p-6 rounded-xl border bg-card shadow-sm hover:shadow-md transition-shadow"
+            className="group p-6 rounded-xl border bg-card shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
           >
-            <feature.icon className="h-10 w-10 text-primary mb-4" strokeWidth={1.75} />
+            <div className="mb-4 p-2.5 rounded-lg bg-primary/10 w-fit group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-200">
+              <feature.icon className="h-7 w-7 text-primary" strokeWidth={1.75} />
+            </div>
             <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
             <p className="text-muted-foreground">{feature.description}</p>
           </div>

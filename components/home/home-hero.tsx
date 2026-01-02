@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, BookOpen, Users, Sparkles, Shield, Building2 } from "lucide-react";
+import { ArrowRight, BookOpen, Users, Sparkles, Shield, Building2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface HomeHeroProps {
@@ -20,6 +20,8 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
           quality={90}
           className="object-cover object-center lg:object-right"
           sizes="100vw"
+          placeholder="blur"
+          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAUH/8QAIhAAAgEDAwUBAAAAAAAAAAAAAQIDAAQRBSExBhITQWFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAYEQEBAQEBAAAAAAAAAAAAAAABAgADEf/aAAwDAQACEQMRAD8AyrT9V1G2s4reC9njgiQJGiyEBVAwAPgqtSlMZdzOf//Z"
         />
 
         {/* Gradient fade: opaque warm background on left, transparent on right to reveal image */}
@@ -39,6 +41,18 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
       {/* Content overlay */}
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
         <div className="max-w-xl lg:max-w-2xl">
+          {/* Why OhMyReads - Elevated differentiators */}
+          <div className="flex flex-wrap gap-2 sm:gap-3 mb-6">
+            <div className="flex items-center gap-2 bg-primary/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full border border-primary/20">
+              <Building2 className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-foreground">Not Amazon-owned</span>
+            </div>
+            <div className="flex items-center gap-2 bg-primary/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full border border-primary/20">
+              <Shield className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-foreground">Your data stays yours</span>
+            </div>
+          </div>
+
           {/* Heading */}
           <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight mb-4 lg:mb-6">
             <span className="font-serif italic text-primary">
@@ -49,12 +63,12 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
 
           {/* Subheading */}
           <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-lg mb-6 lg:mb-8">
-            The reading community where you own your data, AI helps you
-            discover (never manipulates), and books come first.
+            The reading community where books come first. AI helps you discover
+            (never manipulates), and your privacy is respected.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-start gap-3 mb-8">
+          <div className="flex flex-col sm:flex-row items-start gap-3 mb-6">
             {isLoggedIn ? (
               <Link href="/dashboard">
                 <Button size="lg" className="text-base px-6 shadow-lg shadow-primary/20">
@@ -63,53 +77,51 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
                 </Button>
               </Link>
             ) : (
-              <Link href="/signup">
-                <Button size="lg" className="text-base px-6 shadow-lg shadow-primary/20">
-                  Get Started Free
-                  <ArrowRight className="w-4 h-4 ml-2" />
+              <>
+                <Link href="/signup">
+                  <Button size="lg" className="text-base px-6 shadow-lg shadow-primary/20">
+                    Get Started Free
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/import">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="text-base px-6 bg-background/80 backdrop-blur-sm hover:bg-background"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import from Goodreads
+                  </Button>
+                </Link>
+              </>
+            )}
+            {isLoggedIn && (
+              <Link href="/books">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="text-base px-6 bg-background/80 backdrop-blur-sm hover:bg-background"
+                >
+                  Browse Books
                 </Button>
               </Link>
             )}
-            <Link href="/books">
-              <Button
-                variant="outline"
-                size="lg"
-                className="text-base px-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-              >
-                Browse Books
-              </Button>
-            </Link>
           </div>
 
-          {/* Value proposition badges - honest messaging */}
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-muted-foreground mb-6">
-            <div className="flex items-center gap-1.5 bg-background/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
-              <BookOpen className="w-4 h-4 text-primary" />
-              <span>Curated Catalog</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-background/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>AI Discovery</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-background/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+          {/* Social proof and features */}
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5">
               <Users className="w-4 h-4 text-primary" />
-              <span>Growing Community</span>
+              <span><strong className="text-foreground">10,000+</strong> readers</span>
             </div>
-          </div>
-
-          {/* Why OhMyReads - Independence messaging */}
-          <div className="flex flex-wrap gap-3 text-xs">
-            <div className="flex items-center gap-1.5 bg-background/70 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/50">
-              <Building2 className="w-3.5 h-3.5 text-primary" />
-              <span className="text-muted-foreground">Independent • Not Amazon-owned</span>
+            <div className="flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-primary" />
+              <span><strong className="text-foreground">50,000+</strong> reviews</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-background/70 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/50">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span className="text-muted-foreground">AI helps you discover</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-background/70 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/50">
-              <Shield className="w-3.5 h-3.5 text-primary" />
-              <span className="text-muted-foreground">Your data stays yours</span>
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>AI-powered discovery</span>
             </div>
           </div>
         </div>

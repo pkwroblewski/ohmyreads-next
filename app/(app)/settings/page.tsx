@@ -6,8 +6,9 @@ import { getTasteProfile } from "@/lib/actions/taste";
 import { getUserLocation } from "@/lib/queries/geo";
 import { TasteProfileSection } from "@/components/settings/taste-profile-section";
 import { LocationSection } from "@/components/settings/location-section";
+import { ExportSection } from "@/components/settings/export-section";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Sparkles, MapPin } from "lucide-react";
+import { Settings, Sparkles, MapPin, Download } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Settings | OhMyReads",
@@ -105,6 +106,23 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <LocationSection initialLocation={userLocation} />
+        </CardContent>
+      </Card>
+
+      {/* Data Export Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Download className="h-5 w-5 text-primary" />
+            <CardTitle>Export Your Data</CardTitle>
+          </div>
+          <CardDescription>
+            Download a copy of all your reading data. Includes your books,
+            reviews, challenges, and social connections.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ExportSection />
         </CardContent>
       </Card>
 

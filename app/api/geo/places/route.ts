@@ -33,7 +33,7 @@ async function waitForOverpassSlot(): Promise<void> {
 export async function GET(request: NextRequest) {
   // Rate limit by IP (30 requests per minute - includes external API calls)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-  const { allowed } = checkRateLimit(`geo-places:${ip}`, 30, 60000);
+  const { allowed } = await checkRateLimit(`geo-places:${ip}`, 30, 60000);
   
   if (!allowed) {
     return NextResponse.json(

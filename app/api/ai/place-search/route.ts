@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   try {
     // Rate limiting: 20 requests per minute per IP
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-    const { allowed } = checkRateLimit(`ai-place-search:${ip}`, 20, 60000);
+    const { allowed } = await checkRateLimit(`ai-place-search:${ip}`, 20, 60000);
 
     if (!allowed) {
       return new Response(

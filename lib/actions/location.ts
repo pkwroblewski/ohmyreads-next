@@ -33,7 +33,7 @@ export async function updateLocation(input: UpdateLocationInput) {
     }
 
     // Rate limit
-    const { allowed } = checkRateLimit(`location:${user.id}`, 10, 60000);
+    const { allowed } = await checkRateLimit(`location:${user.id}`, 10, 60000);
     if (!allowed) {
       return { error: "Too many requests. Please wait a moment." };
     }
@@ -100,7 +100,7 @@ export async function updateLocationFromGeohash(input: {
     }
 
     // Rate limit
-    const { allowed } = checkRateLimit(`location:${user.id}`, 10, 60000);
+    const { allowed } = await checkRateLimit(`location:${user.id}`, 10, 60000);
     if (!allowed) {
       return { error: "Too many requests. Please wait a moment." };
     }
@@ -167,7 +167,7 @@ export async function toggleLocationSharing(enabled: boolean) {
     }
 
     // Rate limit
-    const { allowed } = checkRateLimit(`location:${user.id}`, 10, 60000);
+    const { allowed } = await checkRateLimit(`location:${user.id}`, 10, 60000);
     if (!allowed) {
       return { error: "Too many requests. Please wait a moment." };
     }

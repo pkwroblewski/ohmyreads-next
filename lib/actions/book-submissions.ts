@@ -10,6 +10,7 @@ import {
   type UpdateBookSubmissionInput,
   type ModerateBookSubmissionInput,
 } from "@/lib/validation/book-submission";
+import { createAuditLog } from "@/lib/utils/audit-log";
 
 // Helper function to generate slug from title
 function generateSlug(title: string): string {
@@ -469,6 +470,20 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
         return { error: "Failed to reject submission" };
       }
 
+      // Audit log
+      await createAuditLog({
+        action: "moderation.book.reject",
+        targetType: "book_submission",
+        targetId: submissionId,
+        userId: user.id,
+        metadata: {
+          bookTitle: submission.title,
+          bookAuthor: submission.author,
+          rejectionReason: rejectionReason || null,
+          submittedBy: submission.submitted_by,
+        },
+      });
+
       revalidatePath("/admin/submissions");
 
       return { success: true, action: "rejected" };
@@ -517,6 +532,21 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
       // Book was created, but submission wasn't updated - log this
       return { success: true, action: "approved", bookId: book.id };
     }
+
+    // Audit log
+    await createAuditLog({
+      action: "moderation.book.approve",
+      targetType: "book_submission",
+      targetId: submissionId,
+      userId: user.id,
+      metadata: {
+        bookTitle: submission.title,
+        bookAuthor: submission.author,
+        bookId: book.id,
+        bookSlug: book.slug,
+        submittedBy: submission.submitted_by,
+      },
+    });
 
     revalidatePath("/admin/submissions");
     revalidatePath("/books");

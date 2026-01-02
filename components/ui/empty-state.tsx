@@ -3,14 +3,19 @@ import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+interface EmptyStateAction {
+  label: string;
+  href: string;
+  icon?: LucideIcon;
+  variant?: "default" | "outline" | "secondary";
+}
+
 interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
   description: string;
-  action?: {
-    label: string;
-    href: string;
-  };
+  action?: EmptyStateAction;
+  secondaryAction?: EmptyStateAction;
   className?: string;
 }
 
@@ -19,6 +24,7 @@ export function EmptyState({
   title,
   description,
   action,
+  secondaryAction,
   className,
 }: EmptyStateProps) {
   return (
@@ -41,11 +47,26 @@ export function EmptyState({
         {description}
       </p>
 
-      {/* Action Button */}
-      {action && (
-        <Link href={action.href}>
-          <Button>{action.label}</Button>
-        </Link>
+      {/* Action Buttons */}
+      {(action || secondaryAction) && (
+        <div className="flex flex-col sm:flex-row gap-3">
+          {action && (
+            <Link href={action.href}>
+              <Button variant={action.variant || "default"}>
+                {action.icon && <action.icon className="w-4 h-4 mr-2" />}
+                {action.label}
+              </Button>
+            </Link>
+          )}
+          {secondaryAction && (
+            <Link href={secondaryAction.href}>
+              <Button variant={secondaryAction.variant || "outline"}>
+                {secondaryAction.icon && <secondaryAction.icon className="w-4 h-4 mr-2" />}
+                {secondaryAction.label}
+              </Button>
+            </Link>
+          )}
+        </div>
       )}
     </div>
   );

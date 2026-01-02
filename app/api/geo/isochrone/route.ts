@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   // Rate limit by IP (30 requests per minute)
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-  const { allowed } = checkRateLimit(`geo-isochrone:${ip}`, 30, 60000);
+  const { allowed } = await checkRateLimit(`geo-isochrone:${ip}`, 30, 60000);
 
   if (!allowed) {
     return NextResponse.json(

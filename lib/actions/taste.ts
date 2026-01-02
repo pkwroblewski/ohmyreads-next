@@ -28,7 +28,7 @@ export async function updateTasteProfile(input: UpdateTasteProfileInput) {
     }
 
     // Rate limiting: 10 updates per minute
-    const { allowed, remaining } = checkRateLimit(`taste:${user.id}`, 10, 60000);
+    const { allowed, remaining } = await checkRateLimit(`taste:${user.id}`, 10, 60000);
     if (!allowed) {
       logger.warn("Rate limit exceeded for taste profile update", {
         userId: user.id,
@@ -106,7 +106,7 @@ export async function completeTasteOnboarding(input: OnboardingTasteProfileInput
     }
 
     // Rate limiting: 5 onboarding completions per hour (to prevent abuse)
-    const { allowed } = checkRateLimit(`taste-onboard:${user.id}`, 5, 3600000);
+    const { allowed } = await checkRateLimit(`taste-onboard:${user.id}`, 5, 3600000);
     if (!allowed) {
       logger.warn("Rate limit exceeded for taste onboarding", {
         userId: user.id,

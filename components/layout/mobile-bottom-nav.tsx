@@ -7,7 +7,7 @@ import {
   Library,
   Search,
   User,
-  BarChart3,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ const navItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/my-shelf", label: "Shelf", icon: Library },
   { href: "/books", label: "Browse", icon: Search },
-  { href: "/stats", label: "Stats", icon: BarChart3 },
+  { href: "/community", label: "Community", icon: Users },
   { href: "/profile", label: "Profile", icon: User },
 ];
 

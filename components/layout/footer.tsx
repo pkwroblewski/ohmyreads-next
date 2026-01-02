@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { BookOpen, Leaf } from "lucide-react";
+import { BookOpen, Leaf, Shield } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 
 const footerLinks = {
   product: [
@@ -16,7 +17,29 @@ const footerLinks = {
   ],
 };
 
-export function Footer() {
+// Check if user is admin
+async function getIsAdmin(): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return false;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+
+    return profile?.is_admin || false;
+  } catch {
+    return false;
+  }
+}
+
+export async function Footer() {
+  const isAdmin = await getIsAdmin();
+
   return (
     <footer className="border-t border-border bg-muted/50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -61,10 +84,10 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Column 3: Company */}
+          {/* Column 3: OhMyReads.com */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
-              Company
+              OhMyReads.com
             </h3>
             <ul className="space-y-3">
               {footerLinks.company.map((link) => (
@@ -77,6 +100,18 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
+              {/* Admin link - only visible to admins */}
+              {isAdmin && (
+                <li>
+                  <Link
+                    href="/admin"
+                    className="inline-flex items-center gap-1.5 text-sm text-foreground/80 hover:text-primary transition-colors"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    Admin Dashboard
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 

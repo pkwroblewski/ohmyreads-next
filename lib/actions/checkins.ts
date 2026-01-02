@@ -51,7 +51,7 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
 
     // Rate limit: 1 check-in per place per 4 hours
     const rateLimitKey = `checkin:${user.id}:${input.placeId}`;
-    const { allowed, resetIn } = checkRateLimit(rateLimitKey, 1, FOUR_HOURS_MS);
+    const { allowed, resetIn } = await checkRateLimit(rateLimitKey, 1, FOUR_HOURS_MS);
 
     if (!allowed) {
       const hoursRemaining = Math.ceil(resetIn / (60 * 60 * 1000));
@@ -267,7 +267,7 @@ export async function canCheckinAtPlace(
     }
 
     const rateLimitKey = `checkin:${user.id}:${placeId}`;
-    const status = getRateLimitStatus(rateLimitKey, 1);
+    const status = await getRateLimitStatus(rateLimitKey, 1);
 
     if (status && status.remaining === 0) {
       const hoursRemaining = Math.ceil(status.resetIn / (60 * 60 * 1000));

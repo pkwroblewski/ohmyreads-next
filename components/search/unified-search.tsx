@@ -239,7 +239,7 @@ export function UnifiedSearch({
               className={cn(
                 "absolute top-full left-0 right-0 mt-2 z-50",
                 "bg-background border border-border rounded-xl shadow-lg",
-                "max-h-[420px] overflow-y-auto"
+                "max-h-[60vh] overflow-y-auto"
               )}
             >
               {isLoading && totalItems === 0 ? (
@@ -305,7 +305,7 @@ export function UnifiedSearch({
                               {book.coverUrl ? (
                                 <img
                                   src={book.coverUrl}
-                                  alt=""
+                                  alt={book.title}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -377,14 +377,15 @@ export function UnifiedSearch({
                 key={mood.label}
                 onClick={() => handleMoodClick(mood.query)}
                 className={cn(
-                  "inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-full",
+                  "inline-flex items-center gap-1.5 px-4 py-2.5 text-sm rounded-full",
+                  "min-h-[44px]", // Accessibility: 44px minimum touch target
                   "bg-muted hover:bg-primary hover:text-primary-foreground",
                   "border border-border/50 hover:border-primary",
                   "transition-all duration-200",
                   "focus:outline-none focus:ring-2 focus:ring-primary/50"
                 )}
               >
-                <Sparkles className="w-3 h-3" />
+                <Sparkles className="w-3.5 h-3.5" />
                 {mood.label}
               </button>
             ))}

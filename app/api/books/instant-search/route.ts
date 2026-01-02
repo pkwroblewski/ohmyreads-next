@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   // Rate limit: 100 requests per minute for instant search (higher than regular)
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-  const { allowed } = checkRateLimit(`instant-search:${ip}`, 100, 60000);
+  const { allowed } = await checkRateLimit(`instant-search:${ip}`, 100, 60000);
 
   if (!allowed) {
     return NextResponse.json(

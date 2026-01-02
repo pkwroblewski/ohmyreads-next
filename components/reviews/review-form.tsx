@@ -51,7 +51,8 @@ export function ReviewForm({
     (disliked?.length || 0) +
     (takeaway?.length || 0);
 
-  const canSubmit = rating > 0 && totalCharCount >= 50;
+  // Allow star-only ratings (quick rating mode)
+  const canSubmit = rating > 0;
 
   const toggleVibeTag = (tag: VibeTag) => {
     if (vibeTags.includes(tag)) {
@@ -146,14 +147,14 @@ export function ReviewForm({
           ))}
         </div>
         <p className="text-sm text-muted-foreground">
-          {displayRating > 0 ? `${displayRating} out of 5 stars` : "Click to rate"}
+          {displayRating > 0 ? `${displayRating} out of 5 stars` : "Select to rate"}
         </p>
       </div>
 
       {/* Summary - Main Review Content */}
       <div className="space-y-2">
         <label htmlFor="review-summary" className="text-sm font-medium">
-          Your Overall Thoughts *
+          Your Overall Thoughts <span className="text-muted-foreground font-normal">(optional)</span>
         </label>
         <textarea
           id="review-summary"
@@ -272,17 +273,14 @@ export function ReviewForm({
         </div>
       )}
 
-      {/* Character count hint */}
-      <p
-        className={cn(
-          "text-sm",
-          totalCharCount >= 50 ? "text-muted-foreground" : "text-destructive"
-        )}
-      >
-        {totalCharCount >= 50
-          ? `${totalCharCount} characters total`
-          : `${totalCharCount}/50 minimum characters required`}
-      </p>
+      {/* Character count hint - encouraging, not punitive */}
+      {totalCharCount > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {totalCharCount >= 50
+            ? `${totalCharCount} characters - great detail!`
+            : `${totalCharCount} characters. Adding 50+ characters helps other readers discover this book.`}
+        </p>
+      )}
 
       {/* Vibe Tags Toggle */}
       <button

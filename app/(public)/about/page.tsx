@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "About",
+  title: "About OhMyReads - Our Mission",
   description:
-    "Learn about OhMyReads - our mission to help readers discover, track, and share their reading journeys with the world.",
+    "Learn about OhMyReads - the independent book tracking platform built for readers, not algorithms. Discover our mission to help you track and share your reading journey.",
   openGraph: {
-    title: "About OhMyReads",
+    title: "About OhMyReads - Our Mission",
     description:
-      "Learn about OhMyReads - our mission to help readers discover, track, and share their reading journeys.",
+      "Learn about OhMyReads - the independent book tracking platform built for readers. Discover, track, and share your reading journey.",
   },
 };
 

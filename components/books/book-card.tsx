@@ -105,18 +105,18 @@ export function BookCard({
   // Grid variant with actions (for /books browse page)
   if (isGrid && showActions) {
     return (
-      <div className="group flex flex-col w-full h-full">
+      <div className="group flex flex-col w-full h-full focus-within:-translate-y-1 transition-transform duration-200">
         {/* Clickable area: cover + info */}
         <Link
           href={`/books/${book.slug}`}
-          className="flex flex-col flex-1 hover:-translate-y-1 transition-transform duration-200"
+          className="flex flex-col flex-1 hover:-translate-y-1 focus:-translate-y-1 transition-transform duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
         >
           {/* Book Cover */}
           <div
             className={cn(
               "relative w-full rounded-lg overflow-hidden",
               "bg-gradient-to-br from-muted to-muted-foreground/20",
-              "shadow-md group-hover:shadow-xl dark:group-hover:shadow-primary/10",
+              "shadow-md group-hover:shadow-xl group-focus-within:shadow-xl dark:group-hover:shadow-primary/10 dark:group-focus-within:shadow-primary/10",
               "transition-shadow duration-200"
             )}
             style={{ aspectRatio: "2/3" }}
@@ -305,14 +305,15 @@ export function BookCard({
         "group flex flex-col",
         containerClass,
         "transition-transform duration-200",
-        "hover:-translate-y-1"
+        "hover:-translate-y-1 focus:-translate-y-1",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
       )}
     >
       <div
         className={cn(
           "relative w-full rounded-lg overflow-hidden",
           "bg-gradient-to-br from-muted to-muted-foreground/20",
-          "shadow-md group-hover:shadow-lg dark:group-hover:shadow-primary/10",
+          "shadow-md group-hover:shadow-lg group-focus:shadow-lg dark:group-hover:shadow-primary/10 dark:group-focus:shadow-primary/10",
           "transition-shadow duration-200"
         )}
         style={{ aspectRatio: "2/3" }}

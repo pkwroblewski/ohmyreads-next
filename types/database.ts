@@ -43,6 +43,9 @@ export interface UserBook {
   book_id: string;
   status: BookStatus;
   rating: number | null;
+  current_page: number | null;
+  total_pages: number | null;
+  progress_percentage: number | null;
   started_at: string | null;
   finished_at: string | null;
   created_at: string;
@@ -106,6 +109,19 @@ export interface ReadingGoal {
   target_books: number;
   created_at: string;
   updated_at: string;
+}
+
+// Reading Progress History (for analytics)
+export interface ReadingProgressHistory {
+  id: string;
+  user_id: string;
+  user_book_id: string;
+  book_id: string;
+  current_page: number;
+  total_pages: number;
+  progress_percentage: number;
+  pages_read_in_session: number;
+  created_at: string;
 }
 
 // Reading Challenge

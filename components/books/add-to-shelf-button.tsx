@@ -42,6 +42,10 @@ export function AddToShelfButton({
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<ShelfStatus | null>(currentStatus ?? null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const menuItems = status
+    ? [...Object.keys(statusConfig), "remove"]
+    : Object.keys(statusConfig);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -51,6 +55,7 @@ export function AddToShelfButton({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setFocusedIndex(-1);
       }
     }
 
@@ -59,6 +64,50 @@ export function AddToShelfButton({
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isOpen]);
+
+  // Keyboard navigation
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        setIsOpen(true);
+        setFocusedIndex(0);
+      }
+      return;
+    }
+
+    switch (event.key) {
+      case "Escape":
+        event.preventDefault();
+        setIsOpen(false);
+        setFocusedIndex(-1);
+        break;
+      case "ArrowDown":
+        event.preventDefault();
+        setFocusedIndex((prev) => Math.min(prev + 1, menuItems.length - 1));
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
+        break;
+      case "Enter":
+      case " ":
+        event.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < menuItems.length) {
+          const item = menuItems[focusedIndex];
+          if (item === "remove") {
+            handleRemove();
+          } else {
+            handleStatusChange(item as ShelfStatus);
+          }
+        }
+        break;
+      case "Tab":
+        setIsOpen(false);
+        setFocusedIndex(-1);
+        break;
+    }
+  };
 
   const handleStatusChange = (newStatus: ShelfStatus) => {
     setIsOpen(false);
@@ -105,7 +154,11 @@ export function AddToShelfButton({
       {/* Main Button */}
       <Button
         onClick={() => setIsOpen(!isOpen)}
+        onKeyDown={handleKeyDown}
         disabled={isPending}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-label={status ? `Current status: ${buttonLabel}. Change status` : "Add book to shelf"}
         className={cn(
           "min-w-[140px] justify-between",
           status && "bg-secondary text-secondary-foreground hover:bg-secondary/90"
@@ -130,25 +183,31 @@ export function AddToShelfButton({
       {/* Dropdown Menu */}
       {isOpen && (
         <div
+          role="listbox"
+          aria-label="Select shelf status"
           className={cn(
             "absolute top-full left-0 mt-2 w-48 z-50",
             "rounded-lg border border-border bg-card shadow-lg",
             "py-1 animate-in fade-in-0 zoom-in-95"
           )}
         >
-          {(Object.keys(statusConfig) as ShelfStatus[]).map((key) => {
+          {(Object.keys(statusConfig) as ShelfStatus[]).map((key, index) => {
             const config = statusConfig[key];
             const Icon = config.icon;
             const isSelected = status === key;
+            const isFocused = focusedIndex === index;
 
             return (
               <button
                 key={key}
+                role="option"
+                aria-selected={isSelected}
                 onClick={() => handleStatusChange(key)}
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-2 text-sm",
                   "hover:bg-muted transition-colors text-left",
-                  isSelected && "text-primary"
+                  isSelected && "text-primary",
+                  isFocused && "bg-muted outline-none ring-2 ring-inset ring-primary"
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -160,12 +219,15 @@ export function AddToShelfButton({
 
           {status && (
             <>
-              <div className="my-1 border-t border-border" />
+              <div className="my-1 border-t border-border" role="separator" />
               <button
+                role="option"
+                aria-selected={false}
                 onClick={handleRemove}
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-2 text-sm",
-                  "hover:bg-destructive/10 text-destructive transition-colors text-left"
+                  "hover:bg-destructive/10 text-destructive transition-colors text-left",
+                  focusedIndex === menuItems.length - 1 && "bg-destructive/10 outline-none ring-2 ring-inset ring-destructive"
                 )}
               >
                 <Trash2 className="h-4 w-4" />

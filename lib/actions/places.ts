@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { encodeGeohash } from "@/lib/utils/geohash";
+import { createAuditLog } from "@/lib/utils/audit-log";
 
 // ============================================
 // TYPES
@@ -42,7 +43,7 @@ export async function submitPlace(input: SubmitPlaceInput) {
     }
 
     // Rate limit (5 submissions per hour)
-    const { allowed } = checkRateLimit(`place-submit:${user.id}`, 5, 3600000);
+    const { allowed } = await checkRateLimit(`place-submit:${user.id}`, 5, 3600000);
     if (!allowed) {
       return { error: "You've submitted too many places recently. Please try again later." };
     }
@@ -216,6 +217,13 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
       return { error: "Not authorized" };
     }
 
+    // Fetch submission for audit log
+    const { data: submission } = await supabase
+      .from("place_submissions")
+      .select("name, place_type, city, country, submitted_by")
+      .eq("id", submissionId)
+      .single();
+
     // Call the database function to approve
     const { data, error } = await supabase.rpc("approve_place_submission", {
       submission_id: submissionId,
@@ -226,6 +234,23 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
       console.error("Error approving submission:", error);
       return { error: "Failed to approve submission" };
     }
+
+    // Audit log
+    await createAuditLog({
+      action: "moderation.place.approve",
+      targetType: "place_submission",
+      targetId: submissionId,
+      userId: user.id,
+      metadata: {
+        placeName: submission?.name,
+        placeType: submission?.place_type,
+        city: submission?.city,
+        country: submission?.country,
+        placeId: data,
+        submittedBy: submission?.submitted_by,
+        adminNotes: notes || null,
+      },
+    });
 
     revalidatePath("/admin/moderation/places");
     revalidatePath("/community/map");
@@ -267,6 +292,13 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
       return { error: "Not authorized" };
     }
 
+    // Fetch submission for audit log
+    const { data: submission } = await supabase
+      .from("place_submissions")
+      .select("name, place_type, city, country, submitted_by")
+      .eq("id", submissionId)
+      .single();
+
     // Call the database function to reject
     const { error } = await supabase.rpc("reject_place_submission", {
       submission_id: submissionId,
@@ -277,6 +309,22 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
       console.error("Error rejecting submission:", error);
       return { error: "Failed to reject submission" };
     }
+
+    // Audit log
+    await createAuditLog({
+      action: "moderation.place.reject",
+      targetType: "place_submission",
+      targetId: submissionId,
+      userId: user.id,
+      metadata: {
+        placeName: submission?.name,
+        placeType: submission?.place_type,
+        city: submission?.city,
+        country: submission?.country,
+        rejectionReason: notes || null,
+        submittedBy: submission?.submitted_by,
+      },
+    });
 
     revalidatePath("/admin/moderation/places");
 

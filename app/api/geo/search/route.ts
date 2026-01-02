@@ -41,7 +41,7 @@ interface GeocodingResult {
 export async function GET(request: NextRequest) {
   // Rate limit by IP (20 requests per minute)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-  const { allowed } = checkRateLimit(`geo-search:${ip}`, 20, 60000);
+  const { allowed } = await checkRateLimit(`geo-search:${ip}`, 20, 60000);
   
   if (!allowed) {
     return NextResponse.json(

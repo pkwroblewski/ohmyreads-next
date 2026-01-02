@@ -5,7 +5,7 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 export async function GET(request: NextRequest) {
   // Rate limit by IP (60 requests per minute for search)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-  const { allowed } = checkRateLimit(`search:${ip}`, 60, 60000);
+  const { allowed } = await checkRateLimit(`search:${ip}`, 60, 60000);
   
   if (!allowed) {
     return NextResponse.json(

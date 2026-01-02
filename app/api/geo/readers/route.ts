@@ -12,7 +12,7 @@ import { getNearbyReaders } from "@/lib/queries/geo";
 export async function GET(request: NextRequest) {
   // Rate limit by IP (60 requests per minute)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-  const { allowed } = checkRateLimit(`geo-readers:${ip}`, 60, 60000);
+  const { allowed } = await checkRateLimit(`geo-readers:${ip}`, 60, 60000);
   
   if (!allowed) {
     return NextResponse.json(

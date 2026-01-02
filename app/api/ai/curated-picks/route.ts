@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   try {
     // Rate limiting: 20 requests per minute
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-    const { allowed } = checkRateLimit(`ai-curated:${ip}`, 20, 60000);
+    const { allowed } = await checkRateLimit(`ai-curated:${ip}`, 20, 60000);
 
     if (!allowed) {
       return NextResponse.json(

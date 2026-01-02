@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BookOpen, CheckCircle, Bookmark, Library } from "lucide-react";
+import { BookOpen, CheckCircle, Bookmark, Library, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import { ShelfTabs } from "@/components/books/shelf-tabs";
@@ -114,6 +114,15 @@ export default async function MyShelfPage({
             label: "Browse Books",
             href: "/books",
           }}
+          secondaryAction={
+            !statusFilter || statusFilter === "all"
+              ? {
+                  label: "Import from Goodreads",
+                  href: "/import",
+                  icon: Upload,
+                }
+              : undefined
+          }
         />
       )}
     </div>
