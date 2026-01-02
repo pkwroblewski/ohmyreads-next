@@ -20,9 +20,21 @@ export type AuditAction =
   | "admin.user.unban"
   | "admin.user.make_admin"
   | "admin.user.remove_admin"
+  | "admin.user.disable"
+  | "admin.user.enable"
+  | "admin.user.toggle_admin"
   // Content moderation
   | "moderation.review.delete"
   | "moderation.comment.delete"
+  // Admin book management
+  | "admin.book.create"
+  | "admin.book.update"
+  | "admin.book.delete"
+  // Admin review management
+  | "admin.review.delete"
+  | "admin.review.flag"
+  // Bulk import
+  | "admin.import.books"
   // User actions (self)
   | "user.delete_account"
   | "user.export_data"
