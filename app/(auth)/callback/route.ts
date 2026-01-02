@@ -38,21 +38,81 @@ export async function GET(request: Request) {
     const { error, data } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user) {
-      // Check if this is a new user (profile created in last 5 minutes)
+      // Check if profile exists
       const { data: profile } = await supabase
         .from("profiles")
         .select("username, display_name, created_at")
         .eq("id", data.user.id)
         .single();
 
-      if (profile) {
+      if (!profile) {
+        // CREATE PROFILE IF MISSING (fallback for failed trigger)
+        // This handles Google OAuth where trigger may fail due to metadata differences
+        const user = data.user;
+        const metadata = user.user_metadata || {};
+
+        // Generate username from email or metadata
+        let username =
+          metadata.preferred_username ||
+          metadata.user_name ||
+          user.email?.split("@")[0] ||
+          `user_${user.id.slice(0, 8)}`;
+
+        // Get display name from various OAuth provider fields
+        const displayName =
+          metadata.full_name ||
+          metadata.name ||
+          metadata.display_name ||
+          null;
+
+        // Get avatar - Google uses 'picture', others use 'avatar_url'
+        const avatarUrl =
+          metadata.picture ||
+          metadata.avatar_url ||
+          null;
+
+        // Try inserting profile
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: user.id,
+          username: username,
+          display_name: displayName,
+          avatar_url: avatarUrl,
+        });
+
+        // If username taken (unique constraint), append random suffix
+        if (insertError?.code === "23505") {
+          username = `${username}_${Math.random().toString(36).slice(2, 6)}`;
+          await supabase.from("profiles").insert({
+            id: user.id,
+            username: username,
+            display_name: displayName,
+            avatar_url: avatarUrl,
+          });
+        }
+
+        // Also create reading_stats
+        await supabase.from("reading_stats").insert({
+          user_id: user.id,
+        });
+
+        // Send welcome email for new user
+        if (user.email) {
+          sendWelcomeEmail({
+            email: user.email,
+            username: username,
+            displayName: displayName || undefined,
+          }).catch((err) => {
+            console.error("Failed to send welcome email:", err);
+          });
+        }
+      } else {
+        // Profile exists - check if new (created in last 5 minutes)
         const createdAt = new Date(profile.created_at);
         const now = new Date();
         const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
         // Send welcome email if profile was created in the last 5 minutes
         if (createdAt > fiveMinutesAgo && data.user.email) {
-          // Fire and forget - don't block redirect
           sendWelcomeEmail({
             email: data.user.email,
             username: profile.username,
