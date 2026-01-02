@@ -10,6 +10,7 @@ const footerLinks = {
   ],
   company: [
     { href: "/about", label: "About" },
+    // Admin link added dynamically below
   ],
   legal: [
     { href: "/privacy", label: "Privacy Policy" },
@@ -100,7 +101,7 @@ export async function Footer() {
                   </Link>
                 </li>
               ))}
-              {/* Admin link - only visible to admins */}
+              {/* Admin link - only visible to admins, right after About */}
               {isAdmin && (
                 <li>
                   <Link
@@ -108,7 +109,7 @@ export async function Footer() {
                     className="inline-flex items-center gap-1.5 text-sm text-foreground/80 hover:text-primary transition-colors"
                   >
                     <Shield className="w-3.5 h-3.5" />
-                    Admin Dashboard
+                    Admin
                   </Link>
                 </li>
               )}
