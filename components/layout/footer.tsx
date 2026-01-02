@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BookOpen, Leaf, Shield } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 
 const footerLinks = {
   product: [
@@ -18,9 +19,12 @@ const footerLinks = {
   ],
 };
 
-// Check if user is admin
+// Check if user is admin (force dynamic by reading cookies)
 async function getIsAdmin(): Promise<boolean> {
   try {
+    // Force dynamic rendering
+    await cookies();
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
