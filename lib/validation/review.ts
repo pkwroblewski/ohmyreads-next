@@ -40,9 +40,10 @@ export const createReviewSchema = z
         (data.liked?.length || 0) +
         (data.disliked?.length || 0) +
         (data.takeaway?.length || 0);
-      return totalLength >= 50;
+      // Allow rating-only reviews (no text) OR reviews with 50+ chars
+      return totalLength === 0 || totalLength >= 50;
     },
-    { message: "Review must be at least 50 characters total across all fields" }
+    { message: "Add 50+ characters or submit a rating-only review" }
   );
 
 export const updateReviewSchema = z.object({

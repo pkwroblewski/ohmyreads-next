@@ -11,15 +11,7 @@ import {
   type ModerateBookSubmissionInput,
 } from "@/lib/validation/book-submission";
 import { createAuditLog } from "@/lib/utils/audit-log";
-
-// Helper function to generate slug from title
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .substring(0, 100);
-}
+import { generateSlug } from "@/lib/utils/slug";
 
 // Helper function to ensure unique slug
 async function ensureUniqueSlug(

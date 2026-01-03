@@ -10,6 +10,22 @@ import {
 } from "@/lib/validation/review";
 
 /**
+ * Helper to revalidate book page by ID (fetches slug to build correct path)
+ */
+async function revalidateBookPage(bookId: string) {
+  const supabase = await createClient();
+  const { data: book } = await supabase
+    .from("books")
+    .select("slug")
+    .eq("id", bookId)
+    .single();
+
+  if (book?.slug) {
+    revalidatePath(`/books/${book.slug}`);
+  }
+}
+
+/**
  * Create a new review with structured fields
  */
 export async function createReview(input: CreateReviewInput) {
@@ -83,7 +99,7 @@ export async function createReview(input: CreateReviewInput) {
     await updateBookRating(data.bookId);
 
     // Revalidate pages
-    revalidatePath(`/books/[slug]`, "page");
+    await revalidateBookPage(data.bookId);
     revalidatePath("/dashboard");
 
     return { success: true, reviewId: review.id };
@@ -170,7 +186,7 @@ export async function updateReview(input: UpdateReviewInput) {
       await updateBookRating(review.book_id);
     }
 
-    revalidatePath(`/books/[slug]`, "page");
+    await revalidateBookPage(review.book_id);
 
     return { success: true };
   } catch (error) {
@@ -219,7 +235,7 @@ export async function deleteReview(reviewId: string) {
     // Update book rating
     await updateBookRating(review.book_id);
 
-    revalidatePath(`/books/[slug]`, "page");
+    await revalidateBookPage(review.book_id);
     revalidatePath("/dashboard");
 
     return { success: true };
@@ -247,6 +263,17 @@ export async function likeReview(reviewId: string) {
 
     if (authError || !user) {
       return { error: "You must be logged in to like reviews" };
+    }
+
+    // Get review to check existence and get book_id for revalidation
+    const { data: review } = await supabase
+      .from("reviews")
+      .select("book_id")
+      .eq("id", reviewId)
+      .single();
+
+    if (!review) {
+      return { error: "Review not found" };
     }
 
     // Check if already liked
@@ -282,7 +309,7 @@ export async function likeReview(reviewId: string) {
       // Like was added but count wasn't updated - still consider success
     }
 
-    revalidatePath(`/books/[slug]`, "page");
+    await revalidateBookPage(review.book_id);
 
     return { success: true };
   } catch (error) {
@@ -307,6 +334,13 @@ export async function unlikeReview(reviewId: string) {
       return { error: "Not authenticated" };
     }
 
+    // Get review to get book_id for revalidation
+    const { data: review } = await supabase
+      .from("reviews")
+      .select("book_id")
+      .eq("id", reviewId)
+      .single();
+
     // Delete like
     const { error: deleteError } = await supabase
       .from("review_likes")
@@ -328,7 +362,9 @@ export async function unlikeReview(reviewId: string) {
       console.error("Error decrementing likes:", rpcError);
     }
 
-    revalidatePath(`/books/[slug]`, "page");
+    if (review?.book_id) {
+      await revalidateBookPage(review.book_id);
+    }
 
     return { success: true };
   } catch (error) {
@@ -446,36 +482,16 @@ export async function getUserLikesForReviews(reviewIds: string[]) {
 // ============================================
 
 /**
- * Recalculate book's average rating
+ * Recalculate book's average rating using SQL function (more efficient)
  */
 async function updateBookRating(bookId: string) {
   const supabase = await createClient();
 
-  // Get all ratings for this book
-  const { data: reviews } = await supabase
-    .from("reviews")
-    .select("rating")
-    .eq("book_id", bookId);
+  const { error } = await supabase.rpc("recalculate_book_rating", {
+    p_book_id: bookId,
+  });
 
-  if (!reviews || reviews.length === 0) {
-    // No reviews, reset rating
-    await supabase
-      .from("books")
-      .update({ average_rating: null, ratings_count: 0 })
-      .eq("id", bookId);
-    return;
+  if (error) {
+    console.error("Error recalculating book rating:", error);
   }
-
-  // Calculate average
-  const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
-  const average = Math.round((sum / reviews.length) * 10) / 10;
-
-  // Update book
-  await supabase
-    .from("books")
-    .update({
-      average_rating: average,
-      ratings_count: reviews.length,
-    })
-    .eq("id", bookId);
 }

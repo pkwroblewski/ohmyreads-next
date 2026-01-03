@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { generateSlug } from "@/lib/utils/slug";
 
 // Types for external book data
 export interface ExternalBookData {
@@ -18,15 +19,6 @@ export interface ExternalBookData {
 }
 
 type ShelfStatus = "want_to_read" | "reading" | "read";
-
-// Helper function to generate slug from title
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .substring(0, 100);
-}
 
 // Helper function to ensure unique slug
 async function ensureUniqueSlug(

@@ -163,13 +163,20 @@ async function fetchFromOverpass(
   const osmQuery = getOsmQuery(placeType, bbox);
 
   try {
+    // Add timeout for external API call
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
     const response = await fetch("https://overpass-api.de/api/interpreter", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: `data=${encodeURIComponent(osmQuery)}`,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       console.error(`Overpass API error: ${response.status}`);

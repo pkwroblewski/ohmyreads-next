@@ -6,6 +6,25 @@ import { createCommentSchema } from "@/lib/validation/comment";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logger } from "@/lib/utils/log";
 
+/**
+ * Helper to revalidate book page via review ID
+ */
+async function revalidateBookPageFromReview(reviewId: string) {
+  const supabase = await createClient();
+  const { data: review } = await supabase
+    .from("reviews")
+    .select("book_id, books(slug)")
+    .eq("id", reviewId)
+    .single();
+
+  if (review?.books && !Array.isArray(review.books)) {
+    const book = review.books as { slug: string };
+    if (book.slug) {
+      revalidatePath(`/books/${book.slug}`);
+    }
+  }
+}
+
 export async function createComment(input: {
   reviewId: string;
   content: string;
@@ -71,7 +90,7 @@ export async function createComment(input: {
       return { error: error.message };
     }
 
-    revalidatePath("/books/[slug]", "page");
+    await revalidateBookPageFromReview(data.reviewId);
 
     return { success: true, commentId: comment.id };
   } catch (error) {
@@ -92,10 +111,10 @@ export async function deleteComment(commentId: string) {
       return { error: "Not authenticated" };
     }
 
-    // Verify ownership
+    // Verify ownership and get review_id for revalidation
     const { data: comment, error: fetchError } = await supabase
       .from("comments")
-      .select("user_id")
+      .select("user_id, review_id")
       .eq("id", commentId)
       .single();
 
@@ -118,7 +137,7 @@ export async function deleteComment(commentId: string) {
       return { error: error.message };
     }
 
-    revalidatePath("/books/[slug]", "page");
+    await revalidateBookPageFromReview(comment.review_id);
 
     return { success: true };
   } catch (error) {

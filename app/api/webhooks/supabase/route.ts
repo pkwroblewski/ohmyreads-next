@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWelcomeEmail } from "@/lib/actions/email";
 
 // Verify the webhook is from Supabase using a shared secret
@@ -7,9 +7,13 @@ function verifyWebhookSecret(request: NextRequest): boolean {
   const secret = request.headers.get("x-webhook-secret");
   const expectedSecret = process.env.SUPABASE_WEBHOOK_SECRET;
 
-  // If no secret configured, skip verification (development)
+  // Fail closed in production - require secret
   if (!expectedSecret) {
-    console.warn("SUPABASE_WEBHOOK_SECRET not configured");
+    if (process.env.NODE_ENV === "production") {
+      console.error("SUPABASE_WEBHOOK_SECRET not configured in production - rejecting request");
+      return false;
+    }
+    console.warn("SUPABASE_WEBHOOK_SECRET not configured (dev mode - allowing)");
     return true;
   }
 
@@ -44,8 +48,8 @@ export async function POST(request: NextRequest) {
       const username = profile.username as string;
       const displayName = profile.display_name as string | undefined;
 
-      // Get user email from auth.users via admin API
-      const supabase = await createClient();
+      // Get user email from auth.users via admin API (requires service role)
+      const supabase = createAdminClient();
       const { data: userData } = await supabase.auth.admin.getUserById(userId);
 
       if (userData?.user?.email && username) {

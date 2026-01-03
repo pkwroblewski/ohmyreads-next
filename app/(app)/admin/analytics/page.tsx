@@ -222,7 +222,7 @@ export default function AdminAnalyticsPage() {
                   {book.cover_url ? (
                     <img
                       src={book.cover_url}
-                      alt=""
+                      alt={`Cover of ${book.title}`}
                       className="w-8 h-12 rounded object-cover bg-muted"
                     />
                   ) : (

@@ -236,7 +236,7 @@ export default function AdminBooksPage() {
                         {book.cover_url ? (
                           <img
                             src={book.cover_url}
-                            alt=""
+                            alt={`Cover of ${book.title}`}
                             className="w-10 h-14 rounded object-cover bg-muted"
                           />
                         ) : (

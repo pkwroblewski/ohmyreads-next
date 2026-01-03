@@ -50,6 +50,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${name} (@${profile.username})`,
     description: profile.bio || `See what ${name} is reading on OhMyReads`,
+    alternates: {
+      canonical: `${process.env.NEXT_PUBLIC_SITE_URL}/users/${profile.username}`,
+    },
     openGraph: {
       title: `${name} on OhMyReads`,
       description: profile.bio || `Check out ${name}'s reading list`,

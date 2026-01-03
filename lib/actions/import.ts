@@ -99,16 +99,6 @@ export async function importFromGoodreads(
       return result;
     }
 
-    // Get all books from our database for matching
-    const { data: allBooks, error: booksError } = await supabase
-      .from("books")
-      .select("id, title, author, isbn");
-
-    if (booksError) {
-      result.errors.push(`Failed to fetch books: ${booksError.message}`);
-      return result;
-    }
-
     // Get user's existing books to avoid duplicates
     const { data: existingUserBooks } = await supabase
       .from("user_books")
@@ -119,25 +109,68 @@ export async function importFromGoodreads(
       existingUserBooks?.map((ub) => ub.book_id) || []
     );
 
-    // Create lookup maps for faster matching
-    const booksByISBN = new Map<string, (typeof allBooks)[0]>();
-    const booksByNormalizedTitle = new Map<string, (typeof allBooks)[0][]>();
+    // Step 1: Collect all ISBNs from CSV for efficient batch query
+    const isbnList = rows
+      .flatMap((r) => [r.isbn, r.isbn13])
+      .filter((v): v is string => !!v && v.trim() !== "")
+      .map((isbn) => isbn.replace(/-/g, ""));
 
-    for (const book of allBooks || []) {
-      // ISBN lookup
-      if (book.isbn) {
-        // Store both with and without hyphens
-        const cleanISBN = book.isbn.replace(/-/g, "");
-        booksByISBN.set(cleanISBN, book);
-        booksByISBN.set(book.isbn, book);
-      }
+    // Query books matching any of the ISBNs (more efficient than loading all)
+    const booksByISBN = new Map<string, { id: string; title: string; author: string; isbn: string | null }>();
 
-      // Title lookup (for fuzzy matching)
-      const normalizedTitle = normalize(book.title);
-      if (!booksByNormalizedTitle.has(normalizedTitle)) {
-        booksByNormalizedTitle.set(normalizedTitle, []);
+    if (isbnList.length > 0) {
+      // Query in chunks of 500 to avoid query limits
+      const chunkSize = 500;
+      for (let i = 0; i < isbnList.length; i += chunkSize) {
+        const chunk = isbnList.slice(i, i + chunkSize);
+        const { data: matchedBooks } = await supabase
+          .from("books")
+          .select("id, title, author, isbn")
+          .or(chunk.map((isbn) => `isbn.eq.${isbn}`).join(","));
+
+        for (const book of matchedBooks || []) {
+          if (book.isbn) {
+            const cleanISBN = book.isbn.replace(/-/g, "");
+            booksByISBN.set(cleanISBN, book);
+            booksByISBN.set(book.isbn, book);
+          }
+        }
       }
-      booksByNormalizedTitle.get(normalizedTitle)!.push(book);
+    }
+
+    // Step 2: For title matching, we need to load books that weren't matched by ISBN
+    // Only load if there are unmatched rows to reduce memory usage
+    const unmatchedRows = rows.filter((row) => {
+      if (row.isbn13) {
+        const cleanISBN13 = row.isbn13.replace(/-/g, "");
+        if (booksByISBN.has(cleanISBN13)) return false;
+      }
+      if (row.isbn) {
+        const cleanISBN = row.isbn.replace(/-/g, "");
+        if (booksByISBN.has(cleanISBN)) return false;
+      }
+      return true;
+    });
+
+    // Load books for title matching only if needed (limited to 10000 for safety)
+    const booksByNormalizedTitle = new Map<string, { id: string; title: string; author: string; isbn: string | null }[]>();
+    let allBooksForTitleMatch: { id: string; title: string; author: string; isbn: string | null }[] = [];
+
+    if (unmatchedRows.length > 0) {
+      const { data: titleMatchBooks } = await supabase
+        .from("books")
+        .select("id, title, author, isbn")
+        .limit(10000);
+
+      allBooksForTitleMatch = titleMatchBooks || [];
+
+      for (const book of allBooksForTitleMatch) {
+        const normalizedTitle = normalize(book.title);
+        if (!booksByNormalizedTitle.has(normalizedTitle)) {
+          booksByNormalizedTitle.set(normalizedTitle, []);
+        }
+        booksByNormalizedTitle.get(normalizedTitle)!.push(book);
+      }
     }
 
     // Process each row
@@ -150,9 +183,11 @@ export async function importFromGoodreads(
       finished_at: string | null;
     }> = [];
 
+    type BookMatch = { id: string; title: string; author: string; isbn: string | null };
+
     for (const row of rows) {
       // Try to find a match
-      let matchedBook: (typeof allBooks)[0] | undefined;
+      let matchedBook: BookMatch | undefined;
 
       // 1. Try ISBN13 first (most reliable)
       if (row.isbn13) {
@@ -166,8 +201,8 @@ export async function importFromGoodreads(
         matchedBook = booksByISBN.get(cleanISBN);
       }
 
-      // 3. Try title + author fuzzy match
-      if (!matchedBook) {
+      // 3. Try title + author fuzzy match (only if title matching data was loaded)
+      if (!matchedBook && allBooksForTitleMatch.length > 0) {
         const normalizedTitle = normalize(row.title);
         const candidates = booksByNormalizedTitle.get(normalizedTitle) || [];
 
@@ -181,7 +216,7 @@ export async function importFromGoodreads(
 
         // If no exact title match, try partial matching
         if (!matchedBook) {
-          for (const book of allBooks || []) {
+          for (const book of allBooksForTitleMatch) {
             if (
               isSimilar(book.title, row.title) &&
               isSimilar(book.author, row.author)

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { parseBookCSV, type ParsedBookRow } from "@/lib/utils/book-csv-parser";
+import { generateSlug } from "@/lib/utils/slug";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -25,15 +26,6 @@ async function requireAdmin() {
   }
 
   return { supabase, user };
-}
-
-// Generate slug from title
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 100);
 }
 
 // Parse CSV and return preview

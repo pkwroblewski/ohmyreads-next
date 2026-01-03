@@ -1,4 +1,5 @@
 import { createPublicClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getNeighbors, isValidGeohash } from "@/lib/utils/geohash";
 
 // ============================================
@@ -127,12 +128,13 @@ export async function getNearbyPlaces(
 
 /**
  * Get cached OSM places for a geohash prefix
+ * Note: Uses admin client because places_cache has no public RLS policies (server-only)
  */
 export async function getCachedPlaces(
   geohashPrefix: string,
   placeType: string
 ): Promise<{ data: CachedPlaceData[]; isStale: boolean } | null> {
-  const supabase = createPublicClient();
+  const supabase = createAdminClient();
   
   const { data, error } = await supabase
     .from("places_cache")

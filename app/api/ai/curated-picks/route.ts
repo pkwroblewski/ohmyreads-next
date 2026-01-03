@@ -53,10 +53,10 @@ export async function GET(request: NextRequest) {
     let recentBooks: { title: string; author: string; rating?: number }[] = [];
 
     if (user) {
-      // Fetch taste profile
+      // Fetch taste profile (correct table and column names)
       const { data: profile } = await publicClient
-        .from("taste_profiles")
-        .select("favorite_genres, favorite_vibes, reading_speed, preferred_length")
+        .from("user_taste_profiles")
+        .select("preferred_genres, preferred_vibes, preferred_pace, preferred_length")
         .eq("user_id", user.id)
         .single();
 
@@ -110,11 +110,11 @@ export async function GET(request: NextRequest) {
     let userContext = "Anonymous reader browsing for new books.";
     if (tasteProfile || recentBooks.length > 0) {
       const parts: string[] = [];
-      if (tasteProfile?.favorite_genres?.length) {
-        parts.push(`Loves: ${tasteProfile.favorite_genres.join(", ")}`);
+      if (tasteProfile?.preferred_genres?.length) {
+        parts.push(`Loves: ${tasteProfile.preferred_genres.join(", ")}`);
       }
-      if (tasteProfile?.favorite_vibes?.length) {
-        parts.push(`Vibes: ${tasteProfile.favorite_vibes.join(", ")}`);
+      if (tasteProfile?.preferred_vibes?.length) {
+        parts.push(`Vibes: ${tasteProfile.preferred_vibes.join(", ")}`);
       }
       if (recentBooks.length > 0) {
         const bookList = recentBooks

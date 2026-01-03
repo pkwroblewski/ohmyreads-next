@@ -172,13 +172,21 @@ export async function toggleLocationSharing(enabled: boolean) {
       return { error: "Too many requests. Please wait a moment." };
     }
 
-    // Update profile
+    // Update profile - clear location data when disabling for privacy
+    const now = new Date().toISOString();
     const { error } = await supabase
       .from("profiles")
-      .update({
-        location_enabled: enabled,
-        location_updated_at: new Date().toISOString(),
-      })
+      .update(
+        enabled
+          ? { location_enabled: true, location_updated_at: now }
+          : {
+              location_enabled: false,
+              location_geohash: null,
+              location_label: null,
+              location_precision: 6,
+              location_updated_at: now,
+            }
+      )
       .eq("id", user.id);
 
     if (error) {

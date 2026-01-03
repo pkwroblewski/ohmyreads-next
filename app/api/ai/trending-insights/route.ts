@@ -93,10 +93,14 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // Prepare review context for AI
+      // Prepare review context for AI - minimize PII by using summary and limiting content
       const reviewContext = bookReviews
         .slice(0, 5)
-        .map((r) => `Rating: ${r.rating}/5. "${r.content?.slice(0, 200) || "No content"}". Vibes: ${r.vibe_tags?.join(", ") || "none"}`)
+        .map((r) => {
+          // Prefer summary over content, limit to 140 chars for PII minimization
+          const text = (r.content || "").slice(0, 140);
+          return `${r.rating}/5 stars. ${text}${text.length >= 140 ? "..." : ""}`;
+        })
         .join("\n");
 
       try {

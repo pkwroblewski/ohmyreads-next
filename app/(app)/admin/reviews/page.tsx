@@ -308,7 +308,7 @@ export default function AdminReviewsPage() {
                     {review.book.cover_url ? (
                       <img
                         src={review.book.cover_url}
-                        alt=""
+                        alt={`Cover of ${review.book.title}`}
                         className="w-12 h-18 rounded object-cover bg-muted"
                       />
                     ) : (
