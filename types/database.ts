@@ -11,6 +11,7 @@ export interface Profile {
   following_count: number;
   friends_count: number;
   unread_messages_count: number;
+  discovery_visible: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -571,5 +572,131 @@ export interface ReaderTasteData {
   genres: string[];
   vibes: string[];
   bookIds: string[];
+}
+
+// ============================================
+// Book Club Types
+// ============================================
+
+export type ClubVisibility = "public" | "private";
+export type ClubMemberRole = "admin" | "member";
+export type ClubReadStatus = "current" | "completed";
+
+// Book club
+export interface BookClub {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  cover_image_url: string | null;
+  visibility: ClubVisibility;
+  created_by: string | null;
+  member_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Book club member
+export interface BookClubMember {
+  club_id: string;
+  user_id: string;
+  role: ClubMemberRole;
+  joined_at: string;
+}
+
+// Book club member with profile
+export interface BookClubMemberWithProfile extends BookClubMember {
+  profile: {
+    id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+}
+
+// Book club read (current or past book)
+export interface BookClubRead {
+  id: string;
+  club_id: string;
+  book_id: string;
+  status: ClubReadStatus;
+  started_at: string;
+  completed_at: string | null;
+}
+
+// Book club read with book details
+export interface BookClubReadWithBook extends BookClubRead {
+  book: {
+    id: string;
+    title: string;
+    author: string;
+    slug: string;
+    cover_url: string | null;
+  };
+}
+
+// Book club with current read and creator
+export interface BookClubWithDetails extends BookClub {
+  current_read?: BookClubReadWithBook | null;
+  creator?: {
+    id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
+  is_member?: boolean;
+  user_role?: ClubMemberRole | null;
+}
+
+// ============================================
+// Reading List Types
+// ============================================
+
+export type ListVisibility = "public" | "private";
+
+// Reading list
+export interface ReadingList {
+  id: string;
+  user_id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  visibility: ListVisibility;
+  likes_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Reading list book
+export interface ReadingListBook {
+  list_id: string;
+  book_id: string;
+  position: number;
+  note: string | null;
+  added_at: string;
+}
+
+// Reading list book with book details
+export interface ReadingListBookWithBook extends ReadingListBook {
+  book: {
+    id: string;
+    title: string;
+    author: string;
+    slug: string;
+    cover_url: string | null;
+  };
+}
+
+// Reading list with books and owner
+export interface ReadingListWithDetails extends ReadingList {
+  owner: {
+    id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+  books: ReadingListBookWithBook[];
+  book_count: number;
+  is_liked?: boolean;
 }
 

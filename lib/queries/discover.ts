@@ -147,6 +147,7 @@ export async function searchReaders(options: {
     .select("id, username, display_name, avatar_url, bio, followers_count, following_count", {
       count: "exact",
     })
+    .eq("discovery_visible", true)
     .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
     .order("followers_count", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -343,6 +344,7 @@ async function getActiveReaders(
   const { data: activeUsers } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url, bio, followers_count, following_count")
+    .eq("discovery_visible", true)
     .neq("id", excludeUserId)
     .order("followers_count", { ascending: false })
     .limit(limit);
@@ -409,12 +411,13 @@ export async function browseReaders(options: {
 
   const supabase = await createClient();
 
-  // Build base query
+  // Build base query - only show users who opted into discovery
   let queryBuilder = supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url, bio, followers_count, following_count", {
       count: "exact",
-    });
+    })
+    .eq("discovery_visible", true);
 
   // Apply search filter
   if (filters.query && filters.query.length >= 2) {

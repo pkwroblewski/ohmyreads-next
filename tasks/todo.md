@@ -1,3 +1,34 @@
+# PENDING: Mapbox Token Setup (Required for Map Features)
+
+## What's Broken
+Map features don't work in production: Directions, Isochrone, Places, Search
+
+## Root Cause
+Mapbox tokens exist in `.env.local` (local dev) but NOT in Vercel (production)
+
+## Quick Fix (5 minutes)
+1. Copy token from `.env.local`:
+   - `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`
+   - `MAPBOX_ACCESS_TOKEN` (use same value)
+
+2. Add to **Vercel → Settings → Environment Variables**:
+   - Add both keys with the same token value
+   - Select all environments: Production, Preview, Development
+
+3. **Redeploy** the app
+
+## Optional Security (Recommended)
+Add URL restrictions to your "OhMyReads" token in Mapbox dashboard:
+- `https://www.ohmyreads.com/*`
+- `https://ohmyreads.com/*`
+- `https://*.vercel.app/*`
+- `http://localhost:3000/*`
+
+## Documentation
+Full plan saved at: `C:\Users\bitpk\.claude\plans\scalable-yawning-puddle.md`
+
+---
+
 # Phase 1: Growth Tools Implementation
 
 ## Overview

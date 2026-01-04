@@ -4,11 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getAllGenres } from "@/lib/queries/books";
 import { getTasteProfile } from "@/lib/actions/taste";
 import { getUserLocation } from "@/lib/queries/geo";
+import { getDiscoveryVisibility } from "@/lib/actions/privacy";
 import { TasteProfileSection } from "@/components/settings/taste-profile-section";
 import { LocationSection } from "@/components/settings/location-section";
+import { PrivacySection } from "@/components/settings/privacy-section";
 import { ExportSection } from "@/components/settings/export-section";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Sparkles, MapPin, Download } from "lucide-react";
+import { Settings, Sparkles, MapPin, Download, Shield } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Settings | OhMyReads",
@@ -48,11 +50,12 @@ export default async function SettingsPage() {
     redirect("/login?redirect=/settings");
   }
 
-  // Fetch genres, taste profile, and location in parallel
-  const [genres, { profile: tasteProfile }, userLocation] = await Promise.all([
+  // Fetch genres, taste profile, location, and privacy settings in parallel
+  const [genres, { profile: tasteProfile }, userLocation, discoveryVisible] = await Promise.all([
     getAllGenres(),
     getTasteProfile(),
     getUserLocation(user.id),
+    getDiscoveryVisibility(),
   ]);
 
   const availableGenres = genres.length > 0 ? genres : FALLBACK_GENRES;
@@ -106,6 +109,22 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <LocationSection initialLocation={userLocation} />
+        </CardContent>
+      </Card>
+
+      {/* Privacy Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            <CardTitle>Privacy</CardTitle>
+          </div>
+          <CardDescription>
+            Control how you appear to other readers on the platform.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PrivacySection initialDiscoveryVisible={discoveryVisible} />
         </CardContent>
       </Card>
 

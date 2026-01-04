@@ -13,6 +13,8 @@ import {
   BarChart3,
   Upload,
   Target,
+  Users,
+  List,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,8 @@ const navItems = [
   { href: "/my-shelf", label: "My Shelf", icon: Library },
   { href: "/stats", label: "Reading Stats", icon: BarChart3 },
   { href: "/challenges", label: "Challenges", icon: Target },
+  { href: "/clubs", label: "Book Clubs", icon: Users },
+  { href: "/lists", label: "Lists", icon: List },
   { href: "/books", label: "Browse", icon: Search },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/settings", label: "Settings", icon: Settings },
