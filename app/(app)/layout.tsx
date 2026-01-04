@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { ChatWrapper } from "@/components/messages";
+import { getConversations, getUnreadCount } from "@/lib/queries/messages";
 import type { Profile } from "@/types/database";
 
 export default async function AppLayout({
@@ -34,6 +36,12 @@ export default async function AppLayout({
     profile = profileData as Profile;
   }
 
+  // Fetch chat data in parallel
+  const [conversations, unreadCount] = await Promise.all([
+    getConversations(),
+    getUnreadCount(),
+  ]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop Sidebar - hidden on mobile */}
@@ -50,6 +58,13 @@ export default async function AppLayout({
 
       {/* Mobile Bottom Nav - hidden on desktop */}
       <MobileBottomNav />
+
+      {/* Chat Panel and Trigger */}
+      <ChatWrapper
+        userId={user.id}
+        initialConversations={conversations}
+        initialUnreadCount={unreadCount}
+      />
     </div>
   );
 }

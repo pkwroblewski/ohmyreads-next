@@ -10,6 +10,7 @@ export interface Profile {
   followers_count: number;
   following_count: number;
   friends_count: number;
+  unread_messages_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -221,6 +222,41 @@ export type FriendshipStatus =
   | "pending_sent"   // Current user sent request
   | "pending_received" // Current user received request
   | "friends";       // Accepted friendship
+
+// ============================================
+// Direct Message Types
+// ============================================
+
+// Direct message
+export interface DirectMessage {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+// Direct message with sender profile
+export interface DirectMessageWithSender extends DirectMessage {
+  sender: {
+    id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+}
+
+// Conversation preview for chat list
+export interface ConversationPreview {
+  friend_id: string;
+  friend_username: string;
+  friend_display_name: string | null;
+  friend_avatar_url: string | null;
+  last_message: string;
+  last_message_at: string;
+  unread_count: number;
+}
 
 // User Taste Profile (for personalized recommendations)
 export type PacePreference = "slow" | "medium" | "fast";

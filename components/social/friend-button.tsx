@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { UserPlus, UserMinus, UserCheck, Clock, Check, X, Loader2 } from "lucide-react";
+import { UserPlus, UserMinus, UserCheck, Clock, Check, X, Loader2, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -207,34 +207,52 @@ export default function FriendButton({
     );
   }
 
+  const handleOpenChat = () => {
+    // Access the global openChat function from ChatWrapper
+    const openChat = (window as unknown as { openChat?: (friendId?: string) => void }).openChat;
+    if (openChat) {
+      openChat(targetUserId);
+    }
+  };
+
   // status === "friends"
   return (
-    <Button
-      onClick={handleRemoveFriend}
-      disabled={isPending}
-      variant="outline"
-      size={size}
-      className={cn(
-        "min-w-[120px] transition-all",
-        isHovering && "border-destructive text-destructive hover:bg-destructive/10",
-        className
-      )}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-    >
-      {isPending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : isHovering ? (
-        <>
-          <UserMinus className="h-4 w-4 mr-2" />
-          Unfriend
-        </>
-      ) : (
-        <>
-          <UserCheck className="h-4 w-4 mr-2" />
-          Friends
-        </>
-      )}
-    </Button>
+    <div className={cn("flex gap-2", className)}>
+      <Button
+        onClick={handleOpenChat}
+        variant="outline"
+        size={size}
+        className="min-w-[90px]"
+      >
+        <MessageSquare className="h-4 w-4 mr-2" />
+        Message
+      </Button>
+      <Button
+        onClick={handleRemoveFriend}
+        disabled={isPending}
+        variant="outline"
+        size={size}
+        className={cn(
+          "min-w-[90px] transition-all",
+          isHovering && "border-destructive text-destructive hover:bg-destructive/10"
+        )}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+      >
+        {isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : isHovering ? (
+          <>
+            <UserMinus className="h-4 w-4 mr-1" />
+            Unfriend
+          </>
+        ) : (
+          <>
+            <UserCheck className="h-4 w-4 mr-1" />
+            Friends
+          </>
+        )}
+      </Button>
+    </div>
   );
 }
