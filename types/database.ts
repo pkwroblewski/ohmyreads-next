@@ -9,6 +9,7 @@ export interface Profile {
   is_admin: boolean;
   followers_count: number;
   following_count: number;
+  friends_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -177,6 +178,49 @@ export interface FollowWithProfile extends Follow {
     avatar_url: string | null;
   };
 }
+
+// ============================================
+// Friend Request Types
+// ============================================
+
+export type FriendRequestStatus = "pending" | "accepted" | "rejected";
+
+// Friend request
+export interface FriendRequest {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  status: FriendRequestStatus;
+  created_at: string;
+  responded_at: string | null;
+}
+
+// Friend request with sender profile (for incoming requests)
+export interface FriendRequestWithSender extends FriendRequest {
+  sender: {
+    id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+}
+
+// Friend request with receiver profile (for sent requests)
+export interface FriendRequestWithReceiver extends FriendRequest {
+  receiver: {
+    id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+}
+
+// Friendship status for UI display
+export type FriendshipStatus =
+  | "none"           // No relationship
+  | "pending_sent"   // Current user sent request
+  | "pending_received" // Current user received request
+  | "friends";       // Accepted friendship
 
 // User Taste Profile (for personalized recommendations)
 export type PacePreference = "slow" | "medium" | "fast";

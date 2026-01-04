@@ -35,6 +35,7 @@ const publicLinks = [
 const authLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/my-shelf", label: "My Shelf", icon: Library },
+  { href: "/friends", label: "Friends", icon: Users },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

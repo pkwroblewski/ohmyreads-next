@@ -26,8 +26,10 @@ import {
 } from "@/lib/queries/recommendations";
 import { getChallenges } from "@/lib/actions/challenges";
 import { getFriendsActivity } from "@/lib/queries/follows";
+import { getPendingRequests } from "@/lib/queries/friends";
 import { PlacesNearYou } from "@/components/dashboard/places-near-you";
 import { FriendsActivity } from "@/components/dashboard/friends-activity";
+import { FriendRequestsNotification } from "@/components/dashboard/friend-requests-notification";
 import type { Book, UserBook, ReadingStats, Profile } from "@/types/database";
 
 export const metadata: Metadata = {
@@ -86,6 +88,7 @@ export default async function DashboardPage() {
     hasSignals,
     challengesResult,
     friendsActivityData,
+    pendingFriendRequests,
   ] = await Promise.all([
     // Profile
     supabase.from("profiles").select("*").eq("id", user.id).single(),
@@ -112,6 +115,8 @@ export default async function DashboardPage() {
     getChallenges(),
     // Friends activity
     getFriendsActivity(user.id, 5),
+    // Pending friend requests
+    getPendingRequests(),
   ]);
 
   const profile = profileResult.data as Profile | null;
@@ -148,6 +153,13 @@ export default async function DashboardPage() {
         </h1>
         <p className="text-muted-foreground">{formatTodayDate()}</p>
       </div>
+
+      {/* ========================================
+          Friend Requests Notification
+          ======================================== */}
+      {pendingFriendRequests.length > 0 && (
+        <FriendRequestsNotification requests={pendingFriendRequests} />
+      )}
 
       {/* ========================================
           Stats Grid

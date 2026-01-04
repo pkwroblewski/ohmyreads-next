@@ -21,8 +21,10 @@ import {
 } from "@/lib/queries/users";
 import { getUserBadgesWithDefinitions } from "@/lib/queries/badges";
 import { isFollowing, getFollowCounts } from "@/lib/queries/follows";
+import { getFriendshipStatus } from "@/lib/queries/friends";
 import { SocialLinksDisplay } from "@/components/social/social-links-display";
 import FollowButton from "@/components/social/follow-button";
+import FriendButton from "@/components/social/friend-button";
 import FollowStats from "@/components/social/follow-stats";
 import BadgesSection from "@/components/badges/badges-section";
 import { BookCard } from "@/components/books/book-card";
@@ -94,7 +96,7 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
             : undefined;
 
   // Fetch data in parallel
-  const [stats, booksResult, reviews, socialLinks, badges, followCounts, isFollowingUser] = await Promise.all([
+  const [stats, booksResult, reviews, socialLinks, badges, followCounts, isFollowingUser, friendshipData] = await Promise.all([
     getUserStats(profile.id),
     getUserBooks(profile.id, { status: statusFilter, limit: 12 }),
     getUserReviews(profile.id, 5),
@@ -102,6 +104,7 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
     getUserBadgesWithDefinitions(profile.id),
     getFollowCounts(profile.id),
     currentUser && !isOwnProfile ? isFollowing(currentUser.id, profile.id) : Promise.resolve(false),
+    currentUser && !isOwnProfile ? getFriendshipStatus(profile.id) : Promise.resolve({ status: "none" as const, requestId: null }),
   ]);
 
   const books = booksResult.userBooks;
@@ -152,11 +155,19 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
                   <p className="text-muted-foreground">@{profile.username}</p>
                 </div>
                 {currentUser && !isOwnProfile && (
-                  <FollowButton
-                    targetUserId={profile.id}
-                    initialIsFollowing={isFollowingUser}
-                    size="sm"
-                  />
+                  <div className="flex gap-2">
+                    <FriendButton
+                      targetUserId={profile.id}
+                      initialStatus={friendshipData.status}
+                      requestId={friendshipData.requestId}
+                      size="sm"
+                    />
+                    <FollowButton
+                      targetUserId={profile.id}
+                      initialIsFollowing={isFollowingUser}
+                      size="sm"
+                    />
+                  </div>
                 )}
               </div>
 

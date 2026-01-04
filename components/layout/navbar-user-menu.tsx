@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { User, Library, Settings, LogOut } from "lucide-react";
+import { User, Library, Users, Settings, LogOut } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ interface NavbarUserMenuProps {
 const menuItems = [
   { href: "/profile", label: "Profile", icon: User },
   { href: "/my-shelf", label: "My Shelf", icon: Library },
+  { href: "/friends", label: "Friends", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
