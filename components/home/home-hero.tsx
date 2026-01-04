@@ -45,7 +45,7 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
           <div className="flex flex-wrap gap-2 sm:gap-3 mb-6">
             <div className="flex items-center gap-2 bg-primary/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full border border-primary/20">
               <Building2 className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">Not Amazon-owned</span>
+              <span className="text-sm font-medium text-foreground">Independent & reader-owned</span>
             </div>
             <div className="flex items-center gap-2 bg-primary/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full border border-primary/20">
               <Shield className="w-4 h-4 text-primary" />

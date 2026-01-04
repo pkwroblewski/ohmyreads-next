@@ -43,7 +43,7 @@ export const createReviewSchema = z
       // Allow rating-only reviews (no text) OR reviews with 50+ chars
       return totalLength === 0 || totalLength >= 50;
     },
-    { message: "Add 50+ characters or submit a rating-only review" }
+    { message: "Reviews need at least 50 characters, or leave text empty for a quick star rating" }
   );
 
 export const updateReviewSchema = z.object({

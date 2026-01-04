@@ -415,6 +415,45 @@ export interface ActivityFeedItemWithRelations extends ActivityFeedItem {
 }
 
 // ============================================
+// Custom Shelves Types
+// ============================================
+
+// Custom user shelf (like Goodreads custom shelves)
+export interface UserShelf {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  is_public: boolean;
+  color: string | null;
+  icon: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Book assigned to a shelf
+export interface ShelfBook {
+  id: string;
+  shelf_id: string;
+  user_book_id: string;
+  added_at: string;
+  notes: string | null;
+}
+
+// Shelf with book count
+export interface UserShelfWithCount extends UserShelf {
+  book_count: number;
+}
+
+// Shelf book with book details
+export interface ShelfBookWithBook extends ShelfBook {
+  user_book: UserBook & {
+    book: Book;
+  };
+}
+
+// ============================================
 // Reader Discovery Types
 // ============================================
 

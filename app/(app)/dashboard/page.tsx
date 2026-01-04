@@ -51,7 +51,6 @@ function formatStatus(status: string): string {
 // Format today's date nicely
 function formatTodayDate(): string {
   return new Date().toLocaleDateString("en-US", {
-    weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",

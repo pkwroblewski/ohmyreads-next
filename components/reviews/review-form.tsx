@@ -274,13 +274,13 @@ export function ReviewForm({
       )}
 
       {/* Character count hint - encouraging, not punitive */}
-      {totalCharCount > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {totalCharCount >= 50
-            ? `${totalCharCount} characters - great detail!`
-            : `${totalCharCount} characters. Adding 50+ characters helps other readers discover this book.`}
-        </p>
-      )}
+      <p className="text-sm text-muted-foreground">
+        {totalCharCount === 0
+          ? "Star rating only, or add some thoughts to help other readers!"
+          : totalCharCount >= 50
+          ? `${totalCharCount} characters - great detail!`
+          : `${totalCharCount}/50 characters. Quick reviews are fine, but 50+ chars help others discover this book.`}
+      </p>
 
       {/* Vibe Tags Toggle */}
       <button

@@ -9,6 +9,7 @@ import {
   MoreVertical,
   Trash2,
   Star,
+  FolderPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RatingDisplay } from "@/components/ui/rating-display";
@@ -17,6 +18,7 @@ import { addToShelf, removeFromShelf } from "@/lib/actions/books";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AddToShelfModal } from "@/components/shelves/add-to-shelf-modal";
 import type { Book, UserBook } from "@/types/database";
 
 interface ShelfBookCardProps {
@@ -53,6 +55,7 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
   const [currentStatus, setCurrentStatus] = useState<ShelfStatus>(
     userBook.status as ShelfStatus
   );
+  const [isShelfModalOpen, setIsShelfModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
@@ -252,6 +255,20 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
             <div className="my-1 border-t border-border" />
 
             <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                setIsShelfModalOpen(true);
+              }}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2 text-sm",
+                "hover:bg-muted transition-colors text-left"
+              )}
+            >
+              <FolderPlus className="h-4 w-4" />
+              Add to Custom Shelf
+            </button>
+
+            <button
               onClick={handleRemove}
               className={cn(
                 "w-full flex items-center gap-2 px-3 py-2 text-sm",
@@ -264,6 +281,14 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
           </div>
         )}
       </div>
+
+      {/* Add to Shelf Modal */}
+      <AddToShelfModal
+        open={isShelfModalOpen}
+        onOpenChange={setIsShelfModalOpen}
+        userBookId={userBook.id}
+        bookTitle={book.title}
+      />
     </div>
   );
 }

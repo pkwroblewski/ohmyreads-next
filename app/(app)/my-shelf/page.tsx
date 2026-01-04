@@ -6,6 +6,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ShelfTabs } from "@/components/books/shelf-tabs";
 import { ShelfBookCard } from "@/components/books/shelf-book-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ShelfSidebar } from "@/components/shelves/shelf-sidebar";
 import type { Book, UserBook } from "@/types/database";
 
 export const metadata: Metadata = {
@@ -19,9 +20,9 @@ interface UserBookWithBook extends UserBook {
 export default async function MyShelfPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; shelf?: string }>;
 }) {
-  const { status: statusFilter } = await searchParams;
+  const { status: statusFilter, shelf: shelfFilter } = await searchParams;
 
   const supabase = await createClient();
 
@@ -34,19 +35,65 @@ export default async function MyShelfPage({
     redirect("/login");
   }
 
-  // Get user's books with book details
-  const { data: userBooks } = await supabase
-    .from("user_books")
-    .select(
-      `
-      *,
-      book:books(*)
-    `
-    )
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false });
+  // If filtering by custom shelf, get those books
+  let filteredBooks: UserBookWithBook[] = [];
+  let allBooks: UserBookWithBook[] = [];
+  let shelfName: string | null = null;
 
-  const allBooks = (userBooks as UserBookWithBook[]) || [];
+  if (shelfFilter) {
+    // Get shelf info
+    const { data: shelf } = await supabase
+      .from("user_shelves")
+      .select("name")
+      .eq("id", shelfFilter)
+      .eq("user_id", user.id)
+      .single();
+
+    shelfName = shelf?.name || null;
+
+    // Get books in this custom shelf - first get shelf_book entries
+    const { data: shelfBookEntries } = await supabase
+      .from("shelf_books")
+      .select("user_book_id")
+      .eq("shelf_id", shelfFilter);
+
+    const shelfUserBookIds = (shelfBookEntries || []).map((sb) => sb.user_book_id);
+
+    if (shelfUserBookIds.length > 0) {
+      const { data: shelfUserBooks } = await supabase
+        .from("user_books")
+        .select("*, book:books(*)")
+        .in("id", shelfUserBookIds);
+
+      filteredBooks = (shelfUserBooks as UserBookWithBook[]) || [];
+    }
+
+    // Still need all books for counts
+    const { data: userBooks } = await supabase
+      .from("user_books")
+      .select("*, book:books(*)")
+      .eq("user_id", user.id);
+
+    allBooks = (userBooks as UserBookWithBook[]) || [];
+  } else {
+    // Get all user's books
+    const { data: userBooks } = await supabase
+      .from("user_books")
+      .select(`
+        *,
+        book:books(*)
+      `)
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false });
+
+    allBooks = (userBooks as UserBookWithBook[]) || [];
+
+    // Filter by status if specified
+    filteredBooks = allBooks;
+    if (statusFilter && statusFilter !== "all") {
+      filteredBooks = allBooks.filter((b) => b.status === statusFilter);
+    }
+  }
 
   // Count by status
   const counts = {
@@ -56,75 +103,89 @@ export default async function MyShelfPage({
     want_to_read: allBooks.filter((b) => b.status === "want_to_read").length,
   };
 
-  // Filter books based on URL param
-  let filteredBooks = allBooks;
-  if (statusFilter && statusFilter !== "all") {
-    filteredBooks = allBooks.filter((b) => b.status === statusFilter);
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold font-serif">My Shelf</h1>
-        <p className="text-muted-foreground">
-          {counts.all} book{counts.all !== 1 ? "s" : ""} in your collection
-        </p>
-      </div>
+    <div className="flex gap-6">
+      {/* Sidebar with Custom Shelves */}
+      <aside className="hidden lg:block w-64 flex-shrink-0">
+        <ShelfSidebar activeShelfId={shelfFilter} />
+      </aside>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <StatCard
-          title="Currently Reading"
-          value={counts.reading}
-          icon={BookOpen}
-        />
-        <StatCard
-          title="Completed"
-          value={counts.read}
-          icon={CheckCircle}
-        />
-        <StatCard
-          title="Want to Read"
-          value={counts.want_to_read}
-          icon={Bookmark}
-        />
-      </div>
-
-      {/* Tab Navigation */}
-      <ShelfTabs activeStatus={statusFilter || "all"} counts={counts} />
-
-      {/* Book Grid */}
-      {filteredBooks.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
-          {filteredBooks.map((userBook) => (
-            <ShelfBookCard
-              key={userBook.id}
-              userBook={userBook}
-              book={userBook.book}
-            />
-          ))}
+      {/* Main Content */}
+      <div className="flex-1 space-y-6 min-w-0">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold font-serif">
+            {shelfName ? shelfName : "My Shelf"}
+          </h1>
+          <p className="text-muted-foreground">
+            {shelfFilter
+              ? `${filteredBooks.length} book${filteredBooks.length !== 1 ? "s" : ""} in this shelf`
+              : `${counts.all} book${counts.all !== 1 ? "s" : ""} in your collection`}
+          </p>
         </div>
-      ) : (
-        <EmptyState
-          icon={Library}
-          title={getEmptyTitle(statusFilter)}
-          description={getEmptyDescription(statusFilter)}
-          action={{
-            label: "Browse Books",
-            href: "/books",
-          }}
-          secondaryAction={
-            !statusFilter || statusFilter === "all"
-              ? {
-                  label: "Import from Goodreads",
-                  href: "/import",
-                  icon: Upload,
-                }
-              : undefined
-          }
-        />
-      )}
+
+        {/* Stats Cards (only show when not filtering by custom shelf) */}
+        {!shelfFilter && (
+          <div className="grid grid-cols-3 gap-4">
+            <StatCard
+              title="Currently Reading"
+              value={counts.reading}
+              icon={BookOpen}
+            />
+            <StatCard
+              title="Completed"
+              value={counts.read}
+              icon={CheckCircle}
+            />
+            <StatCard
+              title="Want to Read"
+              value={counts.want_to_read}
+              icon={Bookmark}
+            />
+          </div>
+        )}
+
+        {/* Tab Navigation (only show when not filtering by custom shelf) */}
+        {!shelfFilter && (
+          <ShelfTabs activeStatus={statusFilter || "all"} counts={counts} />
+        )}
+
+        {/* Book Grid */}
+        {filteredBooks.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
+            {filteredBooks.map((userBook) => (
+              <ShelfBookCard
+                key={userBook.id}
+                userBook={userBook}
+                book={userBook.book}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Library}
+            title={shelfFilter ? "No books in this shelf" : getEmptyTitle(statusFilter)}
+            description={
+              shelfFilter
+                ? "Add books to this shelf from your library"
+                : getEmptyDescription(statusFilter)
+            }
+            action={{
+              label: "Browse Books",
+              href: "/books",
+            }}
+            secondaryAction={
+              !statusFilter || statusFilter === "all"
+                ? {
+                    label: "Import from Goodreads",
+                    href: "/import",
+                    icon: Upload,
+                  }
+                : undefined
+            }
+          />
+        )}
+      </div>
     </div>
   );
 }
