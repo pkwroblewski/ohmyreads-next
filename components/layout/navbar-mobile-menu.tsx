@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Info,
   MapPin,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
@@ -23,6 +24,7 @@ import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 interface NavbarMobileMenuProps {
   user: SupabaseUser | null;
+  isAdmin?: boolean;
 }
 
 const publicLinks = [
@@ -40,7 +42,7 @@ const authLinks = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function NavbarMobileMenu({ user }: NavbarMobileMenuProps) {
+export function NavbarMobileMenu({ user, isAdmin = false }: NavbarMobileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { signOut } = useAuth();
 
@@ -155,6 +157,23 @@ export function NavbarMobileMenu({ user }: NavbarMobileMenuProps) {
                         {link.label}
                       </Link>
                     ))}
+                    {isAdmin && (
+                      <>
+                        <div className="my-2 border-t border-border" />
+                        <Link
+                          href="/admin"
+                          onClick={closeMenu}
+                          className={cn(
+                            "flex items-center gap-3 px-4 py-3",
+                            "text-sm font-medium text-primary",
+                            "hover:bg-accent/10 transition-colors"
+                          )}
+                        >
+                          <Shield className="w-5 h-5" />
+                          Admin
+                        </Link>
+                      </>
+                    )}
                   </>
                 )}
               </div>

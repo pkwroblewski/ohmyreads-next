@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { User, Library, Users, Settings, LogOut } from "lucide-react";
+import { User, Library, Users, Settings, LogOut, Shield } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 interface NavbarUserMenuProps {
   user: SupabaseUser;
+  isAdmin?: boolean;
 }
 
 const menuItems = [
@@ -19,7 +20,7 @@ const menuItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function NavbarUserMenu({ user }: NavbarUserMenuProps) {
+export function NavbarUserMenu({ user, isAdmin = false }: NavbarUserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { signOut } = useAuth();
@@ -136,6 +137,23 @@ export function NavbarUserMenu({ user }: NavbarUserMenuProps) {
                 {item.label}
               </Link>
             ))}
+            {/* Admin link - only visible to admins */}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setIsOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-2.5",
+                  "text-sm text-foreground",
+                  "hover:bg-accent/10 transition-colors",
+                  "border-t border-border mt-1 pt-2"
+                )}
+                role="menuitem"
+              >
+                <Shield className="w-4 h-4 text-primary" />
+                <span className="font-medium">Admin</span>
+              </Link>
+            )}
           </div>
 
           {/* Sign Out */}

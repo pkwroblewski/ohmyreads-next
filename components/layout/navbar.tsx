@@ -24,6 +24,22 @@ export async function Navbar() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Check if user is admin
+  let isAdmin = false;
+  if (user) {
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+      isAdmin = profile?.is_admin || false;
+    } catch {
+      // If profile doesn't exist or error, user is not admin
+      isAdmin = false;
+    }
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -73,7 +89,7 @@ export async function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             <ThemeToggle />
             {user ? (
-              <NavbarUserMenu user={user} />
+              <NavbarUserMenu user={user} isAdmin={isAdmin} />
             ) : (
               <>
                 <Link
@@ -92,7 +108,7 @@ export async function Navbar() {
           {/* Mobile Menu */}
           <div className="flex md:hidden items-center gap-2">
             <ThemeToggle />
-            <NavbarMobileMenu user={user} />
+            <NavbarMobileMenu user={user} isAdmin={isAdmin} />
           </div>
         </div>
       </nav>
