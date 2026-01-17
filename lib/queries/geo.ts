@@ -6,6 +6,8 @@ import { getNeighbors, isValidGeohash } from "@/lib/utils/geohash";
 // TYPES
 // ============================================
 
+export type PresenceType = "static" | "temporary" | "recommended";
+
 export interface NearbyReader {
   id: string;
   username: string | null;
@@ -13,6 +15,9 @@ export interface NearbyReader {
   avatar_url: string | null;
   location_label: string | null;
   location_geohash: string | null;
+  presence_type: PresenceType | null;
+  presence_expires_at: string | null;
+  presence_note: string | null;
 }
 
 export interface Place {
@@ -45,7 +50,8 @@ export interface CachedPlaceData {
 
 /**
  * Get readers near a geohash location
- * Returns users who have opted in to location sharing
+ * Returns users who have opted in to location sharing.
+ * Filters out expired temporary/recommended presence.
  */
 export async function getNearbyReaders(
   geohashPrefix: string,
@@ -56,17 +62,17 @@ export async function getNearbyReaders(
   }
 
   const supabase = createPublicClient();
-  
+
   // Get all neighboring geohash cells to cover the area
   const searchHashes = getNeighbors(geohashPrefix);
-  
+
   // Build LIKE patterns for each hash prefix
   const patterns = searchHashes.map(h => `${h}%`);
-  
+
   // Query for users in any of the nearby cells
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url, location_label, location_geohash")
+    .select("id, username, display_name, avatar_url, location_label, location_geohash, presence_type, presence_expires_at, presence_note")
     .eq("location_enabled", true)
     .not("location_geohash", "is", null)
     .or(patterns.map(p => `location_geohash.like.${p}`).join(","))
@@ -77,7 +83,24 @@ export async function getNearbyReaders(
     return [];
   }
 
-  return data || [];
+  if (!data) {
+    return [];
+  }
+
+  // Filter out expired temporary/recommended presence
+  const now = new Date();
+  return data.filter((reader) => {
+    // Static presence never expires
+    if (!reader.presence_type || reader.presence_type === "static") {
+      return true;
+    }
+    // Non-static presence must have a future expiry
+    if (reader.presence_expires_at) {
+      return new Date(reader.presence_expires_at) > now;
+    }
+    // If no expiry set but non-static, treat as expired
+    return false;
+  });
 }
 
 // ============================================

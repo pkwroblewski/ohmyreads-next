@@ -202,8 +202,58 @@ export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelP
 }
 
 function ReaderContent({ reader }: { reader: ReaderPin }) {
+  // Calculate time remaining for temporary presence
+  const getTimeRemaining = () => {
+    if (!reader.presenceExpiresAt) return null;
+    const expiresAt = new Date(reader.presenceExpiresAt);
+    const now = new Date();
+    const diff = expiresAt.getTime() - now.getTime();
+    if (diff <= 0) return "Expired";
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours > 0) return `${hours}h ${minutes}m left`;
+    return `${minutes}m left`;
+  };
+
+  const timeRemaining = getTimeRemaining();
+  const presenceType = reader.presenceType || "static";
+
   return (
     <div className="space-y-4">
+      {/* Presence badge */}
+      {presenceType !== "static" && (
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+            presenceType === "temporary"
+              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+              : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+          )}>
+            {presenceType === "temporary" ? (
+              <>
+                <Clock className="h-3 w-3" />
+                Here now
+              </>
+            ) : (
+              <>
+                <Star className="h-3 w-3" />
+                Recommended spot
+              </>
+            )}
+          </span>
+          {timeRemaining && (
+            <span className="text-xs text-muted-foreground">{timeRemaining}</span>
+          )}
+        </div>
+      )}
+
+      {/* Presence note */}
+      {reader.presenceNote && (
+        <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+          <p className="text-sm italic text-foreground/80">"{reader.presenceNote}"</p>
+        </div>
+      )}
+
       {reader.locationLabel && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4" />
@@ -212,7 +262,11 @@ function ReaderContent({ reader }: { reader: ReaderPin }) {
       )}
 
       <p className="text-sm text-muted-foreground">
-        This reader has opted in to share their approximate location to connect with fellow book lovers.
+        {presenceType === "temporary"
+          ? "This reader is currently here and reading."
+          : presenceType === "recommended"
+            ? "This reader recommends this spot for reading."
+            : "This reader has opted in to share their approximate location to connect with fellow book lovers."}
       </p>
 
       {reader.username && (

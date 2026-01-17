@@ -49,6 +49,10 @@ export async function GET(request: NextRequest) {
       locationLabel: reader.location_label,
       // Return only prefix of geohash (for clustering, not precise location)
       geohashPrefix: reader.location_geohash?.slice(0, 4) || null,
+      // Include presence data for marker styling
+      presenceType: reader.presence_type || "static",
+      presenceNote: reader.presence_note,
+      presenceExpiresAt: reader.presence_expires_at,
     }));
 
     return NextResponse.json(

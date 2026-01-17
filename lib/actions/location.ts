@@ -265,6 +265,134 @@ export async function updateLocationPrecision(precision: number) {
 }
 
 // ============================================
+// SET PRESENCE
+// ============================================
+
+export type PresenceType = "static" | "temporary" | "recommended";
+
+interface SetPresenceInput {
+  type: PresenceType;
+  durationHours?: number; // For temporary: 1, 2, or 4 hours
+  note?: string; // Optional note (max 140 chars)
+}
+
+/**
+ * Set the user's presence type for their current location.
+ * - static: Permanent home location (default)
+ * - temporary: "I'm here now" - auto-expires after durationHours
+ * - recommended: "Great reading spot" - expires after 7 days
+ */
+export async function setPresence(input: SetPresenceInput) {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { error: "Not authenticated" };
+    }
+
+    // Rate limit
+    const { allowed } = await checkRateLimit(`presence:${user.id}`, 10, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate note length
+    if (input.note && input.note.length > 140) {
+      return { error: "Note must be 140 characters or less" };
+    }
+
+    // Validate duration for temporary presence
+    if (input.type === "temporary") {
+      const validDurations = [1, 2, 4];
+      if (!input.durationHours || !validDurations.includes(input.durationHours)) {
+        return { error: "Invalid duration. Must be 1, 2, or 4 hours." };
+      }
+    }
+
+    // Calculate expires_at based on type
+    let expiresAt: string | null = null;
+    if (input.type === "temporary" && input.durationHours) {
+      expiresAt = new Date(Date.now() + input.durationHours * 60 * 60 * 1000).toISOString();
+    } else if (input.type === "recommended") {
+      // Recommended spots expire after 7 days
+      expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    // Update profile
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        presence_type: input.type,
+        presence_expires_at: expiresAt,
+        presence_note: input.note?.slice(0, 140) || null,
+        location_updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      console.error("Error setting presence:", error);
+      return { error: "Failed to set presence" };
+    }
+
+    revalidatePath("/settings");
+    revalidatePath("/profile");
+    revalidatePath("/geo");
+
+    return { success: true, expiresAt };
+  } catch (error) {
+    console.error("Error in setPresence:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+/**
+ * Clear the user's presence (revert to static with no note)
+ */
+export async function clearPresence() {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { error: "Not authenticated" };
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        presence_type: "static",
+        presence_expires_at: null,
+        presence_note: null,
+        location_updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      console.error("Error clearing presence:", error);
+      return { error: "Failed to clear presence" };
+    }
+
+    revalidatePath("/settings");
+    revalidatePath("/profile");
+    revalidatePath("/geo");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error in clearPresence:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+// ============================================
 // CLEAR LOCATION
 // ============================================
 

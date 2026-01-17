@@ -557,3 +557,57 @@ WHERE tablename = 'books'
 - `app/api/webhooks/supabase/route.ts` - Fails closed, uses admin client
 - `lib/actions/location.ts` - Clears location data when disabled
 - `lib/actions/reviews.ts` - Uses `recalculate_book_rating` RPC
+
+---
+
+## Reader Location & Presence System ✅ CODE COMPLETE
+
+### Overview
+Extends the existing static location sharing to support temporary presence ("I'm here now") and recommended spots ("Great reading spot"). Users can mark their current spot with an expiration time, and other readers can see these temporary markers with distinctive styling.
+
+### Database Migration Required
+
+**Run migration `027_reader_presence.sql` in Supabase Dashboard → SQL Editor**
+
+This migration adds to `profiles` table:
+- `presence_type` - 'static' (default), 'temporary', or 'recommended'
+- `presence_expires_at` - When temporary/recommended presence expires
+- `presence_note` - Optional 140-char note about the spot
+
+Also includes:
+- Index for filtering active presence
+- `cleanup_expired_presence()` function for periodic cleanup
+
+### Implementation Summary
+
+| File | Change |
+|------|--------|
+| `supabase/migrations/027_reader_presence.sql` | Add presence fields + cleanup function |
+| `lib/actions/location.ts` | Add `setPresence()` and `clearPresence()` actions |
+| `lib/queries/geo.ts` | Update `NearbyReader` type + filter expired |
+| `app/api/geo/readers/route.ts` | Return presence data in API response |
+| `components/geo/reader-map-immersive.tsx` | New marker styles + Mark Spot button |
+| `components/geo/mark-spot-modal.tsx` | NEW - Modal for setting presence |
+| `components/geo/map-detail-panel.tsx` | Display presence info in detail panel |
+| `app/globals.css` | Pulse animation for temporary markers |
+
+### Marker Styling
+
+| Presence Type | Marker Style |
+|---------------|--------------|
+| `static` | Green circle (existing) |
+| `temporary` | Green circle with pulse animation |
+| `recommended` | Gold circle with star icon + glow |
+
+### User Flow
+
+1. User opens map and sees "Mark this spot" floating button (bottom right)
+2. Taps button → opens modal
+3. Selects type: "I'm here now" (1/2/4h duration) or "Recommend spot" (7 day expiry)
+4. Optionally adds note (140 chars max)
+5. Marker updates on map with distinctive style
+6. Other readers see the presence + note when clicking marker
+
+### Automatic Cleanup
+- Expired presence filtered at query time (immediate effect)
+- Optional: Run `SELECT cleanup_expired_presence();` periodically via cron to reset DB fields

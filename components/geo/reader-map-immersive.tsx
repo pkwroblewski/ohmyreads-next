@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useTheme } from "next-themes";
-import { Loader2, Locate, Search, X } from "lucide-react";
+import { Loader2, Locate, Search, X, MapPin, Star, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,9 @@ import { MapLayerControls } from "./map-layer-controls";
 import { MapDetailPanel } from "./map-detail-panel";
 import { IsochroneControls } from "./isochrone-controls";
 import { AIPlaceSearch } from "./ai-place-search";
+import { MarkSpotModal } from "./mark-spot-modal";
+
+export type PresenceType = "static" | "temporary" | "recommended";
 
 export interface ReaderPin {
   id: string;
@@ -21,6 +24,9 @@ export interface ReaderPin {
   avatarUrl: string | null;
   locationLabel: string | null;
   geohashPrefix: string | null;
+  presenceType: PresenceType;
+  presenceNote: string | null;
+  presenceExpiresAt: string | null;
 }
 
 export interface PlacePin {
@@ -70,6 +76,9 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
   const [showSearch, setShowSearch] = useState(false);
   // Highlighted place from search (to show with distinctive marker)
   const [highlightedPlace, setHighlightedPlace] = useState<{ lat: number; lng: number; name: string } | null>(null);
+
+  // Mark spot modal state
+  const [showMarkSpotModal, setShowMarkSpotModal] = useState(false);
 
   // Layer visibility state
   const [layers, setLayers] = useState({
@@ -211,13 +220,14 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
 
     // Suppress Mapbox tile loading errors (403s, network errors, etc.)
     map.current.on("error", (e) => {
-      // Silently ignore tile/resource loading errors to prevent console spam
-      if (e.error?.status === 403 || e.error?.message?.includes("403")) {
-        return; // Token permission issue - ignore silently
+      // Silently ignore most map errors to prevent console spam
+      const errorMsg = e.error?.message || "";
+      if (errorMsg.includes("403") || errorMsg.includes("tile")) {
+        return; // Token permission or tile loading issue - ignore silently
       }
-      // Only log non-tile errors in development
-      if (process.env.NODE_ENV === "development" && !e.sourceId?.includes("tile")) {
-        console.warn("Map error:", e.error?.message || e);
+      // Only log unexpected errors in development
+      if (process.env.NODE_ENV === "development") {
+        console.warn("Map error:", errorMsg || e);
       }
     });
 
@@ -347,11 +357,33 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
 
         const el = document.createElement("div");
         el.className = "reader-marker";
-        el.innerHTML = `
-          <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          </div>
-        `;
+
+        // Determine marker style based on presence type
+        const presenceType = reader.presenceType || "static";
+
+        if (presenceType === "recommended") {
+          // Gold star marker for recommended spots
+          el.innerHTML = `
+            <div class="w-11 h-11 rounded-full bg-amber-400 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-yellow-200" style="box-shadow: 0 0 12px 4px rgba(251, 191, 36, 0.4);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+          `;
+        } else if (presenceType === "temporary") {
+          // Pulsing green marker for "here now"
+          el.innerHTML = `
+            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white" style="animation: pulse 2s ease-in-out infinite; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          `;
+        } else {
+          // Default green marker for static presence
+          el.innerHTML = `
+            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          `;
+        }
+
         el.addEventListener("click", () => setSelectedItem(reader));
 
         const marker = new mapboxgl.Marker({ element: el })
@@ -784,6 +816,32 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
         currentUserId={currentUserId}
+      />
+
+      {/* Mark Spot Floating Action Button */}
+      {currentUserId && userLocation && (
+        <Button
+          onClick={() => setShowMarkSpotModal(true)}
+          className="absolute bottom-24 right-4 z-10 lg:bottom-4 h-14 w-14 rounded-full shadow-lg bg-emerald-500 hover:bg-emerald-600 p-0"
+          title="Mark this spot"
+        >
+          <MapPin className="w-6 h-6" />
+        </Button>
+      )}
+
+      {/* Mark Spot Modal */}
+      <MarkSpotModal
+        open={showMarkSpotModal}
+        onClose={() => setShowMarkSpotModal(false)}
+        onSuccess={() => {
+          // Refresh reader data after marking a spot
+          if (map.current) {
+            const center = map.current.getCenter();
+            const zoom = map.current.getZoom();
+            fetchDataForLocation(center.lat, center.lng, zoom);
+          }
+        }}
+        locationLabel={userLocation ? `Near your current location` : undefined}
       />
     </div>
   );
