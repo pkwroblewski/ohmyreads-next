@@ -208,13 +208,16 @@ export async function getMostHelpfulReviews(
 export async function hasUserReviewedBook(
   userId: string,
   bookId: string
-): Promise<{ hasReviewed: boolean; review: Review | null }> {
+): Promise<{ hasReviewed: boolean; review: ReviewWithUser | null }> {
   try {
     const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("reviews")
-      .select("*")
+      .select(`
+        *,
+        profile:profiles!user_id(id, username, display_name, avatar_url)
+      `)
       .eq("user_id", userId)
       .eq("book_id", bookId)
       .single();
@@ -223,9 +226,19 @@ export async function hasUserReviewedBook(
       console.error("Error checking review:", error);
     }
 
+    if (!data) {
+      return { hasReviewed: false, review: null };
+    }
+
+    // Transform profile (handle array case from Supabase)
+    const reviewWithProfile = {
+      ...data,
+      profile: Array.isArray(data.profile) ? data.profile[0] : data.profile,
+    };
+
     return {
-      hasReviewed: !!data,
-      review: data as Review | null,
+      hasReviewed: true,
+      review: reviewWithProfile as unknown as ReviewWithUser,
     };
   } catch (error) {
     console.error("Error in hasUserReviewedBook:", error);

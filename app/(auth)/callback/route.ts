@@ -117,7 +117,24 @@ export async function GET(request: Request) {
           });
         }
       } else {
-        // Profile exists - check if new (created in last 5 minutes)
+        // Profile exists - check and update admin status based on ADMIN_EMAILS
+        const adminEmails = (process.env.ADMIN_EMAILS || "")
+          .split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
+        const shouldBeAdmin = data.user.email
+          ? adminEmails.includes(data.user.email.toLowerCase())
+          : false;
+
+        // Update is_admin if it should change
+        if (shouldBeAdmin) {
+          await supabase
+            .from("profiles")
+            .update({ is_admin: true })
+            .eq("id", data.user.id);
+        }
+
+        // Check if new (created in last 5 minutes) for welcome email
         const createdAt = new Date(profile.created_at);
         const now = new Date();
         const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { BookOpen, Sparkles, Bookmark } from "lucide-react";
+import { BookOpen, Heart, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "@/components/books/cover-image";
 import type { Book } from "@/types/database";
@@ -55,7 +55,7 @@ export function CuratedMiniGrid({
     return (
       <div className="h-full flex flex-col">
         <h3 className="text-lg font-semibold font-serif mb-4 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-accent" />
+          <Heart className="w-5 h-5 text-accent" />
           {title}
         </h3>
         <div className="flex-1 flex items-center justify-center text-center">
@@ -74,7 +74,7 @@ export function CuratedMiniGrid({
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold font-serif flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-accent" />
+          <Heart className="w-5 h-5 text-accent" />
           {title}
         </h3>
         <Link
@@ -92,12 +92,12 @@ export function CuratedMiniGrid({
         ))}
       </div>
 
-      {/* AI Badge */}
+      {/* Recommendation Badge */}
       {picks.size > 0 && (
         <div className="mt-3 pt-2 border-t border-border/50">
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
-            AI-personalized picks
+            <Heart className="w-3 h-3" />
+            You might enjoy
           </p>
         </div>
       )}

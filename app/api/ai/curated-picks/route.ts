@@ -19,7 +19,7 @@ function getModel() {
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     return google("gemini-2.0-flash");
   }
-  throw new Error("No AI API key configured.");
+  return null;
 }
 
 export async function GET(request: NextRequest) {
@@ -105,6 +105,18 @@ export async function GET(request: NextRequest) {
     // Generate AI explanations for each book
     const model = getModel();
     const picks: CuratedPick[] = [];
+
+    // If no AI model available, return simple picks without AI-generated reasons
+    if (!model) {
+      for (const book of recommendedBooks) {
+        picks.push({
+          bookId: book.id,
+          reason: `Popular ${book.genres?.[0] || "read"} pick`,
+          matchType: "genre",
+        });
+      }
+      return NextResponse.json({ picks, cached: false, aiEnabled: false });
+    }
 
     // Build context about the user
     let userContext = "Anonymous reader browsing for new books.";

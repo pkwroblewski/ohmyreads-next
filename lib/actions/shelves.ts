@@ -522,6 +522,265 @@ export async function updateBookShelves(input: {
 }
 
 /**
+ * Add a book to a shelf by book ID (auto-creates user_books entry if needed)
+ * This allows adding books to custom shelves directly from the book page
+ */
+export async function addBookToShelfByBookId(input: {
+  shelfId: string;
+  bookId: string;
+}): Promise<{ success?: boolean; userBookId?: string; error?: string }> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { error: "Not authenticated" };
+    }
+
+    // Verify shelf ownership
+    const { data: shelf } = await supabase
+      .from("user_shelves")
+      .select("user_id")
+      .eq("id", input.shelfId)
+      .single();
+
+    if (!shelf || shelf.user_id !== user.id) {
+      return { error: "Shelf not found or not authorized" };
+    }
+
+    // Check if user already has this book in user_books
+    let userBookId: string;
+    const { data: existingUserBook } = await supabase
+      .from("user_books")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("book_id", input.bookId)
+      .single();
+
+    if (existingUserBook) {
+      userBookId = existingUserBook.id;
+    } else {
+      // Create user_books entry with "want_to_read" status
+      const { data: newUserBook, error: createError } = await supabase
+        .from("user_books")
+        .insert({
+          user_id: user.id,
+          book_id: input.bookId,
+          status: "want_to_read",
+        })
+        .select("id")
+        .single();
+
+      if (createError) {
+        console.error("Error creating user_book:", createError);
+        return { error: "Failed to add book to your library" };
+      }
+
+      userBookId = newUserBook.id;
+    }
+
+    // Add to shelf (handle duplicate gracefully)
+    const { error: shelfError } = await supabase.from("shelf_books").insert({
+      shelf_id: input.shelfId,
+      user_book_id: userBookId,
+    });
+
+    if (shelfError) {
+      if (shelfError.code === "23505") {
+        // Unique constraint - already on shelf
+        return { error: "Book is already on this shelf" };
+      }
+      console.error("Error adding book to shelf:", shelfError);
+      return { error: shelfError.message };
+    }
+
+    revalidatePath("/my-shelf");
+
+    return { success: true, userBookId };
+  } catch (error) {
+    console.error("Error in addBookToShelfByBookId:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+/**
+ * Get shelves a book is on by book ID (not user_book_id)
+ */
+export async function getBookShelvesByBookId(
+  bookId: string
+): Promise<{ shelfIds: string[]; userBookId?: string; error?: string }> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { shelfIds: [], error: "Not authenticated" };
+    }
+
+    // Get user_book for this book
+    const { data: userBook } = await supabase
+      .from("user_books")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("book_id", bookId)
+      .single();
+
+    if (!userBook) {
+      // Book not in user's library yet
+      return { shelfIds: [] };
+    }
+
+    // Get shelf assignments
+    const { data: shelfBooks, error } = await supabase
+      .from("shelf_books")
+      .select("shelf_id")
+      .eq("user_book_id", userBook.id);
+
+    if (error) {
+      console.error("Error fetching book shelves:", error);
+      return { shelfIds: [], userBookId: userBook.id, error: error.message };
+    }
+
+    return {
+      shelfIds: (shelfBooks || []).map((sb) => sb.shelf_id),
+      userBookId: userBook.id,
+    };
+  } catch (error) {
+    console.error("Error in getBookShelvesByBookId:", error);
+    return { shelfIds: [], error: "An unexpected error occurred" };
+  }
+}
+
+/**
+ * Update book's shelf assignments by book ID (batch operation)
+ * Auto-creates user_books entry if needed
+ */
+export async function updateBookShelvesByBookId(input: {
+  bookId: string;
+  shelfIds: string[];
+}): Promise<{ success?: boolean; userBookId?: string; error?: string }> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { error: "Not authenticated" };
+    }
+
+    // Get or create user_book entry
+    let userBookId: string;
+    const { data: existingUserBook } = await supabase
+      .from("user_books")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("book_id", input.bookId)
+      .single();
+
+    if (existingUserBook) {
+      userBookId = existingUserBook.id;
+    } else if (input.shelfIds.length > 0) {
+      // Only create if we're adding to at least one shelf
+      const { data: newUserBook, error: createError } = await supabase
+        .from("user_books")
+        .insert({
+          user_id: user.id,
+          book_id: input.bookId,
+          status: "want_to_read",
+        })
+        .select("id")
+        .single();
+
+      if (createError) {
+        console.error("Error creating user_book:", createError);
+        return { error: "Failed to add book to your library" };
+      }
+
+      userBookId = newUserBook.id;
+    } else {
+      // No shelves to add and no existing user_book - nothing to do
+      return { success: true };
+    }
+
+    // Get user's shelves to verify ownership
+    const { data: userShelves } = await supabase
+      .from("user_shelves")
+      .select("id")
+      .eq("user_id", user.id);
+
+    const userShelfIds = new Set((userShelves || []).map((s) => s.id));
+
+    // Verify all target shelves belong to user
+    for (const shelfId of input.shelfIds) {
+      if (!userShelfIds.has(shelfId)) {
+        return { error: "One or more shelves not found" };
+      }
+    }
+
+    // Get current shelf assignments
+    const { data: currentShelfBooks } = await supabase
+      .from("shelf_books")
+      .select("shelf_id")
+      .eq("user_book_id", userBookId);
+
+    const currentShelfIds = new Set(
+      (currentShelfBooks || []).map((sb) => sb.shelf_id)
+    );
+    const targetShelfIds = new Set(input.shelfIds);
+
+    // Determine adds and removes
+    const toAdd = input.shelfIds.filter((id) => !currentShelfIds.has(id));
+    const toRemove = Array.from(currentShelfIds).filter(
+      (id) => !targetShelfIds.has(id)
+    );
+
+    // Remove from shelves
+    if (toRemove.length > 0) {
+      const { error: removeError } = await supabase
+        .from("shelf_books")
+        .delete()
+        .eq("user_book_id", userBookId)
+        .in("shelf_id", toRemove);
+
+      if (removeError) {
+        console.error("Error removing from shelves:", removeError);
+        return { error: removeError.message };
+      }
+    }
+
+    // Add to shelves
+    if (toAdd.length > 0) {
+      const { error: addError } = await supabase.from("shelf_books").insert(
+        toAdd.map((shelfId) => ({
+          shelf_id: shelfId,
+          user_book_id: userBookId,
+        }))
+      );
+
+      if (addError) {
+        console.error("Error adding to shelves:", addError);
+        return { error: addError.message };
+      }
+    }
+
+    revalidatePath("/my-shelf");
+
+    return { success: true, userBookId };
+  } catch (error) {
+    console.error("Error in updateBookShelvesByBookId:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+/**
  * Get books in a specific shelf
  */
 export async function getShelfBooks(shelfId: string): Promise<{

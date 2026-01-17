@@ -18,7 +18,7 @@ function getModel() {
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     return google("gemini-2.0-flash");
   }
-  throw new Error("No AI API key configured.");
+  return null;
 }
 
 export async function GET(request: NextRequest) {
@@ -79,6 +79,18 @@ export async function GET(request: NextRequest) {
     // Generate insights for each book using AI
     const model = getModel();
     const insights: TrendingInsight[] = [];
+
+    // If no AI model available, return simple insights without AI
+    if (!model) {
+      for (const book of trendingBooks) {
+        insights.push({
+          bookId: book.id,
+          insight: `Popular ${book.genres?.[0] || "fiction"} by ${book.author}`,
+          keywords: book.genres?.slice(0, 3) || [],
+        });
+      }
+      return NextResponse.json({ insights, cached: false, aiEnabled: false });
+    }
 
     for (const book of trendingBooks) {
       const bookReviews = reviewsByBook.get(book.id) || [];

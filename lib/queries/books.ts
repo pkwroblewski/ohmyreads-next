@@ -43,7 +43,7 @@ export async function getBookReviews(
 
   const supabase = await createClient();
 
-  // First, fetch reviews
+  // Fetch reviews first (no FK join - reviews.user_id references auth.users, not profiles)
   let query = supabase
     .from("reviews")
     .select(`
@@ -93,6 +93,7 @@ export async function getBookReviews(
 
   if (error) {
     console.error("Error fetching reviews:", error);
+    console.error("getBookReviews failed for bookId:", bookId);
     return [];
   }
 
@@ -100,23 +101,17 @@ export async function getBookReviews(
     return [];
   }
 
-  // Get unique user IDs and fetch their profiles
+  // Fetch profiles for all review authors
   const userIds = [...new Set(reviews.map((r) => r.user_id))];
-  const { data: profiles, error: profilesError } = await supabase
+  const { data: profiles } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url")
     .in("id", userIds);
 
-  if (profilesError) {
-    console.error("Error fetching profiles:", profilesError);
-  }
+  // Create a map for quick profile lookup
+  const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
-  // Create a map of user_id to profile
-  const profileMap = new Map(
-    (profiles || []).map((p) => [p.id, p])
-  );
-
-  // Merge reviews with profiles
+  // Combine reviews with profiles
   const reviewsWithProfiles = reviews.map((review) => ({
     ...review,
     profile: profileMap.get(review.user_id) || null,

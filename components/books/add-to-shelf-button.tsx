@@ -7,6 +7,7 @@ import {
   Bookmark,
   Check,
   ChevronDown,
+  FolderPlus,
   Loader2,
   Plus,
   Trash2,
@@ -15,11 +16,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { addToShelf, removeFromShelf } from "@/lib/actions/books";
+import { AddToShelfModal } from "@/components/shelves/add-to-shelf-modal";
 
 type ShelfStatus = "want_to_read" | "reading" | "read";
 
 interface AddToShelfButtonProps {
   bookId: string;
+  bookTitle?: string;  // For custom shelf modal
   currentStatus?: ShelfStatus | null;
 }
 
@@ -34,6 +37,7 @@ const statusConfig: Record<
 
 export function AddToShelfButton({
   bookId,
+  bookTitle,
   currentStatus,
 }: AddToShelfButtonProps) {
   const router = useRouter();
@@ -43,9 +47,10 @@ export function AddToShelfButton({
   const [status, setStatus] = useState<ShelfStatus | null>(currentStatus ?? null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [shelfModalOpen, setShelfModalOpen] = useState(false);
   const menuItems = status
-    ? [...Object.keys(statusConfig), "remove"]
-    : Object.keys(statusConfig);
+    ? [...Object.keys(statusConfig), "manage_shelves", "remove"]
+    : [...Object.keys(statusConfig), "manage_shelves"];
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -97,6 +102,8 @@ export function AddToShelfButton({
           const item = menuItems[focusedIndex];
           if (item === "remove") {
             handleRemove();
+          } else if (item === "manage_shelves") {
+            handleManageShelves();
           } else {
             handleStatusChange(item as ShelfStatus);
           }
@@ -132,7 +139,7 @@ export function AddToShelfButton({
 
   const handleRemove = () => {
     setIsOpen(false);
-    
+
     startTransition(async () => {
       const result = await removeFromShelf(bookId);
 
@@ -144,6 +151,11 @@ export function AddToShelfButton({
       setStatus(null);
       toast.success("Book removed from your shelf");
     });
+  };
+
+  const handleManageShelves = () => {
+    setIsOpen(false);
+    setShelfModalOpen(true);
   };
 
   const CurrentIcon = status ? statusConfig[status].icon : Plus;
@@ -217,6 +229,22 @@ export function AddToShelfButton({
             );
           })}
 
+          {/* Manage Shelves option */}
+          <div className="my-1 border-t border-border" role="separator" />
+          <button
+            role="option"
+            aria-selected={false}
+            onClick={handleManageShelves}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-2 text-sm",
+              "hover:bg-muted transition-colors text-left",
+              focusedIndex === (status ? menuItems.length - 2 : menuItems.length - 1) && "bg-muted outline-none ring-2 ring-inset ring-primary"
+            )}
+          >
+            <FolderPlus className="h-4 w-4" />
+            <span>Manage Shelves...</span>
+          </button>
+
           {status && (
             <>
               <div className="my-1 border-t border-border" role="separator" />
@@ -237,6 +265,14 @@ export function AddToShelfButton({
           )}
         </div>
       )}
+
+      {/* Custom Shelf Modal */}
+      <AddToShelfModal
+        open={shelfModalOpen}
+        onOpenChange={setShelfModalOpen}
+        bookId={bookId}
+        bookTitle={bookTitle || "this book"}
+      />
     </div>
   );
 }

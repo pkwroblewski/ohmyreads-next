@@ -120,8 +120,17 @@ export async function getCommunityFeedPage(options: {
     }
 
     const items = data
-      // For check-ins, book is optional; for other types, book is required
-      .filter((item) => item.user && (item.type === "checkin" ? item.place : item.book))
+      // Filter requirements:
+      // - All types need a user
+      // - Reviews need book AND review data (prevents orphaned activity entries)
+      // - started_reading needs book
+      // - check-ins need place
+      .filter((item) => {
+        if (!item.user) return false;
+        if (item.type === "review") return item.book && item.review;
+        if (item.type === "checkin") return item.place;
+        return item.book; // started_reading
+      })
       .slice(0, limit) // Remove the extra item we fetched
       .map((item) => {
         const userData = item.user as unknown as ActivityFeedItemWithRelations["user"];
@@ -228,8 +237,17 @@ export async function getFollowingFeedPage(options: {
   }
 
   const items = (data || [])
-    // For check-ins, book is optional; for other types, book is required
-    .filter((item) => item.user && (item.type === "checkin" ? item.place : item.book))
+    // Filter requirements:
+    // - All types need a user
+    // - Reviews need book AND review data (prevents orphaned activity entries)
+    // - started_reading needs book
+    // - check-ins need place
+    .filter((item) => {
+      if (!item.user) return false;
+      if (item.type === "review") return item.book && item.review;
+      if (item.type === "checkin") return item.place;
+      return item.book; // started_reading
+    })
     .slice(0, limit)
     .map((item) => {
       const userData = item.user as unknown as ActivityFeedItemWithRelations["user"];

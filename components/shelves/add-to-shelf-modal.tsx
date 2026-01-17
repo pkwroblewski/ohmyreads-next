@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import {
   getUserShelves,
   getBookShelves,
+  getBookShelvesByBookId,
   updateBookShelves,
+  updateBookShelvesByBookId,
   createShelf,
 } from "@/lib/actions/shelves";
 import { toast } from "sonner";
@@ -16,7 +18,8 @@ import type { UserShelfWithCount } from "@/types/database";
 interface AddToShelfModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  userBookId: string;
+  userBookId?: string;  // Optional - provide if book is already in user's library
+  bookId?: string;      // Optional - provide for direct book-to-shelf (auto-creates user_book)
   bookTitle: string;
 }
 
@@ -24,6 +27,7 @@ export function AddToShelfModal({
   open,
   onOpenChange,
   userBookId,
+  bookId,
   bookTitle,
 }: AddToShelfModalProps) {
   const [shelves, setShelves] = useState<UserShelfWithCount[]>([]);
@@ -35,12 +39,36 @@ export function AddToShelfModal({
   const [isCreating, setIsCreating] = useState(false);
   const [newShelfName, setNewShelfName] = useState("");
   const [isCreatingShelf, startCreatingShelf] = useTransition();
+  // Track userBookId internally (may be set when bookId is used)
+  const [resolvedUserBookId, setResolvedUserBookId] = useState<string | undefined>(userBookId);
+
+  // Update resolvedUserBookId when prop changes
+  useEffect(() => {
+    setResolvedUserBookId(userBookId);
+  }, [userBookId]);
 
   // Load shelves and current assignments
   useEffect(() => {
     if (open) {
       setIsLoading(true);
-      Promise.all([getUserShelves(), getBookShelves(userBookId)])
+
+      // Determine how to fetch shelf assignments
+      const fetchShelfAssignments = async () => {
+        if (userBookId) {
+          // Book is already in user's library
+          return getBookShelves(userBookId);
+        } else if (bookId) {
+          // Book may or may not be in user's library
+          const result = await getBookShelvesByBookId(bookId);
+          if (result.userBookId) {
+            setResolvedUserBookId(result.userBookId);
+          }
+          return result;
+        }
+        return { shelfIds: [] };
+      };
+
+      Promise.all([getUserShelves(), fetchShelfAssignments()])
         .then(([shelvesResult, bookShelvesResult]) => {
           if (shelvesResult.shelves) {
             setShelves(shelvesResult.shelves);
@@ -51,7 +79,7 @@ export function AddToShelfModal({
         })
         .finally(() => setIsLoading(false));
     }
-  }, [open, userBookId]);
+  }, [open, userBookId, bookId]);
 
   const toggleShelf = (shelfId: string) => {
     setSelectedShelfIds((prev) => {
@@ -67,10 +95,28 @@ export function AddToShelfModal({
 
   const handleSave = () => {
     startSaving(async () => {
-      const result = await updateBookShelves({
-        userBookId,
-        shelfIds: Array.from(selectedShelfIds),
-      });
+      let result;
+
+      if (resolvedUserBookId) {
+        // Book is already in user's library - use standard update
+        result = await updateBookShelves({
+          userBookId: resolvedUserBookId,
+          shelfIds: Array.from(selectedShelfIds),
+        });
+      } else if (bookId) {
+        // Book not in library yet - use bookId-based update (auto-creates user_book)
+        result = await updateBookShelvesByBookId({
+          bookId,
+          shelfIds: Array.from(selectedShelfIds),
+        });
+        // Update resolved userBookId for future operations
+        if (result.userBookId) {
+          setResolvedUserBookId(result.userBookId);
+        }
+      } else {
+        toast.error("No book specified");
+        return;
+      }
 
       if (result.error) {
         toast.error(result.error);

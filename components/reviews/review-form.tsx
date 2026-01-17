@@ -14,6 +14,7 @@ interface ReviewFormProps {
   bookTitle: string;
   existingReview?: Review;
   onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
 export function ReviewForm({
@@ -21,6 +22,7 @@ export function ReviewForm({
   bookTitle,
   existingReview,
   onSuccess,
+  onCancel,
 }: ReviewFormProps) {
   const [rating, setRating] = useState(existingReview?.rating || 0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -439,7 +441,17 @@ export function ReviewForm({
       )}
 
       {/* Submit Button */}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
+        {onCancel && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+        )}
         <Button
           type="submit"
           disabled={!canSubmit || isSubmitting}

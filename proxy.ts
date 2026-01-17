@@ -2,7 +2,21 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Routes that require authentication
-const protectedRoutes = ["/dashboard", "/my-shelf", "/profile", "/settings", "/stats", "/onboarding"];
+const protectedRoutes = [
+  "/dashboard",
+  "/my-shelf",
+  "/profile",
+  "/settings",
+  "/stats",
+  "/onboarding",
+  "/challenges",
+  "/import",
+  "/submit-book",
+  "/my-submissions",
+];
+
+// Routes that require admin role
+const adminRoutes = ["/admin"];
 
 // Routes only accessible to non-authenticated users
 const authRoutes = ["/login", "/signup"];
@@ -71,6 +85,11 @@ export async function proxy(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
+  // Check if the current route is an admin route
+  const isAdminRoute = adminRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+
   // Check if the current route is an auth route (login/signup)
   const isAuthRoute = authRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
@@ -81,6 +100,33 @@ export async function proxy(request: NextRequest) {
     const redirectUrl = new URL("/login", request.url);
     redirectUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // If user is not authenticated and trying to access an admin route
+  if (!user && isAdminRoute) {
+    const redirectUrl = new URL("/login", request.url);
+    redirectUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // If user is authenticated but trying to access admin route, check role
+  if (user && isAdminRoute) {
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.is_admin) {
+        // Non-admin trying to access admin route - redirect to dashboard
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+      // Fail closed - redirect to dashboard if we can't verify admin status
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   // If user is authenticated and trying to access login/signup

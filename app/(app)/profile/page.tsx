@@ -200,6 +200,8 @@ export default async function ProfilePage() {
                       author: userBook.book.author,
                       slug: userBook.book.slug,
                       cover_url: userBook.book.cover_url,
+                      google_books_id: userBook.book.google_books_id,
+                      isbn: userBook.book.isbn,
                       average_rating: null,
                     }}
                     size="sm"

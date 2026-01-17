@@ -21,6 +21,7 @@ import { RatingDisplay } from "@/components/ui/rating-display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReviewForm } from "@/components/reviews/review-form";
 import { ReviewCard } from "@/components/reviews/review-card";
+import { UserReviewCard } from "@/components/reviews/user-review-card";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -308,6 +309,7 @@ export default async function BookPage({ params }: Props) {
               {user ? (
                 <AddToShelfButton
                   bookId={book.id}
+                  bookTitle={book.title}
                   currentStatus={userBookStatus?.status}
                 />
               ) : (
@@ -372,13 +374,11 @@ export default async function BookPage({ params }: Props) {
           {user && hasReviewed && userExistingReview && (
             <div className="mb-8">
               <p className="text-sm text-muted-foreground mb-3">Your review:</p>
-              <ReviewCard
-                review={{
-                  ...userExistingReview,
-                  profile: undefined,
-                }}
-                currentUserId={user.id}
-                isAuthenticated={true}
+              <UserReviewCard
+                review={userExistingReview}
+                userId={user.id}
+                bookId={book.id}
+                bookTitle={book.title}
               />
             </div>
           )}

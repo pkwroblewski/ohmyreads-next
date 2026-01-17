@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Star, TrendingUp, Bookmark, Sparkles } from "lucide-react";
+import { Star, TrendingUp, Bookmark, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "@/components/books/cover-image";
 import type { Book } from "@/types/database";
@@ -89,12 +89,12 @@ export function TrendingNowList({
         ))}
       </div>
 
-      {/* AI Badge */}
+      {/* Community Badge */}
       {insights.size > 0 && (
         <div className="mt-3 pt-2 border-t border-border/50">
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
-            AI-generated insights
+            <MessageCircle className="w-3 h-3" />
+            What readers are saying
           </p>
         </div>
       )}
