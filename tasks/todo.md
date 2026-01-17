@@ -501,3 +501,59 @@ app/(public)/community/map/page.tsx        # Button relocation
 
 ### Required
 - `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` - Already configured, needed for 3D map
+
+---
+
+## Security Audit Fixes (January 2026) ✅ CODE COMPLETE
+
+### Overview
+Addressed critical and high severity security issues from GPT 5.2 Codex audit.
+
+### Status
+
+| Issue | Severity | Status |
+|-------|----------|--------|
+| RLS self-approval bypass | CRITICAL | ⚠️ **Needs DB migration** |
+| Open book inserts | HIGH | ⚠️ **Needs DB migration** |
+| Webhook fail-open | HIGH | ✅ Already fixed |
+| Location data leak | HIGH | ✅ Already fixed |
+
+### Code Changes Made
+
+**File: `lib/actions/book-submissions.ts`**
+- Updated `moderateSubmission` to use atomic `approve_book_submission` RPC
+- Replaces two separate DB calls with a single transaction
+- Prevents race conditions and partial approval states
+
+### Database Migration Required
+
+**Run migration `019_audit_security_fixes.sql` in Supabase Dashboard → SQL Editor**
+
+This migration:
+1. Fixes `book_submissions` RLS - adds `WITH CHECK (status = 'pending')`
+2. Restricts `books` INSERT to admins only
+3. Creates `recalculate_book_rating` RPC (performance)
+4. Creates `approve_book_submission` RPC (atomicity)
+
+### Verification After Migration
+
+Run in SQL Editor to confirm:
+
+```sql
+-- Should show has_with_check = true
+SELECT policyname, with_check IS NOT NULL as has_with_check
+FROM pg_policies
+WHERE tablename = 'book_submissions'
+  AND policyname = 'Users can update their pending submissions';
+
+-- Should show "Admins can insert books"
+SELECT policyname
+FROM pg_policies
+WHERE tablename = 'books'
+  AND cmd = 'INSERT';
+```
+
+### No Changes Needed (Already Secure)
+- `app/api/webhooks/supabase/route.ts` - Fails closed, uses admin client
+- `lib/actions/location.ts` - Clears location data when disabled
+- `lib/actions/reviews.ts` - Uses `recalculate_book_rating` RPC

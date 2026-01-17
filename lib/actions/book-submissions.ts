@@ -481,49 +481,26 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
       return { success: true, action: "rejected" };
     }
 
-    // Approve: Create the book and update submission
-    const { data: book, error: bookError } = await supabase
+    // Approve: Create the book and update submission atomically via RPC
+    const { data: bookId, error: approveError } = await supabase.rpc(
+      "approve_book_submission",
+      {
+        p_submission_id: submissionId,
+        p_moderator_id: user.id,
+      }
+    );
+
+    if (approveError) {
+      console.error("Error approving submission:", approveError);
+      return { error: "Failed to approve submission" };
+    }
+
+    // Get the created book's slug for revalidation
+    const { data: book } = await supabase
       .from("books")
-      .insert({
-        title: submission.title,
-        author: submission.author,
-        slug: submission.slug,
-        description: submission.description,
-        cover_url: submission.cover_url,
-        isbn: submission.isbn,
-        genres: submission.genres,
-        published_date: submission.published_date,
-        page_count: submission.page_count,
-        // External IDs for better cover resolution
-        google_books_id: submission.google_books_id || null,
-        open_library_id: submission.open_library_id || null,
-        open_library_cover_id: submission.open_library_cover_id || null,
-        cover_source: submission.cover_source || null,
-      })
-      .select()
+      .select("slug")
+      .eq("id", bookId)
       .single();
-
-    if (bookError) {
-      console.error("Error creating book:", bookError);
-      return { error: "Failed to create book from submission" };
-    }
-
-    // Update submission status
-    const { error: updateError } = await supabase
-      .from("book_submissions")
-      .update({
-        status: "approved",
-        moderated_by: user.id,
-        moderated_at: new Date().toISOString(),
-        book_id: book.id,
-      })
-      .eq("id", submissionId);
-
-    if (updateError) {
-      console.error("Error updating submission:", updateError);
-      // Book was created, but submission wasn't updated - log this
-      return { success: true, action: "approved", bookId: book.id };
-    }
 
     // Audit log
     await createAuditLog({
@@ -534,17 +511,19 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
       metadata: {
         bookTitle: submission.title,
         bookAuthor: submission.author,
-        bookId: book.id,
-        bookSlug: book.slug,
+        bookId: bookId,
+        bookSlug: book?.slug,
         submittedBy: submission.submitted_by,
       },
     });
 
     revalidatePath("/admin/submissions");
     revalidatePath("/books");
-    revalidatePath(`/books/${book.slug}`);
+    if (book?.slug) {
+      revalidatePath(`/books/${book.slug}`);
+    }
 
-    return { success: true, action: "approved", bookId: book.id };
+    return { success: true, action: "approved", bookId: bookId };
   } catch (error) {
     console.error("Error in moderateSubmission:", error);
     return { error: "An unexpected error occurred" };
