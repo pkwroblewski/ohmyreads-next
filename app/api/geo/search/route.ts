@@ -80,8 +80,7 @@ export async function GET(request: NextRequest) {
     nominatimUrl.searchParams.set("format", "json");
     nominatimUrl.searchParams.set("addressdetails", "1");
     nominatimUrl.searchParams.set("limit", "5");
-    // Focus on cities/places, not streets
-    nominatimUrl.searchParams.set("featuretype", "city");
+    // Include POIs like cafes, bookstores (removed featuretype=city restriction)
 
     const response = await fetch(nominatimUrl.toString(), {
       headers: {

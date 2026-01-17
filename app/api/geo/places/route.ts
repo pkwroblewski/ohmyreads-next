@@ -5,8 +5,8 @@ import { getNearbyPlaces, getCachedPlaces, type CachedPlaceData } from "@/lib/qu
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Valid place types for filtering
-const VALID_TYPES = ["bookstore", "library", "cafe", "bookclub", "popup", "other"];
-const OSM_TYPES = ["bookstore", "library", "cafe"];
+const VALID_TYPES = ["bookstore", "library", "cafe", "restaurant", "bookclub", "popup", "other"];
+const OSM_TYPES = ["bookstore", "library", "cafe", "restaurant"];
 
 // Simple in-memory rate limiter for Overpass API
 // Overpass allows ~2 requests per second for anonymous users
@@ -20,6 +20,22 @@ async function waitForOverpassSlot(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, OVERPASS_MIN_INTERVAL - elapsed));
   }
   lastOverpassRequest = Date.now();
+}
+
+/**
+ * Calculate distance between two points using Haversine formula
+ * Returns distance in kilometers
+ */
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 /**
@@ -62,7 +78,8 @@ export async function GET(request: NextRequest) {
     : VALID_TYPES;
 
   const osmTypesToFetch = requestedTypes.filter((t) => OSM_TYPES.includes(t));
-  const searchPrefix = geohash.slice(0, 4); // ~20km area
+  // Use the geohash as-is for precision (4 chars = ~20km, 5 = ~5km, 6 = ~1.2km)
+  const searchPrefix = geohash;
 
   try {
     // Fetch community places from our DB
@@ -149,69 +166,89 @@ async function fetchFromOverpass(
   await waitForOverpassSlot();
 
   // Decode geohash to get bounding box
-  const { lat, lng, latErr, lngErr } = decodeGeohash(geohash);
+  const { lat: centerLat, lng: centerLng, latErr, lngErr } = decodeGeohash(geohash);
 
-  // Create a bounding box (south, west, north, east)
+  // Create a bounding box - use 1.5x error for slight overlap, not 3x
   const bbox = {
-    south: lat - latErr * 3,
-    west: lng - lngErr * 3,
-    north: lat + latErr * 3,
-    east: lng + lngErr * 3,
+    south: centerLat - latErr * 1.5,
+    west: centerLng - lngErr * 1.5,
+    north: centerLat + latErr * 1.5,
+    east: centerLng + lngErr * 1.5,
   };
 
   // Map our types to OSM tags
   const osmQuery = getOsmQuery(placeType, bbox);
 
-  try {
-    // Add timeout for external API call
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+  // Overpass API servers (try in order if one fails)
+  const OVERPASS_SERVERS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter",
+  ];
 
-    const response = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: `data=${encodeURIComponent(osmQuery)}`,
-      signal: controller.signal,
-    });
+  let data = null;
 
-    clearTimeout(timeout);
+  for (const serverUrl of OVERPASS_SERVERS) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout per server
 
-    if (!response.ok) {
-      console.error(`Overpass API error: ${response.status}`);
-      return [];
-    }
-
-    const data = await response.json();
-    
-    // Parse Overpass response
-    const places: CachedPlaceData[] = [];
-    
-    for (const element of data.elements || []) {
-      if (!element.tags?.name) continue;
-      
-      const lat = element.lat || element.center?.lat;
-      const lng = element.lon || element.center?.lon;
-      
-      if (!lat || !lng) continue;
-
-      places.push({
-        osm_id: element.id,
-        name: element.tags.name,
-        type: placeType,
-        lat,
-        lng,
-        address: formatOsmAddress(element.tags),
-        tags: element.tags,
+      const response = await fetch(serverUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `data=${encodeURIComponent(osmQuery)}`,
+        signal: controller.signal,
       });
-    }
 
-    return places;
-  } catch (error) {
-    console.error("Overpass fetch error:", error);
+      clearTimeout(timeout);
+
+      if (response.ok) {
+        data = await response.json();
+        break; // Success, exit loop
+      }
+      console.error(`Overpass API error from ${serverUrl}: ${response.status}`);
+    } catch (error) {
+      console.error(`Overpass fetch error from ${serverUrl}:`, error);
+    }
+  }
+
+  if (!data) {
+    console.error("All Overpass servers failed");
     return [];
   }
+
+  // Parse Overpass response
+  const places: CachedPlaceData[] = [];
+
+  for (const element of data.elements || []) {
+    if (!element.tags?.name) continue;
+
+    const lat = element.lat || element.center?.lat;
+    const lng = element.lon || element.center?.lon;
+
+    if (!lat || !lng) continue;
+
+    places.push({
+      osm_id: element.id,
+      name: element.tags.name,
+      type: placeType,
+      lat,
+      lng,
+      address: formatOsmAddress(element.tags),
+      tags: element.tags,
+    });
+  }
+
+  // Sort by distance from center (closest first)
+  places.sort((a, b) => {
+    const distA = haversineDistance(centerLat, centerLng, a.lat, a.lng);
+    const distB = haversineDistance(centerLat, centerLng, b.lat, b.lng);
+    return distA - distB;
+  });
+
+  return places;
 }
 
 /**
@@ -232,20 +269,22 @@ function getOsmQuery(
       tagQuery = '["amenity"="library"]';
       break;
     case "cafe":
-      // Look for cafes that mention books/reading in name or are marked as book cafes
       tagQuery = '["amenity"="cafe"]';
+      break;
+    case "restaurant":
+      tagQuery = '["amenity"="restaurant"]';
       break;
     default:
       return "";
   }
 
   return `
-    [out:json][timeout:10];
+    [out:json][timeout:15];
     (
       node${tagQuery}(${bboxStr});
       way${tagQuery}(${bboxStr});
     );
-    out center tags 50;
+    out center tags 200;
   `;
 }
 

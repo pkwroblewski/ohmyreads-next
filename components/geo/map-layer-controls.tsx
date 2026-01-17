@@ -1,13 +1,14 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Users, BookMarked, Landmark, Coffee } from "lucide-react";
+import { Users, BookMarked, Landmark, Coffee, UtensilsCrossed } from "lucide-react";
 
 interface LayerState {
   readers: boolean;
   bookstores: boolean;
   libraries: boolean;
   cafes: boolean;
+  restaurants: boolean;
 }
 
 interface LayerCounts {
@@ -15,6 +16,7 @@ interface LayerCounts {
   bookstores?: number;
   libraries?: number;
   cafes?: number;
+  restaurants?: number;
 }
 
 interface MapLayerControlsProps {
@@ -52,6 +54,13 @@ const layerConfig = [
     icon: Coffee,
     activeColor: "text-orange-600 dark:text-orange-400",
     activeBg: "bg-orange-500/20",
+  },
+  {
+    key: "restaurants" as const,
+    label: "Restaurants",
+    icon: UtensilsCrossed,
+    activeColor: "text-pink-600 dark:text-pink-400",
+    activeBg: "bg-pink-500/20",
   },
 ];
 

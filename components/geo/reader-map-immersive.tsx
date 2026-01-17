@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useTheme } from "next-themes";
@@ -68,6 +68,8 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
   const [searchResults, setSearchResults] = useState<Array<{ place_name: string; center: [number, number] }>>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  // Highlighted place from search (to show with distinctive marker)
+  const [highlightedPlace, setHighlightedPlace] = useState<{ lat: number; lng: number; name: string } | null>(null);
 
   // Layer visibility state
   const [layers, setLayers] = useState({
@@ -75,7 +77,37 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     bookstores: true,
     libraries: true,
     cafes: false,
+    restaurants: false,
   });
+
+  // Ref to always have latest layers for callbacks
+  const layersRef = useRef(layers);
+  useEffect(() => {
+    layersRef.current = layers;
+  }, [layers]);
+
+  // Track previous layers to detect when a layer is turned ON
+  const prevLayersRef = useRef(layers);
+  useEffect(() => {
+    // Check if any layer was turned ON (false -> true)
+    const layerTurnedOn =
+      (!prevLayersRef.current.bookstores && layers.bookstores) ||
+      (!prevLayersRef.current.libraries && layers.libraries) ||
+      (!prevLayersRef.current.cafes && layers.cafes) ||
+      (!prevLayersRef.current.restaurants && layers.restaurants);
+
+    // If a layer was turned on and map exists, refetch data
+    if (layerTurnedOn && map.current) {
+      const center = map.current.getCenter();
+      const zoom = map.current.getZoom();
+      // Update layersRef immediately before fetch
+      layersRef.current = layers;
+      fetchDataForLocation(center.lat, center.lng, zoom);
+    }
+
+    prevLayersRef.current = layers;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layers]);
 
   // Isochrone state
   const [isochroneData, setIsochroneData] = useState<{
@@ -85,18 +117,31 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     profile: "walking" | "cycling" | "driving";
   } | null>(null);
 
+  // Calculate geohash precision based on zoom level
+  // Higher zoom = more precise geohash = smaller area
+  const getGeohashPrecision = (zoom: number): number => {
+    if (zoom >= 15) return 6;      // ~1.2km - neighborhood
+    if (zoom >= 12) return 5;      // ~5km - city
+    return 4;                       // ~20km - regional
+  };
+
   // Fetch data for a location
-  const fetchDataForLocation = async (lat: number, lng: number) => {
-    const geohash = encodeGeohash(lat, lng, 4);
+  const fetchDataForLocation = async (lat: number, lng: number, zoom?: number) => {
+    const precision = zoom ? getGeohashPrecision(zoom) : 4;
+    const geohash = encodeGeohash(lat, lng, precision);
+
+    // Use ref to get latest layer state (avoids stale closures)
+    const currentLayers = layersRef.current;
 
     const types: string[] = [];
-    if (layers.bookstores) types.push("bookstore");
-    if (layers.libraries) types.push("library");
-    if (layers.cafes) types.push("cafe");
+    if (currentLayers.bookstores) types.push("bookstore");
+    if (currentLayers.libraries) types.push("library");
+    if (currentLayers.cafes) types.push("cafe");
+    if (currentLayers.restaurants) types.push("restaurant");
 
     try {
       const [readersRes, placesRes] = await Promise.all([
-        layers.readers
+        currentLayers.readers
           ? fetch(`/api/geo/readers?geohash=${geohash}`)
           : Promise.resolve(null),
         types.length > 0
@@ -164,6 +209,18 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
       "bottom-left"
     );
 
+    // Suppress Mapbox tile loading errors (403s, network errors, etc.)
+    map.current.on("error", (e) => {
+      // Silently ignore tile/resource loading errors to prevent console spam
+      if (e.error?.status === 403 || e.error?.message?.includes("403")) {
+        return; // Token permission issue - ignore silently
+      }
+      // Only log non-tile errors in development
+      if (process.env.NODE_ENV === "development" && !e.sourceId?.includes("tile")) {
+        console.warn("Map error:", e.error?.message || e);
+      }
+    });
+
     map.current.on("load", () => {
       setIsLoading(false);
 
@@ -191,7 +248,8 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     map.current.on("moveend", () => {
       if (map.current) {
         const center = map.current.getCenter();
-        fetchDataForLocation(center.lat, center.lng);
+        const zoom = map.current.getZoom();
+        fetchDataForLocation(center.lat, center.lng, zoom);
       }
     });
 
@@ -210,12 +268,12 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
             essential: true,
           });
           setUserLocation({ lat: data.latitude, lng: data.longitude });
-          fetchDataForLocation(data.latitude, data.longitude);
+          fetchDataForLocation(data.latitude, data.longitude, 11);
         } else {
-          fetchDataForLocation(40.7128, -74.006);
+          fetchDataForLocation(40.7128, -74.006, 11);
         }
       } catch {
-        fetchDataForLocation(40.7128, -74.006);
+        fetchDataForLocation(40.7128, -74.006, 11);
       }
     };
 
@@ -232,7 +290,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
             duration: 2000,
             essential: true,
           });
-          fetchDataForLocation(latitude, longitude);
+          fetchDataForLocation(latitude, longitude, 13);
         },
         () => {
           getIPLocation();
@@ -310,27 +368,45 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
       if (place.type === "bookstore" && !layers.bookstores) return;
       if (place.type === "library" && !layers.libraries) return;
       if (place.type === "cafe" && !layers.cafes) return;
+      if (place.type === "restaurant" && !layers.restaurants) return;
+
+      // Check if this is the highlighted/searched place
+      const isHighlighted = highlightedPlace &&
+        Math.abs(place.lat - highlightedPlace.lat) < 0.0001 &&
+        Math.abs(place.lng - highlightedPlace.lng) < 0.0001;
 
       const el = document.createElement("div");
       el.className = "place-marker";
 
-      const bgColor =
-        place.type === "bookstore"
+      // Use glowing red for highlighted place, otherwise normal colors
+      const bgColor = isHighlighted
+        ? "bg-red-500"
+        : place.type === "bookstore"
           ? "bg-amber-500"
           : place.type === "library"
             ? "bg-sky-500"
-            : "bg-orange-400";
+            : place.type === "restaurant"
+              ? "bg-pink-500"
+              : "bg-orange-400"; // cafe
 
-      // Bookstore: Open book icon, Library: Landmark/building with columns, Cafe: Coffee cup
+      // Icons: Bookstore=book, Library=columns, Cafe=coffee, Restaurant=utensils
       const icon =
         place.type === "bookstore"
           ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>'
           : place.type === "library"
             ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>'
-            : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>';
+            : place.type === "restaurant"
+              ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>'
+              : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>';
+
+      // Highlighted marker has glow effect and is larger
+      const markerSize = isHighlighted ? "w-12 h-12" : "w-9 h-9";
+      const glowStyle = isHighlighted
+        ? "box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.6), 0 0 40px 16px rgba(239, 68, 68, 0.3); animation: pulse 1.5s ease-in-out infinite;"
+        : "";
 
       el.innerHTML = `
-        <div class="w-9 h-9 rounded-full ${bgColor} flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white">
+        <div class="${markerSize} rounded-full ${bgColor} flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 ${isHighlighted ? 'border-yellow-300' : 'border-white'}" style="${glowStyle}">
           ${icon}
         </div>
       `;
@@ -341,7 +417,32 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
         .addTo(map.current!);
       markers.current.push(marker);
     });
-  }, [readers, places, layers]);
+
+    // Add highlighted place marker even if no matching place found in data
+    // (in case the searched place isn't in our OSM data yet)
+    if (highlightedPlace) {
+      const hasMatchingPlace = allPlaces.some(place =>
+        place.lat && place.lng &&
+        Math.abs(place.lat - highlightedPlace.lat) < 0.0001 &&
+        Math.abs(place.lng - highlightedPlace.lng) < 0.0001
+      );
+
+      if (!hasMatchingPlace) {
+        const el = document.createElement("div");
+        el.className = "highlighted-marker";
+        el.innerHTML = `
+          <div class="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-yellow-300" style="box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.6), 0 0 40px 16px rgba(239, 68, 68, 0.3); animation: pulse 1.5s ease-in-out infinite;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+        `;
+
+        const marker = new mapboxgl.Marker({ element: el })
+          .setLngLat([highlightedPlace.lng, highlightedPlace.lat])
+          .addTo(map.current!);
+        markers.current.push(marker);
+      }
+    }
+  }, [readers, places, layers, highlightedPlace]);
 
   // Center on user location with smooth 3D animation
   const handleCenterOnUser = () => {
@@ -362,64 +463,110 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
   };
 
-  // Search for places using Mapbox Geocoding
-  const handleSearch = async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
+  // Debounce timer ref and search query tracking
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSearchQueryRef = useRef<string>("");
+
+  // Search for places using our API (proxies Nominatim for better POI coverage)
+  const handleSearch = useCallback((query: string) => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
 
-    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-    if (!mapboxToken) {
-      setIsSearching(true);
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
-        );
-        const data = await res.json();
-        setSearchResults(
-          data.map((item: { display_name: string; lon: string; lat: string }) => ({
-            place_name: item.display_name,
-            center: [parseFloat(item.lon), parseFloat(item.lat)] as [number, number],
-          }))
-        );
-      } catch (error) {
-        console.error("Search error:", error);
-      }
+    const trimmedQuery = query.trim();
+    lastSearchQueryRef.current = trimmedQuery;
+
+    if (!trimmedQuery || trimmedQuery.length < 2) {
+      setSearchResults([]);
       setIsSearching(false);
       return;
     }
 
     setIsSearching(true);
-    try {
-      const res = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${mapboxToken}&limit=5&types=place,locality,neighborhood`
-      );
-      const data = await res.json();
-      setSearchResults(
-        data.features?.map((f: { place_name: string; center: [number, number] }) => ({
-          place_name: f.place_name,
-          center: f.center,
-        })) || []
-      );
-    } catch (error) {
-      console.error("Search error:", error);
-    }
-    setIsSearching(false);
-  };
+    // Don't clear results immediately - keep showing previous results while loading
+
+    // Debounce: wait 250ms after user stops typing
+    searchTimeoutRef.current = setTimeout(async () => {
+      // Only update if this is still the current query (prevents race conditions)
+      if (lastSearchQueryRef.current !== trimmedQuery) return;
+
+      try {
+        const res = await fetch(`/api/geo/search?q=${encodeURIComponent(trimmedQuery)}`);
+        const data = await res.json();
+
+        // Double-check query hasn't changed while fetching
+        if (lastSearchQueryRef.current !== trimmedQuery) return;
+
+        setSearchResults(
+          (data.results || []).map((item: { label: string; lng: number; lat: number }) => ({
+            place_name: item.label,
+            center: [item.lng, item.lat] as [number, number],
+          }))
+        );
+      } catch (error) {
+        console.error("Search error:", error);
+        // Only clear on error if query hasn't changed
+        if (lastSearchQueryRef.current === trimmedQuery) {
+          setSearchResults([]);
+        }
+      }
+      if (lastSearchQueryRef.current === trimmedQuery) {
+        setIsSearching(false);
+      }
+    }, 250);
+  }, []);
 
   // Handle search result selection with smooth 3D animation
-  const handleSelectPlace = (center: [number, number], placeName: string) => {
+  const handleSelectPlace = async (center: [number, number], placeName: string) => {
+    // Set the highlighted place IMMEDIATELY for instant feedback
+    setHighlightedPlace({
+      lat: center[1],
+      lng: center[0],
+      name: placeName.split(",")[0],
+    });
+
     if (map.current) {
+      // Fast flyTo for instant response
       map.current.flyTo({
         center,
-        zoom: 13,
+        zoom: 16, // Higher zoom to see the specific place clearly
         pitch: 50,
         bearing: -15,
-        duration: 2500,
+        duration: 1200, // Faster animation
         essential: true,
       });
-      fetchDataForLocation(center[1], center[0]);
+
+      // Enable all place layers so the searched result is visible
+      setLayers(prev => ({
+        ...prev,
+        bookstores: true,
+        libraries: true,
+        cafes: true,
+        restaurants: true,
+      }));
+
+      // Update the ref immediately for the fetch
+      layersRef.current = {
+        ...layersRef.current,
+        bookstores: true,
+        libraries: true,
+        cafes: true,
+        restaurants: true,
+      };
+
+      // Fetch all place types for the searched location
+      const geohash = encodeGeohash(center[1], center[0], 6); // High precision
+      try {
+        const placesRes = await fetch(`/api/geo/places?geohash=${geohash}&types=bookstore,library,cafe,restaurant`);
+        const placesData = await placesRes.json();
+        setPlaces({
+          community: placesData.community || [],
+          osm: placesData.osm || [],
+        });
+      } catch (error) {
+        console.error("Error fetching places:", error);
+      }
     }
     setSearchQuery(placeName.split(",")[0]);
     setSearchResults([]);
@@ -430,10 +577,11 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
   useEffect(() => {
     if (map.current && !isLoading) {
       const center = map.current.getCenter();
-      fetchDataForLocation(center.lat, center.lng);
+      const zoom = map.current.getZoom();
+      fetchDataForLocation(center.lat, center.lng, zoom);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers.readers, layers.bookstores, layers.libraries, layers.cafes]);
+  }, [layers.readers, layers.bookstores, layers.libraries, layers.cafes, layers.restaurants]);
 
   // Update isochrone layer when data changes
   useEffect(() => {
@@ -520,10 +668,11 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
             <Input
               type="text"
-              placeholder="Search city or location..."
+              placeholder="Search cafe, bookstore, or city..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
+                setShowSearch(true); // Keep dropdown visible while typing
                 handleSearch(e.target.value);
               }}
               onFocus={() => setShowSearch(true)}
@@ -537,6 +686,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
                 onClick={() => {
                   setSearchQuery("");
                   setSearchResults([]);
+                  setHighlightedPlace(null); // Clear highlighted marker
                 }}
               >
                 <X className="h-4 w-4" />
@@ -588,6 +738,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
           bookstores: [...places.community, ...places.osm].filter(p => p.type === "bookstore").length,
           libraries: [...places.community, ...places.osm].filter(p => p.type === "library").length,
           cafes: [...places.community, ...places.osm].filter(p => p.type === "cafe").length,
+          restaurants: [...places.community, ...places.osm].filter(p => p.type === "restaurant").length,
         }}
         className="absolute top-[76px] left-1/2 -translate-x-1/2 z-10"
       />
