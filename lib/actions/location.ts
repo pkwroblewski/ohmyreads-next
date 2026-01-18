@@ -274,6 +274,9 @@ interface SetPresenceInput {
   type: PresenceType;
   durationHours?: number; // For temporary: 1, 2, or 4 hours
   note?: string; // Optional note (max 140 chars)
+  // Place info - when marking at a specific place
+  placeName?: string;
+  placeGeohash?: string; // Use place's location as user's location
 }
 
 /**
@@ -323,15 +326,25 @@ export async function setPresence(input: SetPresenceInput) {
       expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     }
 
+    // Build update data
+    const updateData: Record<string, unknown> = {
+      presence_type: input.type,
+      presence_expires_at: expiresAt,
+      presence_note: input.note?.slice(0, 140) || null,
+      location_updated_at: new Date().toISOString(),
+    };
+
+    // If place provided, set location to place's location
+    if (input.placeGeohash) {
+      updateData.location_geohash = input.placeGeohash;
+      updateData.location_label = input.placeName || null;
+      updateData.location_enabled = true; // Auto-enable when marking at place
+    }
+
     // Update profile
     const { error } = await supabase
       .from("profiles")
-      .update({
-        presence_type: input.type,
-        presence_expires_at: expiresAt,
-        presence_note: input.note?.slice(0, 140) || null,
-        location_updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", user.id);
 
     if (error) {
@@ -341,9 +354,9 @@ export async function setPresence(input: SetPresenceInput) {
 
     revalidatePath("/settings");
     revalidatePath("/profile");
-    revalidatePath("/geo");
+    revalidatePath("/community/map");
 
-    return { success: true, expiresAt };
+    return { success: true, expiresAt, placeName: input.placeName };
   } catch (error) {
     console.error("Error in setPresence:", error);
     return { error: "An unexpected error occurred" };
@@ -383,7 +396,7 @@ export async function clearPresence() {
 
     revalidatePath("/settings");
     revalidatePath("/profile");
-    revalidatePath("/geo");
+    revalidatePath("/community/map");
 
     return { success: true };
   } catch (error) {

@@ -2,6 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { MapItem, ReaderPin } from "./reader-map-immersive";
+import type { UserPresenceData } from "./map-context-panel";
 
 // Lazy load the heavy Mapbox component (~350KB)
 const ReaderMapImmersive = dynamic(
@@ -24,8 +26,35 @@ const ReaderMapImmersive = dynamic(
 
 interface ReaderMapLazyProps {
   currentUserId?: string;
+  onSelectionChange?: (item: MapItem | null) => void;
+  onReadersChange?: (readers: ReaderPin[]) => void;
+  onUserLocationChange?: (location: { lat: number; lng: number } | null) => void;
+  onFlyToLocation?: (callback: (lat: number, lng: number) => void) => void;
+  onRefreshData?: (callback: () => void) => void;
+  userPresence?: UserPresenceData | null;
+  onClearPresence?: () => void;
 }
 
-export function ReaderMapLazy({ currentUserId }: ReaderMapLazyProps) {
-  return <ReaderMapImmersive currentUserId={currentUserId} />;
+export function ReaderMapLazy({
+  currentUserId,
+  onSelectionChange,
+  onReadersChange,
+  onUserLocationChange,
+  onFlyToLocation,
+  onRefreshData,
+  userPresence,
+  onClearPresence,
+}: ReaderMapLazyProps) {
+  return (
+    <ReaderMapImmersive
+      currentUserId={currentUserId}
+      onSelectionChange={onSelectionChange}
+      onReadersChange={onReadersChange}
+      onUserLocationChange={onUserLocationChange}
+      onFlyToLocation={onFlyToLocation}
+      onRefreshData={onRefreshData}
+      userPresence={userPresence}
+      onClearPresence={onClearPresence}
+    />
+  );
 }

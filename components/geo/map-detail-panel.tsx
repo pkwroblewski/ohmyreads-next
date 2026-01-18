@@ -19,6 +19,8 @@ interface MapDetailPanelProps {
   item: MapItem | null;
   onClose: () => void;
   currentUserId?: string;
+  onMarkSpotAtPlace?: (place: PlacePin, presenceType: "temporary" | "recommended") => void;
+  onClearPresence?: () => void;
 }
 
 function isReader(item: MapItem): item is ReaderPin {
@@ -59,7 +61,7 @@ const placeConfig: Record<string, {
   },
 };
 
-export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelProps) {
+export function MapDetailPanel({ item, onClose, currentUserId, onMarkSpotAtPlace, onClearPresence }: MapDetailPanelProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   // Handle animation
@@ -191,9 +193,9 @@ export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelP
         {/* Content */}
         <div className="px-3 pb-3 overflow-y-auto max-h-[50vh] lg:max-h-[calc(100vh-12rem)]">
           {isReader(item) ? (
-            <ReaderContent reader={item} />
+            <ReaderContent reader={item} currentUserId={currentUserId} onClearPresence={onClearPresence} />
           ) : (
-            <PlaceContent place={item} currentUserId={currentUserId} />
+            <PlaceContent place={item} currentUserId={currentUserId} onMarkSpotAtPlace={onMarkSpotAtPlace} />
           )}
         </div>
       </div>
@@ -201,7 +203,14 @@ export function MapDetailPanel({ item, onClose, currentUserId }: MapDetailPanelP
   );
 }
 
-function ReaderContent({ reader }: { reader: ReaderPin }) {
+function ReaderContent({ reader, currentUserId, onClearPresence }: {
+  reader: ReaderPin;
+  currentUserId?: string;
+  onClearPresence?: () => void;
+}) {
+  // Check if this is the current user's marker
+  const isOwnMarker = currentUserId && reader.id === currentUserId;
+
   // Calculate time remaining for temporary presence
   const getTimeRemaining = () => {
     if (!reader.presenceExpiresAt) return null;
@@ -247,6 +256,14 @@ function ReaderContent({ reader }: { reader: ReaderPin }) {
         </div>
       )}
 
+      {/* Location label - show prominently for check-ins */}
+      {reader.locationLabel && presenceType !== "static" && (
+        <p className="text-sm text-muted-foreground">
+          {presenceType === "temporary" ? "Currently reading at " : "Recommends "}
+          <span className="font-medium text-foreground">{reader.locationLabel}</span>
+        </p>
+      )}
+
       {/* Presence note */}
       {reader.presenceNote && (
         <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
@@ -254,7 +271,8 @@ function ReaderContent({ reader }: { reader: ReaderPin }) {
         </div>
       )}
 
-      {reader.locationLabel && (
+      {/* Location label for static presence */}
+      {reader.locationLabel && presenceType === "static" && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4" />
           <span>{reader.locationLabel}</span>
@@ -262,14 +280,31 @@ function ReaderContent({ reader }: { reader: ReaderPin }) {
       )}
 
       <p className="text-sm text-muted-foreground">
-        {presenceType === "temporary"
-          ? "This reader is currently here and reading."
-          : presenceType === "recommended"
-            ? "This reader recommends this spot for reading."
-            : "This reader has opted in to share their approximate location to connect with fellow book lovers."}
+        {isOwnMarker
+          ? presenceType === "temporary"
+            ? "You're currently checked in here."
+            : presenceType === "recommended"
+              ? "You recommend this spot for reading."
+              : "Your approximate location is visible to fellow readers."
+          : presenceType === "temporary"
+            ? "This reader is currently here and reading."
+            : presenceType === "recommended"
+              ? "This reader recommends this spot for reading."
+              : "This reader has opted in to share their approximate location to connect with fellow book lovers."}
       </p>
 
-      {reader.username && (
+      {/* Check Out button for own marker with active presence */}
+      {isOwnMarker && presenceType !== "static" && onClearPresence && (
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={onClearPresence}
+        >
+          Check Out
+        </Button>
+      )}
+
+      {reader.username && !isOwnMarker && (
         <Link href={`/users/${reader.username}`}>
           <Button className="w-full">View Profile</Button>
         </Link>
@@ -288,7 +323,11 @@ interface PlaceEnrichment {
   googleMapsUrl?: string;
 }
 
-function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId?: string }) {
+function PlaceContent({ place, currentUserId, onMarkSpotAtPlace }: {
+  place: PlacePin;
+  currentUserId?: string;
+  onMarkSpotAtPlace?: (place: PlacePin, presenceType: "temporary" | "recommended") => void;
+}) {
   const [enrichment, setEnrichment] = useState<PlaceEnrichment | null>(null);
   const [isEnriching, setIsEnriching] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -413,6 +452,29 @@ function PlaceContent({ place, currentUserId }: { place: PlacePin; currentUserId
           )}
         </button>
       </div>
+
+      {/* Mark Presence Buttons */}
+      {currentUserId && onMarkSpotAtPlace && (
+        <div className="flex gap-2">
+          <Button
+            onClick={() => onMarkSpotAtPlace(place, "temporary")}
+            size="sm"
+            className="flex-1 bg-emerald-500 hover:bg-emerald-600"
+          >
+            <MapPinned className="h-4 w-4 mr-1.5" />
+            I&apos;m Here
+          </Button>
+          <Button
+            onClick={() => onMarkSpotAtPlace(place, "recommended")}
+            size="sm"
+            variant="outline"
+            className="flex-1"
+          >
+            <Star className="h-4 w-4 mr-1.5" />
+            Recommend
+          </Button>
+        </div>
+      )}
 
       {/* Directions Panel */}
       {showDirections && place.lat && place.lng && (

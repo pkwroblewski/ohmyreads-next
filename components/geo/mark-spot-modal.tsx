@@ -1,34 +1,69 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Star, X, Loader2 } from "lucide-react";
+import { Clock, Star, X, Loader2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { setPresence } from "@/lib/actions/location";
 import { cn } from "@/lib/utils";
+import { encodeGeohash } from "@/lib/utils/geohash";
+import { toast } from "sonner";
+
+export interface PlaceForMarkSpot {
+  name: string;
+  lat: number | null;
+  lng: number | null;
+  type?: string;
+}
 
 interface MarkSpotModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
   locationLabel?: string;
+  place?: PlaceForMarkSpot; // Optional place to mark at
+  defaultPresenceType?: "temporary" | "recommended"; // Pre-select a type
 }
 
-export function MarkSpotModal({ open, onClose, onSuccess, locationLabel }: MarkSpotModalProps) {
-  const [presenceType, setPresenceType] = useState<"temporary" | "recommended">("temporary");
+export function MarkSpotModal({
+  open,
+  onClose,
+  onSuccess,
+  locationLabel,
+  place,
+  defaultPresenceType,
+}: MarkSpotModalProps) {
+  const [presenceType, setPresenceType] = useState<"temporary" | "recommended">(
+    defaultPresenceType || "temporary"
+  );
   const [duration, setDuration] = useState<1 | 2 | 4>(2);
   const [note, setNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locationConsent, setLocationConsent] = useState(false);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
 
+    // Compute geohash from place coordinates if place is provided
+    let placeGeohash: string | undefined;
+    if (place) {
+      // Validate place has coordinates
+      if (place.lat === null || place.lat === undefined || place.lng === null || place.lng === undefined) {
+        setError("This place is missing coordinates. Please try a different location.");
+        setIsSubmitting(false);
+        return;
+      }
+      placeGeohash = encodeGeohash(place.lat, place.lng, 7); // Precision 7 = ~150m
+    }
+
     const result = await setPresence({
       type: presenceType,
       durationHours: presenceType === "temporary" ? duration : undefined,
       note: note.trim() || undefined,
+      placeName: place?.name,
+      placeGeohash,
     });
 
     setIsSubmitting(false);
@@ -38,12 +73,25 @@ export function MarkSpotModal({ open, onClose, onSuccess, locationLabel }: MarkS
       return;
     }
 
+    // Show success toast
+    const locationName = place?.name || "this spot";
+    if (presenceType === "temporary") {
+      toast.success(`You're at ${locationName}!`, {
+        description: `Your status will expire in ${duration} hour${duration > 1 ? "s" : ""}`,
+      });
+    } else {
+      toast.success(`Recommended ${locationName}!`, {
+        description: "Your recommendation will be visible for 7 days",
+      });
+    }
+
     onSuccess();
     onClose();
     // Reset form
-    setPresenceType("temporary");
+    setPresenceType(defaultPresenceType || "temporary");
     setDuration(2);
     setNote("");
+    setLocationConsent(false);
   };
 
   if (!open) return null;
@@ -57,10 +105,12 @@ export function MarkSpotModal({ open, onClose, onSuccess, locationLabel }: MarkS
       />
 
       {/* Dialog */}
-      <div className="relative bg-background rounded-lg shadow-xl w-full max-w-md mx-4 p-6 z-10">
+      <div className="relative bg-background rounded-lg shadow-xl w-full max-w-md mx-4 p-6 z-10 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">Mark this spot</h2>
+          <h2 className="text-lg font-semibold">
+            {place ? "Mark your spot" : "Mark this spot"}
+          </h2>
           <button
             onClick={onClose}
             className="p-1 rounded hover:bg-muted transition-colors"
@@ -69,10 +119,24 @@ export function MarkSpotModal({ open, onClose, onSuccess, locationLabel }: MarkS
           </button>
         </div>
 
-        {/* Description */}
-        <p className="text-sm text-muted-foreground mb-6">
-          {locationLabel || "Let other readers know about this location"}
-        </p>
+        {/* Place info or description */}
+        {place ? (
+          <div className="flex items-center gap-3 p-3 mb-6 rounded-xl bg-muted/50 border border-border/50">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <MapPin className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium truncate">{place.name}</p>
+              {place.type && (
+                <p className="text-xs text-muted-foreground capitalize">{place.type}</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground mb-6">
+            {locationLabel || "Let other readers know about this location"}
+          </p>
+        )}
 
         <div className="space-y-6">
           {/* Presence Type Selection */}
@@ -174,6 +238,28 @@ export function MarkSpotModal({ open, onClose, onSuccess, locationLabel }: MarkS
             </p>
           </div>
 
+          {/* Location Consent - Required when marking at a specific place */}
+          {place && (
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+              <input
+                type="checkbox"
+                id="location-consent"
+                checked={locationConsent}
+                onChange={(e) => setLocationConsent(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500 focus:ring-offset-0"
+              />
+              <label htmlFor="location-consent" className="text-sm cursor-pointer">
+                <p className="font-medium text-amber-800 dark:text-amber-200">
+                  Share your precise location
+                </p>
+                <p className="text-amber-700 dark:text-amber-300 text-xs mt-1">
+                  Other readers will see that you&apos;re at {place.name}.
+                  Your exact position (~150m) will be visible on the map.
+                </p>
+              </label>
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <p className="text-sm text-destructive">{error}</p>
@@ -191,7 +277,7 @@ export function MarkSpotModal({ open, onClose, onSuccess, locationLabel }: MarkS
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (place && !locationConsent)}
               className={cn(
                 "flex-1",
                 presenceType === "recommended"

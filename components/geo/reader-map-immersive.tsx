@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useTheme } from "next-themes";
-import { Loader2, Locate, Search, X, MapPin, Star, Clock } from "lucide-react";
+import { Loader2, Locate, Search, X, MapPin, Star, Clock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { MapDetailPanel } from "./map-detail-panel";
 import { IsochroneControls } from "./isochrone-controls";
 import { AIPlaceSearch } from "./ai-place-search";
 import { MarkSpotModal } from "./mark-spot-modal";
+import type { UserPresenceData } from "./map-context-panel";
 
 export type PresenceType = "static" | "temporary" | "recommended";
 
@@ -52,9 +53,29 @@ export type MapItem = ReaderPin | PlacePin;
 interface ReaderMapImmersiveProps {
   className?: string;
   currentUserId?: string;
+  // Callback props for state sync with parent
+  onSelectionChange?: (item: MapItem | null) => void;
+  onReadersChange?: (readers: ReaderPin[]) => void;
+  onUserLocationChange?: (location: { lat: number; lng: number } | null) => void;
+  onFlyToLocation?: (callback: (lat: number, lng: number) => void) => void;
+  // Callback to provide refresh function to parent
+  onRefreshData?: (callback: () => void) => void;
+  // User presence for check-out button
+  userPresence?: UserPresenceData | null;
+  onClearPresence?: () => void;
 }
 
-export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmersiveProps) {
+export function ReaderMapImmersive({
+  className,
+  currentUserId,
+  onSelectionChange,
+  onReadersChange,
+  onUserLocationChange,
+  onFlyToLocation,
+  onRefreshData,
+  userPresence,
+  onClearPresence,
+}: ReaderMapImmersiveProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
@@ -79,6 +100,8 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
 
   // Mark spot modal state
   const [showMarkSpotModal, setShowMarkSpotModal] = useState(false);
+  const [markSpotPlace, setMarkSpotPlace] = useState<PlacePin | null>(null);
+  const [markSpotDefaultType, setMarkSpotDefaultType] = useState<"temporary" | "recommended">("temporary");
 
   // Layer visibility state
   const [layers, setLayers] = useState({
@@ -126,6 +149,51 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     profile: "walking" | "cycling" | "driving";
   } | null>(null);
 
+  // Callbacks for state sync with parent
+  useEffect(() => {
+    onSelectionChange?.(selectedItem);
+  }, [selectedItem, onSelectionChange]);
+
+  useEffect(() => {
+    onReadersChange?.(readers);
+  }, [readers, onReadersChange]);
+
+  useEffect(() => {
+    onUserLocationChange?.(userLocation);
+  }, [userLocation, onUserLocationChange]);
+
+  // Provide flyToLocation callback to parent
+  useEffect(() => {
+    if (onFlyToLocation) {
+      onFlyToLocation((lat: number, lng: number) => {
+        if (map.current) {
+          map.current.flyTo({
+            center: [lng, lat],
+            zoom: 15,
+            pitch: 50,
+            bearing: 0,
+            duration: 1500,
+            essential: true,
+          });
+        }
+      });
+    }
+  }, [onFlyToLocation]);
+
+  // Provide refreshData callback to parent (for triggering refresh after marking a spot)
+  useEffect(() => {
+    if (onRefreshData) {
+      onRefreshData(() => {
+        if (map.current) {
+          const center = map.current.getCenter();
+          const zoom = map.current.getZoom();
+          fetchDataForLocation(center.lat, center.lng, zoom, true);
+        }
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onRefreshData]);
+
   // Calculate geohash precision based on zoom level
   // Higher zoom = more precise geohash = smaller area
   const getGeohashPrecision = (zoom: number): number => {
@@ -135,7 +203,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
   };
 
   // Fetch data for a location
-  const fetchDataForLocation = async (lat: number, lng: number, zoom?: number) => {
+  const fetchDataForLocation = async (lat: number, lng: number, zoom?: number, forceRefresh?: boolean) => {
     const precision = zoom ? getGeohashPrecision(zoom) : 4;
     const geohash = encodeGeohash(lat, lng, precision);
 
@@ -148,13 +216,16 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     if (currentLayers.cafes) types.push("cafe");
     if (currentLayers.restaurants) types.push("restaurant");
 
+    // Add cache-busting parameter when force refresh is needed (e.g., after marking a spot)
+    const cacheBuster = forceRefresh ? `&_t=${Date.now()}` : "";
+
     try {
       const [readersRes, placesRes] = await Promise.all([
         currentLayers.readers
-          ? fetch(`/api/geo/readers?geohash=${geohash}`)
+          ? fetch(`/api/geo/readers?geohash=${geohash}${cacheBuster}`)
           : Promise.resolve(null),
         types.length > 0
-          ? fetch(`/api/geo/places?geohash=${geohash}&types=${types.join(",")}`)
+          ? fetch(`/api/geo/places?geohash=${geohash}&types=${types.join(",")}${cacheBuster}`)
           : Promise.resolve(null),
       ]);
 
@@ -194,7 +265,7 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/standard",
-      center: [-74.006, 40.7128], // NYC default
+      center: [6.1319, 49.6116], // Luxembourg City default
       zoom: 11,
       pitch: 45, // 3D perspective
       bearing: -15, // Slight rotation for visual interest
@@ -263,10 +334,10 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
       }
     });
 
-    // Get user's location
+    // Get user's location from IP (server-side proxy to avoid CORS)
     const getIPLocation = async () => {
       try {
-        const res = await fetch("https://ipapi.co/json/");
+        const res = await fetch("/api/geo/ip-location");
         const data = await res.json();
         if (data.latitude && data.longitude) {
           map.current?.flyTo({
@@ -278,12 +349,30 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
             essential: true,
           });
           setUserLocation({ lat: data.latitude, lng: data.longitude });
-          fetchDataForLocation(data.latitude, data.longitude, 11);
+          fetchDataForLocation(data.latitude, data.longitude, 12);
         } else {
-          fetchDataForLocation(40.7128, -74.006, 11);
+          // Fallback to Luxembourg City
+          map.current?.flyTo({
+            center: [6.1319, 49.6116],
+            zoom: 12,
+            pitch: 50,
+            bearing: 0,
+            duration: 2000,
+            essential: true,
+          });
+          fetchDataForLocation(49.6116, 6.1319, 12);
         }
       } catch {
-        fetchDataForLocation(40.7128, -74.006, 11);
+        // Fallback to Luxembourg City
+        map.current?.flyTo({
+          center: [6.1319, 49.6116],
+          zoom: 12,
+          pitch: 50,
+          bearing: 0,
+          duration: 2000,
+          essential: true,
+        });
+        fetchDataForLocation(49.6116, 6.1319, 12);
       }
     };
 
@@ -524,7 +613,17 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
       if (lastSearchQueryRef.current !== trimmedQuery) return;
 
       try {
-        const res = await fetch(`/api/geo/search?q=${encodeURIComponent(trimmedQuery)}`);
+        // Build URL with optional location bias from current map bounds
+        let searchUrl = `/api/geo/search?q=${encodeURIComponent(trimmedQuery)}`;
+        if (map.current) {
+          const bounds = map.current.getBounds();
+          if (bounds) {
+            // viewbox format: west,north,east,south
+            const viewbox = `${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()},${bounds.getSouth()}`;
+            searchUrl += `&viewbox=${encodeURIComponent(viewbox)}`;
+          }
+        }
+        const res = await fetch(searchUrl);
         const data = await res.json();
 
         // Double-check query hasn't changed while fetching
@@ -567,6 +666,11 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
         bearing: -15,
         duration: 1200, // Faster animation
         essential: true,
+      });
+
+      // Clear highlighted place after animation completes (short delay for user to notice it)
+      map.current.once("moveend", () => {
+        setTimeout(() => setHighlightedPlace(null), 1500);
       });
 
       // Enable all place layers so the searched result is visible
@@ -614,6 +718,17 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layers.readers, layers.bookstores, layers.libraries, layers.cafes, layers.restaurants]);
+
+  // Handle mark spot at place
+  const handleMarkSpotAtPlace = useCallback((place: PlacePin, presenceType: "temporary" | "recommended") => {
+    if (!currentUserId) {
+      alert("Please sign in to mark your reading spot");
+      return;
+    }
+    setMarkSpotPlace(place);
+    setMarkSpotDefaultType(presenceType);
+    setShowMarkSpotModal(true);
+  }, [currentUserId]);
 
   // Update isochrone layer when data changes
   useEffect(() => {
@@ -816,32 +931,65 @@ export function ReaderMapImmersive({ className, currentUserId }: ReaderMapImmers
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
         currentUserId={currentUserId}
+        onMarkSpotAtPlace={handleMarkSpotAtPlace}
+        onClearPresence={onClearPresence}
       />
 
-      {/* Mark Spot Floating Action Button */}
-      {currentUserId && userLocation && (
+      {/* Mark Spot Button - Mobile only (desktop uses context panel) */}
+      {userLocation && (
         <Button
-          onClick={() => setShowMarkSpotModal(true)}
-          className="absolute bottom-24 right-4 z-10 lg:bottom-4 h-14 w-14 rounded-full shadow-lg bg-emerald-500 hover:bg-emerald-600 p-0"
+          onClick={() => {
+            if (!currentUserId) {
+              alert("Please sign in to mark your reading spot");
+              return;
+            }
+            setShowMarkSpotModal(true);
+          }}
+          className="absolute top-4 right-4 z-20 h-12 gap-2 rounded-full shadow-lg bg-emerald-500 hover:bg-emerald-600 text-white px-4 lg:hidden"
           title="Mark this spot"
         >
-          <MapPin className="w-6 h-6" />
+          <MapPin className="w-5 h-5" />
+          <span className="text-sm font-medium">I&apos;m Here</span>
+        </Button>
+      )}
+
+      {/* Check Out Button - Mobile only, when user has active presence */}
+      {userPresence && userPresence.type !== "static" && onClearPresence && (
+        <Button
+          onClick={onClearPresence}
+          variant="outline"
+          className="absolute top-20 right-4 z-20 h-10 gap-2 rounded-full shadow-lg bg-white/90 dark:bg-card/90 backdrop-blur-xl border border-border/50 px-4 lg:hidden"
+          title="Check out"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="text-sm font-medium">Check Out</span>
         </Button>
       )}
 
       {/* Mark Spot Modal */}
       <MarkSpotModal
         open={showMarkSpotModal}
-        onClose={() => setShowMarkSpotModal(false)}
+        onClose={() => {
+          setShowMarkSpotModal(false);
+          setMarkSpotPlace(null);
+          setMarkSpotDefaultType("temporary");
+        }}
         onSuccess={() => {
-          // Refresh reader data after marking a spot
+          // Refresh reader data after marking a spot (force refresh to bypass cache)
           if (map.current) {
             const center = map.current.getCenter();
             const zoom = map.current.getZoom();
-            fetchDataForLocation(center.lat, center.lng, zoom);
+            fetchDataForLocation(center.lat, center.lng, zoom, true);
           }
         }}
-        locationLabel={userLocation ? `Near your current location` : undefined}
+        locationLabel={markSpotPlace ? undefined : (userLocation ? `Near your current location` : undefined)}
+        place={markSpotPlace ? {
+          name: markSpotPlace.name,
+          lat: markSpotPlace.lat,
+          lng: markSpotPlace.lng,
+          type: markSpotPlace.type,
+        } : undefined}
+        defaultPresenceType={markSpotDefaultType}
       />
     </div>
   );

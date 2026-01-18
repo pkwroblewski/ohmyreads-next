@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Plus, ArrowLeft, Settings, Info } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { MapEventsPanel } from "@/components/geo/map-events-panel";
-import { ReaderMapLazy } from "@/components/geo/reader-map-lazy";
 import { createClient } from "@/lib/supabase/server";
+import { MapPageClient } from "@/components/geo/map-page-client";
+import type { UserPresenceData } from "@/components/geo/map-context-panel";
 
 export const metadata: Metadata = {
   title: "Reader Map | OhMyReads",
@@ -22,77 +19,40 @@ export default async function ReaderMapPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Get user's display name and presence info
+  let userName: string | undefined;
+  let userPresence: UserPresenceData | null = null;
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name, username, presence_type, presence_expires_at, presence_note, location_label")
+      .eq("id", user.id)
+      .single();
+
+    userName = profile?.display_name || profile?.username || undefined;
+
+    // Check if presence is still valid
+    if (profile?.presence_type && profile.presence_type !== "static") {
+      const expiresAt = profile.presence_expires_at ? new Date(profile.presence_expires_at) : null;
+      const isExpired = expiresAt && expiresAt < new Date();
+
+      if (!isExpired) {
+        userPresence = {
+          type: profile.presence_type as "static" | "temporary" | "recommended",
+          expiresAt: profile.presence_expires_at,
+          note: profile.presence_note,
+          locationLabel: profile.location_label,
+        };
+      }
+    }
+  }
+
   return (
-    <div className="h-[calc(100vh-4rem)] bg-gradient-to-br from-background via-muted/30 to-background p-4 lg:p-6">
-      <div className="flex h-full gap-4 lg:gap-6">
-        {/* Map Container - Premium curved box */}
-        <div className="relative flex-1 rounded-3xl overflow-hidden shadow-warm-lg dark:shadow-none border border-border/50 bg-card">
-          {/* Subtle inner glow effect */}
-          <div className="absolute inset-0 rounded-3xl ring-1 ring-inset ring-white/10 pointer-events-none z-10" />
-
-          {/* Back Button - Top Left */}
-          <div className="absolute top-4 left-4 z-30">
-            <Link href="/community">
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-10 w-10 rounded-full shadow-lg bg-white/90 dark:bg-card/90 backdrop-blur-xl border border-white/50 dark:border-border/50"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-          </div>
-
-          {/* Floating Action Buttons - Top Right */}
-          <div className="absolute top-4 right-4 z-30 flex gap-2">
-            {/* Settings - logged-in only */}
-            {user && (
-              <Link href="/settings">
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-10 w-10 rounded-full shadow-lg bg-white/90 dark:bg-card/90 backdrop-blur-xl border border-white/50 dark:border-border/50"
-                  title="Location Settings"
-                >
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </Link>
-            )}
-            {/* Add Place - visible to all */}
-            <Link href="/community/map/submit">
-              <Button
-                size="icon"
-                className="h-10 w-10 rounded-full shadow-lg"
-                title="Add Place"
-              >
-                <Plus className="h-5 w-5" />
-              </Button>
-            </Link>
-          </div>
-
-          {/* Privacy Info Button - Bottom Left */}
-          <div className="absolute bottom-6 left-4 z-10">
-            <Link href="/privacy">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="rounded-full shadow-lg text-xs opacity-80 hover:opacity-100 bg-white/90 dark:bg-card/90 backdrop-blur-xl border border-white/50 dark:border-border/50"
-              >
-                <Info className="h-3 w-3 mr-1" />
-                Privacy
-              </Button>
-            </Link>
-          </div>
-
-          {/* Map Component - Lazy loaded */}
-          <ReaderMapLazy currentUserId={user?.id} />
-        </div>
-
-        {/* Events Panel - Desktop only */}
-        <div className="hidden lg:flex">
-          <MapEventsPanel />
-        </div>
-      </div>
-    </div>
+    <MapPageClient
+      currentUserId={user?.id}
+      userName={userName}
+      userPresence={userPresence}
+    />
   );
 }
