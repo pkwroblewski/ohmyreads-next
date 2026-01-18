@@ -81,33 +81,54 @@ export async function GET(request: Request) {
           ? adminEmails.includes(user.email.toLowerCase())
           : false;
 
-        // Try inserting profile
-        const { error: insertError } = await supabase.from("profiles").insert({
-          id: user.id,
-          username: username,
-          display_name: displayName,
-          avatar_url: avatarUrl,
-          is_admin: isAdmin,
-        });
-
-        // If username taken (unique constraint), append random suffix
-        if (insertError?.code === "23505") {
-          username = `${username}_${Math.random().toString(36).slice(2, 6)}`;
-          await supabase.from("profiles").insert({
+        // Try inserting profile with error handling
+        try {
+          const { error: insertError } = await supabase.from("profiles").insert({
             id: user.id,
             username: username,
             display_name: displayName,
             avatar_url: avatarUrl,
             is_admin: isAdmin,
           });
+
+          // If username taken (unique constraint), append random suffix
+          if (insertError?.code === "23505") {
+            username = `${username}_${Math.random().toString(36).slice(2, 6)}`;
+            const { error: retryError } = await supabase.from("profiles").insert({
+              id: user.id,
+              username: username,
+              display_name: displayName,
+              avatar_url: avatarUrl,
+              is_admin: isAdmin,
+            });
+            if (retryError) {
+              console.error("Profile insert retry error:", retryError);
+              return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`);
+            }
+          } else if (insertError) {
+            console.error("Profile insert error:", insertError);
+            return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`);
+          }
+        } catch (error) {
+          console.error("Profile creation exception:", error);
+          return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`);
         }
 
-        // Also create reading_stats
-        await supabase.from("reading_stats").insert({
-          user_id: user.id,
-        });
+        // Create reading_stats with upsert to handle duplicates
+        try {
+          const { error: statsError } = await supabase
+            .from("reading_stats")
+            .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
+          if (statsError) {
+            console.error("Reading stats upsert error:", statsError);
+            // Non-fatal, continue with login
+          }
+        } catch (error) {
+          console.error("Reading stats exception:", error);
+          // Non-fatal, continue with login
+        }
 
-        // Send welcome email for new user
+        // Send welcome email for new user (non-blocking)
         if (user.email) {
           sendWelcomeEmail({
             email: user.email,
@@ -127,12 +148,21 @@ export async function GET(request: Request) {
           ? adminEmails.includes(data.user.email.toLowerCase())
           : false;
 
-        // Update is_admin if it should change
+        // Update is_admin if it should change (with error handling)
         if (shouldBeAdmin) {
-          await supabase
-            .from("profiles")
-            .update({ is_admin: true })
-            .eq("id", data.user.id);
+          try {
+            const { error: adminError } = await supabase
+              .from("profiles")
+              .update({ is_admin: true })
+              .eq("id", data.user.id);
+            if (adminError) {
+              console.error("Admin status update error:", adminError);
+              // Non-fatal, continue with login
+            }
+          } catch (error) {
+            console.error("Admin status update exception:", error);
+            // Non-fatal, continue with login
+          }
         }
 
         // Check if new (created in last 5 minutes) for welcome email
@@ -140,7 +170,7 @@ export async function GET(request: Request) {
         const now = new Date();
         const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
-        // Send welcome email if profile was created in the last 5 minutes
+        // Send welcome email if profile was created in the last 5 minutes (non-blocking)
         if (createdAt > fiveMinutesAgo && data.user.email) {
           sendWelcomeEmail({
             email: data.user.email,

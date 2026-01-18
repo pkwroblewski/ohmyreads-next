@@ -77,7 +77,8 @@
       "Bash(powershell:*)",
       "Bash(timeout:*)",
       "mcp__plugin_playwright_playwright__browser_console_messages",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(supabase --version:*)"
     ]
   }
 }
