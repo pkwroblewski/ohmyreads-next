@@ -15,13 +15,21 @@ export async function GET(request: Request) {
   const force = searchParams.get("force") === "true";
   const token = searchParams.get("token");
 
-  // If SEED_TOKEN is set in env, require it for destructive operations
+  // Require SEED_TOKEN for destructive force operations
   const requiredToken = process.env.SEED_TOKEN;
-  if (force && requiredToken && token !== requiredToken) {
-    return NextResponse.json(
-      { error: "Invalid or missing seed token. Use ?token=YOUR_SEED_TOKEN&force=true" },
-      { status: 401 }
-    );
+  if (force) {
+    if (!requiredToken) {
+      return NextResponse.json(
+        { error: "SEED_TOKEN environment variable must be set for force operations" },
+        { status: 500 }
+      );
+    }
+    if (token !== requiredToken) {
+      return NextResponse.json(
+        { error: "Invalid or missing seed token. Use ?token=YOUR_SEED_TOKEN&force=true" },
+        { status: 401 }
+      );
+    }
   }
 
   try {

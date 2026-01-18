@@ -39,10 +39,38 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
+/**
+ * Validates redirect URL to prevent open redirect attacks.
+ * Only allows relative paths starting with /
+ */
+function validateRedirectUrl(url: string | null): string {
+  const defaultPath = "/dashboard";
+  if (!url) return defaultPath;
+
+  // Must be a relative path starting with /
+  // Reject protocol-relative URLs (//evil.com) and absolute URLs
+  if (!url.startsWith("/") || url.startsWith("//")) {
+    return defaultPath;
+  }
+
+  // Parse to check for protocol in case of encoded characters
+  try {
+    const parsed = new URL(url, "http://localhost");
+    // Ensure it's actually a path on the same origin
+    if (parsed.host !== "localhost") {
+      return defaultPath;
+    }
+  } catch {
+    return defaultPath;
+  }
+
+  return url;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const redirectTo = validateRedirectUrl(searchParams.get("redirect"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

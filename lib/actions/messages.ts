@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 // ============================================
 // SEND MESSAGE
@@ -25,6 +26,12 @@ export async function sendMessage(
 
     if (authError || !user) {
       return { success: false, messageId: null, error: "Not authenticated" };
+    }
+
+    // Rate limit: 30 messages per minute per user
+    const { allowed } = await checkRateLimit(`message:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, messageId: null, error: "Too many messages. Please wait a moment." };
     }
 
     if (user.id === receiverId) {

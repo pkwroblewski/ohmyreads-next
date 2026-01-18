@@ -1,159 +1,87 @@
-# OhMyReads Task Tracker
+# OhMyReads Code & Database Review - Implementation Complete
 
-## Pending Tasks
+## Summary
+
+All security fixes and improvements have been implemented.
+
+---
+
+## Execution Log
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 1.1 OAuth Redirect Validation | ✅ Done | Added `validateRedirectUrl()` function |
+| 1.2 Seed Route Protection | ✅ Done | Require SEED_TOKEN always for force ops |
+| 1.3 CSV Import ISBN Validation | ✅ Done | Added `validateISBN()`, switched to `.in()` |
+| 2.1 reading_stats Public SELECT | ✅ Done | In migration 029 |
+| 2.2 user_books Public SELECT | ✅ Done | In migration 029 |
+| 2.3 friend_requests WITH CHECK | ✅ Done | In migration 029 |
+| 3.1 Messages Rate Limiting | ✅ Done | Added to `sendMessage` action |
+| 3.2 AI Route Validation | ✅ Exists | Already has rate limiting & validation |
+| 3.3 Geohash Validation | ✅ Exists | `isValidGeohash` validates base32 |
+| 3.4 Webhook Dev Bypass | ✅ Secure | Fails closed in production |
+| 4.1 Performance Indexes | ✅ Done | In migration 029 |
+| 4.2 Audit Columns | ✅ Done | In migration 029 |
+| 5.x Optional Improvements | ✅ Done | In migration 029 |
+
+---
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `app/(auth)/login/page.tsx` | Added redirect URL validation |
+| `app/api/seed/route.ts` | Require SEED_TOKEN for force operations |
+| `lib/actions/import.ts` | ISBN validation + `.in()` filter |
+| `lib/actions/messages.ts` | Added rate limiting to sendMessage |
+| `supabase/migrations/029_rls_and_indexes.sql` | New migration (RLS, indexes, constraints) |
+
+---
+
+## Migration 029 Contents
+
+1. **RLS Fixes**
+   - `reading_stats`: Public SELECT policy
+   - `user_books`: Public SELECT policy (replaces own-only)
+   - `friend_requests`: UPDATE policy with WITH CHECK
+
+2. **Performance Indexes**
+   - `idx_activity_feed_user_id`
+   - `idx_reviews_created_at`
+
+3. **Audit Columns**
+   - `comments.updated_at` + trigger
+   - `books.updated_at` + trigger
+
+4. **Optional Constraints**
+   - `dm_content_length`: 10KB max for messages
+   - `social_links_user_platform_unique`: One link per platform per user
+
+---
+
+## Next Steps
+
+1. **Apply migration** in Supabase SQL Editor:
+   - Open Supabase Dashboard > SQL Editor
+   - Paste contents of `supabase/migrations/029_rls_and_indexes.sql`
+   - Execute
+
+2. **Test in development**:
+   - Google OAuth login with redirect
+   - Public profile viewing (stats, books)
+   - Friend request accept/reject
+   - CSV import with edge cases
+   - Message sending (rate limit)
+
+---
+
+## Previous Tasks (Archive)
 
 ### Environment Variables (Vercel) - Optional
 | Variable | Purpose | Status |
 |----------|---------|--------|
 | `RESEND_API_KEY` | Welcome/notification emails | Not set |
 | `RESEND_FROM_EMAIL` | Sender email address | Not set |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | AI place search | Not set (free trial may be expired) |
 
 ### Production Checks
 - [ ] Verify map works in production (if broken, add Mapbox tokens to Vercel)
-
-### Optional Improvements
-- [ ] Set up cron job for `cleanup_expired_presence()` - Auto-cleanup expired check-ins
-- [ ] Add Mapbox URL restrictions in Mapbox dashboard for security
-
----
-
-## Recent Git Activity (January 18, 2026)
-
-```
-91fbe0c chore: Add friend requests FK migration and debug endpoint
-2945d75 fix: API improvements and bug fixes
-d31e5a2 feat: Redesign map page with context panel and place-based check-ins
-bc69368 chore: Update .gitignore for temp files
-f81dc12 docs: Mark database migrations as completed
-```
-
-**All changes pushed to GitHub. Vercel auto-deploys from main branch.**
-
----
-
-## Database Migrations - All Applied
-
-| Migration | Description | Status |
-|-----------|-------------|--------|
-| `028_fix_friend_requests_fk.sql` | FK from friend_requests to profiles | Applied |
-| `027_reader_presence.sql` | Presence fields on profiles | Applied |
-| `019_audit_security_fixes.sql` | RLS fixes, admin-only book inserts | Applied |
-
----
-
-## Completed Features (January 2026)
-
-### Map Page Redesign
-- Context-aware Reader Hub sidebar panel
-- Place-based check-ins with "I'm Here Now" / "Recommend" buttons
-- Check Out button for own markers
-- Your Status section showing active presence
-- Deleted unused event components
-
-### API Improvements
-- IP geolocation server-side proxy (CORS fix)
-- Full geohash for check-ins, truncated for static (privacy)
-- Simplified AI place search (non-streaming)
-- Better error handling throughout
-
-### Security Audit Fixes
-- RLS self-approval bypass - Fixed
-- Open book inserts - Admin-only now
-- Atomic book approval function added
-
-### Reader Presence System
-- Temporary markers with pulse animation
-- Recommended spots with star styling
-- Duration options (1h, 2h, 4h, 7 days)
-- Location consent for precise sharing
-
----
-
-## Environment Notes
-
-### Required in Vercel
-- `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` - For 3D map
-- `MAPBOX_ACCESS_TOKEN` - Server-side Mapbox calls
-
-### Can Remove from Vercel
-- `ANTHROPIC_API_KEY` - No longer used
-- `CRON_SECRET` - No longer used
-
----
-
-## Troubleshooting
-
-### Google OAuth 500 "unexpected_failure"
-
-If Google login fails with this error, check these in order:
-
-1. **Google Cloud Console → OAuth consent screen**
-   - If "Publishing status" is "Testing", add user emails to "Test users"
-   - Or click "Publish App" to allow any Google account
-
-2. **Google Cloud Console → Credentials → OAuth Client**
-   - Authorized redirect URI must include: `https://bgczdbmqievfilvdzlgl.supabase.co/auth/v1/callback`
-
-3. **Supabase Dashboard → Authentication → URL Configuration**
-   - Site URL: `https://ohmyreads-next.vercel.app`
-   - Redirect URLs must include: `https://ohmyreads-next.vercel.app/callback`
-
-4. **Supabase Dashboard → Authentication → Providers → Google**
-   - Ensure Google is enabled
-   - Client ID and Client Secret are correct
-
----
-
-<details>
-<summary><strong>Reference Archive</strong> (Click to expand)</summary>
-
-## Mapbox Setup (If Map Broken in Prod)
-
-1. Copy from `.env.local`: `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` and `MAPBOX_ACCESS_TOKEN`
-2. Add to Vercel → Settings → Environment Variables (all environments)
-3. Redeploy
-
-### Optional Security
-Add URL restrictions in Mapbox dashboard:
-- `https://www.ohmyreads.com/*`
-- `https://ohmyreads.com/*`
-- `https://*.vercel.app/*`
-- `http://localhost:3000/*`
-
----
-
-## Key File Locations
-
-### Map Components
-- `components/geo/map-context-panel.tsx` - Sidebar panel
-- `components/geo/map-page-client.tsx` - State management
-- `components/geo/reader-map-immersive.tsx` - Main map component
-- `components/geo/mark-spot-modal.tsx` - Check-in modal
-- `components/geo/map-detail-panel.tsx` - Mobile detail panel
-
-### API Routes
-- `app/api/geo/readers/route.ts` - Nearby readers
-- `app/api/geo/ip-location/route.ts` - IP geolocation
-- `app/api/ai/place-search/route.ts` - AI search
-
-### Actions
-- `lib/actions/location.ts` - setPresence, clearPresence
-
----
-
-## Completed Phases
-
-### Phase 5: Reader Discovery
-- Reader search, compatibility algorithm, discover page
-
-### Phase 4: Check-ins
-- Place check-ins, streak tracking, 6 badges
-
-### Phase 2: Foundation
-- Password reset, welcome emails, challenges, 25 badges
-
-### Phase 1: Growth Tools
-- Goodreads import, social sharing, SEO pages
-
-</details>

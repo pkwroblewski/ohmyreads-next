@@ -27,6 +27,23 @@ export interface ImportResult {
 }
 
 /**
+ * Validates and sanitizes ISBN - only allows digits and dashes
+ * Returns null if invalid format
+ */
+function validateISBN(isbn: string | undefined | null): string | null {
+  if (!isbn || typeof isbn !== "string") return null;
+
+  // Only allow digits and dashes
+  if (!/^[\d-]+$/.test(isbn)) return null;
+
+  // Remove dashes and check length (ISBN-10 or ISBN-13)
+  const digits = isbn.replace(/-/g, "");
+  if (digits.length !== 10 && digits.length !== 13) return null;
+
+  return digits;
+}
+
+/**
  * Normalize a string for fuzzy matching
  */
 function normalize(str: string): string {
@@ -109,24 +126,27 @@ export async function importFromGoodreads(
       existingUserBooks?.map((ub) => ub.book_id) || []
     );
 
-    // Step 1: Collect all ISBNs from CSV for efficient batch query
+    // Step 1: Collect all valid ISBNs from CSV for efficient batch query
     const isbnList = rows
       .flatMap((r) => [r.isbn, r.isbn13])
-      .filter((v): v is string => !!v && v.trim() !== "")
-      .map((isbn) => isbn.replace(/-/g, ""));
+      .map((isbn) => validateISBN(isbn))
+      .filter((v): v is string => v !== null);
 
-    // Query books matching any of the ISBNs (more efficient than loading all)
+    // Deduplicate ISBNs
+    const uniqueISBNs = [...new Set(isbnList)];
+
+    // Query books matching any of the ISBNs using .in() filter
     const booksByISBN = new Map<string, { id: string; title: string; author: string; isbn: string | null }>();
 
-    if (isbnList.length > 0) {
+    if (uniqueISBNs.length > 0) {
       // Query in chunks of 500 to avoid query limits
       const chunkSize = 500;
-      for (let i = 0; i < isbnList.length; i += chunkSize) {
-        const chunk = isbnList.slice(i, i + chunkSize);
+      for (let i = 0; i < uniqueISBNs.length; i += chunkSize) {
+        const chunk = uniqueISBNs.slice(i, i + chunkSize);
         const { data: matchedBooks } = await supabase
           .from("books")
           .select("id, title, author, isbn")
-          .or(chunk.map((isbn) => `isbn.eq.${isbn}`).join(","));
+          .in("isbn", chunk);
 
         for (const book of matchedBooks || []) {
           if (book.isbn) {
@@ -141,14 +161,12 @@ export async function importFromGoodreads(
     // Step 2: For title matching, we need to load books that weren't matched by ISBN
     // Only load if there are unmatched rows to reduce memory usage
     const unmatchedRows = rows.filter((row) => {
-      if (row.isbn13) {
-        const cleanISBN13 = row.isbn13.replace(/-/g, "");
-        if (booksByISBN.has(cleanISBN13)) return false;
-      }
-      if (row.isbn) {
-        const cleanISBN = row.isbn.replace(/-/g, "");
-        if (booksByISBN.has(cleanISBN)) return false;
-      }
+      const cleanISBN13 = validateISBN(row.isbn13);
+      if (cleanISBN13 && booksByISBN.has(cleanISBN13)) return false;
+
+      const cleanISBN = validateISBN(row.isbn);
+      if (cleanISBN && booksByISBN.has(cleanISBN)) return false;
+
       return true;
     });
 
@@ -190,15 +208,17 @@ export async function importFromGoodreads(
       let matchedBook: BookMatch | undefined;
 
       // 1. Try ISBN13 first (most reliable)
-      if (row.isbn13) {
-        const cleanISBN13 = row.isbn13.replace(/-/g, "");
+      const cleanISBN13 = validateISBN(row.isbn13);
+      if (cleanISBN13) {
         matchedBook = booksByISBN.get(cleanISBN13);
       }
 
       // 2. Try ISBN if no ISBN13 match
-      if (!matchedBook && row.isbn) {
-        const cleanISBN = row.isbn.replace(/-/g, "");
-        matchedBook = booksByISBN.get(cleanISBN);
+      if (!matchedBook) {
+        const cleanISBN = validateISBN(row.isbn);
+        if (cleanISBN) {
+          matchedBook = booksByISBN.get(cleanISBN);
+        }
       }
 
       // 3. Try title + author fuzzy match (only if title matching data was loaded)
