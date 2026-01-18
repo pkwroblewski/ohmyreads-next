@@ -128,7 +128,7 @@ export async function getPendingRequests(): Promise<FriendRequestWithSender[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching pending requests:", error);
+    console.error("Error fetching pending requests:", error.message, error.code, error.details);
     return [];
   }
 

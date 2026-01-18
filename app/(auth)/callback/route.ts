@@ -17,6 +17,7 @@ const ALLOWED_REDIRECTS = [
   "/admin",
   "/reset-password",
   "/import",
+  "/community",
 ];
 
 function isValidRedirect(path: string): boolean {

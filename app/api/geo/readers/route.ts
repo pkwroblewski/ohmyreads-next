@@ -3,6 +3,10 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { isValidGeohash } from "@/lib/utils/geohash";
 import { getNearbyReaders } from "@/lib/queries/geo";
 
+// Force dynamic rendering to prevent caching of presence data
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 /**
  * GET /api/geo/readers?geohash=u33d
  * 
@@ -40,26 +44,41 @@ export async function GET(request: NextRequest) {
   try {
     const readers = await getNearbyReaders(searchPrefix, limit);
 
-    // Don't expose exact geohashes - only show city-level label
-    const sanitizedReaders = readers.map((reader) => ({
-      id: reader.id,
-      username: reader.username,
-      displayName: reader.display_name,
-      avatarUrl: reader.avatar_url,
-      locationLabel: reader.location_label,
-      // Return only prefix of geohash (for clustering, not precise location)
-      geohashPrefix: reader.location_geohash?.slice(0, 4) || null,
-      // Include presence data for marker styling
-      presenceType: reader.presence_type || "static",
-      presenceNote: reader.presence_note,
-      presenceExpiresAt: reader.presence_expires_at,
-    }));
+    // Sanitize reader data for API response
+    const sanitizedReaders = readers.map((reader) => {
+      // Normalize presence type (handle null, case differences, etc.)
+      const rawPresenceType = reader.presence_type;
+      const presenceType: "static" | "temporary" | "recommended" =
+        rawPresenceType === "temporary" || rawPresenceType === "recommended"
+          ? rawPresenceType
+          : "static";
+
+      // For temporary/recommended presence, return full geohash (user consented to precise location)
+      // For static presence, truncate to 4 chars for privacy (~20km area)
+      const fullGeohash = reader.location_geohash || "";
+      const isCheckIn = presenceType === "temporary" || presenceType === "recommended";
+      const geohashPrefix = isCheckIn ? fullGeohash : fullGeohash.slice(0, 4);
+
+      return {
+        id: reader.id,
+        username: reader.username,
+        displayName: reader.display_name,
+        avatarUrl: reader.avatar_url,
+        locationLabel: reader.location_label,
+        geohashPrefix: geohashPrefix || null,
+        presenceType,
+        presenceNote: reader.presence_note,
+        presenceExpiresAt: reader.presence_expires_at,
+      };
+    });
 
     return NextResponse.json(
       { readers: sanitizedReaders },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          // Short cache for reader data since presence changes frequently
+          // no-cache ensures revalidation, s-maxage=5 allows brief edge caching
+          "Cache-Control": "no-cache, no-store, must-revalidate",
         },
       }
     );

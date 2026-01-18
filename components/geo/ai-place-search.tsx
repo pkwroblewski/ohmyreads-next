@@ -99,56 +99,32 @@ export function AIPlaceSearch({
       });
 
       if (!res.ok) {
-        throw new Error("Search failed");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Search failed");
       }
 
-      // Read the streaming response
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No response body");
+      const data = await res.json();
 
-      let assistantMessage = "";
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-
-        // Parse SSE-style chunks
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("0:")) {
-            // Text chunk
-            const text = JSON.parse(line.slice(2));
-            assistantMessage += text;
-          } else if (line.startsWith("9:")) {
-            // Tool result - may contain places
-            try {
-              const data = JSON.parse(line.slice(2));
-              if (data?.result?.places) {
-                setPlaces(data.result.places);
-              }
-            } catch {
-              // Not a places result
-            }
-          }
-        }
-      }
-
-      if (assistantMessage) {
+      if (data.text) {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: assistantMessage },
+          { role: "assistant", content: data.text },
         ]);
+      }
+
+      if (data.places && data.places.length > 0) {
+        setPlaces(data.places);
       }
     } catch (error) {
       console.error("AI search error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Search failed";
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Sorry, I couldn't search for places right now. Please try again.",
+          content: errorMessage.includes("API key")
+            ? "AI search is not configured. Please use the regular search bar above."
+            : "Sorry, I couldn't search for places right now. Please try again.",
         },
       ]);
     } finally {
@@ -173,7 +149,7 @@ export function AIPlaceSearch({
         onClick={() => setIsOpen(true)}
       >
         <Sparkles className="h-4 w-4 text-primary" />
-        AI Search
+        Search
       </Button>
     );
   }

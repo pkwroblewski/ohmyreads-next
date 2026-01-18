@@ -1,4 +1,4 @@
-import { streamText, createUIMessageStreamResponse, UIMessage, stepCountIs } from "ai";
+import { generateText, UIMessage, CoreMessage } from "ai";
 import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert UI messages to model messages format
-    const modelMessages = messages.map((m) => ({
+    const modelMessages: CoreMessage[] = messages.map((m) => ({
       role: m.role as "user" | "assistant",
       content:
         typeof m.parts === "string"
@@ -93,17 +93,22 @@ export async function POST(request: NextRequest) {
           : m.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") || "",
     }));
 
-    const result = streamText({
+    const result = await generateText({
       model,
       system: systemPrompt,
       messages: modelMessages,
       tools: placeSearchTools,
       toolChoice: "auto",
-      stopWhen: stepCountIs(3),
     });
 
-    return createUIMessageStreamResponse({
-      stream: result.toUIMessageStream(),
+    // Extract places from tool results if any
+    const places = result.steps
+      .flatMap((step) => step.toolResults || [])
+      .flatMap((tr) => (tr as { result?: { places?: unknown[] } }).result?.places || []);
+
+    return Response.json({
+      text: result.text,
+      places,
     });
   } catch (error) {
     console.error("AI place search error:", error);

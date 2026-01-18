@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
 
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get("q")?.trim();
+  const viewbox = searchParams.get("viewbox"); // "west,north,east,south" for location bias
 
   if (!query || query.length < 2) {
     return NextResponse.json(
@@ -62,7 +63,8 @@ export async function GET(request: NextRequest) {
 
   // Cap query length
   const sanitizedQuery = query.slice(0, 100);
-  const cacheKey = sanitizedQuery.toLowerCase();
+  // Include viewbox in cache key so location-biased searches are cached separately
+  const cacheKey = `${sanitizedQuery.toLowerCase()}:${viewbox || "global"}`;
 
   // Check cache
   const cached = geocodeCache.get(cacheKey);
@@ -79,8 +81,16 @@ export async function GET(request: NextRequest) {
     nominatimUrl.searchParams.set("q", sanitizedQuery);
     nominatimUrl.searchParams.set("format", "json");
     nominatimUrl.searchParams.set("addressdetails", "1");
-    nominatimUrl.searchParams.set("limit", "5");
+    nominatimUrl.searchParams.set("limit", "8");
+    // Prevent deduplication to get all matching places (e.g., multiple branches)
+    nominatimUrl.searchParams.set("dedupe", "0");
     // Include POIs like cafes, bookstores (removed featuretype=city restriction)
+
+    // Add location bias if viewbox is provided (west,north,east,south)
+    if (viewbox) {
+      nominatimUrl.searchParams.set("viewbox", viewbox);
+      nominatimUrl.searchParams.set("bounded", "0"); // Prefer but don't restrict to viewbox
+    }
 
     const response = await fetch(nominatimUrl.toString(), {
       headers: {
