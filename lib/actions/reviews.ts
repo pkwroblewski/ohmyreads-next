@@ -8,6 +8,7 @@ import {
   type CreateReviewInput,
   type UpdateReviewInput,
 } from "@/lib/validation/review";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 /**
  * Helper to revalidate book page by ID (fetches slug to build correct path)
@@ -40,6 +41,12 @@ export async function createReview(input: CreateReviewInput) {
 
     if (authError || !user) {
       return { error: "You must be logged in to write a review" };
+    }
+
+    // Rate limit: 10 reviews per minute per user
+    const { allowed } = await checkRateLimit(`review:${user.id}`, 10, 60000);
+    if (!allowed) {
+      return { error: "Too many reviews. Please wait a moment." };
     }
 
     // Validate input with Zod

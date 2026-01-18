@@ -1,6 +1,16 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sampleBooks } from "@/lib/data/sample-books";
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
+
+/**
+ * Timing-safe comparison of two strings to prevent timing attacks
+ */
+function safeCompare(a: string | null, b: string | null): boolean {
+  if (!a || !b) return false;
+  if (Buffer.byteLength(a) !== Buffer.byteLength(b)) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 export async function GET(request: Request) {
   // Only allow in development
@@ -24,7 +34,7 @@ export async function GET(request: Request) {
         { status: 500 }
       );
     }
-    if (token !== requiredToken) {
+    if (!safeCompare(token, requiredToken)) {
       return NextResponse.json(
         { error: "Invalid or missing seed token. Use ?token=YOUR_SEED_TOKEN&force=true" },
         { status: 401 }

@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWelcomeEmail } from "@/lib/actions/email";
+import { timingSafeEqual } from "crypto";
+
+/**
+ * Timing-safe comparison of two strings to prevent timing attacks
+ */
+function safeCompare(a: string | null, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  if (Buffer.byteLength(a) !== Buffer.byteLength(b)) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 // Verify the webhook is from Supabase using a shared secret
 function verifyWebhookSecret(request: NextRequest): boolean {
@@ -17,7 +27,7 @@ function verifyWebhookSecret(request: NextRequest): boolean {
     return true;
   }
 
-  return secret === expectedSecret;
+  return safeCompare(secret, expectedSecret);
 }
 
 interface WebhookPayload {

@@ -5,6 +5,55 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+// Magic number signatures for allowed image types
+const FILE_SIGNATURES: Record<string, number[][]> = {
+  "image/jpeg": [
+    [0xff, 0xd8, 0xff], // JPEG/JFIF
+  ],
+  "image/png": [
+    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], // PNG
+  ],
+  "image/webp": [
+    [0x52, 0x49, 0x46, 0x46], // RIFF (WebP starts with RIFF....WEBP)
+  ],
+};
+
+/**
+ * Validate file content matches expected image type by checking magic numbers
+ */
+function validateFileSignature(buffer: ArrayBuffer, mimeType: string): boolean {
+  const signatures = FILE_SIGNATURES[mimeType];
+  if (!signatures) return false;
+
+  const bytes = new Uint8Array(buffer);
+
+  for (const signature of signatures) {
+    if (bytes.length < signature.length) continue;
+
+    let matches = true;
+    for (let i = 0; i < signature.length; i++) {
+      if (bytes[i] !== signature[i]) {
+        matches = false;
+        break;
+      }
+    }
+
+    if (matches) {
+      // Additional check for WebP: verify WEBP identifier at bytes 8-11
+      if (mimeType === "image/webp") {
+        if (bytes.length < 12) return false;
+        const webpSignature = [0x57, 0x45, 0x42, 0x50]; // "WEBP"
+        for (let i = 0; i < 4; i++) {
+          if (bytes[8 + i] !== webpSignature[i]) return false;
+        }
+      }
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /**
  * GET /api/geo/places/[id]/photos
  * Get all approved photos for a place
@@ -133,6 +182,14 @@ export async function POST(
 
     // Upload to Supabase Storage
     const arrayBuffer = await file.arrayBuffer();
+
+    // Validate file signature (magic numbers) to prevent spoofed MIME types
+    if (!validateFileSignature(arrayBuffer, file.type)) {
+      return NextResponse.json(
+        { error: "File content does not match declared type" },
+        { status: 400 }
+      );
+    }
     const { error: uploadError } = await adminSupabase.storage
       .from("place-photos")
       .upload(filename, arrayBuffer, {

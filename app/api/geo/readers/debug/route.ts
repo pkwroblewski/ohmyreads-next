@@ -16,6 +16,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // Check if user is admin
+  const { data: adminCheck } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+
+  if (!adminCheck?.is_admin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   // Get the current user's profile data
   const { data: profile, error } = await supabase
     .from("profiles")

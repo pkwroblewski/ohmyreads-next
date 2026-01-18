@@ -6,6 +6,29 @@ All security fixes and improvements have been implemented.
 
 ---
 
+## Security Audit Fixes (January 2026)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| File Upload Hardening | ✅ Done | Added magic number validation for JPEG/PNG/WebP |
+| Content Security Policy | ✅ Done | Added CSP header to next.config.ts |
+| Timing-Safe Seed Token | ✅ Done | Using timingSafeEqual in seed route |
+| Timing-Safe Webhook Secret | ✅ Done | Using timingSafeEqual in webhook route |
+| Debug Endpoint Protection | ✅ Done | Added admin check to /api/geo/readers/debug |
+| Reviews Rate Limiting | ✅ Done | Added 10/minute limit to createReview |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `app/api/geo/places/[id]/photos/route.ts` | Added file signature validation |
+| `next.config.ts` | Added CSP header |
+| `app/api/seed/route.ts` | timingSafeEqual for token comparison |
+| `app/api/webhooks/supabase/route.ts` | timingSafeEqual for secret comparison |
+| `app/api/geo/readers/debug/route.ts` | Admin-only access |
+| `lib/actions/reviews.ts` | Rate limiting for createReview |
+
+---
+
 ## Execution Log
 
 | Task | Status | Notes |
