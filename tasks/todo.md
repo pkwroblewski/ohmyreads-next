@@ -2,14 +2,10 @@
 
 ## Pending Tasks
 
-### Database Migrations
-- [ ] **Run `019_audit_security_fixes.sql`** in Supabase SQL Editor
-  - Fixes RLS self-approval bypass (CRITICAL)
-  - Restricts book inserts to admins (HIGH)
-
 ### Environment Variables (Vercel)
 - [ ] Add `RESEND_API_KEY` - For welcome/notification emails
 - [ ] Add `RESEND_FROM_EMAIL` - Sender email address
+- [ ] Add `GOOGLE_GENERATIVE_AI_API_KEY` - For AI place search (⚠️ may need new key - free trial may be expired)
 - [ ] Verify Mapbox tokens are set (if map features broken in prod)
 
 ### Optional Improvements
@@ -20,9 +16,90 @@
 
 ## Completed Work Log
 
+### Database Migrations (January 2026)
+- [x] **Run `028_fix_friend_requests_fk.sql`** - Added foreign keys to profiles table
+- [x] **Run `019_audit_security_fixes.sql`** - Security fixes applied:
+  - Fixed RLS self-approval bypass on book_submissions
+  - Restricted book inserts to admins only
+  - Added `recalculate_book_rating` function
+  - Added `approve_book_submission` atomic function
+
+### Check Out Visibility Improvements (January 2026)
+- [x] Renamed "Clear Status" → "Check Out" in desktop context panel
+- [x] Added "Check Out" button when viewing own marker in detail panel
+- [x] Added floating "Check Out" button on mobile when user has active presence
+- [x] Updated text to say "You're checked in here" when viewing own marker
+
+**Files Modified:**
+- `components/geo/map-context-panel.tsx` - Renamed button text
+- `components/geo/map-detail-panel.tsx` - Added own marker detection and Check Out button
+- `components/geo/reader-map-immersive.tsx` - Added mobile floating Check Out button
+- `components/geo/reader-map-lazy.tsx` - Pass-through new presence props
+- `components/geo/map-page-client.tsx` - Pass presence state to map component
+
+### Geolocation Fix (January 2026)
+- [x] Created `/api/geo/ip-location` server-side proxy for IP geolocation
+- [x] Fixed CORS issue with direct ipapi.co calls from browser
+- [x] Changed default map location from NYC to Luxembourg City
+- [x] Map now properly centers on user's approximate location
+
+**Files Created:**
+- `app/api/geo/ip-location/route.ts` - Server-side IP location proxy
+
+**Files Modified:**
+- `components/geo/reader-map-immersive.tsx` - Use new API, updated default location
+
+### Place-Based Mark Spot UX (January 2026)
+- [x] Modified `setPresence()` to accept place data (placeGeohash, placeName)
+- [x] When marking at a place, user's location is set to place's geohash
+- [x] Updated MarkSpotModal to accept place prop and show toast on success
+- [x] Added "Your Status" section to context panel showing active presence
+- [x] Added "I'm Here Now" and "Recommend This Spot" buttons in place view
+- [x] Map page now queries user's presence data and passes to client
+- [x] Optimistic updates for presence state in UI
+
+**User Flow:**
+1. Search for "Bloom Cafe Luxembourg" → Click result
+2. Place panel shows with "I'm Here Now" button
+3. Click button → Modal opens with place name shown
+4. Submit → Toast "You're at Bloom Cafe!"
+5. Panel shows "Your Status: At Bloom Cafe (2h left)"
+6. User marker appears at cafe location on map
+
+**Files Modified:**
+- `lib/actions/location.ts` - Added place data support to setPresence()
+- `components/geo/mark-spot-modal.tsx` - Added place prop and toast
+- `components/geo/map-context-panel.tsx` - Added status section and place actions
+- `components/geo/map-page-client.tsx` - Added place-based handlers
+- `app/(public)/community/map/page.tsx` - Query user presence data
+
+### Map Page Redesign - Context Panel (January 2026)
+- [x] Replaced useless Events Panel with context-aware "Reader Hub" panel
+- [x] Panel shows default state with "Mark Your Spot" actions and nearby readers list
+- [x] Panel shows reader details when reader marker clicked
+- [x] Panel shows place details when place marker clicked
+- [x] "I'm Here" floating button hidden on desktop (shown only on mobile)
+- [x] State synced between map component and context panel via callbacks
+- [x] Deleted unused files: `map-events-panel.tsx`, `events-bottom-sheet.tsx`, `event-card-compact.tsx`
+
+**Files Created:**
+- `components/geo/map-context-panel.tsx` - New context-aware sidebar panel
+- `components/geo/map-page-client.tsx` - Client wrapper managing shared state
+
+**Files Modified:**
+- `components/geo/reader-map-immersive.tsx` - Added callback props for state sync
+- `components/geo/reader-map-lazy.tsx` - Pass-through new callback props
+- `app/(public)/community/map/page.tsx` - Use new MapPageClient component
+
+### Map UI/UX Improvements (January 2026)
+- [x] Location-biased search - Nominatim API now uses viewbox parameter for local results
+- [x] Search highlight auto-clear - Highlighted marker disappears 1.5s after flyTo completes
+- [x] Mark Spot button repositioned - Moved higher to avoid overlap with Mapbox controls
+- [x] Renamed "AI Search" to "Search" - Kept sparkles icon for smart search indication
+
 ### Security Audit (January 2026)
-- [x] RLS self-approval bypass → Fixed with atomic RPC + pending migration
-- [x] Open book inserts → Fixed with admin-only RLS + pending migration
+- [x] RLS self-approval bypass → Fixed with atomic RPC + migration ✅ RUN
+- [x] Open book inserts → Fixed with admin-only RLS + migration ✅ RUN
 - [x] Webhook fail-open → Already secure
 - [x] Location data leak → Already secure
 
@@ -100,7 +177,7 @@ Add URL restrictions in Mapbox dashboard:
 
 ## Security Audit Details
 
-### Migration `019_audit_security_fixes.sql`
+### Migration `019_audit_security_fixes.sql` ✅ RUN
 
 This migration:
 1. Fixes `book_submissions` RLS - adds `WITH CHECK (status = 'pending')`
