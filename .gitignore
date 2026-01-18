@@ -46,3 +46,9 @@ nul
 
 # supabase
 supabase/.temp/
+
+# playwright
+.playwright-mcp/
+
+# claude
+.claude/settings.local.json
