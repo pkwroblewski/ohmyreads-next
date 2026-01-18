@@ -82,6 +82,29 @@ f81dc12 docs: Mark database migrations as completed
 
 ---
 
+## Troubleshooting
+
+### Google OAuth 500 "unexpected_failure"
+
+If Google login fails with this error, check these in order:
+
+1. **Google Cloud Console → OAuth consent screen**
+   - If "Publishing status" is "Testing", add user emails to "Test users"
+   - Or click "Publish App" to allow any Google account
+
+2. **Google Cloud Console → Credentials → OAuth Client**
+   - Authorized redirect URI must include: `https://bgczdbmqievfilvdzlgl.supabase.co/auth/v1/callback`
+
+3. **Supabase Dashboard → Authentication → URL Configuration**
+   - Site URL: `https://ohmyreads-next.vercel.app`
+   - Redirect URLs must include: `https://ohmyreads-next.vercel.app/callback`
+
+4. **Supabase Dashboard → Authentication → Providers → Google**
+   - Ensure Google is enabled
+   - Client ID and Client Secret are correct
+
+---
+
 <details>
 <summary><strong>Reference Archive</strong> (Click to expand)</summary>
 

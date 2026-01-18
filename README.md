@@ -1,5 +1,25 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Authentication Setup
+
+### Supabase Configuration
+
+1. **URL Configuration** (Authentication → URL Configuration):
+   - Site URL: `https://ohmyreads-next.vercel.app`
+   - Redirect URLs: `https://ohmyreads-next.vercel.app/callback`
+
+2. **Google Provider** (Authentication → Providers → Google):
+   - Enable Google provider
+   - Add Client ID and Client Secret from Google Cloud Console
+
+### Google Cloud Console
+
+1. Create OAuth 2.0 Client ID (APIs & Services → Credentials)
+2. Add authorized redirect URI: `https://bgczdbmqievfilvdzlgl.supabase.co/auth/v1/callback`
+3. **Important**: OAuth consent screen → Either:
+   - Publish the app (allows any Google account), OR
+   - Add test users manually (Testing mode)
+
 ## Getting Started
 
 First, run the development server:
