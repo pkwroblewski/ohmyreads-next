@@ -177,3 +177,100 @@ When using Supabase with CSP headers, always include `wss:` in `connect-src` for
 2. Login with affected user (e.g., biancawroble@hotmail.com)
 3. Should auto-create profile and load dashboard
 4. Check Supabase profiles table - new row should exist
+
+---
+
+## Community Page UI Fixes (January 19, 2026)
+
+### Problems Fixed
+1. **"Who to Follow" Follow Button** - Static button that did nothing
+2. **Like Button on Reviews** - Non-functional, no click handler
+3. **Comment Button** - Static button, no navigation
+4. **Share Button** - Static button, no sharing functionality
+
+### Solutions Implemented
+
+#### Fix 1: CommunitySidebar Follow Button
+- Added `"use client"` directive
+- Replaced static `<Button>` with functional `<FollowButton>` component
+- Added `isLoggedIn` prop to conditionally show follow buttons
+- Follow buttons only visible to logged-in users
+
+#### Fix 2: ActivityCard Like Button
+- Added state management: `hasLiked`, `likesCount`, `isPending`
+- Connected to existing `toggleReviewLike` server action
+- Shows filled red heart when liked
+- Shows like count instead of "Like" text when count > 0
+- Shows login prompt toast for unauthenticated users
+
+#### Fix 3: ActivityCard Comment Button
+- Changed from static button to `<Link>` navigating to `/books/${book.slug}#reviews`
+- Takes users directly to the book's reviews section
+
+#### Fix 4: ActivityCard Share Button
+- Uses Web Share API on supported browsers/devices (mobile)
+- Falls back to clipboard copy on desktop
+- Shows toast notification on successful copy
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `components/community/community-sidebar.tsx` | Added "use client", imported FollowButton, added isLoggedIn prop |
+| `components/community/activity-card.tsx` | Added like/comment/share handlers with state management |
+| `app/(public)/community/page.tsx` | Passes isLoggedIn to CommunitySidebar |
+| `components/community/community-feed-tabs.tsx` | Passes isAuthenticated to ActivityCard |
+
+### Verification Steps
+1. **Test Follow Button (logged in):**
+   - Go to Community page while logged in
+   - See functional Follow buttons in "Who to Follow" section
+   - Click Follow → button changes to "Following"
+   - Hover shows "Unfollow" option
+
+2. **Test Follow Button (logged out):**
+   - Log out and visit community page
+   - Follow buttons should NOT appear
+
+3. **Test Like Button:**
+   - Click Like on a review in the feed
+   - Heart fills red, count updates
+   - Click again to unlike
+
+4. **Test Comment Button:**
+   - Click Comment on a review
+   - Navigates to book page reviews section
+
+5. **Test Share Button:**
+   - Mobile: Native share sheet opens
+   - Desktop: "Link copied to clipboard!" toast appears
+
+---
+
+## Community Page Button Debugging (January 19, 2026)
+
+### Problem
+Buttons were implemented but user reports they don't respond when clicked (logged in state). Only color changes on hover, but no action occurs.
+
+### Debugging Fixes Applied
+
+| Fix | Description |
+|-----|-------------|
+| `type="button"` | Added to Like and Share buttons to prevent unintended form behavior |
+| Toast feedback | Added "Unable to like this review" when review.id is missing |
+| Console logging | Added debug output to trace execution path |
+| Success toast | Added "Liked!" / "Unliked" feedback on successful like toggle |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `components/community/activity-card.tsx` | Added type="button", debugging logs, error feedback, success toasts |
+
+### How to Debug
+1. Open browser DevTools console (F12)
+2. Navigate to `/community` while logged in
+3. Click Like button and check console output:
+   - `handleLike called { isAuthenticated: true, reviewId: "xxx" }` - both values should be truthy
+   - If `isAuthenticated: false` → prop not passed correctly
+   - If `reviewId: undefined` → data issue with the query
+4. Check Network tab for server action request
+5. Check bottom-right corner for toast notifications

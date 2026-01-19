@@ -96,7 +96,7 @@ export default async function CommunityPage() {
               {user && suggestions.length > 0 && (
                 <SuggestedFollows suggestions={suggestions} />
               )}
-              <CommunitySidebar data={sidebarData} />
+              <CommunitySidebar data={sidebarData} isLoggedIn={!!user} />
             </div>
           </aside>
         </div>
@@ -107,7 +107,7 @@ export default async function CommunityPage() {
           {user && suggestions.length > 0 && (
             <SuggestedFollows suggestions={suggestions} />
           )}
-          <CommunitySidebar data={sidebarData} />
+          <CommunitySidebar data={sidebarData} isLoggedIn={!!user} />
         </div>
       </div>
     </div>

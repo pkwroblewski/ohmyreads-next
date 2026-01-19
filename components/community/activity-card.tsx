@@ -1,20 +1,25 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { BookOpen, Heart, MessageCircle, Share2, Star, MoreHorizontal, MapPin } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CoverImage } from "@/components/books/cover-image";
 import { cn } from "@/lib/utils";
+import { toggleReviewLike } from "@/lib/actions/reviews";
 import type { ActivityFeedItemWithRelations } from "@/types/database";
 
 interface ActivityCardProps {
   item: ActivityFeedItemWithRelations;
+  isAuthenticated?: boolean;
+  initialHasLiked?: boolean;
 }
 
-export function ActivityCard({ item }: ActivityCardProps) {
+export function ActivityCard({ item, isAuthenticated = false, initialHasLiked = false }: ActivityCardProps) {
   const displayName = item.user.display_name || item.user.username || "Reader";
   const timeAgo = formatDistanceToNow(new Date(item.created_at), { addSuffix: true });
 
@@ -26,7 +31,15 @@ export function ActivityCard({ item }: ActivityCardProps) {
     return <CheckinCard item={item} displayName={displayName} timeAgo={timeAgo} />;
   }
 
-  return <ReviewCard item={item} displayName={displayName} timeAgo={timeAgo} />;
+  return (
+    <ReviewCard
+      item={item}
+      displayName={displayName}
+      timeAgo={timeAgo}
+      isAuthenticated={isAuthenticated}
+      initialHasLiked={initialHasLiked}
+    />
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -210,15 +223,80 @@ function ReviewCard({
   item,
   displayName,
   timeAgo,
+  isAuthenticated = false,
+  initialHasLiked = false,
 }: {
   item: ActivityFeedItemWithRelations;
   displayName: string;
   timeAgo: string;
+  isAuthenticated?: boolean;
+  initialHasLiked?: boolean;
 }) {
   const review = item.review;
   const book = item.book;
 
+  const [hasLiked, setHasLiked] = useState(initialHasLiked);
+  const [likesCount, setLikesCount] = useState(review?.likes_count || 0);
+  const [isPending, startTransition] = useTransition();
+
   if (!book) return null;
+
+  const handleLike = () => {
+    console.log("handleLike called", { isAuthenticated, reviewId: review?.id });
+    if (!isAuthenticated) {
+      console.log("Not authenticated, showing toast");
+      toast.error("Please sign in to like reviews");
+      return;
+    }
+    if (!review?.id) {
+      console.log("No review.id, showing error toast");
+      toast.error("Unable to like this review");
+      return;
+    }
+    console.log("Calling toggleReviewLike with id:", review.id);
+
+    startTransition(async () => {
+      const result = await toggleReviewLike(review.id);
+      console.log("toggleReviewLike result:", result);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      setHasLiked(result.liked);
+      setLikesCount((prev) => (result.liked ? prev + 1 : prev - 1));
+      toast.success(result.liked ? "Liked!" : "Unliked");
+    });
+  };
+
+  const handleShare = async () => {
+    console.log("handleShare called", { bookSlug: book.slug });
+    const shareUrl = `${window.location.origin}/books/${book.slug}`;
+    const shareData = {
+      title: `Review of ${book.title}`,
+      text: `Check out this review of "${book.title}" on OhMyReads`,
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      console.log("Using native share API");
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        // User cancelled or share failed, fall back to clipboard
+        if ((err as Error).name !== "AbortError") {
+          copyToClipboard(shareUrl);
+        }
+      }
+    } else {
+      console.log("Falling back to clipboard copy");
+      copyToClipboard(shareUrl);
+    }
+  };
+
+  const copyToClipboard = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard!");
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -308,15 +386,31 @@ function ReviewCard({
 
         {/* Actions */}
         <div className="mt-4 flex items-center gap-4 text-muted-foreground">
-          <button className="flex items-center gap-1.5 text-sm hover:text-primary transition-colors">
-            <Heart className="w-4 h-4" />
-            <span>Like{review?.likes_count ? ` (${review.likes_count})` : ""}</span>
+          <button
+            type="button"
+            onClick={handleLike}
+            disabled={isPending}
+            className={cn(
+              "flex items-center gap-1.5 text-sm transition-colors",
+              hasLiked ? "text-red-500" : "hover:text-primary",
+              isPending && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            <Heart className={cn("w-4 h-4", hasLiked && "fill-current")} />
+            <span>{likesCount > 0 ? likesCount : "Like"}</span>
           </button>
-          <button className="flex items-center gap-1.5 text-sm hover:text-primary transition-colors">
+          <Link
+            href={`/books/${book.slug}#reviews`}
+            className="flex items-center gap-1.5 text-sm hover:text-primary transition-colors"
+          >
             <MessageCircle className="w-4 h-4" />
             <span>Comment</span>
-          </button>
-          <button className="flex items-center gap-1.5 text-sm hover:text-primary transition-colors">
+          </Link>
+          <button
+            type="button"
+            onClick={handleShare}
+            className="flex items-center gap-1.5 text-sm hover:text-primary transition-colors"
+          >
             <Share2 className="w-4 h-4" />
             <span>Share</span>
           </button>

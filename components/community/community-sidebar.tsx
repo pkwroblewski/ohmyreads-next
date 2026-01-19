@@ -1,16 +1,19 @@
+"use client";
+
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage, getInitials } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CoverImage } from "@/components/books/cover-image";
+import FollowButton from "@/components/social/follow-button";
 import type { CommunitySidebarData } from "@/lib/queries/community";
 
 interface CommunitySidebarProps {
   data: CommunitySidebarData;
+  isLoggedIn?: boolean;
 }
 
-export function CommunitySidebar({ data }: CommunitySidebarProps) {
+export function CommunitySidebar({ data, isLoggedIn = false }: CommunitySidebarProps) {
   return (
     <div className="space-y-4">
       {/* Who to Follow */}
@@ -44,9 +47,13 @@ export function CommunitySidebar({ data }: CommunitySidebarProps) {
                       @{reader.username || "reader"}
                     </p>
                   </div>
-                  <Button size="sm" variant="default" className="flex-shrink-0">
-                    Follow
-                  </Button>
+                  {isLoggedIn && (
+                    <FollowButton
+                      targetUserId={reader.id}
+                      initialIsFollowing={false}
+                      size="sm"
+                    />
+                  )}
                 </div>
               );
             })}

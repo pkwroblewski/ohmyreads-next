@@ -151,7 +151,11 @@ export function CommunityFeedTabs({
           ) : (
             <div className="space-y-4">
               {currentItems.map((item) => (
-                <ActivityCard key={item.id} item={item} />
+                <ActivityCard
+                  key={item.id}
+                  item={item}
+                  isAuthenticated={isLoggedIn}
+                />
               ))}
             </div>
           )}
