@@ -63,8 +63,8 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
 
           {/* Subheading */}
           <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-lg mb-6 lg:mb-8">
-            The reading community where books come first. AI helps you discover
-            (never manipulates), and your privacy is respected.
+            The reading community where books come first. Discover your next
+            favorite through real reader recommendations, not algorithms.
           </p>
 
           {/* CTA Buttons */}
@@ -121,7 +121,7 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
             </div>
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>AI-powered discovery</span>
+              <span>Smart recommendations</span>
             </div>
           </div>
         </div>

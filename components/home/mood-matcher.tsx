@@ -43,7 +43,7 @@ export function MoodMatcher() {
           </div>
           <div>
             <h3 className="font-semibold text-sm">What are you in the mood for?</h3>
-            <p className="text-xs text-muted-foreground">AI-powered book discovery</p>
+            <p className="text-xs text-muted-foreground">Find your next favorite read</p>
           </div>
         </div>
 

@@ -27,20 +27,20 @@ import { safeJsonLd } from "@/lib/utils/jsonld";
 export const metadata: Metadata = {
   title: "OhMyReads - Independent Minds, Shared Stories",
   description:
-    "The independent reading community where you own your data, AI helps you discover books, and readers come first. Track your reading journey without corporate interference.",
+    "The independent reading community where you own your data and readers come first. Track your reading journey without corporate interference.",
   keywords: [
     "book tracking",
     "reading community",
     "book reviews",
     "goodreads alternative",
     "independent book platform",
-    "AI book discovery",
+    "book recommendations",
     "reading list",
   ],
   openGraph: {
     title: "OhMyReads - Independent Minds, Shared Stories",
     description:
-      "The independent reading community where you own your data and AI helps you discover books.",
+      "The independent reading community where you own your data and readers come first.",
     type: "website",
   },
 };

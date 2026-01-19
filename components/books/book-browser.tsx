@@ -157,7 +157,7 @@ export function BookBrowser({ initialBooks, genres }: BookBrowserProps) {
           className="h-12 px-4 gap-2 bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/20 hover:border-primary/40 hover:bg-primary/10"
         >
           <Sparkles className="h-5 w-5 text-primary" />
-          <span className="hidden sm:inline">AI Search</span>
+          <span className="hidden sm:inline">Mood Search</span>
         </Button>
       </div>
 

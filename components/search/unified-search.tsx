@@ -341,7 +341,7 @@ export function UnifiedSearch({
                   >
                     <span className="flex items-center gap-2 text-primary">
                       <Sparkles className="w-4 h-4" />
-                      Want AI recommendations? Try mood search
+                      Can't find it? Try mood search
                     </span>
                     <ArrowRight className="w-4 h-4 text-primary" />
                   </button>
@@ -360,7 +360,7 @@ export function UnifiedSearch({
                     )}
                   >
                     <Sparkles className="w-4 h-4" />
-                    Try AI-powered search
+                    Try mood search instead
                   </button>
                 </div>
               ) : null}
