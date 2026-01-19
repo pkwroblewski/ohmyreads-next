@@ -66,7 +66,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https: data: blob:",
               "font-src 'self' https: data:",
-              "connect-src 'self' https:",
+              "connect-src 'self' https: wss:",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
             ].join("; "),
