@@ -6,6 +6,40 @@ All security fixes and improvements have been implemented.
 
 ---
 
+## Firefox Authentication Fix (January 19, 2026)
+
+### Problem
+Login worked in Chrome but failed in Firefox with "Something went wrong" error.
+
+### Root Cause
+**Content-Security-Policy was blocking WebSocket connections to Supabase realtime.**
+
+The CSP `connect-src` directive only allowed `https:` but Supabase realtime uses `wss:` (WebSocket Secure). Firefox enforces CSP strictly while Chrome is more lenient, which is why it only failed in Firefox.
+
+Console error that revealed the issue:
+```
+Content-Security-Policy: The page's settings blocked the loading of a resource (connect-src)
+at wss://bgczdbmqievfilvdzlgl.supabase.co/realtime/v1/websocket...
+```
+
+### Solution
+Added `wss:` to the CSP `connect-src` directive in `next.config.ts`:
+```typescript
+"connect-src 'self' https: wss:", // wss: needed for Supabase realtime (Firefox requires this)
+```
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `next.config.ts` | Added `wss:` to CSP connect-src directive |
+| `app/(app)/layout.tsx` | Improved error handling (secondary fix) |
+| `app/(app)/dashboard/page.tsx` | Changed `.single()` to `.maybeSingle()` for resilience |
+
+### Key Lesson
+When using Supabase with CSP headers, always include `wss:` in `connect-src` for realtime WebSocket support. Firefox enforces CSP strictly; Chrome does not.
+
+---
+
 ## Security Audit Fixes (January 2026)
 
 | Task | Status | Notes |

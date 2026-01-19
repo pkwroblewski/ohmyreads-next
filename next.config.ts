@@ -58,6 +58,9 @@ const nextConfig: NextConfig = {
             value: "1; mode=block",
           },
           // Content Security Policy
+          // IMPORTANT: wss: is required in connect-src for Supabase realtime WebSocket connections.
+          // Without it, Firefox blocks WebSocket connections and auth fails (Firefox enforces CSP strictly).
+          // Chrome is more lenient but Firefox will break without wss: included.
           {
             key: "Content-Security-Policy",
             value: [
@@ -66,7 +69,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https: data: blob:",
               "font-src 'self' https: data:",
-              "connect-src 'self' https: wss:",
+              "connect-src 'self' https: wss:", // wss: needed for Supabase realtime (Firefox requires this)
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
             ].join("; "),
