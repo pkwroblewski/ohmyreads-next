@@ -18,12 +18,16 @@ export default async function AdminLayout({
     redirect("/login?redirect=/admin");
   }
 
-  // Check if user is admin
-  const { data: profile } = await supabase
+  // Check if user is admin - use maybeSingle() to avoid error when no row exists
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
+
+  if (profileError) {
+    console.error("Admin profile fetch error:", profileError);
+  }
 
   if (!profile?.is_admin) {
     redirect("/dashboard");

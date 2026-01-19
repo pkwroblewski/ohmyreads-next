@@ -23,18 +23,23 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  // Get user profile (may be null for new users)
-  let profile: Profile | null = null;
-  
-  const { data: profileData } = await supabase
+  // Get user profile - use maybeSingle() to avoid error when no row exists
+  const { data: profileData, error: profileError } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (profileData) {
-    profile = profileData as Profile;
+  if (profileError) {
+    console.error("Profile fetch error:", profileError);
   }
+
+  // If no profile exists, redirect to callback to create one
+  if (!profileData) {
+    redirect("/callback?redirect=/dashboard");
+  }
+
+  const profile = profileData as Profile;
 
   // Fetch chat data in parallel
   const [conversations, unreadCount] = await Promise.all([

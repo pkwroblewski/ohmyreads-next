@@ -39,12 +39,16 @@ export async function GET(request: Request) {
     const { error, data } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user) {
-      // Check if profile exists
-      const { data: profile } = await supabase
+      // Check if profile exists - use maybeSingle() to avoid error when no row exists
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("username, display_name, created_at")
         .eq("id", data.user.id)
-        .single();
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("Profile fetch error:", profileError);
+      }
 
       if (!profile) {
         // CREATE PROFILE IF MISSING (fallback for failed trigger)
