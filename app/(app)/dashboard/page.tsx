@@ -90,10 +90,10 @@ export default async function DashboardPage() {
     friendsActivityData,
     pendingFriendRequests,
   ] = await Promise.all([
-    // Profile
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
-    // Reading stats
-    supabase.from("reading_stats").select("*").eq("user_id", user.id).single(),
+    // Profile - use maybeSingle() to avoid crash if profile doesn't exist
+    supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+    // Reading stats - use maybeSingle() as user may not have stats yet
+    supabase.from("reading_stats").select("*").eq("user_id", user.id).maybeSingle(),
     // Currently reading books
     supabase
       .from("user_books")
