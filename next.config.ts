@@ -67,6 +67,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' https: data: blob:",
               "font-src 'self' https: data:",
               "connect-src 'self' https:",
+              "worker-src 'self' blob:",
               "frame-ancestors 'none'",
             ].join("; "),
           },

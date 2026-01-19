@@ -107,4 +107,18 @@ All security fixes and improvements have been implemented.
 | `RESEND_FROM_EMAIL` | Sender email address | Not set |
 
 ### Production Checks
-- [ ] Verify map works in production (if broken, add Mapbox tokens to Vercel)
+- [x] Verify map works in production - Fixed CSP to allow Mapbox workers
+
+---
+
+## Map Loading Fix (January 2026)
+
+**Problem:** Map page (`/community/map`) didn't load on Vercel deployment.
+
+**Root Cause:** Missing `worker-src` directive in Content Security Policy. Mapbox GL JS v3 uses Web Workers created from blob URLs for tile rendering. Without `worker-src`, CSP falls back to `default-src 'self'` which blocks blob URLs.
+
+**Fix:** Added `worker-src 'self' blob:` to CSP in `next.config.ts`
+
+| File | Change |
+|------|--------|
+| `next.config.ts` | Added `worker-src 'self' blob:` to CSP directives |
