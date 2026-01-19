@@ -26,16 +26,40 @@ function ResetPasswordForm() {
     const checkSession = async () => {
       const supabase = createClient();
 
-      // Check for code in URL (from email link)
+      // Check for code in URL (from email link - PKCE flow)
       const code = searchParams.get("code");
 
       if (code) {
-        // Exchange code for session
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
           setError("This password reset link is invalid or has expired.");
           setIsValidSession(false);
           return;
+        }
+      }
+
+      // Check for hash fragment tokens (implicit flow)
+      // Hash fragments are only available client-side
+      if (typeof window !== "undefined" && window.location.hash) {
+        const hashParams = new URLSearchParams(
+          window.location.hash.substring(1)
+        );
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const type = hashParams.get("type");
+
+        if (accessToken && type === "recovery") {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || "",
+          });
+          if (error) {
+            setError("This password reset link is invalid or has expired.");
+            setIsValidSession(false);
+            return;
+          }
+          // Clear hash from URL for cleaner UX
+          window.history.replaceState(null, "", window.location.pathname);
         }
       }
 
