@@ -34,12 +34,21 @@ export default async function AppLayout({
     console.error("Profile fetch error:", profileError);
   }
 
-  // If no profile exists, redirect to callback to create one
+  // If no profile exists, create one
+  let profile: Profile;
   if (!profileData) {
-    redirect("/callback?redirect=/dashboard");
-  }
+    const { ensureUserProfile } = await import("@/lib/actions/user");
+    const result = await ensureUserProfile();
 
-  const profile = profileData as Profile;
+    if (result.error || !result.profile) {
+      console.error("Failed to ensure profile:", result.error);
+      redirect("/login?error=profile_creation_failed");
+    }
+
+    profile = result.profile;
+  } else {
+    profile = profileData as Profile;
+  }
 
   // Fetch chat data in parallel
   const [conversations, unreadCount] = await Promise.all([

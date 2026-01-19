@@ -122,3 +122,24 @@ All security fixes and improvements have been implemented.
 | File | Change |
 |------|--------|
 | `next.config.ts` | Added `worker-src 'self' blob:` to CSP directives |
+
+---
+
+## Profile Creation Fix - Part 2 (January 2026)
+
+**Problem:** Users with Supabase auth accounts but missing profile rows got "Something Went Wrong" error. The Part 1 fix redirected to `/callback?redirect=/dashboard`, but the callback route requires an OAuth `code` parameter to create profiles.
+
+**Root Cause:** The callback route only creates profiles during OAuth code exchange (line 37: `if (code)`). Redirecting there without a code redirected users to `/login?error=auth_failed`.
+
+**Solution:** Added `ensureUserProfile()` server action that creates profiles inline without needing OAuth code.
+
+| File | Change |
+|------|--------|
+| `lib/actions/user.ts` | Added `ensureUserProfile()` function - creates profile if missing |
+| `app/(app)/layout.tsx` | Calls `ensureUserProfile()` instead of redirecting to `/callback` |
+
+### Verification Steps
+1. Deploy to Vercel
+2. Login with affected user (e.g., biancawroble@hotmail.com)
+3. Should auto-create profile and load dashboard
+4. Check Supabase profiles table - new row should exist

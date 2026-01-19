@@ -8,6 +8,8 @@ import {
   type UpdateProfileInput,
   type SocialLinkInput,
 } from "@/lib/validation/profile";
+import { sendWelcomeEmail } from "@/lib/actions/email";
+import type { Profile } from "@/types/database";
 
 /**
  * Update user profile
@@ -205,5 +207,121 @@ export async function checkUsernameAvailable(username: string) {
   } catch (error) {
     console.error("Error in checkUsernameAvailable:", error);
     return { available: false };
+  }
+}
+
+/**
+ * Ensure user has a profile - creates one if missing
+ * Fixes users who have auth accounts but no profile row
+ */
+export async function ensureUserProfile(): Promise<{
+  profile: Profile | null;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { profile: null, error: "Not authenticated" };
+    }
+
+    // Check if profile already exists
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (existingProfile) {
+      return { profile: existingProfile as Profile };
+    }
+
+    // Create profile - same logic as callback/route.ts
+    const metadata = user.user_metadata || {};
+
+    let username =
+      metadata.preferred_username ||
+      metadata.user_name ||
+      user.email?.split("@")[0] ||
+      `user_${user.id.slice(0, 8)}`;
+
+    const displayName =
+      metadata.full_name ||
+      metadata.name ||
+      metadata.display_name ||
+      null;
+
+    const avatarUrl =
+      metadata.picture ||
+      metadata.avatar_url ||
+      null;
+
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const isAdmin = user.email
+      ? adminEmails.includes(user.email.toLowerCase())
+      : false;
+
+    // Insert profile
+    let insertError;
+    ({ error: insertError } = await supabase.from("profiles").insert({
+      id: user.id,
+      username: username,
+      display_name: displayName,
+      avatar_url: avatarUrl,
+      is_admin: isAdmin,
+    }));
+
+    // If username taken, retry with suffix
+    if (insertError?.code === "23505") {
+      username = `${username}_${Math.random().toString(36).slice(2, 6)}`;
+      const { error: retryError } = await supabase.from("profiles").insert({
+        id: user.id,
+        username: username,
+        display_name: displayName,
+        avatar_url: avatarUrl,
+        is_admin: isAdmin,
+      });
+      if (retryError) {
+        console.error("Profile insert retry error:", retryError);
+        return { profile: null, error: "Failed to create profile" };
+      }
+    } else if (insertError) {
+      console.error("Profile insert error:", insertError);
+      return { profile: null, error: "Failed to create profile" };
+    }
+
+    // Create reading_stats
+    await supabase
+      .from("reading_stats")
+      .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
+
+    // Fetch the created profile
+    const { data: newProfile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    // Send welcome email (non-blocking)
+    if (user.email) {
+      sendWelcomeEmail({
+        email: user.email,
+        username: username,
+        displayName: displayName || undefined,
+      }).catch(console.error);
+    }
+
+    return { profile: newProfile as Profile };
+  } catch (error) {
+    console.error("Error in ensureUserProfile:", error);
+    return { profile: null, error: "An unexpected error occurred" };
   }
 }
