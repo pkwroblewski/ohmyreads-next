@@ -11,8 +11,14 @@ Next.js 16 book tracking app with Supabase, Vercel, and AI integration.
 
 ## Workflow
 
-For multi-step tasks, create a plan file in `.claude/plans/` following the template in:
-→ [Planning Workflow](.claude/docs/planning-workflow.md)
+**For tasks with 3+ steps or multi-file changes:**
+
+1. **Create plan file** in `.claude/plans/` using the exact template format (status table, per-task sections)
+2. **Always use template** — even when adapting user-provided plans
+3. **Update plan after execution** — mark tasks `[x] COMPLETE`, record commits
+4. **Never skip by rationalizing** "it's small enough"
+
+→ [Planning Workflow Template](.claude/docs/planning-workflow.md)
 
 ## Commands
 
