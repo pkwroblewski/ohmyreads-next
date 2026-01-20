@@ -52,8 +52,6 @@ export async function updateReadingStats(
     0
   );
 
-  console.log("updateReadingStats:", { userId, booksRead, pagesRead, reviewsCount });
-
   const { error } = await supabase.from("reading_stats").upsert(
     {
       user_id: userId,
