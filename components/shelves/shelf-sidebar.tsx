@@ -32,7 +32,7 @@ export function ShelfSidebar({ activeShelfId }: ShelfSidebarProps) {
   };
 
   useEffect(() => {
-    loadShelves();
+    queueMicrotask(() => void loadShelves());
   }, []);
 
   const handleShelfClick = (shelfId: string | null) => {

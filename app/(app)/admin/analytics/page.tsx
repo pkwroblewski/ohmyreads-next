@@ -63,7 +63,7 @@ export default function AdminAnalyticsPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    queueMicrotask(() => void fetchData());
   }, [fetchData]);
 
   if (loading) {

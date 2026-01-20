@@ -270,14 +270,13 @@ export async function ensureUserProfile(): Promise<{
       : false;
 
     // Insert profile
-    let insertError;
-    ({ error: insertError } = await supabase.from("profiles").insert({
+    const { error: insertError } = await supabase.from("profiles").insert({
       id: user.id,
       username: username,
       display_name: displayName,
       avatar_url: avatarUrl,
       is_admin: isAdmin,
-    }));
+    });
 
     // If username taken, retry with suffix
     if (insertError?.code === "23505") {

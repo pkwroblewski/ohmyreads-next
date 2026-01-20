@@ -34,7 +34,7 @@ export function useRealtimeMessages({
 
   useEffect(() => {
     if (!userId) {
-      setIsConnected(false);
+      queueMicrotask(() => setIsConnected(false));
       return;
     }
 
@@ -108,7 +108,7 @@ export function useConversationMessages({
 
   useEffect(() => {
     if (!userId || !friendId) {
-      setIsConnected(false);
+      queueMicrotask(() => setIsConnected(false));
       return;
     }
 

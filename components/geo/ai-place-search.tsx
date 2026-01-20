@@ -183,9 +183,9 @@ export function AIPlaceSearch({
           <div className="text-center text-xs text-muted-foreground py-4">
             <p className="mb-2">Try asking:</p>
             <div className="space-y-1">
-              <p className="text-primary">"bookstores within 10 min walk"</p>
-              <p className="text-primary">"cozy cafes nearby"</p>
-              <p className="text-primary">"libraries close to me"</p>
+              <p className="text-primary">&quot;bookstores within 10 min walk&quot;</p>
+              <p className="text-primary">&quot;cozy cafes nearby&quot;</p>
+              <p className="text-primary">&quot;libraries close to me&quot;</p>
             </div>
           </div>
         ) : (

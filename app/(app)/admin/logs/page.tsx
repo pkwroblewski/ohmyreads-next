@@ -119,11 +119,11 @@ export default function AdminLogsPage() {
   }, []);
 
   useEffect(() => {
-    fetchActionTypes();
+    queueMicrotask(() => void fetchActionTypes());
   }, [fetchActionTypes]);
 
   useEffect(() => {
-    fetchLogs();
+    queueMicrotask(() => void fetchLogs());
   }, [fetchLogs]);
 
   const toggleRowExpand = (id: string) => {

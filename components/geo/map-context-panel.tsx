@@ -475,7 +475,7 @@ function ReaderView({
         {/* Presence note */}
         {reader.presenceNote && (
           <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
-            <p className="text-sm italic text-foreground/80">"{reader.presenceNote}"</p>
+            <p className="text-sm italic text-foreground/80">&quot;{reader.presenceNote}&quot;</p>
           </div>
         )}
 

@@ -8,6 +8,14 @@ import { getNeighbors, isValidGeohash } from "@/lib/utils/geohash";
 
 export type PresenceType = "static" | "temporary" | "recommended";
 
+export interface CurrentlyReadingBook {
+  id: string;
+  title: string;
+  author: string | null;
+  cover_url: string | null;
+  slug: string | null;
+}
+
 export interface NearbyReader {
   id: string;
   username: string | null;
@@ -18,6 +26,7 @@ export interface NearbyReader {
   presence_type: PresenceType | null;
   presence_expires_at: string | null;
   presence_note: string | null;
+  currently_reading: CurrentlyReadingBook | null;
 }
 
 export interface Place {
@@ -52,6 +61,7 @@ export interface CachedPlaceData {
  * Get readers near a geohash location
  * Returns users who have opted in to location sharing.
  * Filters out expired temporary/recommended presence.
+ * Includes currently reading book if available.
  */
 export async function getNearbyReaders(
   geohashPrefix: string,
@@ -83,13 +93,13 @@ export async function getNearbyReaders(
     return [];
   }
 
-  if (!data) {
+  if (!data || data.length === 0) {
     return [];
   }
 
   // Filter out expired temporary/recommended presence
   const now = new Date();
-  return data.filter((reader) => {
+  const validReaders = data.filter((reader) => {
     // Static presence never expires
     if (!reader.presence_type || reader.presence_type === "static") {
       return true;
@@ -101,6 +111,49 @@ export async function getNearbyReaders(
     // If no expiry set but non-static, treat as expired
     return false;
   });
+
+  if (validReaders.length === 0) {
+    return [];
+  }
+
+  // Fetch currently reading books for all readers
+  const userIds = validReaders.map((r) => r.id);
+  const { data: readingData } = await supabase
+    .from("user_books")
+    .select("user_id, book:books(id, title, author, cover_url, slug)")
+    .in("user_id", userIds)
+    .eq("status", "reading")
+    .order("updated_at", { ascending: false });
+
+  // Create a map of user_id -> first currently reading book
+  const readingMap = new Map<string, CurrentlyReadingBook>();
+  if (readingData) {
+    for (const entry of readingData) {
+      // Only keep the first (most recently updated) book per user
+      if (!readingMap.has(entry.user_id) && entry.book) {
+        const book = entry.book as unknown as {
+          id: string;
+          title: string;
+          author: string | null;
+          cover_url: string | null;
+          slug: string | null;
+        };
+        readingMap.set(entry.user_id, {
+          id: book.id,
+          title: book.title,
+          author: book.author,
+          cover_url: book.cover_url,
+          slug: book.slug,
+        });
+      }
+    }
+  }
+
+  // Merge readers with their currently reading books
+  return validReaders.map((reader) => ({
+    ...reader,
+    currently_reading: readingMap.get(reader.id) || null,
+  }));
 }
 
 // ============================================

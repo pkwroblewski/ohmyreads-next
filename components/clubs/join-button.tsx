@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, UserMinus, Loader2, LogIn } from "lucide-react";
+import { UserPlus, UserMinus, Loader2, LogIn, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { joinClub, leaveClub } from "@/lib/actions/clubs";
 import { cn } from "@/lib/utils";
@@ -66,9 +67,14 @@ export function JoinButton({
   }
 
   if (isMember) {
-    // Admins can't leave via this button (need to transfer or delete)
+    // Admins see a badge instead of leave button
     if (userRole === "admin") {
-      return null;
+      return (
+        <Badge variant="secondary" className={cn("gap-1.5", className)}>
+          <Shield className="h-3 w-3" />
+          Admin
+        </Badge>
+      );
     }
 
     return (

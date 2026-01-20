@@ -109,7 +109,7 @@ export default function AdminReviewsPage() {
   }, []);
 
   useEffect(() => {
-    fetchStats();
+    queueMicrotask(() => void fetchStats());
   }, [fetchStats]);
 
   useEffect(() => {

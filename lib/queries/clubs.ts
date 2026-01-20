@@ -74,7 +74,7 @@ export async function getClubs(options: GetClubsOptions = {}): Promise<{
     .eq("status", "current");
 
   // Get user's memberships if logged in
-  let membershipMap = new Map<string, string>();
+  const membershipMap = new Map<string, string>();
   if (user) {
     const { data: memberships } = await supabase
       .from("book_club_members")

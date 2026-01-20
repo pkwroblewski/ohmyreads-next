@@ -75,7 +75,9 @@ export async function createClub(
 
   if (memberError) {
     console.error("[createClub] Member insert error:", memberError);
-    // Club was created, so we'll still return success
+    // Rollback: delete the club since we couldn't add the creator as admin
+    await supabase.from("book_clubs").delete().eq("id", club.id);
+    return { success: false, error: "Failed to add you as club admin. Please try again." };
   }
 
   revalidatePath("/clubs");

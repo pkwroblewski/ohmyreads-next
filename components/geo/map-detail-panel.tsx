@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, BookMarked, Landmark, Coffee, MapPin, Globe, Navigation, Users, MessageSquare, Camera, Star, Clock, Loader2, ExternalLink, Phone, Share2, Mail, Accessibility, Copy, Check, MapPinned } from "lucide-react";
+import { X, BookMarked, Landmark, Coffee, MapPin, Globe, Navigation, Users, MessageSquare, Camera, Star, Clock, Loader2, ExternalLink, Phone, Share2, Mail, Accessibility, Copy, Check, MapPinned, BookOpen } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -70,7 +70,7 @@ export function MapDetailPanel({ item, onClose, currentUserId, onMarkSpotAtPlace
       // Small delay for enter animation
       requestAnimationFrame(() => setIsVisible(true));
     } else {
-      setIsVisible(false);
+      queueMicrotask(() => setIsVisible(false));
     }
   }, [item]);
 
@@ -264,10 +264,46 @@ function ReaderContent({ reader, currentUserId, onClearPresence }: {
         </p>
       )}
 
+      {/* Currently reading book */}
+      {reader.currentlyReading && (
+        <Link
+          href={reader.currentlyReading.slug ? `/books/${reader.currentlyReading.slug}` : "#"}
+          className="block p-3 rounded-lg bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-colors group"
+        >
+          <div className="flex items-center gap-1.5 text-xs text-primary font-medium mb-2">
+            <BookOpen className="h-3.5 w-3.5" />
+            <span>Currently Reading</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {reader.currentlyReading.coverUrl ? (
+              <img
+                src={reader.currentlyReading.coverUrl}
+                alt={reader.currentlyReading.title}
+                className="w-10 h-14 object-cover rounded shadow-sm"
+              />
+            ) : (
+              <div className="w-10 h-14 rounded bg-muted flex items-center justify-center">
+                <BookMarked className="h-5 w-5 text-muted-foreground" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                {reader.currentlyReading.title}
+              </p>
+              {reader.currentlyReading.author && (
+                <p className="text-xs text-muted-foreground truncate">
+                  by {reader.currentlyReading.author}
+                </p>
+              )}
+            </div>
+          </div>
+        </Link>
+      )}
+
       {/* Presence note */}
       {reader.presenceNote && (
         <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
-          <p className="text-sm italic text-foreground/80">"{reader.presenceNote}"</p>
+          <p className="text-sm italic text-foreground/80">&quot;{reader.presenceNote}&quot;</p>
         </div>
       )}
 
@@ -354,7 +390,7 @@ function PlaceContent({ place, currentUserId, onMarkSpotAtPlace }: {
   // Fetch enrichment data for OSM places
   useEffect(() => {
     if (isOsmPlace && place.lat && place.lng) {
-      setIsEnriching(true);
+      queueMicrotask(() => setIsEnriching(true));
       fetch(
         `/api/geo/places/enrich?name=${encodeURIComponent(place.name)}&lat=${place.lat}&lng=${place.lng}&osm_id=${place.id}`
       )

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import {
   Upload,
   FileText,
@@ -422,9 +423,9 @@ export default function AdminImportPage() {
             <Button variant="outline" onClick={handleReset}>
               Import More Books
             </Button>
-            <a href="/admin/books">
+            <Link href="/admin/books">
               <Button>View All Books</Button>
-            </a>
+            </Link>
           </div>
         </div>
       )}

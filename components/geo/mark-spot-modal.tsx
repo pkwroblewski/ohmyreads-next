@@ -161,7 +161,7 @@ export function MarkSpotModal({
                 )}>
                   <Clock className="w-6 h-6" />
                 </div>
-                <span className="font-medium text-sm">I'm here now</span>
+                <span className="font-medium text-sm">I&apos;m here now</span>
                 <span className="text-xs text-muted-foreground text-center">
                   Temporary - auto expires
                 </span>

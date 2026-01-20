@@ -119,7 +119,7 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
   // Auto-send initial query if provided
   useEffect(() => {
     if (open && initialQuery && !hasAutoSent && !isLoading) {
-      setHasAutoSent(true);
+      queueMicrotask(() => setHasAutoSent(true));
       sendMessage({
         role: "user",
         parts: [{ type: "text", text: initialQuery }],

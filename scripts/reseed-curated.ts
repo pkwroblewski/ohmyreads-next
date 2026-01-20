@@ -111,7 +111,7 @@ function normalizeDate(dateStr: string | null): string | null {
 }
 
 function generateSlug(title: string, existingSlugs: Set<string>): string {
-  let base = title
+  const base = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")

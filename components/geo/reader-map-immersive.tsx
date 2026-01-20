@@ -18,6 +18,14 @@ import type { UserPresenceData } from "./map-context-panel";
 
 export type PresenceType = "static" | "temporary" | "recommended";
 
+export interface CurrentlyReadingBook {
+  id: string;
+  title: string;
+  author: string | null;
+  coverUrl: string | null;
+  slug: string | null;
+}
+
 export interface ReaderPin {
   id: string;
   username: string | null;
@@ -28,6 +36,7 @@ export interface ReaderPin {
   presenceType: PresenceType;
   presenceNote: string | null;
   presenceExpiresAt: string | null;
+  currentlyReading: CurrentlyReadingBook | null;
 }
 
 export interface PlacePin {
@@ -79,6 +88,7 @@ export function ReaderMapImmersive({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -95,6 +105,7 @@ export function ReaderMapImmersive({
   const [searchResults, setSearchResults] = useState<Array<{ place_name: string; center: [number, number] }>>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [selectedSearchIndex, setSelectedSearchIndex] = useState(-1); // Keyboard navigation index
   // Highlighted place from search (to show with distinctive marker)
   const [highlightedPlace, setHighlightedPlace] = useState<{ lat: number; lng: number; name: string } | null>(null);
 
@@ -450,30 +461,51 @@ export function ReaderMapImmersive({
         // Determine marker style based on presence type
         const presenceType = reader.presenceType || "static";
 
+        // Build accessible label for the marker
+        const readerName = reader.displayName || reader.username || "Reader";
+        const locationDesc = reader.locationLabel || "this location";
+        const presenceDesc = presenceType === "recommended"
+          ? "recommended reading spot"
+          : presenceType === "temporary"
+            ? "reading here now"
+            : "reader";
+        const readingDesc = reader.currentlyReading
+          ? `, currently reading ${reader.currentlyReading.title}`
+          : "";
+        const ariaLabel = `${readerName}, ${presenceDesc} at ${locationDesc}${readingDesc}`;
+
         if (presenceType === "recommended") {
           // Gold star marker for recommended spots
           el.innerHTML = `
-            <div class="w-11 h-11 rounded-full bg-amber-400 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-yellow-200" style="box-shadow: 0 0 12px 4px rgba(251, 191, 36, 0.4);">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <div class="w-11 h-11 rounded-full bg-amber-400 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-yellow-200 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2" style="box-shadow: 0 0 12px 4px rgba(251, 191, 36, 0.4);" role="button" tabindex="0" aria-label="${ariaLabel}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             </div>
           `;
         } else if (presenceType === "temporary") {
           // Pulsing green marker for "here now"
           el.innerHTML = `
-            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white" style="animation: pulse 2s ease-in-out infinite; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2" style="animation: pulse 2s ease-in-out infinite; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);" role="button" tabindex="0" aria-label="${ariaLabel}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
           `;
         } else {
           // Default green marker for static presence
           el.innerHTML = `
-            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2" role="button" tabindex="0" aria-label="${ariaLabel}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
           `;
         }
 
-        el.addEventListener("click", () => setSelectedItem(reader));
+        // Add click and keyboard handlers
+        const handleSelect = () => setSelectedItem(reader);
+        el.addEventListener("click", handleSelect);
+        el.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleSelect();
+          }
+        });
 
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([lng, lat])
@@ -499,6 +531,10 @@ export function ReaderMapImmersive({
       const el = document.createElement("div");
       el.className = "place-marker";
 
+      // Build accessible label for the place marker
+      const placeTypeLabel = place.type.charAt(0).toUpperCase() + place.type.slice(1);
+      const placeAriaLabel = `${place.name}, ${placeTypeLabel}${place.source === "community" ? ", community recommended" : ""}`;
+
       // Use glowing red for highlighted place, otherwise normal colors
       const bgColor = isHighlighted
         ? "bg-red-500"
@@ -510,15 +546,26 @@ export function ReaderMapImmersive({
               ? "bg-pink-500"
               : "bg-orange-400"; // cafe
 
+      // Focus ring color matches background
+      const focusRingColor = isHighlighted
+        ? "focus:ring-red-300"
+        : place.type === "bookstore"
+          ? "focus:ring-amber-300"
+          : place.type === "library"
+            ? "focus:ring-sky-300"
+            : place.type === "restaurant"
+              ? "focus:ring-pink-300"
+              : "focus:ring-orange-300";
+
       // Icons: Bookstore=book, Library=columns, Cafe=coffee, Restaurant=utensils
       const icon =
         place.type === "bookstore"
-          ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>'
+          ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>'
           : place.type === "library"
-            ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>'
+            ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>'
             : place.type === "restaurant"
-              ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>'
-              : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>';
+              ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>'
+              : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>';
 
       // Highlighted marker has glow effect and is larger
       const markerSize = isHighlighted ? "w-12 h-12" : "w-9 h-9";
@@ -527,11 +574,20 @@ export function ReaderMapImmersive({
         : "";
 
       el.innerHTML = `
-        <div class="${markerSize} rounded-full ${bgColor} flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 ${isHighlighted ? 'border-yellow-300' : 'border-white'}" style="${glowStyle}">
+        <div class="${markerSize} rounded-full ${bgColor} flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 ${isHighlighted ? 'border-yellow-300' : 'border-white'} focus:outline-none focus:ring-2 ${focusRingColor} focus:ring-offset-2" style="${glowStyle}" role="button" tabindex="0" aria-label="${placeAriaLabel}">
           ${icon}
         </div>
       `;
-      el.addEventListener("click", () => setSelectedItem(place));
+
+      // Add click and keyboard handlers
+      const handleSelect = () => setSelectedItem(place);
+      el.addEventListener("click", handleSelect);
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleSelect();
+        }
+      });
 
       const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([place.lng, place.lat])
@@ -551,9 +607,10 @@ export function ReaderMapImmersive({
       if (!hasMatchingPlace) {
         const el = document.createElement("div");
         el.className = "highlighted-marker";
+        const highlightAriaLabel = `${highlightedPlace.name}, search result location`;
         el.innerHTML = `
-          <div class="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-yellow-300" style="box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.6), 0 0 40px 16px rgba(239, 68, 68, 0.3); animation: pulse 1.5s ease-in-out infinite;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <div class="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-yellow-300 focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-2" style="box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.6), 0 0 40px 16px rgba(239, 68, 68, 0.3); animation: pulse 1.5s ease-in-out infinite;" role="button" tabindex="0" aria-label="${highlightAriaLabel}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
           </div>
         `;
 
@@ -587,6 +644,40 @@ export function ReaderMapImmersive({
   // Debounce timer ref and search query tracking
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSearchQueryRef = useRef<string>("");
+
+  // Reset selectedSearchIndex when search results change
+  useEffect(() => {
+    setSelectedSearchIndex(-1);
+  }, [searchResults]);
+
+  // Close search dropdown on Escape key or click outside
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showSearch) {
+        setShowSearch(false);
+        setSelectedSearchIndex(-1);
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        showSearch &&
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowSearch(false);
+        setSelectedSearchIndex(-1);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showSearch]);
 
   // Search for places using our API (proxies Nominatim for better POI coverage)
   const handleSearch = useCallback((query: string) => {
@@ -810,9 +901,13 @@ export function ReaderMapImmersive({
 
       {/* Search Bar - Top Center */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4">
-        <div className="relative">
+        <div className="relative" ref={searchContainerRef}>
           <div className="flex items-center gap-2 bg-white/90 dark:bg-card/90 backdrop-blur-xl rounded-full shadow-lg border border-white/50 dark:border-border/50 px-4 py-2.5">
-            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            {isSearching ? (
+              <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" aria-hidden="true" />
+            ) : (
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+            )}
             <Input
               type="text"
               placeholder="Search cafe, bookstore, or city..."
@@ -823,7 +918,30 @@ export function ReaderMapImmersive({
                 handleSearch(e.target.value);
               }}
               onFocus={() => setShowSearch(true)}
+              onKeyDown={(e) => {
+                if (!showSearch || searchResults.length === 0) return;
+
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSelectedSearchIndex((prev) =>
+                    prev < searchResults.length - 1 ? prev + 1 : 0
+                  );
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSelectedSearchIndex((prev) =>
+                    prev > 0 ? prev - 1 : searchResults.length - 1
+                  );
+                } else if (e.key === "Enter" && selectedSearchIndex >= 0) {
+                  e.preventDefault();
+                  const selected = searchResults[selectedSearchIndex];
+                  handleSelectPlace(selected.center, selected.place_name);
+                }
+              }}
               className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto text-sm"
+              role="combobox"
+              aria-expanded={showSearch && searchResults.length > 0}
+              aria-controls="search-results-listbox"
+              aria-activedescendant={selectedSearchIndex >= 0 ? `search-result-${selectedSearchIndex}` : undefined}
             />
             {searchQuery && (
               <Button
@@ -853,12 +971,26 @@ export function ReaderMapImmersive({
 
           {/* Search Results Dropdown */}
           {showSearch && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 dark:bg-card/95 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 dark:border-border/50 overflow-hidden">
+            <div
+              id="search-results-listbox"
+              role="listbox"
+              aria-label="Search results"
+              className="absolute top-full left-0 right-0 mt-2 bg-white/95 dark:bg-card/95 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 dark:border-border/50 overflow-hidden"
+            >
               {searchResults.map((result, index) => (
                 <button
                   key={index}
-                  className="w-full px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0"
+                  id={`search-result-${index}`}
+                  role="option"
+                  aria-selected={index === selectedSearchIndex}
+                  className={cn(
+                    "w-full px-4 py-3 text-left text-sm transition-colors border-b border-border/30 last:border-0",
+                    index === selectedSearchIndex
+                      ? "bg-primary/10 text-primary"
+                      : "hover:bg-muted/50"
+                  )}
                   onClick={() => handleSelectPlace(result.center, result.place_name)}
+                  onMouseEnter={() => setSelectedSearchIndex(index)}
                 >
                   {result.place_name}
                 </button>
@@ -866,8 +998,15 @@ export function ReaderMapImmersive({
             </div>
           )}
 
+          {/* Keep typing hint for short queries */}
+          {showSearch && searchQuery.trim().length === 1 && !isSearching && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 dark:bg-card/95 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 dark:border-border/50 p-4 text-center text-sm text-muted-foreground">
+              Keep typing to search...
+            </div>
+          )}
+
           {/* Searching indicator */}
-          {isSearching && (
+          {isSearching && searchResults.length === 0 && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 dark:bg-card/95 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 dark:border-border/50 p-4 text-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
               Searching...

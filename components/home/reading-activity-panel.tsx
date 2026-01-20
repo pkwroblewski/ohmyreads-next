@@ -203,7 +203,7 @@ export function ReadingActivityPanel({
           {/* Skeleton preview of what's to come */}
           <div className="pt-2">
             <p className="text-xs text-muted-foreground mb-2">
-              Once you start, you'll see:
+              Once you start, you&apos;ll see:
             </p>
             <div className="space-y-3 opacity-50">
               {/* Skeleton book card */}

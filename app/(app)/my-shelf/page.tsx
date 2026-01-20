@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BookOpen, CheckCircle, Bookmark, Library, Upload } from "lucide-react";
+import { BookOpen, CheckCircle, Bookmark, Library, Upload, Folder } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import { ShelfTabs } from "@/components/books/shelf-tabs";
 import { ShelfBookCard } from "@/components/books/shelf-book-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ShelfSidebar } from "@/components/shelves/shelf-sidebar";
+import { MobileShelfDrawer } from "@/components/shelves/mobile-shelf-drawer";
 import type { Book, UserBook } from "@/types/database";
 
 export const metadata: Metadata = {
@@ -105,7 +106,7 @@ export default async function MyShelfPage({
 
   return (
     <div className="flex gap-6">
-      {/* Sidebar with Custom Shelves */}
+      {/* Sidebar with Custom Shelves - Desktop */}
       <aside className="hidden lg:block w-64 flex-shrink-0">
         <ShelfSidebar activeShelfId={shelfFilter} />
       </aside>
@@ -113,15 +114,21 @@ export default async function MyShelfPage({
       {/* Main Content */}
       <div className="flex-1 space-y-6 min-w-0">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold font-serif">
-            {shelfName ? shelfName : "My Shelf"}
-          </h1>
-          <p className="text-muted-foreground">
-            {shelfFilter
-              ? `${filteredBooks.length} book${filteredBooks.length !== 1 ? "s" : ""} in this shelf`
-              : `${counts.all} book${counts.all !== 1 ? "s" : ""} in your collection`}
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold font-serif">
+              {shelfName ? shelfName : "My Shelf"}
+            </h1>
+            <p className="text-muted-foreground">
+              {shelfFilter
+                ? `${filteredBooks.length} book${filteredBooks.length !== 1 ? "s" : ""} in this shelf`
+                : `${counts.all} book${counts.all !== 1 ? "s" : ""} in your collection`}
+            </p>
+          </div>
+          {/* Mobile Custom Shelves Button */}
+          <div className="lg:hidden">
+            <MobileShelfDrawer activeShelfId={shelfFilter} />
+          </div>
         </div>
 
         {/* Stats Cards (only show when not filtering by custom shelf) */}

@@ -59,6 +59,17 @@ export async function GET(request: NextRequest) {
       const isCheckIn = presenceType === "temporary" || presenceType === "recommended";
       const geohashPrefix = isCheckIn ? fullGeohash : fullGeohash.slice(0, 4);
 
+      // Format currently reading book for API response
+      const currentlyReading = reader.currently_reading
+        ? {
+            id: reader.currently_reading.id,
+            title: reader.currently_reading.title,
+            author: reader.currently_reading.author,
+            coverUrl: reader.currently_reading.cover_url,
+            slug: reader.currently_reading.slug,
+          }
+        : null;
+
       return {
         id: reader.id,
         username: reader.username,
@@ -69,6 +80,7 @@ export async function GET(request: NextRequest) {
         presenceType,
         presenceNote: reader.presence_note,
         presenceExpiresAt: reader.presence_expires_at,
+        currentlyReading,
       };
     });
 

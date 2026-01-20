@@ -84,7 +84,7 @@ export default function AdminBooksPage() {
   }, []);
 
   useEffect(() => {
-    fetchGenres();
+    queueMicrotask(() => void fetchGenres());
   }, [fetchGenres]);
 
   useEffect(() => {

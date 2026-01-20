@@ -134,7 +134,7 @@ export async function getUserLists(options: GetListsOptions = {}): Promise<{
   });
 
   // Get user's likes if logged in
-  let likedMap = new Map<string, boolean>();
+  const likedMap = new Map<string, boolean>();
   if (user) {
     const { data: likes } = await supabase
       .from("reading_list_likes")

@@ -84,7 +84,21 @@
       "Skill(vercel:logs)",
       "mcp__plugin_playwright_playwright__browser_fill_form",
       "mcp__plugin_playwright_playwright__browser_press_key",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(test:*)",
+      "Bash(echo:*)",
+      "Bash(Select-String \"idx_activity_feed_user_id|idx_reviews_created_at\")",
+      "Bash(psql:*)",
+      "Bash(node --experimental-modules:*)",
+      "Bash(node scripts/check-migration-029.js:*)",
+      "mcp__plugin_github_github__list_issues",
+      "Bash(xxd:*)",
+      "Bash(xargs -I {} sh -c 'file \"\"{}\"\" | grep -v \"\"UTF-8\\\\|ASCII\"\" && echo \"\"FOUND: {}\"\"')",
+      "Bash(npm run lint:*)",
+      "mcp__plugin_playwright_playwright__browser_resize",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "Bash(OhMyReads\" suffix from 19 page titles\n- Add script to audit and fix duplicate books in database\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npx eslint:*)"
     ]
   }
 }

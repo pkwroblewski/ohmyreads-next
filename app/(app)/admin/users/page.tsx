@@ -91,7 +91,7 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => {
-    fetchStats();
+    queueMicrotask(() => void fetchStats());
   }, [fetchStats]);
 
   useEffect(() => {
