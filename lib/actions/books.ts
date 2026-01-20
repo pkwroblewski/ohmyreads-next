@@ -26,23 +26,33 @@ export async function updateReadingStats(
   userId: string
 ) {
   // Count read books and sum pages
-  const { data: readBooks } = await supabase
+  const { data: readBooks, error: readBooksError } = await supabase
     .from("user_books")
     .select("book:books(page_count)")
     .eq("user_id", userId)
     .eq("status", "read");
 
+  if (readBooksError) {
+    console.error("Error fetching read books:", readBooksError);
+  }
+
   // Count reviews
-  const { count: reviewsCount } = await supabase
+  const { count: reviewsCount, error: reviewsError } = await supabase
     .from("reviews")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId);
+
+  if (reviewsError) {
+    console.error("Error fetching reviews count:", reviewsError);
+  }
 
   const booksRead = readBooks?.length || 0;
   const pagesRead = readBooks?.reduce(
     (sum, ub) => sum + ((ub.book as { page_count?: number })?.page_count || 0),
     0
   );
+
+  console.log("updateReadingStats:", { userId, booksRead, pagesRead, reviewsCount });
 
   const { error } = await supabase.from("reading_stats").upsert(
     {
