@@ -19,6 +19,8 @@ export async function createClub(
     data: { user },
   } = await supabase.auth.getUser();
 
+  console.log("[createClub] User:", user?.id ?? "NOT AUTHENTICATED");
+
   if (!user) {
     return { success: false, error: "Not authenticated" };
   }
@@ -39,11 +41,13 @@ export async function createClub(
   );
 
   if (slugError) {
-    console.error("Error generating slug:", slugError);
-    return { success: false, error: "Failed to create club" };
+    console.error("[createClub] Slug error:", slugError);
+    return { success: false, error: "Failed to generate slug" };
   }
 
   const slug = slugData as string;
+
+  console.log("[createClub] Generated slug:", slug);
 
   // Create club
   const { data: club, error: clubError } = await supabase
@@ -59,8 +63,8 @@ export async function createClub(
     .single();
 
   if (clubError) {
-    console.error("Error creating club:", clubError);
-    return { success: false, error: "Failed to create club" };
+    console.error("[createClub] Club insert error:", clubError);
+    return { success: false, error: "Failed to create club: " + clubError.message };
   }
 
   // Add creator as admin member
@@ -71,7 +75,7 @@ export async function createClub(
   });
 
   if (memberError) {
-    console.error("Error adding creator as member:", memberError);
+    console.error("[createClub] Member insert error:", memberError);
     // Club was created, so we'll still return success
   }
 
