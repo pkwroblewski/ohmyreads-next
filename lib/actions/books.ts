@@ -21,7 +21,7 @@ export interface ExternalBookData {
 type ShelfStatus = "want_to_read" | "reading" | "read";
 
 // Helper function to update reading stats when shelf changes
-async function updateReadingStats(
+export async function updateReadingStats(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
 ) {
@@ -31,6 +31,12 @@ async function updateReadingStats(
     .select("book:books(page_count)")
     .eq("user_id", userId)
     .eq("status", "read");
+
+  // Count reviews
+  const { count: reviewsCount } = await supabase
+    .from("reviews")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
 
   const booksRead = readBooks?.length || 0;
   const pagesRead = readBooks?.reduce(
@@ -43,6 +49,7 @@ async function updateReadingStats(
       user_id: userId,
       books_read: booksRead,
       pages_read: pagesRead,
+      reviews_count: reviewsCount || 0,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" }

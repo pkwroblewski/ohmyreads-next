@@ -9,6 +9,7 @@ import {
   type UpdateReviewInput,
 } from "@/lib/validation/review";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { updateReadingStats } from "./books";
 
 /**
  * Helper to revalidate book page by ID (fetches slug to build correct path)
@@ -104,6 +105,9 @@ export async function createReview(input: CreateReviewInput) {
 
     // Update book's average rating and count
     await updateBookRating(data.bookId);
+
+    // Update reading stats
+    await updateReadingStats(supabase, user.id);
 
     // Revalidate pages
     await revalidateBookPage(data.bookId);
@@ -241,6 +245,9 @@ export async function deleteReview(reviewId: string) {
 
     // Update book rating
     await updateBookRating(review.book_id);
+
+    // Update reading stats
+    await updateReadingStats(supabase, user.id);
 
     await revalidateBookPage(review.book_id);
     revalidatePath("/dashboard");
