@@ -75,6 +75,34 @@ Each task must pass its verification before marking complete:
 
 ---
 
+## Execution Responsibility
+
+### My Responsibility (Claude)
+- Execute all tasks using available tools: Bash, Supabase CLI, MCP plugins, agents
+- Verify completion myself when possible
+- Only mark tasks "for user" when I genuinely cannot execute
+
+### User Action Required - Format
+When user action is truly required, use this format in plans:
+
+```
+⚠️ USER ACTION REQUIRED
+
+**Task:** [What needs to be done]
+**How:** [Step-by-step instructions]
+**Why I can't:** [Specific limitation - e.g., "requires Supabase dashboard GUI", "needs password I don't have"]
+**Verify:** [How user confirms completion]
+```
+
+### Never Delegate When I Can
+- Database operations → Use `supabase` CLI or `npx supabase`
+- File operations → Use Read/Write/Edit tools
+- Git operations → Use Bash
+- API calls → Use WebFetch or Node scripts
+- Browser testing → Use Playwright MCP tools
+
+---
+
 ## Context Management
 
 | Command | When to use |
