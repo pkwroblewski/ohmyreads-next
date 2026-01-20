@@ -20,6 +20,36 @@ Next.js 16 book tracking app with Supabase, Vercel, and AI integration.
 
 → [Planning Workflow Template](.claude/docs/planning-workflow.md)
 
+## Pre-Execution Checklist
+
+Before starting any task with 3+ steps:
+
+- [ ] Plan file created in `.claude/plans/` with exact template format
+- [ ] Status table has columns: `#`, `Task`, `Status`, `Files`
+- [ ] Each task has: **File**, **Steps** (checkboxes), **Verify** (checkboxes), **Status**
+- [ ] `Progress: 0/N complete` line present
+- [ ] Final QA Checklist included
+
+During execution:
+- [ ] Mark task `[x] COMPLETE` immediately after finishing
+- [ ] Ask user to `/clear` after each task
+- [ ] Re-read plan file after clearing
+- [ ] Record commit hash in status table if applicable
+
+## Common Violations (Don't Do This)
+
+❌ **Wrong:** Using a user-provided doc directly as the plan
+✅ **Right:** Convert any input to the exact template format first
+
+❌ **Wrong:** Status table with columns like `Task | Status | Commit`
+✅ **Right:** Status table with `# | Task | Status | Files`
+
+❌ **Wrong:** Executing all tasks in one session without `/clear`
+✅ **Right:** `/clear` after each task, re-read plan, continue
+
+❌ **Wrong:** Task sections without Steps/Verify checkboxes
+✅ **Right:** Every task has actionable checkboxes
+
 ## Commands
 
 ```bash

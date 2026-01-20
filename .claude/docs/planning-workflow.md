@@ -56,6 +56,8 @@ One paragraph: what's the problem and approach.
 - [ ] Feature works as expected (manual test)
 ```
 
+→ See [example-plan.md](./example-plan.md) for a filled-out example
+
 ---
 
 ## Execution Protocol
