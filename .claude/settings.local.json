@@ -81,7 +81,10 @@
       "Bash(supabase --version:*)",
       "Bash(went wrong\" errors. This changes profile queries from .single\\(\\) to\n.maybeSingle\\(\\) which returns null instead of throwing errors when no row\nexists. If no profile exists in the app layout, users are redirected to\n/callback which auto-creates their profile.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(xargs cat:*)",
-      "Skill(vercel:logs)"
+      "Skill(vercel:logs)",
+      "mcp__plugin_playwright_playwright__browser_fill_form",
+      "mcp__plugin_playwright_playwright__browser_press_key",
+      "Bash(tree:*)"
     ]
   }
 }

@@ -6,6 +6,8 @@ import { ChatWrapper } from "@/components/messages";
 import { getConversations, getUnreadCount } from "@/lib/queries/messages";
 import type { Profile } from "@/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({
   children,
 }: {
