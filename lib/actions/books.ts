@@ -44,7 +44,7 @@ export async function updateReadingStats(
     0
   );
 
-  await supabase.from("reading_stats").upsert(
+  const { error } = await supabase.from("reading_stats").upsert(
     {
       user_id: userId,
       books_read: booksRead,
@@ -54,6 +54,10 @@ export async function updateReadingStats(
     },
     { onConflict: "user_id" }
   );
+
+  if (error) {
+    console.error("Error updating reading_stats:", error);
+  }
 }
 
 // Helper function to ensure unique slug
