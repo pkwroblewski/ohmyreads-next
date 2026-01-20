@@ -10,11 +10,11 @@ import { createClient } from "@/lib/supabase/server";
 import { ListCard } from "@/components/lists/list-card";
 
 export const metadata: Metadata = {
-  title: "Reading Lists | OhMyReads",
+  title: "Reading Lists",
   description:
     "Discover curated and community reading lists. Browse collections by genre, theme, or mood.",
   openGraph: {
-    title: "Reading Lists | OhMyReads",
+    title: "Reading Lists",
     description: "Find your next great read with curated book collections.",
   },
 };

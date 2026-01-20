@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = `Explore ${author.books.length} book${author.books.length !== 1 ? "s" : ""} by ${author.name} on OhMyReads. Read reviews and add to your shelf.`;
 
   return {
-    title: `${author.name} | OhMyReads`,
+    title: author.name,
     description,
     openGraph: {
       title: `Books by ${author.name}`,

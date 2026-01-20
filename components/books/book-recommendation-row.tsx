@@ -2,9 +2,9 @@
 
 import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { BookOpen, Star, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CoverImage } from "@/components/books/cover-image";
 import type { Book } from "@/types/database";
 
 interface BookRecommendationRowProps {
@@ -12,21 +12,6 @@ interface BookRecommendationRowProps {
   subtitle?: string;
   books: Book[];
   viewAllHref?: string;
-}
-
-// Placeholder blur data URL for nicer loading
-const BLUR_DATA_URL =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMjIyIi8+PC9zdmc+";
-
-/**
- * Upgrade OpenLibrary cover URLs from -S or -M to -L for higher resolution
- */
-function getHighResCoverUrl(url: string | null): string | null {
-  if (!url) return null;
-  if (url.includes("covers.openlibrary.org")) {
-    return url.replace(/-[SM]\.jpg$/i, "-L.jpg");
-  }
-  return url;
 }
 
 export function BookRecommendationRow({
@@ -180,8 +165,6 @@ export function BookRecommendationRow({
 }
 
 function PremiumBookCard({ book }: { book: Book }) {
-  const coverUrl = getHighResCoverUrl(book.cover_url);
-
   return (
     <Link
       href={`/books/${book.slug}`}
@@ -212,35 +195,21 @@ function PremiumBookCard({ book }: { book: Book }) {
       >
         {/* Inner cover container */}
         <div
-          className="relative w-full rounded-lg overflow-hidden"
+          className="relative w-full"
           style={{ aspectRatio: "2/3" }}
         >
-          {coverUrl ? (
-            <Image
-              src={coverUrl}
-              alt={book.title}
-              fill
-              quality={85}
-              placeholder="blur"
-              blurDataURL={BLUR_DATA_URL}
-              className={cn(
-                "object-cover",
-                "transition-transform duration-300",
-                "group-hover:scale-[1.03]"
-              )}
-              sizes="(max-width: 640px) 160px, (max-width: 1024px) 190px, 220px"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-muted">
-              <BookOpen className="w-10 h-10 text-muted-foreground/50" />
-            </div>
-          )}
+          <CoverImage
+            book={book}
+            fill
+            hover
+            className="rounded-lg"
+          />
 
           {/* Rating badge */}
           {book.average_rating !== null && (
             <div
               className={cn(
-                "absolute top-2 right-2",
+                "absolute top-2 right-2 z-10",
                 "px-2 py-1 rounded-md",
                 "bg-background/90 backdrop-blur-sm border border-border/50",
                 "text-xs font-semibold",

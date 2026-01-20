@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { BookSubmissionForm } from "@/components/books/book-submission-form";
 
 export const metadata: Metadata = {
-  title: "Suggest a Book | OhMyReads",
+  title: "Suggest a Book",
   description: "Submit a book to add to the OhMyReads catalog",
   robots: { index: false, follow: false },
 };

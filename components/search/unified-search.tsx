@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Sparkles, X, Loader2, Star, ArrowRight, User } from "lucide-react";
+import { Search, Sparkles, X, Loader2, ArrowRight, User, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIBookSearch } from "@/components/ai/ai-book-search";
 import type {
@@ -309,8 +309,8 @@ export function UnifiedSearch({
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-[8px] text-muted-foreground">
-                                  No cover
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/20">
+                                  <BookOpen className="w-4 h-4 text-muted-foreground/50" />
                                 </div>
                               )}
                             </div>
@@ -341,7 +341,7 @@ export function UnifiedSearch({
                   >
                     <span className="flex items-center gap-2 text-primary">
                       <Sparkles className="w-4 h-4" />
-                      Can't find it? Try mood search
+                      Can&apos;t find it? Try mood search
                     </span>
                     <ArrowRight className="w-4 h-4 text-primary" />
                   </button>
@@ -349,7 +349,7 @@ export function UnifiedSearch({
               ) : query.length >= 2 && !isLoading ? (
                 <div className="p-6 text-center">
                   <p className="text-muted-foreground mb-3">
-                    No results found for "{query}"
+                    No results found for &quot;{query}&quot;
                   </p>
                   <button
                     onClick={() => handleAISearch()}

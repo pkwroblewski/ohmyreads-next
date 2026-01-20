@@ -5,11 +5,11 @@ import { ReadersLikeYou } from "@/components/discover/readers-like-you";
 import { ReaderBrowser } from "@/components/discover/reader-browser";
 
 export const metadata: Metadata = {
-  title: "Discover Readers | OhMyReads",
+  title: "Discover Readers",
   description:
     "Find readers with similar taste. Discover new book lovers based on shared reading interests, genres, and vibes.",
   openGraph: {
-    title: "Discover Readers | OhMyReads",
+    title: "Discover Readers",
     description:
       "Find readers with similar taste. Discover new book lovers based on shared reading interests.",
     type: "website",

@@ -6,7 +6,7 @@ import { GoodreadsImport } from "@/components/import/goodreads-import";
 import { Upload } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Import Books | OhMyReads",
+  title: "Import Books",
   description: "Import your reading history from Goodreads to OhMyReads",
   robots: { index: false, follow: false },
 };

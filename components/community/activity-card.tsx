@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
-import { BookOpen, Heart, MessageCircle, Share2, Star, MoreHorizontal, MapPin } from "lucide-react";
+import { Heart, MessageCircle, Share2, Star, MoreHorizontal, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CoverImage } from "@/components/books/cover-image";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { cn } from "@/lib/utils";
 import { toggleReviewLike } from "@/lib/actions/reviews";
 import type { ActivityFeedItemWithRelations } from "@/types/database";
@@ -21,21 +21,21 @@ interface ActivityCardProps {
 
 export function ActivityCard({ item, isAuthenticated = false, initialHasLiked = false }: ActivityCardProps) {
   const displayName = item.user.display_name || item.user.username || "Reader";
-  const timeAgo = formatDistanceToNow(new Date(item.created_at), { addSuffix: true });
+  const createdAt = item.created_at;
 
   if (item.type === "started_reading") {
-    return <StartedReadingCard item={item} displayName={displayName} timeAgo={timeAgo} />;
+    return <StartedReadingCard item={item} displayName={displayName} createdAt={createdAt} />;
   }
 
   if (item.type === "checkin") {
-    return <CheckinCard item={item} displayName={displayName} timeAgo={timeAgo} />;
+    return <CheckinCard item={item} displayName={displayName} createdAt={createdAt} />;
   }
 
   return (
     <ReviewCard
       item={item}
       displayName={displayName}
-      timeAgo={timeAgo}
+      createdAt={createdAt}
       isAuthenticated={isAuthenticated}
       initialHasLiked={initialHasLiked}
     />
@@ -48,11 +48,11 @@ export function ActivityCard({ item, isAuthenticated = false, initialHasLiked = 
 function StartedReadingCard({
   item,
   displayName,
-  timeAgo,
+  createdAt,
 }: {
   item: ActivityFeedItemWithRelations;
   displayName: string;
-  timeAgo: string;
+  createdAt: string;
 }) {
   const book = item.book;
   if (!book) return null;
@@ -82,7 +82,7 @@ function StartedReadingCard({
               </Link>
               <span className="text-muted-foreground">started reading</span>
             </div>
-            <p className="text-xs text-muted-foreground">{timeAgo}</p>
+            <RelativeTime date={createdAt} className="text-xs text-muted-foreground" />
           </div>
 
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
@@ -124,11 +124,11 @@ function StartedReadingCard({
 function CheckinCard({
   item,
   displayName,
-  timeAgo,
+  createdAt,
 }: {
   item: ActivityFeedItemWithRelations;
   displayName: string;
-  timeAgo: string;
+  createdAt: string;
 }) {
   const place = item.place;
   const checkin = item.checkin;
@@ -166,7 +166,7 @@ function CheckinCard({
                 {place.name}
               </Link>
             </div>
-            <p className="text-xs text-muted-foreground">{timeAgo}</p>
+            <RelativeTime date={createdAt} className="text-xs text-muted-foreground" />
           </div>
 
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
@@ -222,13 +222,13 @@ function CheckinCard({
 function ReviewCard({
   item,
   displayName,
-  timeAgo,
+  createdAt,
   isAuthenticated = false,
   initialHasLiked = false,
 }: {
   item: ActivityFeedItemWithRelations;
   displayName: string;
-  timeAgo: string;
+  createdAt: string;
   isAuthenticated?: boolean;
   initialHasLiked?: boolean;
 }) {
@@ -329,7 +329,7 @@ function ReviewCard({
                 {book.title}
               </Link>
             </div>
-            <p className="text-xs text-muted-foreground">{timeAgo}</p>
+            <RelativeTime date={createdAt} className="text-xs text-muted-foreground" />
           </div>
 
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">

@@ -4,11 +4,11 @@ import { MapPageClient } from "@/components/geo/map-page-client";
 import type { UserPresenceData } from "@/components/geo/map-context-panel";
 
 export const metadata: Metadata = {
-  title: "Reader Map | OhMyReads",
+  title: "Reader Map",
   description:
     "Discover readers and book-friendly places near you. Find bookstores, libraries, and cafes in your area.",
   openGraph: {
-    title: "Reader Map | OhMyReads",
+    title: "Reader Map",
     description: "Discover readers and book-friendly places near you.",
   },
 };

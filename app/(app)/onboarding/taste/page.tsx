@@ -6,7 +6,7 @@ import { getTasteProfile } from "@/lib/actions/taste";
 import { TasteOnboardingWizard } from "@/components/onboarding/taste-onboarding-wizard";
 
 export const metadata: Metadata = {
-  title: "Set Up Your Taste Profile | OhMyReads",
+  title: "Set Up Your Taste Profile",
   description: "Help us understand your reading preferences to get personalized book recommendations",
   robots: { index: false, follow: false },
 };

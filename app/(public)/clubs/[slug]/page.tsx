@@ -19,11 +19,11 @@ export async function generateMetadata({ params }: ClubPageProps): Promise<Metad
   const club = await getClubBySlug(slug);
 
   if (!club) {
-    return { title: "Club Not Found | OhMyReads" };
+    return { title: "Club Not Found" };
   }
 
   return {
-    title: `${club.name} | Book Clubs | OhMyReads`,
+    title: `${club.name} | Book Clubs`,
     description: club.description || `Join ${club.name} on OhMyReads`,
   };
 }

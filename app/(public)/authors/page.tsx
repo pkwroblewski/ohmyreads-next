@@ -4,11 +4,11 @@ import { Users, BookOpen, Star } from "lucide-react";
 import { getAllAuthors } from "@/lib/queries/authors";
 
 export const metadata: Metadata = {
-  title: "Authors | OhMyReads",
+  title: "Authors",
   description:
     "Browse authors on OhMyReads. Discover books by your favorite authors and find new writers to explore.",
   openGraph: {
-    title: "Authors | OhMyReads",
+    title: "Authors",
     description: "Browse authors and discover their books on OhMyReads.",
   },
 };

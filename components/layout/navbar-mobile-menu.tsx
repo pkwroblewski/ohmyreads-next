@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Menu,
@@ -61,6 +61,18 @@ export function NavbarMobileMenu({ user, isAdmin = false }: NavbarMobileMenuProp
 
   const closeMenu = () => setIsOpen(false);
 
+  // Lock body scroll when menu is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
   return (
     <>
       {/* Hamburger Button */}
@@ -82,8 +94,9 @@ export function NavbarMobileMenu({ user, isAdmin = false }: NavbarMobileMenuProp
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 top-16 bg-background/80 backdrop-blur-sm z-40"
+            className="fixed inset-0 top-16 bg-black/50 backdrop-blur-sm z-40"
             onClick={closeMenu}
+            aria-hidden="true"
           />
 
           {/* Menu Panel */}

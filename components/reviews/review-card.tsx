@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
 import {
   Star,
   ThumbsUp,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { toggleReviewLike } from "@/lib/actions/reviews";
@@ -63,9 +63,6 @@ export function ReviewCard({
 
   const profile = review.profile;
   const displayName = profile?.display_name || profile?.username || "Anonymous";
-  const timeAgo = formatDistanceToNow(new Date(review.created_at), {
-    addSuffix: true,
-  });
 
   const isOwner = currentUserId && review.user_id === currentUserId;
 
@@ -157,7 +154,7 @@ export function ReviewCard({
               <span className="font-medium text-muted-foreground">Anonymous</span>
             )}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>{timeAgo}</span>
+              <RelativeTime date={review.created_at} />
               {review.is_spoiler && (
                 <span className="text-amber-600 dark:text-amber-500 text-xs">
                   • Contains spoilers

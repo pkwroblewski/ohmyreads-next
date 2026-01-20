@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     "Discover your next favorite book from thousands of titles. Browse by genre, read authentic reviews from readers like you, and add books to your personal shelf on OhMyReads.",
   openGraph: {
-    title: "Browse Books - Find Your Next Great Read | OhMyReads",
+    title: "Browse Books - Find Your Next Great Read",
     description: "Discover your next favorite book from thousands of titles. Browse by genre, read authentic reviews, and track your reading journey.",
   },
 };

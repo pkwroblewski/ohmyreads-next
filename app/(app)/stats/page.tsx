@@ -9,7 +9,7 @@ import StatsGoal from "@/components/stats/stats-goal";
 import EmptyStats from "@/components/stats/empty-stats";
 
 export const metadata: Metadata = {
-  title: "Reading Stats | OhMyReads",
+  title: "Reading Stats",
   description: "Your personal reading statistics and insights",
   robots: { index: false, follow: false },
 };

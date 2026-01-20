@@ -12,11 +12,11 @@ import { SuggestedFollows } from "@/components/social/suggested-follows";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Community | OhMyReads",
+  title: "Community",
   description:
     "See what readers are reading and reviewing. Join the OhMyReads community.",
   openGraph: {
-    title: "Community | OhMyReads",
+    title: "Community",
     description:
       "See what readers are reading and reviewing. Join the OhMyReads community.",
     type: "website",

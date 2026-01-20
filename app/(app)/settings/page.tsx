@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Settings, Sparkles, MapPin, Download, Shield } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Settings | OhMyReads",
+  title: "Settings",
   description: "Manage your OhMyReads account settings and preferences",
   robots: { index: false, follow: false },
 };

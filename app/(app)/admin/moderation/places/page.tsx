@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Place Moderation | Admin | OhMyReads",
+  title: "Place Moderation | Admin",
   description: "Review and moderate user-submitted places",
   robots: { index: false, follow: false },
 };

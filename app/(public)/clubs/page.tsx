@@ -4,17 +4,36 @@ import { Suspense } from "react";
 import { Users, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getClubs } from "@/lib/queries/clubs";
+import { getClubs, getUserClubs } from "@/lib/queries/clubs";
 import { createClient } from "@/lib/supabase/server";
 import { ClubCard } from "@/components/clubs/club-card";
 
 export const metadata: Metadata = {
-  title: "Book Clubs | OhMyReads",
+  title: "Book Clubs",
   description: "Join book clubs and read together with other book lovers",
 };
 
 interface ClubsPageProps {
   searchParams: Promise<{ q?: string; page?: string }>;
+}
+
+async function MyClubsSection() {
+  const userClubs = await getUserClubs();
+
+  if (userClubs.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-4">
+      <h2 className="text-lg font-semibold">My Clubs</h2>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {userClubs.map((club) => (
+          <ClubCard key={club.id} club={club} />
+        ))}
+      </div>
+    </section>
+  );
 }
 
 async function ClubsList({ search, page }: { search?: string; page: number }) {
@@ -115,6 +134,13 @@ export default async function ClubsPage({ searchParams }: ClubsPageProps) {
         )}
       </div>
 
+      {/* My Clubs Section */}
+      {user && (
+        <Suspense fallback={null}>
+          <MyClubsSection />
+        </Suspense>
+      )}
+
       {/* Search */}
       <form action="/clubs" method="GET" className="flex gap-2 max-w-md">
         <div className="relative flex-1">
@@ -131,7 +157,8 @@ export default async function ClubsPage({ searchParams }: ClubsPageProps) {
         </Button>
       </form>
 
-      {/* Clubs List */}
+      {/* Public Clubs */}
+      <h2 className="text-lg font-semibold">Discover Clubs</h2>
       <Suspense
         fallback={
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

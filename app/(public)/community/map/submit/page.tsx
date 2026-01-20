@@ -7,7 +7,7 @@ import { PlaceSubmissionForm } from "@/components/geo/place-submission-form";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Submit a Place | OhMyReads",
+  title: "Submit a Place",
   description: "Submit a book-friendly place to the OhMyReads community map.",
 };
 

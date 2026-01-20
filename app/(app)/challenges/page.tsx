@@ -8,7 +8,7 @@ import CreateChallengeForm from "@/components/challenges/create-challenge-form";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Reading Challenges | OhMyReads",
+  title: "Reading Challenges",
   description: "Set and track your personal reading challenges",
   robots: { index: false, follow: false },
 };

@@ -8,7 +8,7 @@ import {
 import ModerationDashboard from "@/components/admin/moderation-dashboard";
 
 export const metadata: Metadata = {
-  title: "Book Moderation | OhMyReads",
+  title: "Book Moderation",
   description: "Review and moderate book submissions",
   robots: { index: false, follow: false },
 };
