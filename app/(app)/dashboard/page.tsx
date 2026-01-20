@@ -30,6 +30,7 @@ import { getPendingRequests } from "@/lib/queries/friends";
 import { PlacesNearYou } from "@/components/dashboard/places-near-you";
 import { FriendsActivity } from "@/components/dashboard/friends-activity";
 import { FriendRequestsNotification } from "@/components/dashboard/friend-requests-notification";
+import { updateReadingStats } from "@/lib/actions/books";
 import type { Book, UserBook, ReadingStats, Profile } from "@/types/database";
 
 export const metadata: Metadata = {
@@ -120,10 +121,21 @@ export default async function DashboardPage() {
   ]);
 
   const profile = profileResult.data as Profile | null;
-  const stats = statsResult.data as ReadingStats | null;
+  let stats = statsResult.data as ReadingStats | null;
   const currentlyReading = (currentlyReadingResult.data || []) as UserBookWithBook[];
   const recentActivity = (recentActivityResult.data || []) as ActivityItem[];
   const challenges = challengesResult.data || [];
+
+  // Initialize reading stats if they don't exist
+  if (!stats) {
+    await updateReadingStats(supabase, user.id);
+    const { data: newStats } = await supabase
+      .from("reading_stats")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    stats = newStats as ReadingStats | null;
+  }
 
   // Fetch personalized recommendations if user has signals
   const recommendations = hasSignals
