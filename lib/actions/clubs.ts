@@ -67,11 +67,10 @@ export async function createClub(
     return { success: false, error: "Failed to create club: " + clubError.message };
   }
 
-  // Add creator as admin member
-  const { error: memberError } = await supabase.from("book_club_members").insert({
-    club_id: club.id,
-    user_id: user.id,
-    role: "admin",
+  // Add creator as admin member using SECURITY DEFINER function to bypass RLS recursion
+  const { error: memberError } = await supabase.rpc("add_club_creator_as_admin", {
+    p_club_id: club.id,
+    p_user_id: user.id,
   });
 
   if (memberError) {
