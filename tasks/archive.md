@@ -52,11 +52,6 @@ Buttons (Like, Share, Follow) on `/community` page don't respond when clicked wh
 
 ## Pending Items
 
-### Migration 029 (Not Yet Applied)
-Run in Supabase SQL Editor when ready:
-- File: `supabase/migrations/029_rls_and_indexes.sql`
-- Contains: RLS fixes, performance indexes, audit columns
-
 ### Optional: Email Setup
 | Variable | Purpose | Status |
 |----------|---------|--------|
@@ -66,6 +61,26 @@ Run in Supabase SQL Editor when ready:
 ---
 
 ## Completed (Archive)
+
+<details>
+<summary>Migration 029 Applied (January 20, 2026)</summary>
+
+**Status:** ✅ All items verified and applied
+
+| Item | Status |
+|------|--------|
+| `reading_stats` public SELECT policy | ✅ Applied |
+| `user_books` public SELECT policy | ✅ Applied |
+| `friend_requests` UPDATE WITH CHECK | ✅ Applied |
+| `idx_activity_feed_user_id` index | ✅ Exists |
+| `idx_reviews_created_at` index | ✅ Exists |
+| `comments.updated_at` column + trigger | ✅ Exists |
+| `books.updated_at` column + trigger | ✅ Exists |
+| `dm_content_length` constraint | ✅ Exists |
+| `social_links_user_platform_unique` constraint | ✅ Exists |
+
+**Migration History:** Repaired via `supabase migration repair` (027-030 marked as applied)
+</details>
 
 <details>
 <summary>Firefox Authentication Fix (January 19, 2026)</summary>
