@@ -20,6 +20,35 @@ export interface ExternalBookData {
 
 type ShelfStatus = "want_to_read" | "reading" | "read";
 
+// Helper function to update reading stats when shelf changes
+async function updateReadingStats(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+) {
+  // Count read books and sum pages
+  const { data: readBooks } = await supabase
+    .from("user_books")
+    .select("book:books(page_count)")
+    .eq("user_id", userId)
+    .eq("status", "read");
+
+  const booksRead = readBooks?.length || 0;
+  const pagesRead = readBooks?.reduce(
+    (sum, ub) => sum + ((ub.book as { page_count?: number })?.page_count || 0),
+    0
+  );
+
+  await supabase.from("reading_stats").upsert(
+    {
+      user_id: userId,
+      books_read: booksRead,
+      pages_read: pagesRead,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+}
+
 // Helper function to ensure unique slug
 async function ensureUniqueSlug(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -96,6 +125,9 @@ export async function addToShelf(bookId: string, status: string) {
       return { error: error.message };
     }
 
+    // Update reading stats
+    await updateReadingStats(supabase, user.id);
+
     // Revalidate affected pages
     revalidatePath("/dashboard");
     revalidatePath("/my-shelf");
@@ -130,6 +162,9 @@ export async function removeFromShelf(bookId: string) {
       console.error("Error removing from shelf:", error);
       return { error: error.message };
     }
+
+    // Update reading stats
+    await updateReadingStats(supabase, user.id);
 
     revalidatePath("/dashboard");
     revalidatePath("/my-shelf");
@@ -260,6 +295,9 @@ export async function importAndAddToShelf(
       console.error("Error adding to shelf:", shelfError);
       return { success: false, error: "Book added to catalog but failed to add to shelf" };
     }
+
+    // Update reading stats
+    await updateReadingStats(supabase, user.id);
 
     // Revalidate pages
     revalidatePath("/dashboard");
