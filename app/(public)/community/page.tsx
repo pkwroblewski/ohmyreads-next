@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getInitialCommunityFeed, getCommunitySidebar } from "@/lib/queries/community";
+import { getInitialCommunityFeed, getCommunitySidebar, getUserLikedReviewIds } from "@/lib/queries/community";
 import { getHomeReadingActivity } from "@/lib/queries/home";
-import { getSuggestedFollows } from "@/lib/queries/follows";
+import { getSuggestedFollows, getFollowingIds } from "@/lib/queries/follows";
 import { CommunityFeedTabs } from "@/components/community/community-feed-tabs";
 import { MyShelfPanel } from "@/components/community/my-shelf-panel";
 import { CommunitySidebar } from "@/components/community/community-sidebar";
@@ -41,11 +41,13 @@ export default async function CommunityPage() {
   }
 
   // Fetch all data in parallel
-  const [initialFeed, sidebarData, activity, suggestions] = await Promise.all([
+  const [initialFeed, sidebarData, activity, suggestions, followingIds, likedReviewIds] = await Promise.all([
     getInitialCommunityFeed(),
     getCommunitySidebar(),
     user ? getHomeReadingActivity(user.id) : Promise.resolve(null),
     user ? getSuggestedFollows(user.id, 5) : Promise.resolve([]),
+    user ? getFollowingIds(user.id) : Promise.resolve([]),
+    user ? getUserLikedReviewIds(user.id) : Promise.resolve([]),
   ]);
 
   return (
@@ -87,6 +89,7 @@ export default async function CommunityPage() {
             <CommunityFeedTabs
               initialGlobalData={initialFeed}
               isLoggedIn={!!user}
+              likedReviewIds={likedReviewIds}
             />
           </main>
 
@@ -94,9 +97,9 @@ export default async function CommunityPage() {
           <aside className="hidden lg:block">
             <div className="sticky top-20 space-y-4">
               {user && suggestions.length > 0 && (
-                <SuggestedFollows suggestions={suggestions} />
+                <SuggestedFollows suggestions={suggestions} followingIds={followingIds} />
               )}
-              <CommunitySidebar data={sidebarData} isLoggedIn={!!user} />
+              <CommunitySidebar data={sidebarData} />
             </div>
           </aside>
         </div>
@@ -105,9 +108,9 @@ export default async function CommunityPage() {
         <div className="lg:hidden mt-8 space-y-6">
           <MyShelfPanel activity={activity} user={userProfile} />
           {user && suggestions.length > 0 && (
-            <SuggestedFollows suggestions={suggestions} />
+            <SuggestedFollows suggestions={suggestions} followingIds={followingIds} />
           )}
-          <CommunitySidebar data={sidebarData} isLoggedIn={!!user} />
+          <CommunitySidebar data={sidebarData} />
         </div>
       </div>
     </div>

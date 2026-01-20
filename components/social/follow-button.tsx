@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { UserPlus, UserMinus, Loader2 } from "lucide-react";
+import { UserPlus, UserMinus, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { toggleFollow } from "@/lib/actions/follows";
@@ -71,7 +71,10 @@ export default function FollowButton({
           Unfollow
         </>
       ) : isFollowing ? (
-        "Following"
+        <>
+          <Check className="h-4 w-4 mr-2" />
+          Following
+        </>
       ) : (
         <>
           <UserPlus className="h-4 w-4 mr-2" />

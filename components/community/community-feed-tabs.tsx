@@ -12,11 +12,13 @@ type FeedTab = "global" | "following";
 interface CommunityFeedTabsProps {
   initialGlobalData: CommunityFeedPage;
   isLoggedIn: boolean;
+  likedReviewIds?: string[];
 }
 
 export function CommunityFeedTabs({
   initialGlobalData,
   isLoggedIn,
+  likedReviewIds = [],
 }: CommunityFeedTabsProps) {
   const [activeTab, setActiveTab] = useState<FeedTab>("global");
 
@@ -155,6 +157,7 @@ export function CommunityFeedTabs({
                   key={item.id}
                   item={item}
                   isAuthenticated={isLoggedIn}
+                  initialHasLiked={item.review?.id ? likedReviewIds.includes(item.review.id) : false}
                 />
               ))}
             </div>

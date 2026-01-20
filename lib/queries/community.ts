@@ -366,3 +366,19 @@ export const getInitialCommunityFeed = unstable_cache(
   { revalidate: 30 } // 30 seconds
 );
 
+// ============================================
+// USER LIKED REVIEWS
+// ============================================
+
+/**
+ * Get the IDs of all reviews a user has liked.
+ */
+export async function getUserLikedReviewIds(userId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("review_likes")
+    .select("review_id")
+    .eq("user_id", userId);
+  return (data || []).map(r => r.review_id);
+}
+

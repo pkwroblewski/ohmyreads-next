@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, UserPlus } from "lucide-react";
+import { BookOpen, Sparkles } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { CompatibilityBadge } from "@/components/discover/compatibility-badge";
 import FollowButton from "./follow-button";
@@ -9,10 +9,12 @@ import type { SuggestedFollow } from "@/lib/queries/follows";
 
 interface SuggestedFollowsProps {
   suggestions: SuggestedFollow[];
+  followingIds?: string[];
 }
 
 export function SuggestedFollows({
   suggestions,
+  followingIds = [],
 }: SuggestedFollowsProps) {
   if (suggestions.length === 0) {
     return null;
@@ -21,8 +23,8 @@ export function SuggestedFollows({
   return (
     <div className="bg-card border rounded-lg p-4">
       <div className="flex items-center gap-2 mb-4">
-        <UserPlus className="w-4 h-4 text-primary" />
-        <h3 className="font-semibold text-sm">Readers You Might Like</h3>
+        <Sparkles className="w-4 h-4 text-primary" />
+        <h3 className="font-semibold text-sm">Discover Readers</h3>
       </div>
 
       <div className="space-y-3">
@@ -66,7 +68,7 @@ export function SuggestedFollows({
 
               <FollowButton
                 targetUserId={user.id}
-                initialIsFollowing={false}
+                initialIsFollowing={followingIds.includes(user.id)}
                 size="sm"
               />
             </div>

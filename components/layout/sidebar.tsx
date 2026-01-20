@@ -14,6 +14,7 @@ import {
   Upload,
   Target,
   Users,
+  UserPlus,
   List,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
@@ -32,6 +33,7 @@ interface SidebarProps {
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/my-shelf", label: "My Shelf", icon: Library },
+  { href: "/friends", label: "Friends", icon: UserPlus },
   { href: "/stats", label: "Reading Stats", icon: BarChart3 },
   { href: "/challenges", label: "Challenges", icon: Target },
   { href: "/clubs", label: "Book Clubs", icon: Users },
