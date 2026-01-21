@@ -100,7 +100,9 @@
       "Bash(OhMyReads\" suffix from 19 page titles\n- Add script to audit and fix duplicate books in database\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(npx eslint:*)",
       "mcp__plugin_playwright_playwright__browser_run_code",
-      "Bash(if not exist \"C:\\\\Users\\\\bitpk\\\\Desktop\\\\Projects\\\\nextjs-vercel\\\\ohmyreads-next\\\\docs\\\\plans\" mkdir \"C:\\\\Users\\\\bitpk\\\\Desktop\\\\Projects\\\\nextjs-vercel\\\\ohmyreads-next\\\\docs\\\\plans\")"
+      "Bash(if not exist \"C:\\\\Users\\\\bitpk\\\\Desktop\\\\Projects\\\\nextjs-vercel\\\\ohmyreads-next\\\\docs\\\\plans\" mkdir \"C:\\\\Users\\\\bitpk\\\\Desktop\\\\Projects\\\\nextjs-vercel\\\\ohmyreads-next\\\\docs\\\\plans\")",
+      "Bash(done)",
+      "Bash(git mv:*)"
     ]
   }
 }
