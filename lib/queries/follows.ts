@@ -42,7 +42,7 @@ export async function getFollowers(
     .select(
       `
       created_at,
-      follower:profiles!follows_follower_id_fkey(
+      follower:profiles!follows_follower_profile_fkey(
         id,
         username,
         display_name,
@@ -87,7 +87,7 @@ export async function getFollowing(
     .select(
       `
       created_at,
-      following:profiles!follows_following_id_fkey(
+      following:profiles!follows_following_profile_fkey(
         id,
         username,
         display_name,
@@ -281,6 +281,8 @@ export async function getFriendsActivity(
   }
 
   // Fetch recent user_books from followed users
+  // Note: Uses explicit FK hint because user_books.user_id has FKs to both
+  // auth.users (original) and profiles (added in migration 038)
   const { data: bookActivity, error: bookError } = await supabase
     .from("user_books")
     .select(
@@ -290,7 +292,7 @@ export async function getFriendsActivity(
       status,
       created_at,
       book:books(id, title, slug, cover_url),
-      profile:profiles(username, display_name, avatar_url)
+      profile:profiles!user_books_user_profile_fkey(username, display_name, avatar_url)
     `
     )
     .in("user_id", followingIds)

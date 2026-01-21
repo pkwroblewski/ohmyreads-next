@@ -20,7 +20,9 @@ import {
   getSocialLinks,
 } from "@/lib/queries/users";
 import { getUserBadgesWithDefinitions } from "@/lib/queries/badges";
+import { getFollowCounts } from "@/lib/queries/follows";
 import { SocialLinksDisplay } from "@/components/social/social-links-display";
+import FollowStats from "@/components/social/follow-stats";
 import BadgesSection from "@/components/badges/badges-section";
 import { BookCard } from "@/components/books/book-card";
 import { RatingDisplay } from "@/components/ui/rating-display";
@@ -55,12 +57,13 @@ export default async function ProfilePage() {
   }
 
   // Fetch data in parallel
-  const [stats, booksResult, reviews, socialLinks, badges] = await Promise.all([
+  const [stats, booksResult, reviews, socialLinks, badges, followCounts] = await Promise.all([
     getUserStats(profile.id),
     getUserBooks(profile.id, { limit: 12 }),
     getUserReviews(profile.id, 5),
     getSocialLinks(profile.id),
     getUserBadgesWithDefinitions(profile.id),
+    getFollowCounts(profile.id),
   ]);
 
   const books = booksResult.userBooks;
@@ -98,7 +101,13 @@ export default async function ProfilePage() {
                 </Button>
               </Link>
             </div>
-            <p className="text-muted-foreground mb-3">@{profile.username}</p>
+            <p className="text-muted-foreground mb-2">@{profile.username}</p>
+            <FollowStats
+              username={profile.username}
+              followersCount={followCounts.followers}
+              followingCount={followCounts.following}
+              className="mb-3 justify-center sm:justify-start"
+            />
 
             {profile.bio && (
               <p className="text-muted-foreground mb-4 max-w-xl">

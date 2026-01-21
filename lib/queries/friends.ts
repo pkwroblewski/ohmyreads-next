@@ -28,7 +28,7 @@ export async function getFriends(
     .from("friend_requests")
     .select(`
       responded_at,
-      receiver:profiles!friend_requests_receiver_id_fkey(
+      receiver:profiles!friend_requests_receiver_profile_fkey(
         id,
         username,
         display_name,
@@ -46,7 +46,7 @@ export async function getFriends(
     .from("friend_requests")
     .select(`
       responded_at,
-      sender:profiles!friend_requests_sender_id_fkey(
+      sender:profiles!friend_requests_sender_profile_fkey(
         id,
         username,
         display_name,
@@ -116,7 +116,7 @@ export async function getPendingRequests(): Promise<FriendRequestWithSender[]> {
     .from("friend_requests")
     .select(`
       *,
-      sender:profiles!friend_requests_sender_id_fkey(
+      sender:profiles!friend_requests_sender_profile_fkey(
         id,
         username,
         display_name,
@@ -166,7 +166,7 @@ export async function getSentRequests(): Promise<FriendRequestWithReceiver[]> {
     .from("friend_requests")
     .select(`
       *,
-      receiver:profiles!friend_requests_receiver_id_fkey(
+      receiver:profiles!friend_requests_receiver_profile_fkey(
         id,
         username,
         display_name,

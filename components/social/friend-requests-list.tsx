@@ -110,6 +110,7 @@ export function PendingRequestsList({ requests: initialRequests }: PendingReques
                 disabled={isPending}
                 variant="outline"
                 size="sm"
+                className="border-foreground/20 hover:border-foreground/30"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -190,6 +191,7 @@ export function SentRequestsList({ requests: initialRequests }: SentRequestsList
               disabled={isPending}
               variant="outline"
               size="sm"
+              className="border-foreground/20 hover:border-foreground/30"
             >
               {isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
