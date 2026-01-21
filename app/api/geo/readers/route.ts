@@ -48,8 +48,13 @@ export async function GET(request: NextRequest) {
     const sanitizedReaders = readers.map((reader) => {
       // Normalize presence type (handle null, case differences, etc.)
       const rawPresenceType = reader.presence_type;
+
+      // Check if presence has expired
+      const hasExpired = reader.presence_expires_at && new Date(reader.presence_expires_at) < new Date();
+
+      // If expired, treat as static (or null) - expired check-ins shouldn't show as active
       const presenceType: "static" | "temporary" | "recommended" =
-        rawPresenceType === "temporary" || rawPresenceType === "recommended"
+        !hasExpired && (rawPresenceType === "temporary" || rawPresenceType === "recommended")
           ? rawPresenceType
           : "static";
 
@@ -75,11 +80,12 @@ export async function GET(request: NextRequest) {
         username: reader.username,
         displayName: reader.display_name,
         avatarUrl: reader.avatar_url,
-        locationLabel: reader.location_label,
+        // Clear location label and note for expired presence to avoid confusion
+        locationLabel: hasExpired ? null : reader.location_label,
         geohashPrefix: geohashPrefix || null,
         presenceType,
-        presenceNote: reader.presence_note,
-        presenceExpiresAt: reader.presence_expires_at,
+        presenceNote: hasExpired ? null : reader.presence_note,
+        presenceExpiresAt: hasExpired ? null : reader.presence_expires_at,
         currentlyReading,
       };
     });

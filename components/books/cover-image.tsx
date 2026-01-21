@@ -112,6 +112,17 @@ export function CoverImage({
             hover && "group-hover:scale-[1.03]"
           )}
           onError={() => setHasError(true)}
+          onLoad={(e) => {
+            // Detect Google Books placeholder images
+            const img = e.currentTarget;
+            if (img.naturalWidth === 1 && img.naturalHeight === 1) {
+              // 1x1 pixel = placeholder
+              setHasError(true);
+            } else if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+              // Suspiciously small = likely placeholder
+              setHasError(true);
+            }
+          }}
         />
       )}
     </div>
