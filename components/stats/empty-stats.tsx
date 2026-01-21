@@ -22,7 +22,7 @@ export default function EmptyStats() {
             </Button>
           </Link>
           <Link href="/my-shelf">
-            <Button variant="outline">Go to My Shelf</Button>
+            <Button variant="outline">Go to Bookshelves</Button>
           </Link>
         </div>
       </div>

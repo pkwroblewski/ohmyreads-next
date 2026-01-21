@@ -636,7 +636,10 @@ export function ReaderMapImmersive({
       el.appendChild(placeBtn);
 
       // Add click and keyboard handlers
-      const handleSelect = () => setSelectedItem(place);
+      const handleSelect = () => {
+        setSelectedItem(place);
+        setHighlightedPlace(null); // Clear search highlight when place is selected
+      };
       el.addEventListener("click", handleSelect);
       el.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -823,10 +826,8 @@ export function ReaderMapImmersive({
         essential: true,
       });
 
-      // Clear highlighted place after animation completes (short delay for user to notice it)
-      map.current.once("moveend", () => {
-        setTimeout(() => setHighlightedPlace(null), 1500);
-      });
+      // Note: highlightedPlace persists until user clears search (X button) or clicks a place
+      // This allows users to interact with the search result marker
 
       // Enable all place layers so the searched result is visible
       setLayers(prev => ({

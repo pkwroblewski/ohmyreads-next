@@ -15,7 +15,7 @@ interface NavbarUserMenuProps {
 
 const menuItems = [
   { href: "/profile", label: "Profile", icon: User },
-  { href: "/my-shelf", label: "My Shelf", icon: Library },
+  { href: "/my-shelf", label: "Bookshelves", icon: Library },
   { href: "/friends", label: "Friends", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

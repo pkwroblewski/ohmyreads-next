@@ -11,7 +11,7 @@ import { MobileShelfDrawer } from "@/components/shelves/mobile-shelf-drawer";
 import type { Book, UserBook } from "@/types/database";
 
 export const metadata: Metadata = {
-  title: "My Shelf",
+  title: "Bookshelves",
 };
 
 interface UserBookWithBook extends UserBook {
@@ -117,7 +117,7 @@ export default async function MyShelfPage({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold font-serif">
-              {shelfName ? shelfName : "My Shelf"}
+              {shelfName ? shelfName : "Bookshelves"}
             </h1>
             <p className="text-muted-foreground">
               {shelfFilter

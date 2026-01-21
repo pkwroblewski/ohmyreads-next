@@ -22,7 +22,7 @@ export function MyShelfPanel({ activity, user }: MyShelfPanelProps) {
     return (
       <Card>
         <CardHeader className="pb-2">
-          <h3 className="text-lg font-semibold font-serif">My Shelf</h3>
+          <h3 className="text-lg font-semibold font-serif">Bookshelves</h3>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-center py-4">
@@ -135,7 +135,7 @@ export function MyShelfPanel({ activity, user }: MyShelfPanelProps) {
           href="/my-shelf"
           className="text-sm text-primary hover:text-primary/80 flex items-center gap-1"
         >
-          View My Shelf
+          View Bookshelves
           <ArrowRight className="w-3 h-3" />
         </Link>
       </CardContent>
