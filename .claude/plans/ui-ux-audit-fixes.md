@@ -27,8 +27,9 @@
 | 7 | Final QA | - | Low | [x] COMPLETE | - |
 | 8 | Fix map search marker disappearing | 🔴 Critical | Low | [x] COMPLETE | `components/geo/reader-map-immersive.tsx` |
 | 9 | Extend Bookshelves labeling | 🟠 High | Low | [x] COMPLETE | `sidebar.tsx`, `navbar-*.tsx`, `my-shelf-panel.tsx`, `empty-stats.tsx`, `my-shelf/page.tsx` |
+| 10 | Make search result marker clickable | 🔴 Critical | Medium | [x] COMPLETE | `components/geo/reader-map-immersive.tsx` |
 
-**Progress: 10/10 complete** ✅
+**Progress: 11/11 complete** ✅
 
 ---
 
@@ -491,3 +492,4 @@ A UI/UX audit identified two known bugs (chat message duplication, hidden check-
 | 2026-01-21 | 7 | COMPLETE | Final QA - build and lint passed; manual testing deferred to user |
 | 2026-01-21 | 8 | COMPLETE | Post-QA fix: Map search marker now persists until user clears search or clicks place (removed 1.5s timeout) |
 | 2026-01-21 | 9 | COMPLETE | Post-QA fix: Extended "Bookshelves" labeling to 7 files (sidebar, navbar, mobile menu, my-shelf-panel, empty-stats, my-shelf page) |
+| 2026-01-21 | 10 | COMPLETE | Post-QA fix: Search result marker now clickable - creates synthetic PlacePin, opens detail panel for check-in |

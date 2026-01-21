@@ -666,7 +666,7 @@ export function ReaderMapImmersive({
       if (!hasMatchingPlace) {
         const el = document.createElement("div");
         el.className = "highlighted-marker";
-        const highlightAriaLabel = `${highlightedPlace.name}, search result location`;
+        const highlightAriaLabel = `${highlightedPlace.name}, search result location. Click to check in here.`;
 
         // Create marker button using DOM APIs to avoid XSS risk
         const highlightBtn = document.createElement("div");
@@ -678,6 +678,37 @@ export function ReaderMapImmersive({
         // Static SVG icon (no user data)
         highlightBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>';
         el.appendChild(highlightBtn);
+
+        // Create synthetic place for the search result so user can check in
+        const syntheticPlace: PlacePin = {
+          id: `search-${highlightedPlace.lat}-${highlightedPlace.lng}`,
+          name: highlightedPlace.name,
+          type: "cafe", // Default type for searched locations
+          source: "osm",
+          address: null,
+          lat: highlightedPlace.lat,
+          lng: highlightedPlace.lng,
+          website: null,
+          phone: null,
+          email: null,
+          opening_hours: null,
+          wheelchair: null,
+          description: "Searched location",
+          image: null,
+        };
+
+        // Add click handler to open detail panel for check-in
+        const handleSearchResultClick = () => {
+          setSelectedItem(syntheticPlace);
+          setHighlightedPlace(null);
+        };
+        el.addEventListener("click", handleSearchResultClick);
+        el.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleSearchResultClick();
+          }
+        });
 
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([highlightedPlace.lng, highlightedPlace.lat])
