@@ -32,14 +32,14 @@ export default async function ReaderMapPage() {
 
     userName = profile?.display_name || profile?.username || undefined;
 
-    // Check if presence is still valid
-    if (profile?.presence_type && profile.presence_type !== "static") {
+    // Check if presence is still valid (temporary or recommended check-ins)
+    if (profile?.presence_type && (profile.presence_type === "temporary" || profile.presence_type === "recommended")) {
       const expiresAt = profile.presence_expires_at ? new Date(profile.presence_expires_at) : null;
       const isExpired = expiresAt && expiresAt < new Date();
 
       if (!isExpired) {
         userPresence = {
-          type: profile.presence_type as "static" | "temporary" | "recommended",
+          type: profile.presence_type as "temporary" | "recommended",
           expiresAt: profile.presence_expires_at,
           note: profile.presence_note,
           locationLabel: profile.location_label,

@@ -46,23 +46,12 @@ export async function GET(request: NextRequest) {
 
     // Sanitize reader data for API response
     const sanitizedReaders = readers.map((reader) => {
-      // Normalize presence type (handle null, case differences, etc.)
-      const rawPresenceType = reader.presence_type;
-
-      // Check if presence has expired
-      const hasExpired = reader.presence_expires_at && new Date(reader.presence_expires_at) < new Date();
-
-      // If expired, treat as static (or null) - expired check-ins shouldn't show as active
-      const presenceType: "static" | "temporary" | "recommended" =
-        !hasExpired && (rawPresenceType === "temporary" || rawPresenceType === "recommended")
-          ? rawPresenceType
-          : "static";
+      // At this point, all readers have active temporary or recommended presence
+      // (expired and null presence already filtered by getNearbyReaders)
+      const presenceType = reader.presence_type as "temporary" | "recommended";
 
       // For temporary/recommended presence, return full geohash (user consented to precise location)
-      // For static presence, truncate to 4 chars for privacy (~20km area)
       const fullGeohash = reader.location_geohash || "";
-      const isCheckIn = presenceType === "temporary" || presenceType === "recommended";
-      const geohashPrefix = isCheckIn ? fullGeohash : fullGeohash.slice(0, 4);
 
       // Format currently reading book for API response
       const currentlyReading = reader.currently_reading
@@ -80,12 +69,11 @@ export async function GET(request: NextRequest) {
         username: reader.username,
         displayName: reader.display_name,
         avatarUrl: reader.avatar_url,
-        // Clear location label and note for expired presence to avoid confusion
-        locationLabel: hasExpired ? null : reader.location_label,
-        geohashPrefix: geohashPrefix || null,
+        locationLabel: reader.location_label,
+        geohashPrefix: fullGeohash || null,
         presenceType,
-        presenceNote: hasExpired ? null : reader.presence_note,
-        presenceExpiresAt: hasExpired ? null : reader.presence_expires_at,
+        presenceNote: reader.presence_note,
+        presenceExpiresAt: reader.presence_expires_at,
         currentlyReading,
       };
     });

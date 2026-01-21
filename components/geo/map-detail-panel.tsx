@@ -225,39 +225,42 @@ function ReaderContent({ reader, currentUserId, onClearPresence }: {
   };
 
   const timeRemaining = getTimeRemaining();
-  const presenceType = reader.presenceType || "static";
+  const presenceType = reader.presenceType;
+
+  // If no presence type, user is not checked in (shouldn't happen due to API filtering)
+  if (!presenceType) {
+    return null;
+  }
 
   return (
     <div className="space-y-4">
       {/* Presence badge */}
-      {presenceType !== "static" && (
-        <div className="flex items-center gap-2">
-          <span className={cn(
-            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
-            presenceType === "temporary"
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-              : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-          )}>
-            {presenceType === "temporary" ? (
-              <>
-                <Clock className="h-3 w-3" />
-                Here now
-              </>
-            ) : (
-              <>
-                <Star className="h-3 w-3" />
-                Recommended spot
-              </>
-            )}
-          </span>
-          {timeRemaining && (
-            <span className="text-xs text-muted-foreground">{timeRemaining}</span>
+      <div className="flex items-center gap-2">
+        <span className={cn(
+          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+          presenceType === "temporary"
+            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+            : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+        )}>
+          {presenceType === "temporary" ? (
+            <>
+              <Clock className="h-3 w-3" />
+              Here now
+            </>
+          ) : (
+            <>
+              <Star className="h-3 w-3" />
+              Recommended spot
+            </>
           )}
-        </div>
-      )}
+        </span>
+        {timeRemaining && (
+          <span className="text-xs text-muted-foreground">{timeRemaining}</span>
+        )}
+      </div>
 
       {/* Location label - show prominently for check-ins */}
-      {reader.locationLabel && presenceType !== "static" && (
+      {reader.locationLabel && (
         <p className="text-sm text-muted-foreground">
           {presenceType === "temporary" ? "Currently reading at " : "Recommends "}
           <span className="font-medium text-foreground">{reader.locationLabel}</span>
@@ -307,30 +310,18 @@ function ReaderContent({ reader, currentUserId, onClearPresence }: {
         </div>
       )}
 
-      {/* Location label for static presence */}
-      {reader.locationLabel && presenceType === "static" && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-4 w-4" />
-          <span>{reader.locationLabel}</span>
-        </div>
-      )}
-
       <p className="text-sm text-muted-foreground">
         {isOwnMarker
           ? presenceType === "temporary"
             ? "You're currently checked in here."
-            : presenceType === "recommended"
-              ? "You recommend this spot for reading."
-              : "Your approximate location is visible to fellow readers."
+            : "You recommend this spot for reading."
           : presenceType === "temporary"
             ? "This reader is currently here and reading."
-            : presenceType === "recommended"
-              ? "This reader recommends this spot for reading."
-              : "This reader has opted in to share their approximate location to connect with fellow book lovers."}
+            : "This reader recommends this spot for reading."}
       </p>
 
-      {/* Check Out button for own marker with active presence */}
-      {isOwnMarker && presenceType !== "static" && onClearPresence && (
+      {/* Check Out button for own marker */}
+      {isOwnMarker && onClearPresence && (
         <Button
           variant="outline"
           className="w-full"

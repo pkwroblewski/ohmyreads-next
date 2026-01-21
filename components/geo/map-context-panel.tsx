@@ -36,7 +36,7 @@ import { cn, formatTimeRemaining } from "@/lib/utils";
 import type { ReaderPin, PlacePin, MapItem } from "./reader-map-immersive";
 
 export interface UserPresenceData {
-  type: "static" | "temporary" | "recommended";
+  type: "temporary" | "recommended";
   expiresAt: string | null;
   note: string | null;
   locationLabel: string | null;
@@ -174,8 +174,8 @@ function DefaultView({
   userPresence?: UserPresenceData | null;
   onClearPresence: () => void;
 }) {
-  // Check if user has active (non-static) presence
-  const hasActivePresence = userPresence && userPresence.type !== "static";
+  // Check if user has active presence (temporary or recommended check-in)
+  const hasActivePresence = userPresence && userPresence.type;
 
   // Confirmation dialog state for check-out
   const [showCheckOutDialog, setShowCheckOutDialog] = useState(false);
@@ -350,7 +350,7 @@ function ReaderCard({
   reader: ReaderPin;
   onClick: () => void;
 }) {
-  const presenceType = reader.presenceType || "static";
+  const presenceType = reader.presenceType;
 
   return (
     <button
@@ -383,11 +383,6 @@ function ReaderCard({
               Recommends this spot
             </span>
           )}
-          {presenceType === "static" && reader.locationLabel && (
-            <span className="text-[10px] text-muted-foreground truncate">
-              {reader.locationLabel}
-            </span>
-          )}
         </div>
       </div>
     </button>
@@ -402,7 +397,7 @@ function ReaderView({
   reader: ReaderPin;
   onBack: () => void;
 }) {
-  const presenceType = reader.presenceType || "static";
+  const presenceType = reader.presenceType;
   const timeRemaining = formatTimeRemaining(reader.presenceExpiresAt ?? null, "left");
 
   return (
@@ -445,7 +440,7 @@ function ReaderView({
         </div>
 
         {/* Presence badge */}
-        {presenceType !== "static" && (
+        {presenceType && (
           <div className="flex items-center gap-2">
             <span className={cn(
               "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium",
@@ -472,7 +467,7 @@ function ReaderView({
         )}
 
         {/* Location label - show prominently for check-ins */}
-        {reader.locationLabel && presenceType !== "static" && (
+        {reader.locationLabel && presenceType && (
           <p className="text-sm text-muted-foreground">
             {presenceType === "temporary" ? "Currently reading at " : "Recommends "}
             <span className="font-medium text-foreground">{reader.locationLabel}</span>
@@ -490,9 +485,7 @@ function ReaderView({
         <p className="text-sm text-muted-foreground">
           {presenceType === "temporary"
             ? "This reader is currently here and reading."
-            : presenceType === "recommended"
-              ? "This reader recommends this spot for reading."
-              : "This reader has opted in to share their approximate location to connect with fellow book lovers."}
+            : "This reader recommends this spot for reading."}
         </p>
 
         {/* View Profile Button */}

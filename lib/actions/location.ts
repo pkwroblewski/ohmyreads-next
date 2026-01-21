@@ -268,7 +268,7 @@ export async function updateLocationPrecision(precision: number) {
 // SET PRESENCE
 // ============================================
 
-export type PresenceType = "static" | "temporary" | "recommended";
+export type PresenceType = "temporary" | "recommended";
 
 interface SetPresenceInput {
   type: PresenceType;
@@ -281,9 +281,9 @@ interface SetPresenceInput {
 
 /**
  * Set the user's presence type for their current location.
- * - static: Permanent home location (default)
- * - temporary: "I'm here now" - auto-expires after durationHours
+ * - temporary: "I'm here now" - auto-expires after durationHours (1-4 hours)
  * - recommended: "Great reading spot" - expires after 7 days
+ * Auto-enables location_enabled when checking in.
  */
 export async function setPresence(input: SetPresenceInput) {
   try {
@@ -364,7 +364,7 @@ export async function setPresence(input: SetPresenceInput) {
 }
 
 /**
- * Clear the user's presence (revert to static with no note)
+ * Clear the user's presence (disable location sharing entirely)
  */
 export async function clearPresence() {
   try {
@@ -382,9 +382,11 @@ export async function clearPresence() {
     const { error } = await supabase
       .from("profiles")
       .update({
-        presence_type: "static",
+        location_enabled: false,
+        presence_type: null,
         presence_expires_at: null,
         presence_note: null,
+        location_label: null,
         location_updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);

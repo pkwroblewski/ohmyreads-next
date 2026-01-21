@@ -26,7 +26,7 @@ import { AIPlaceSearch } from "./ai-place-search";
 import { MarkSpotModal } from "./mark-spot-modal";
 import type { UserPresenceData } from "./map-context-panel";
 
-export type PresenceType = "static" | "temporary" | "recommended";
+export type PresenceType = "temporary" | "recommended";
 
 export interface CurrentlyReadingBook {
   id: string;
@@ -504,16 +504,14 @@ export function ReaderMapImmersive({
         el.className = "reader-marker";
 
         // Determine marker style based on presence type
-        const presenceType = reader.presenceType || "static";
+        const presenceType = reader.presenceType;
 
         // Build accessible label for the marker
         const readerName = reader.displayName || reader.username || "Reader";
         const locationDesc = reader.locationLabel || "this location";
         const presenceDesc = presenceType === "recommended"
           ? "recommended reading spot"
-          : presenceType === "temporary"
-            ? "reading here now"
-            : "reader";
+          : "reading here now";
         const readingDesc = reader.currentlyReading
           ? `, currently reading ${reader.currentlyReading.title}`
           : "";
@@ -531,16 +529,11 @@ export function ReaderMapImmersive({
           btn.style.boxShadow = "0 0 12px 4px rgba(251, 191, 36, 0.4)";
           // Static SVG icon (no user data)
           btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
-        } else if (presenceType === "temporary") {
-          // Pulsing green marker for "here now"
+        } else {
+          // Pulsing green marker for "here now" (temporary presence)
           btn.className = "w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2";
           btn.style.animation = "pulse 2s ease-in-out infinite";
           btn.style.boxShadow = "0 0 0 0 rgba(16, 185, 129, 0.7)";
-          // Static SVG icon (no user data)
-          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
-        } else {
-          // Default green marker for static presence
-          btn.className = "w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2";
           // Static SVG icon (no user data)
           btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
         }
@@ -1199,7 +1192,7 @@ export function ReaderMapImmersive({
       )}
 
       {/* Check Out Button - Mobile only, when user has active presence */}
-      {userPresence && userPresence.type !== "static" && onClearPresence && (
+      {userPresence && userPresence.type && onClearPresence && (
         <>
           <Button
             onClick={() => setShowCheckOutDialog(true)}

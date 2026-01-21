@@ -6,7 +6,7 @@ import { getNeighbors, isValidGeohash } from "@/lib/utils/geohash";
 // TYPES
 // ============================================
 
-export type PresenceType = "static" | "temporary" | "recommended";
+export type PresenceType = "temporary" | "recommended";
 
 export interface CurrentlyReadingBook {
   id: string;
@@ -59,8 +59,8 @@ export interface CachedPlaceData {
 
 /**
  * Get readers near a geohash location
- * Returns users who have opted in to location sharing.
- * Filters out expired temporary/recommended presence.
+ * Returns users with active check-ins (temporary or recommended presence).
+ * Filters out expired presence and users without active check-ins.
  * Includes currently reading book if available.
  */
 export async function getNearbyReaders(
@@ -97,18 +97,18 @@ export async function getNearbyReaders(
     return [];
   }
 
-  // Filter out expired temporary/recommended presence
+  // Only include active temporary/recommended presence (filter out null/disabled presence)
   const now = new Date();
   const validReaders = data.filter((reader) => {
-    // Static presence never expires
-    if (!reader.presence_type || reader.presence_type === "static") {
-      return true;
+    // Must have a presence type (temporary or recommended)
+    if (!reader.presence_type) {
+      return false;
     }
-    // Non-static presence must have a future expiry
+    // Must have a valid future expiry
     if (reader.presence_expires_at) {
       return new Date(reader.presence_expires_at) > now;
     }
-    // If no expiry set but non-static, treat as expired
+    // If no expiry set, treat as expired
     return false;
   });
 
