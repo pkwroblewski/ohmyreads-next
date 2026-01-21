@@ -45,16 +45,19 @@ export function ChatWindow({
 
   // Subscribe to realtime messages
   const handleNewMessage = useCallback((message: DirectMessage) => {
+    // Skip messages we sent - they're already added optimistically
+    // This prevents duplication since optimistic messages have temp IDs
+    // while realtime messages have real UUIDs
+    if (message.sender_id === userId) return;
+
     setMessages((prev) => {
-      // Check for duplicate
+      // Check for duplicate (safety check)
       if (prev.some((m) => m.id === message.id)) return prev;
       return [...prev, message];
     });
 
-    // Mark as read if we're the receiver
-    if (message.receiver_id === userId) {
-      markMessagesAsRead(friend.id);
-    }
+    // Mark as read since we're the receiver
+    markMessagesAsRead(friend.id);
   }, [userId, friend.id]);
 
   useConversationMessages({
@@ -102,6 +105,13 @@ export function ChatWindow({
         setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
         toast.error(result.error);
         setInputValue(content); // Restore input
+      } else if (result.messageId) {
+        // Update optimistic message with real ID from server
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === optimisticMessage.id ? { ...m, id: result.messageId! } : m
+          )
+        );
       }
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));

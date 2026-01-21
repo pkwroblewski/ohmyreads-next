@@ -1,14 +1,23 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { BookCard } from "./book-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import type { Book } from "@/types/database";
 
+interface EmptyStateAction {
+  label: string;
+  href: string;
+  icon?: LucideIcon;
+}
+
 interface BookListHorizontalProps {
   title: string;
   books: Book[];
   emptyMessage?: string;
+  emptyTitle?: string;
+  emptyAction?: EmptyStateAction;
   viewAllHref?: string;
 }
 
@@ -16,6 +25,8 @@ export function BookListHorizontal({
   title,
   books,
   emptyMessage = "No books to display",
+  emptyTitle = "Nothing here yet",
+  emptyAction,
   viewAllHref,
 }: BookListHorizontalProps) {
   return (
@@ -67,8 +78,9 @@ export function BookListHorizontal({
       ) : (
         <EmptyState
           icon={BookOpen}
-          title="Nothing here yet"
+          title={emptyTitle}
           description={emptyMessage}
+          action={emptyAction}
         />
       )}
     </section>

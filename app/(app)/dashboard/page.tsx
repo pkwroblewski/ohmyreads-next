@@ -212,7 +212,12 @@ export default async function DashboardPage() {
       <BookListHorizontal
         title="Currently Reading"
         books={currentlyReadingBooks}
-        emptyMessage="You're not reading anything yet. Find your next book!"
+        emptyTitle="Start your reading journey"
+        emptyMessage="You're not reading anything yet. Add a book to get started!"
+        emptyAction={{
+          label: "Browse Books",
+          href: "/books",
+        }}
         viewAllHref="/my-shelf?status=reading"
       />
 

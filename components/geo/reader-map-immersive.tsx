@@ -7,6 +7,16 @@ import { useTheme } from "next-themes";
 import { Loader2, Locate, Search, X, MapPin, Star, Clock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { encodeGeohash, decodeGeohash } from "@/lib/utils/geohash";
 import { MapLayerControls } from "./map-layer-controls";
@@ -113,6 +123,9 @@ export function ReaderMapImmersive({
   const [showMarkSpotModal, setShowMarkSpotModal] = useState(false);
   const [markSpotPlace, setMarkSpotPlace] = useState<PlacePin | null>(null);
   const [markSpotDefaultType, setMarkSpotDefaultType] = useState<"temporary" | "recommended">("temporary");
+
+  // Check-out confirmation dialog state (mobile)
+  const [showCheckOutDialog, setShowCheckOutDialog] = useState(false);
 
   // Layer visibility state
   const [layers, setLayers] = useState({
@@ -1155,15 +1168,36 @@ export function ReaderMapImmersive({
 
       {/* Check Out Button - Mobile only, when user has active presence */}
       {userPresence && userPresence.type !== "static" && onClearPresence && (
-        <Button
-          onClick={onClearPresence}
-          variant="outline"
-          className="absolute top-20 right-4 z-20 h-10 gap-2 rounded-full shadow-lg bg-white/90 dark:bg-card/90 backdrop-blur-xl border border-border/50 px-4 lg:hidden"
-          title="Check out"
-        >
-          <LogOut className="w-4 h-4" />
-          <span className="text-sm font-medium">Check Out</span>
-        </Button>
+        <>
+          <Button
+            onClick={() => setShowCheckOutDialog(true)}
+            variant="outline"
+            className="absolute top-20 right-4 z-20 h-10 gap-2 rounded-full shadow-lg bg-white/90 dark:bg-card/90 backdrop-blur-xl border border-border/50 px-4 lg:hidden"
+            title="Check out"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-sm font-medium">Check Out</span>
+          </Button>
+
+          {/* Check Out Confirmation Dialog - Mobile */}
+          <AlertDialog open={showCheckOutDialog} onOpenChange={setShowCheckOutDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Check out from this spot?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You&apos;ll be removed from the map and other readers won&apos;t see you at{" "}
+                  {userPresence.locationLabel ? `"${userPresence.locationLabel}"` : "this location"} anymore.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={onClearPresence}>
+                  Check Out
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
       )}
 
       {/* Mark Spot Modal */}

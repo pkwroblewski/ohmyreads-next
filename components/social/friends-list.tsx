@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Users } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDistanceToNow } from "date-fns";
 import type { FriendProfile } from "@/lib/queries/friends";
 
@@ -12,10 +14,15 @@ interface FriendsListProps {
 export function FriendsList({ friends }: FriendsListProps) {
   if (friends.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <p>No friends yet</p>
-        <p className="text-sm mt-1">Discover readers and send friend requests!</p>
-      </div>
+      <EmptyState
+        icon={Users}
+        title="No friends yet"
+        description="Connect with other readers to share your reading journey and discover new books together."
+        action={{
+          label: "Discover Readers",
+          href: "/community",
+        }}
+      />
     );
   }
 

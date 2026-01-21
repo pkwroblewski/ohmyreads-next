@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { X, MessageSquare } from "lucide-react";
 import { ConversationList } from "./conversation-list";
 import { ChatWindow } from "./chat-window";
+import { ChatLoadingSkeleton } from "./message-skeletons";
 import { cn } from "@/lib/utils";
 import type { ConversationPreview, DirectMessage } from "@/types/database";
 
@@ -142,11 +143,7 @@ export function ChatPanel({
         {/* Panel Content */}
         <div className="h-[calc(100%-64px)] overflow-hidden">
           {isLoadingChat ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="animate-pulse text-muted-foreground">
-                Loading...
-              </div>
-            </div>
+            <ChatLoadingSkeleton />
           ) : selectedFriend ? (
             <ChatWindow
               userId={userId}

@@ -18,9 +18,20 @@ import {
   Check,
   ExternalLink,
   LogIn,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn, formatTimeRemaining } from "@/lib/utils";
 import type { ReaderPin, PlacePin, MapItem } from "./reader-map-immersive";
 
@@ -166,6 +177,9 @@ function DefaultView({
   // Check if user has active (non-static) presence
   const hasActivePresence = userPresence && userPresence.type !== "static";
 
+  // Confirmation dialog state for check-out
+  const [showCheckOutDialog, setShowCheckOutDialog] = useState(false);
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -232,11 +246,31 @@ function DefaultView({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onClearPresence}
+                onClick={() => setShowCheckOutDialog(true)}
                 className="w-full mt-3 text-muted-foreground hover:text-foreground"
               >
+                <LogOut className="h-4 w-4 mr-2" />
                 Check Out
               </Button>
+
+              {/* Check Out Confirmation Dialog */}
+              <AlertDialog open={showCheckOutDialog} onOpenChange={setShowCheckOutDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Check out from this spot?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You&apos;ll be removed from the map and other readers won&apos;t see you at{" "}
+                      {userPresence.locationLabel ? `"${userPresence.locationLabel}"` : "this location"} anymore.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onClearPresence}>
+                      Check Out
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         )}

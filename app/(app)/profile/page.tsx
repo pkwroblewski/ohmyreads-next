@@ -183,11 +183,11 @@ export default async function ProfilePage() {
       />
 
       {/* ========================================
-          My Books Section
+          Bookshelves Section
           ======================================== */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold font-serif">My Books</h2>
+          <h2 className="text-xl font-semibold font-serif">Bookshelves</h2>
           <Link
             href="/my-shelf"
             className="text-sm text-primary hover:underline"
@@ -232,11 +232,11 @@ export default async function ProfilePage() {
       </section>
 
       {/* ========================================
-          My Reviews Section
+          Recent Reviews Section
           ======================================== */}
       {reviews.length > 0 && (
         <section>
-          <h2 className="text-xl font-semibold font-serif mb-4">My Reviews</h2>
+          <h2 className="text-xl font-semibold font-serif mb-4">Recent Reviews</h2>
           <div className="space-y-4">
             {reviews.map((review) => (
               <Link

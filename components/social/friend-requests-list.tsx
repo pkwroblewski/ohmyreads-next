@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, X, Loader2 } from "lucide-react";
+import { Check, X, Loader2, Inbox, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
 import { acceptFriendRequest, rejectFriendRequest, cancelFriendRequest } from "@/lib/actions/friends";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -53,9 +54,15 @@ export function PendingRequestsList({ requests: initialRequests }: PendingReques
 
   if (requests.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        No pending friend requests
-      </div>
+      <EmptyState
+        icon={Inbox}
+        title="No pending requests"
+        description="When other readers send you friend requests, they'll appear here."
+        action={{
+          label: "Discover Readers",
+          href: "/community",
+        }}
+      />
     );
   }
 
@@ -149,9 +156,15 @@ export function SentRequestsList({ requests: initialRequests }: SentRequestsList
 
   if (requests.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        No pending sent requests
-      </div>
+      <EmptyState
+        icon={Send}
+        title="No sent requests"
+        description="Friend requests you send will appear here until they're accepted."
+        action={{
+          label: "Find Readers",
+          href: "/community",
+        }}
+      />
     );
   }
 
