@@ -25,8 +25,10 @@
 | 5 | Add loading skeletons | 🟡 Medium | Medium | [x] COMPLETE | `app/(public)/community/loading.tsx`, `components/messages/*` |
 | 6 | Improve empty states | 🟡 Medium | Medium | [x] COMPLETE | `components/books/book-list-horizontal.tsx`, `components/social/*` |
 | 7 | Final QA | - | Low | [x] COMPLETE | - |
+| 8 | Fix map search marker disappearing | 🔴 Critical | Low | [x] COMPLETE | `components/geo/reader-map-immersive.tsx` |
+| 9 | Extend Bookshelves labeling | 🟠 High | Low | [x] COMPLETE | `sidebar.tsx`, `navbar-*.tsx`, `my-shelf-panel.tsx`, `empty-stats.tsx`, `my-shelf/page.tsx` |
 
-**Progress: 8/8 complete** ✅
+**Progress: 10/10 complete** ✅
 
 ---
 
@@ -487,3 +489,5 @@ A UI/UX audit identified two known bugs (chat message duplication, hidden check-
 | 2026-01-21 | 5 | COMPLETE | Added loading skeletons for Community page and Messages drawer |
 | 2026-01-21 | 6 | COMPLETE | Improved empty states with icons, messages, and CTAs for Dashboard and Friends pages |
 | 2026-01-21 | 7 | COMPLETE | Final QA - build and lint passed; manual testing deferred to user |
+| 2026-01-21 | 8 | COMPLETE | Post-QA fix: Map search marker now persists until user clears search or clicks place (removed 1.5s timeout) |
+| 2026-01-21 | 9 | COMPLETE | Post-QA fix: Extended "Bookshelves" labeling to 7 files (sidebar, navbar, mobile menu, my-shelf-panel, empty-stats, my-shelf page) |
