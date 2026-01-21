@@ -8,34 +8,30 @@
 
 | # | Task | Priority | Effort | Status | Files |
 |---|------|----------|--------|--------|-------|
-| 1 | Fix book cover "image not available" text | 🔴 Critical | Low | [ ] PENDING | TBD - need to locate source |
-| 2 | Fix place markers not clickable | 🔴 Critical | Medium | [ ] PENDING | `components/geo/reader-map-immersive.tsx` |
-| 3 | Add Check Out button to own reader marker panel | 🔴 Critical | Low | [ ] PENDING | `components/geo/map-detail-panel.tsx` |
+| 1 | Fix book cover "image not available" text | 🔴 Critical | Low | [x] COMPLETE | `components/books/cover-image.tsx` |
+| 2 | Fix place markers not clickable | 🔴 Critical | Medium | [ ] PENDING - NEEDS CLARIFICATION | `components/geo/reader-map-immersive.tsx` |
+| 3 | Fix expired presence showing as active | 🔴 Critical | Low | [x] COMPLETE | `app/api/geo/readers/route.ts` |
 
-**Progress: 0/3 complete**
+**Progress: 2/3 complete** (BUG 2 pending user clarification)
 
 ---
 
-## BUG 1: Book cover shows "image not available" text
+## BUG 1: Book cover shows "image not available" text ✅ FIXED
 
 **Severity:** 🔴 Critical
 **Impact:** Visual polish - damages user trust, makes app look unfinished
 
-**Reproduction:**
-1. Go to `/my-shelf` or `/profile`
-2. Find book with missing cover (e.g., Harry Potter)
-3. See "image not available" text instead of BookOpen icon placeholder
+**Root cause:**
+- Google Books API returns 200 OK with "image not available" placeholder images
+- These images are 1x1 pixels or very small (<50px)
+- `onError` handler never fires because image technically loads successfully
+- Browser shows alt text "Cover of Harry Potter" when image is too small to display
 
-**Investigation needed:**
-- Search for exact string in codebase
-- Check if it's browser alt text from failed image load
-- Check if it's from database (book.cover_url contains this text)
-- Check Next.js Image component error handling
-
-**Files to check:**
-- `components/books/shelf-book-card.tsx`
-- `components/books/cover-image.tsx`
-- `components/books/book-card.tsx`
+**Fix:**
+- Added `onLoad` handler to detect placeholder images after successful load
+- Check if `naturalWidth` or `naturalHeight` is suspiciously small (1x1 or <50px)
+- Set `hasError` state to trigger fallback to BookOpen icon
+- File: `components/books/cover-image.tsx` lines 116-123
 
 ---
 
@@ -63,29 +59,29 @@
 
 ---
 
-## BUG 3: No Check Out button when viewing own reader marker
+## BUG 3: Expired presence showing as active ✅ FIXED
 
 **Severity:** 🔴 Critical
-**Impact:** User is stuck - can see they're checked in but cannot check out from map view
+**Impact:** Confusing UI - expired check-ins show as active with location label
 
-**Reproduction:**
-1. Check in at a location on map
-2. Click on YOUR OWN reader marker (green person icon)
-3. Panel opens showing: name, location ("Garer Stuff"), currently reading, "View Profile" button
-4. **MISSING:** "Check Out" button
-5. User cannot check out from this view
+**Root cause:**
+- User checked in at "Garer Stuff" with 2-hour expiration
+- Check-in expired (presence_expires_at < now)
+- Database still has: presence_type="temporary", location_label="Garer Stuff"
+- API didn't filter expired presence - showed as active
+- Panel showed: "This reader has opted in to share..." (static message) + "Garer Stuff" location
+- No Check Out button (correct for expired) but confusing location shown
 
-**Expected:**
-- When clicking own reader marker, show "Check Out" button in panel
-- Button should call `onClearPresence` to clear check-in status
+**Fix:**
+- Added expiration check in readers API: `presence_expires_at < now`
+- Expired presence now treated as "static" (presenceType)
+- Clear locationLabel, presenceNote, presenceExpiresAt for expired presence
+- File: `app/api/geo/readers/route.ts` lines 48-87
 
-**Investigation:**
-- Check Out logic exists at map-detail-panel.tsx:333-341
-- Condition: `isOwnMarker && presenceType !== "static" && onClearPresence`
-- Verify:
-  1. `isOwnMarker` is correctly identifying own marker (currentUserId === reader.id)
-  2. `presenceType` is not "static" for checked-in users
-  3. `onClearPresence` callback is being passed through component chain
+**Result:**
+- Expired check-ins no longer show location label or note
+- Panel correctly shows static presence message
+- No Check Out button (correct - presence already expired)
 
 ---
 
@@ -93,4 +89,7 @@
 
 | Date | Bug # | Status | Notes |
 |------|-------|--------|-------|
-| 2026-01-21 | ALL | PENDING | Bugs discovered during manual testing of UI/UX fixes |
+| 2026-01-21 | ALL | DISCOVERED | Bugs found during manual testing of UI/UX fixes |
+| 2026-01-21 | 1 | FIXED | Added onLoad detection for Google Books 1x1 placeholder images |
+| 2026-01-21 | 3 | FIXED | Added expiration filtering - expired presence now clears location data |
+| 2026-01-21 | 2 | PENDING | Awaiting user clarification - yellow "Garer Stuff" label is Mapbox POI, not our marker |
