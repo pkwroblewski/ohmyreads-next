@@ -13,45 +13,65 @@ Next.js 16 book tracking app with Supabase, Vercel, and AI integration.
 
 **For tasks with 3+ steps or multi-file changes:**
 
-1. **Create plan file** in `.claude/plans/` using the exact template format (status table, per-task sections)
-2. **Always use template** — even when adapting user-provided plans
-3. **Update plan after execution** — mark tasks `[x] COMPLETE`, record commits
-4. **Never skip by rationalizing** "it's small enough"
+1. **STOP** - Do not start coding
+2. **READ** `.claude/docs/example-plan.md` - understand the exact format
+3. **READ** `.claude/docs/planning-workflow.md` - understand the process
+4. **CREATE** plan in `.claude/plans/` using exact template format
+5. **EXECUTE** one task → fill Completed Notes → mark COMPLETE
+6. **WAIT** for user to run `/clear`
+7. **AFTER CLEAR** → re-read plan file, find next PENDING, repeat
 
-→ [Planning Workflow Template](.claude/docs/planning-workflow.md)
+## Plan Structure (Non-Negotiable)
 
-## Pre-Execution Checklist
+**Status table must have these columns:**
+```
+| # | Task | Priority | Effort | Status | Files |
+```
 
-Before starting any task with 3+ steps:
+**Each task must have these sections:**
+- **Source/Audit Finding** — where this task came from
+- **Priority** — 🔴 Critical / 🟠 High / 🟡 Medium / 🟢 Low
+- **Effort** — Low / Medium / High
+- **File(s)** — what will be modified
+- **Context** — why this task exists
+- **Steps** — checkboxes for actions
+- **Verify** — checkboxes for confirmation
+- **Completed Notes** — filled AFTER completing (files modified, approach, deviations, issues)
+- **Status** — one of:
+  - `[ ] PENDING` - not started
+  - `[x] COMPLETE` - all steps and verify checks done
+  - `[x] CODE COMPLETE - Verification blocked` - code done, verify requires deployment/action
+  - `[-] BLOCKED` - cannot proceed, waiting on external dependency
 
-- [ ] Plan file created in `.claude/plans/` with exact template format
-- [ ] Status table has columns: `#`, `Task`, `Status`, `Files`
-- [ ] Each task has: **File**, **Steps** (checkboxes), **Verify** (checkboxes), **Status**
-- [ ] `Progress: 0/N complete` line present
-- [ ] Final QA Checklist included
+**Plan must also include:**
+- Summary section
+- Out of Scope (Deferred) table
+- Final QA Checklist
+- Changelog table
 
-During execution:
-- [ ] Mark task `[x] COMPLETE` immediately after finishing
-- [ ] Ask user to `/clear` after each task
-- [ ] Re-read plan file after clearing
-- [ ] Record commit hash in status table if applicable
+## When Verification is Blocked
 
-## Common Violations (Don't Do This)
+If you cannot complete Verify steps (deployment needed, credentials required, etc.):
 
-❌ **Wrong:** Using a user-provided doc directly as the plan
-✅ **Right:** Convert any input to the exact template format first
+1. **STOP** - Do not mark COMPLETE
+2. **ASK** - "Verification blocked because [reason]. How should I proceed?"
+3. **WAIT** - User decides
+4. **UPDATE** - Use status user approves (e.g., `[x] CODE COMPLETE - Verification blocked`)
 
-❌ **Wrong:** Status table with columns like `Task | Status | Commit`
-✅ **Right:** Status table with `# | Task | Status | Files`
+Never assume deferred verification carries over to subsequent tasks.
 
-❌ **Wrong:** Executing all tasks in one session without `/clear`
-✅ **Right:** `/clear` after each task, re-read plan, continue
+## Don't Do This
 
-❌ **Wrong:** Task sections without Steps/Verify checkboxes
-✅ **Right:** Every task has actionable checkboxes
+- ❌ Start coding without reading example-plan.md first
+- ❌ Use user-provided docs or audits directly as plans → convert to exact template
+- ❌ Create Status table with different columns → always use `# | Task | Priority | Effort | Status | Files`
+- ❌ Execute multiple tasks without `/clear` → one task, then clear, then next
+- ❌ Mark COMPLETE without filling Completed Notes → always document what was done
+- ❌ Mark COMPLETE with unchecked Verify items → stop and ask if verification is blocked
+- ❌ Skip Out of Scope section → explicitly list what's deferred and why
+- ❌ Skip planning for "small" multi-step tasks → always plan if 3+ steps
 
 ## Commands
-
 ```bash
 npm run dev      # Development server
 npm run build    # Production build
