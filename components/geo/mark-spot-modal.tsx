@@ -256,6 +256,9 @@ export function MarkSpotModal({
                   Other readers will see that you&apos;re at {place.name}.
                   Your exact position (~150m) will be visible on the map.
                 </p>
+                <p className="text-amber-600 dark:text-amber-400 text-xs mt-2 font-medium">
+                  ↑ Required to submit
+                </p>
               </label>
             </div>
           )}

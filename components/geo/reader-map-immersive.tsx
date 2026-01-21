@@ -131,6 +131,10 @@ export function ReaderMapImmersive({
 
   // Track previous layers to detect when a layer is turned ON
   const prevLayersRef = useRef(layers);
+
+  // ARIA live region for reader count changes
+  const prevReaderCountRef = useRef(readers.length);
+  const [readerCountAnnouncement, setReaderCountAnnouncement] = useState("");
   useEffect(() => {
     // Check if any layer was turned ON (false -> true)
     const layerTurnedOn =
@@ -151,6 +155,25 @@ export function ReaderMapImmersive({
     prevLayersRef.current = layers;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layers]);
+
+  // Update ARIA live region when reader count changes
+  useEffect(() => {
+    const currentCount = readers.length;
+    const prevCount = prevReaderCountRef.current;
+
+    // Only announce if count actually changed and we have data (avoid initial load)
+    if (currentCount !== prevCount && prevCount !== 0) {
+      const message =
+        currentCount === 0
+          ? "No readers in this area"
+          : currentCount === 1
+            ? "1 reader in this area"
+            : `${currentCount} readers in this area`;
+      setReaderCountAnnouncement(message);
+    }
+
+    prevReaderCountRef.current = currentCount;
+  }, [readers.length]);
 
   // Isochrone state
   const [isochroneData, setIsochroneData] = useState<{
@@ -338,11 +361,17 @@ export function ReaderMapImmersive({
     });
 
     map.current.on("moveend", () => {
-      if (map.current) {
-        const center = map.current.getCenter();
-        const zoom = map.current.getZoom();
-        fetchDataForLocation(center.lat, center.lng, zoom);
+      // Debounce: wait 300ms after map stops moving to fetch data
+      if (moveEndTimeoutRef.current) {
+        clearTimeout(moveEndTimeoutRef.current);
       }
+      moveEndTimeoutRef.current = setTimeout(() => {
+        if (map.current) {
+          const center = map.current.getCenter();
+          const zoom = map.current.getZoom();
+          fetchDataForLocation(center.lat, center.lng, zoom);
+        }
+      }, 300);
     });
 
     // Get user's location from IP (server-side proxy to avoid CORS)
@@ -411,6 +440,9 @@ export function ReaderMapImmersive({
     }
 
     return () => {
+      if (moveEndTimeoutRef.current) {
+        clearTimeout(moveEndTimeoutRef.current);
+      }
       map.current?.remove();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -474,28 +506,32 @@ export function ReaderMapImmersive({
           : "";
         const ariaLabel = `${readerName}, ${presenceDesc} at ${locationDesc}${readingDesc}`;
 
+        // Create marker button using DOM APIs to avoid XSS risk
+        const btn = document.createElement("div");
+        btn.setAttribute("role", "button");
+        btn.setAttribute("tabindex", "0");
+        btn.setAttribute("aria-label", ariaLabel);
+
         if (presenceType === "recommended") {
           // Gold star marker for recommended spots
-          el.innerHTML = `
-            <div class="w-11 h-11 rounded-full bg-amber-400 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-yellow-200 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2" style="box-shadow: 0 0 12px 4px rgba(251, 191, 36, 0.4);" role="button" tabindex="0" aria-label="${ariaLabel}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
-          `;
+          btn.className = "w-11 h-11 rounded-full bg-amber-400 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-yellow-200 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2";
+          btn.style.boxShadow = "0 0 12px 4px rgba(251, 191, 36, 0.4)";
+          // Static SVG icon (no user data)
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
         } else if (presenceType === "temporary") {
           // Pulsing green marker for "here now"
-          el.innerHTML = `
-            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2" style="animation: pulse 2s ease-in-out infinite; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);" role="button" tabindex="0" aria-label="${ariaLabel}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </div>
-          `;
+          btn.className = "w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2";
+          btn.style.animation = "pulse 2s ease-in-out infinite";
+          btn.style.boxShadow = "0 0 0 0 rgba(16, 185, 129, 0.7)";
+          // Static SVG icon (no user data)
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
         } else {
           // Default green marker for static presence
-          el.innerHTML = `
-            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2" role="button" tabindex="0" aria-label="${ariaLabel}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </div>
-          `;
+          btn.className = "w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-white focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2";
+          // Static SVG icon (no user data)
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
         }
+        el.appendChild(btn);
 
         // Add click and keyboard handlers
         const handleSelect = () => setSelectedItem(reader);
@@ -573,11 +609,18 @@ export function ReaderMapImmersive({
         ? "box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.6), 0 0 40px 16px rgba(239, 68, 68, 0.3); animation: pulse 1.5s ease-in-out infinite;"
         : "";
 
-      el.innerHTML = `
-        <div class="${markerSize} rounded-full ${bgColor} flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 ${isHighlighted ? 'border-yellow-300' : 'border-white'} focus:outline-none focus:ring-2 ${focusRingColor} focus:ring-offset-2" style="${glowStyle}" role="button" tabindex="0" aria-label="${placeAriaLabel}">
-          ${icon}
-        </div>
-      `;
+      // Create marker button using DOM APIs to avoid XSS risk
+      const placeBtn = document.createElement("div");
+      placeBtn.className = `${markerSize} rounded-full ${bgColor} flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 ${isHighlighted ? 'border-yellow-300' : 'border-white'} focus:outline-none focus:ring-2 ${focusRingColor} focus:ring-offset-2`;
+      if (glowStyle) {
+        placeBtn.style.cssText = glowStyle;
+      }
+      placeBtn.setAttribute("role", "button");
+      placeBtn.setAttribute("tabindex", "0");
+      placeBtn.setAttribute("aria-label", placeAriaLabel);
+      // Static SVG icon (no user data)
+      placeBtn.innerHTML = icon;
+      el.appendChild(placeBtn);
 
       // Add click and keyboard handlers
       const handleSelect = () => setSelectedItem(place);
@@ -608,11 +651,17 @@ export function ReaderMapImmersive({
         const el = document.createElement("div");
         el.className = "highlighted-marker";
         const highlightAriaLabel = `${highlightedPlace.name}, search result location`;
-        el.innerHTML = `
-          <div class="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-yellow-300 focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-2" style="box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.6), 0 0 40px 16px rgba(239, 68, 68, 0.3); animation: pulse 1.5s ease-in-out infinite;" role="button" tabindex="0" aria-label="${highlightAriaLabel}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-          </div>
-        `;
+
+        // Create marker button using DOM APIs to avoid XSS risk
+        const highlightBtn = document.createElement("div");
+        highlightBtn.className = "w-12 h-12 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-110 transition-transform border-2 border-yellow-300 focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-2";
+        highlightBtn.style.cssText = "box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.6), 0 0 40px 16px rgba(239, 68, 68, 0.3); animation: pulse 1.5s ease-in-out infinite;";
+        highlightBtn.setAttribute("role", "button");
+        highlightBtn.setAttribute("tabindex", "0");
+        highlightBtn.setAttribute("aria-label", highlightAriaLabel);
+        // Static SVG icon (no user data)
+        highlightBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>';
+        el.appendChild(highlightBtn);
 
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([highlightedPlace.lng, highlightedPlace.lat])
@@ -644,6 +693,8 @@ export function ReaderMapImmersive({
   // Debounce timer ref and search query tracking
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSearchQueryRef = useRef<string>("");
+  // Debounce timer for moveend data fetch
+  const moveEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Reset selectedSearchIndex when search results change
   useEffect(() => {
@@ -1028,6 +1079,16 @@ export function ReaderMapImmersive({
         }}
         className="absolute top-[76px] left-1/2 -translate-x-1/2 z-10"
       />
+
+      {/* ARIA Live Region for Reader Count - Visually hidden but announced by screen readers */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {readerCountAnnouncement}
+      </div>
 
       {/* Isochrone Controls - Bottom Left */}
       <IsochroneControls

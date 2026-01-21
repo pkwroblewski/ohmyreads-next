@@ -39,3 +39,22 @@ export function truncate(str: string, length: number): string {
   return `${str.slice(0, length).trim()}...`;
 }
 
+/**
+ * Formats time remaining until expiration as "Xh Xm remaining"
+ * Returns null if no expiration, "Expired" if past
+ */
+export function formatTimeRemaining(
+  expiresAt: string | null,
+  suffix: string = "remaining"
+): string | null {
+  if (!expiresAt) return null;
+  const expireDate = new Date(expiresAt);
+  const now = new Date();
+  const diff = expireDate.getTime() - now.getTime();
+  if (diff <= 0) return "Expired";
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `${hours}h ${minutes}m ${suffix}`;
+  return `${minutes}m ${suffix}`;
+}
+

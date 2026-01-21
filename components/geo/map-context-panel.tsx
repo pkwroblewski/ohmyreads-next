@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { cn, formatTimeRemaining } from "@/lib/utils";
 import type { ReaderPin, PlacePin, MapItem } from "./reader-map-immersive";
 
 export interface UserPresenceData {
@@ -166,19 +166,6 @@ function DefaultView({
   // Check if user has active (non-static) presence
   const hasActivePresence = userPresence && userPresence.type !== "static";
 
-  // Calculate time remaining for temporary presence
-  const getTimeRemaining = () => {
-    if (!userPresence?.expiresAt) return null;
-    const expiresAt = new Date(userPresence.expiresAt);
-    const now = new Date();
-    const diff = expiresAt.getTime() - now.getTime();
-    if (diff <= 0) return "Expired";
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    if (hours > 0) return `${hours}h ${minutes}m remaining`;
-    return `${minutes}m remaining`;
-  };
-
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -232,7 +219,7 @@ function DefaultView({
                   </p>
                   {userPresence.expiresAt && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {getTimeRemaining()}
+                      {formatTimeRemaining(userPresence.expiresAt)}
                     </p>
                   )}
                 </div>
@@ -382,21 +369,7 @@ function ReaderView({
   onBack: () => void;
 }) {
   const presenceType = reader.presenceType || "static";
-
-  // Calculate time remaining for temporary presence
-  const getTimeRemaining = () => {
-    if (!reader.presenceExpiresAt) return null;
-    const expiresAt = new Date(reader.presenceExpiresAt);
-    const now = new Date();
-    const diff = expiresAt.getTime() - now.getTime();
-    if (diff <= 0) return "Expired";
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    if (hours > 0) return `${hours}h ${minutes}m left`;
-    return `${minutes}m left`;
-  };
-
-  const timeRemaining = getTimeRemaining();
+  const timeRemaining = formatTimeRemaining(reader.presenceExpiresAt ?? null, "left");
 
   return (
     <div className="flex flex-col h-full">
