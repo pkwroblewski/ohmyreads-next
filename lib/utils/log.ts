@@ -121,3 +121,48 @@ export function extractErrorInfo(error: unknown): LogContext {
   return { errorMessage: String(error) };
 }
 
+/**
+ * Supabase error structure
+ */
+interface SupabaseError {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+}
+
+/**
+ * Helper to safely extract Supabase/PostgreSQL error information for logging
+ * Only includes safe fields (code, message) without internal details (SQL, paths)
+ */
+export function extractSupabaseErrorInfo(
+  error: SupabaseError | null | undefined
+): LogContext {
+  if (!error) {
+    return { errorMessage: "Unknown error" };
+  }
+
+  const info: LogContext = {};
+
+  // Always include error code (e.g., "23505" for unique violation)
+  if (error.code) {
+    info.errorCode = error.code;
+  }
+
+  // Include message but strip any potential SQL fragments
+  if (error.message) {
+    // Sanitize: remove anything that looks like SQL or file paths
+    info.errorMessage = error.message
+      .replace(/\/[^\s]+/g, "[path]") // Remove file paths
+      .replace(/SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|JOIN/gi, "[sql]"); // Mask SQL keywords
+  }
+
+  // Only include hint/details in development (may contain internal info)
+  if (process.env.NODE_ENV === "development") {
+    if (error.details) info.errorDetails = error.details;
+    if (error.hint) info.errorHint = error.hint;
+  }
+
+  return info;
+}
+

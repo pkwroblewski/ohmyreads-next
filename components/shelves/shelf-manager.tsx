@@ -200,9 +200,15 @@ function ShelfItem({
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm">{shelf.name}</span>
             {shelf.is_public ? (
-              <Globe className="h-3 w-3 text-muted-foreground" />
+              <>
+                <Globe className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                <span className="sr-only">Public shelf</span>
+              </>
             ) : (
-              <Lock className="h-3 w-3 text-muted-foreground" />
+              <>
+                <Lock className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                <span className="sr-only">Private shelf</span>
+              </>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
@@ -218,16 +224,18 @@ function ShelfItem({
           size="icon"
           className="h-8 w-8"
           onClick={onEdit}
+          aria-label={`Edit ${shelf.name} shelf`}
         >
-          <Pencil className="h-4 w-4" />
+          <Pencil className="h-4 w-4" aria-hidden="true" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-destructive hover:text-destructive"
           onClick={onDelete}
+          aria-label={`Delete ${shelf.name} shelf`}
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
     </div>
@@ -307,23 +315,30 @@ function ShelfForm({
       </div>
 
       {/* Color */}
-      <div>
-        <label className="text-sm font-medium">Color</label>
-        <div className="flex gap-2 mt-1">
-          {SHELF_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setColor(c)}
-              className={cn(
-                "w-6 h-6 rounded-full transition-transform",
-                color === c && "ring-2 ring-offset-2 ring-primary scale-110"
-              )}
-              style={{ backgroundColor: c }}
-            />
-          ))}
+      <fieldset>
+        <legend className="text-sm font-medium">Color</legend>
+        <div className="flex gap-2 mt-1" role="radiogroup" aria-label="Shelf color">
+          {SHELF_COLORS.map((c, index) => {
+            const colorNames = ["red", "orange", "yellow", "green", "teal", "blue", "purple", "pink"];
+            const colorName = colorNames[index] || c;
+            return (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={color === c}
+                onClick={() => setColor(c)}
+                className={cn(
+                  "w-6 h-6 rounded-full transition-transform",
+                  color === c && "ring-2 ring-offset-2 ring-primary scale-110"
+                )}
+                style={{ backgroundColor: c }}
+                aria-label={`${colorName} color${color === c ? " (selected)" : ""}`}
+              />
+            );
+          })}
         </div>
-      </div>
+      </fieldset>
 
       {/* Visibility */}
       <div className="flex items-center gap-2">

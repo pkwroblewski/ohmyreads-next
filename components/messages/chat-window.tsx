@@ -130,8 +130,9 @@ export function ChatWindow({
         <button
           onClick={onBack}
           className="p-1 hover:bg-muted rounded-lg transition-colors"
+          aria-label="Back to conversations"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
         </button>
         <Link
           href={`/users/${friend.username}`}
@@ -181,7 +182,11 @@ export function ChatWindow({
       {/* Input */}
       <form onSubmit={handleSubmit} className="p-4 border-t border-border">
         <div className="flex items-center gap-2">
+          <label htmlFor="message-input" className="sr-only">
+            Message to {displayName}
+          </label>
           <input
+            id="message-input"
             ref={inputRef}
             type="text"
             value={inputValue}
@@ -201,11 +206,12 @@ export function ChatWindow({
             size="icon"
             className="rounded-full h-10 w-10"
             disabled={!inputValue.trim() || isSending}
+            aria-label={isSending ? "Sending message" : "Send message"}
           >
             {isSending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4" aria-hidden="true" />
             )}
           </Button>
         </div>

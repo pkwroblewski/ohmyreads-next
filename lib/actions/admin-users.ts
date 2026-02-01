@@ -201,8 +201,8 @@ export async function adminGetUser(userId: string) {
   }
 }
 
-// Toggle admin status
-export async function adminToggleAdmin(userId: string) {
+// Toggle admin status with full audit trail
+export async function adminToggleAdmin(userId: string, reason?: string) {
   try {
     const { supabase, user } = await requireAdmin();
 
@@ -224,15 +224,44 @@ export async function adminToggleAdmin(userId: string) {
 
     const newStatus = !profile.is_admin;
 
+    // Build update data with tracking fields
+    const updateData: Record<string, unknown> = {
+      is_admin: newStatus,
+    };
+
+    if (newStatus) {
+      // Granting admin - set who/when
+      updateData.admin_granted_at = new Date().toISOString();
+      updateData.admin_granted_by = user.id;
+    } else {
+      // Revoking admin - clear the fields
+      updateData.admin_granted_at = null;
+      updateData.admin_granted_by = null;
+    }
+
     // Update status
     const { error } = await supabase
       .from("profiles")
-      .update({ is_admin: newStatus })
+      .update(updateData)
       .eq("id", userId);
 
     if (error) throw error;
 
-    // Audit log
+    // Log to admin_role_changes audit table
+    try {
+      await supabase.from("admin_role_changes").insert({
+        user_id: userId,
+        changed_by: user.id,
+        action: newStatus ? "granted" : "revoked",
+        source: "admin_action",
+        reason: reason || (newStatus ? "Admin role granted via admin panel" : "Admin role revoked via admin panel"),
+      });
+    } catch (auditError) {
+      console.error("Admin role audit log error:", auditError);
+      // Non-fatal, continue
+    }
+
+    // Also log to general audit log
     await createAuditLog({
       action: "admin.user.toggle_admin",
       targetType: "user",
@@ -241,6 +270,7 @@ export async function adminToggleAdmin(userId: string) {
       metadata: {
         username: profile.username,
         newStatus,
+        reason: reason || null,
       },
     });
 

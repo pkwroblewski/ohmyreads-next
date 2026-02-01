@@ -301,45 +301,28 @@ export const getCommunitySidebar = unstable_cache(
       .order("ratings_count", { ascending: false })
       .limit(5);
 
-    // Fetch active readers (users with most reviews)
-    // We'll count reviews per user from reviews table
-    const { data: reviewCounts } = await supabase
-      .from("reviews")
-      .select("user_id")
-      .order("created_at", { ascending: false })
-      .limit(100); // Sample recent reviews
-
-    // Count reviews per user
-    const userReviewCounts = new Map<string, number>();
-    (reviewCounts || []).forEach((r) => {
-      userReviewCounts.set(r.user_id, (userReviewCounts.get(r.user_id) || 0) + 1);
+    // Fetch active readers (users with most reviews) using SQL aggregation
+    const { data: topReviewers } = await supabase.rpc("get_top_reviewers", {
+      limit_count: 5,
     });
 
-    // Get top 5 users by review count
-    const topUserIds = Array.from(userReviewCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([userId]) => userId);
+    type TopReviewer = {
+      id: string;
+      username: string | null;
+      display_name: string | null;
+      avatar_url: string | null;
+      review_count: number;
+    };
 
-    // Fetch profiles for top users
-    let activeReaders: CommunitySidebarData["activeReaders"] = [];
-    if (topUserIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url")
-        .in("id", topUserIds);
-
-      activeReaders = (profiles || []).map((p) => ({
-        id: p.id,
-        username: p.username,
-        display_name: p.display_name,
-        avatar_url: p.avatar_url,
-        review_count: userReviewCounts.get(p.id) || 0,
-      }));
-
-      // Sort by review count
-      activeReaders.sort((a, b) => b.review_count - a.review_count);
-    }
+    const activeReaders: CommunitySidebarData["activeReaders"] = (
+      (topReviewers || []) as TopReviewer[]
+    ).map((r) => ({
+      id: r.id,
+      username: r.username,
+      display_name: r.display_name,
+      avatar_url: r.avatar_url,
+      review_count: Number(r.review_count),
+    }));
 
     return {
       popularBooks: popularBooks || [],

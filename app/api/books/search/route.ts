@@ -1,12 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { parseSearchParams } from "@/lib/validation/search";
+import { logger, extractErrorInfo, extractSupabaseErrorInfo } from "@/lib/utils/log";
 
 export async function GET(request: NextRequest) {
   // Rate limit by IP (60 requests per minute for search)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
   const { allowed } = await checkRateLimit(`search:${ip}`, 60, 60000);
-  
+
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
@@ -17,23 +19,17 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    // Parse query parameters with input sanitization
-    let q = (searchParams.get("q") || "").trim();
-    const genre = searchParams.get("genre");
-    const sort = searchParams.get("sort") || "popular";
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1") || 1);
-    const limit = Math.min(Math.max(1, parseInt(searchParams.get("limit") || "20") || 20), 50);
+    // Parse and validate query parameters with Zod schema
+    const parseResult = parseSearchParams(searchParams);
 
-    // Sanitize search query:
-    // - Cap length to prevent abuse
-    // - Remove characters that can break PostgREST filter syntax
-    if (q.length > 200) {
-      q = q.slice(0, 200);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: parseResult.error },
+        { status: 400 }
+      );
     }
-    // Remove special filter characters: % _ ( ) , . and quotes
-    // Keep alphanumeric, spaces, hyphens, and apostrophes for names
-    q = q.replace(/[%_(),."'\\]/g, "");
 
+    const { q, genre, sort, page, limit } = parseResult.data;
     const offset = (page - 1) * limit;
 
     const supabase = await createClient();
@@ -52,7 +48,7 @@ export async function GET(request: NextRequest) {
       query = query.contains("genres", [genre]);
     }
 
-    // Apply sorting
+    // Apply sorting (sort is validated by Zod, all cases handled)
     switch (sort) {
       case "newest":
         query = query.order("created_at", { ascending: false });
@@ -67,7 +63,6 @@ export async function GET(request: NextRequest) {
         query = query.order("title", { ascending: true });
         break;
       case "popular":
-      default:
         query = query.order("ratings_count", { ascending: false });
         break;
     }
@@ -79,7 +74,7 @@ export async function GET(request: NextRequest) {
     const { data: books, count, error } = await query;
 
     if (error) {
-      console.error("Search error:", error);
+      logger.error("Book search query failed", extractSupabaseErrorInfo(error));
       return NextResponse.json(
         { error: "Failed to search books" },
         { status: 500 }
@@ -101,7 +96,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Search API error:", error);
+    logger.error("Search API unexpected error", extractErrorInfo(error));
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

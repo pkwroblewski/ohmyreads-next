@@ -261,6 +261,8 @@ export async function ensureUserProfile(): Promise<{
       metadata.avatar_url ||
       null;
 
+    // Check if user should be admin based on ADMIN_EMAILS env var
+    // This is ONLY for initial provisioning of new users
     const adminEmails = (process.env.ADMIN_EMAILS || "")
       .split(",")
       .map((e) => e.trim().toLowerCase())
@@ -269,25 +271,29 @@ export async function ensureUserProfile(): Promise<{
       ? adminEmails.includes(user.email.toLowerCase())
       : false;
 
-    // Insert profile
-    const { error: insertError } = await supabase.from("profiles").insert({
+    // Prepare profile data
+    const profileData: Record<string, unknown> = {
       id: user.id,
       username: username,
       display_name: displayName,
       avatar_url: avatarUrl,
       is_admin: isAdmin,
-    });
+    };
+
+    // If granting admin, record when it was granted
+    if (isAdmin) {
+      profileData.admin_granted_at = new Date().toISOString();
+      // admin_granted_by is NULL for env var provisioning
+    }
+
+    // Insert profile
+    const { error: insertError } = await supabase.from("profiles").insert(profileData);
 
     // If username taken, retry with suffix
     if (insertError?.code === "23505") {
       username = `${username}_${Math.random().toString(36).slice(2, 6)}`;
-      const { error: retryError } = await supabase.from("profiles").insert({
-        id: user.id,
-        username: username,
-        display_name: displayName,
-        avatar_url: avatarUrl,
-        is_admin: isAdmin,
-      });
+      profileData.username = username;
+      const { error: retryError } = await supabase.from("profiles").insert(profileData);
       if (retryError) {
         console.error("Profile insert retry error:", retryError);
         return { profile: null, error: "Failed to create profile" };
@@ -295,6 +301,22 @@ export async function ensureUserProfile(): Promise<{
     } else if (insertError) {
       console.error("Profile insert error:", insertError);
       return { profile: null, error: "Failed to create profile" };
+    }
+
+    // Log admin role grant in audit table (if admin was granted)
+    if (isAdmin) {
+      try {
+        await supabase.from("admin_role_changes").insert({
+          user_id: user.id,
+          changed_by: null, // System/env var provisioning
+          action: "granted",
+          source: "env_initial",
+          reason: "Initial admin provisioning from ADMIN_EMAILS environment variable",
+        });
+      } catch (auditError) {
+        console.error("Admin audit log error:", auditError);
+        // Non-fatal, continue
+      }
     }
 
     // Create reading_stats

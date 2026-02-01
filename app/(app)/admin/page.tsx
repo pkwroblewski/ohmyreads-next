@@ -66,16 +66,21 @@ function StatCard({
       )}
     >
       <div className="flex items-center justify-between mb-3">
-        <Icon className={cn("h-6 w-6", iconClasses[variant])} />
+        <Icon className={cn("h-6 w-6", iconClasses[variant])} aria-hidden="true" />
         {trend && (
           <span
             className={cn(
-              "text-xs font-medium px-2 py-0.5 rounded-full",
+              "text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1",
               trend.value >= 0
                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
             )}
           >
+            <TrendingUp
+              className={cn("h-3 w-3", trend.value < 0 && "rotate-180")}
+              aria-hidden="true"
+            />
+            <span className="sr-only">{trend.value >= 0 ? "Up" : "Down"}</span>
             {trend.value >= 0 ? "+" : ""}
             {trend.value}% {trend.label}
           </span>
@@ -133,6 +138,7 @@ function QuickActionCard({
                 "h-5 w-5",
                 variant === "primary" ? "text-primary" : "text-muted-foreground"
               )}
+              aria-hidden="true"
             />
           </div>
           {badge !== undefined && badge > 0 && (
@@ -202,7 +208,7 @@ export default async function AdminDashboardPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-primary/10">
-            <Shield className="h-8 w-8 text-primary" />
+            <Shield className="h-8 w-8 text-primary" aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-3xl font-bold font-serif">Admin Dashboard</h1>
@@ -213,7 +219,7 @@ export default async function AdminDashboardPage() {
         </div>
         <Link href="/settings">
           <Button variant="outline" size="sm">
-            <Settings className="h-4 w-4 mr-2" />
+            <Settings className="h-4 w-4 mr-2" aria-hidden="true" />
             Settings
           </Button>
         </Link>
@@ -221,8 +227,8 @@ export default async function AdminDashboardPage() {
 
       {/* Alert Banner for Pending Items */}
       {totalPending > 0 && (
-        <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center gap-4">
-          <AlertTriangle className="h-6 w-6 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+        <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center gap-4" role="alert">
+          <AlertTriangle className="h-6 w-6 text-yellow-600 dark:text-yellow-400 flex-shrink-0" aria-hidden="true" />
           <div className="flex-1">
             <p className="font-medium text-yellow-800 dark:text-yellow-200">
               {totalPending} items pending review
@@ -368,7 +374,8 @@ export default async function AdminDashboardPage() {
                     className="p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-1 text-accent">
-                      <Star className="h-4 w-4 fill-current" />
+                      <Star className="h-4 w-4 fill-current" aria-hidden="true" />
+                      <span className="sr-only">Rating:</span>
                       <span className="font-medium">{review.rating}</span>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -388,7 +395,7 @@ export default async function AdminDashboardPage() {
             </div>
           ) : (
             <div className="p-8 text-center text-muted-foreground">
-              <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" aria-hidden="true" />
               <p>No recent reviews</p>
             </div>
           )}
@@ -418,7 +425,7 @@ export default async function AdminDashboardPage() {
                 "text-sm font-medium"
               )}
             >
-              <tool.icon className="h-4 w-4 text-muted-foreground" />
+              <tool.icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               {tool.label}
             </Link>
           ))}

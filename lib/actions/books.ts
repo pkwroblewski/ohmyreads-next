@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { generateSlug } from "@/lib/utils/slug";
+import crypto from "crypto";
 
 // Types for external book data
 export interface ExternalBookData {
@@ -68,33 +69,85 @@ export async function updateReadingStats(
   }
 }
 
-// Helper function to ensure unique slug
-async function ensureUniqueSlug(
+// PostgreSQL unique violation error code
+const UNIQUE_VIOLATION = "23505";
+const MAX_SLUG_RETRIES = 10;
+
+// Generate a short random suffix using crypto
+function generateRandomSuffix(): string {
+  const bytes = crypto.randomBytes(4);
+  return bytes.toString("hex").slice(0, 6);
+}
+
+// Book data for insertion (without id/created_at which are auto-generated)
+interface BookInsertData {
+  title: string;
+  author: string;
+  description?: string | null;
+  cover_url?: string | null;
+  isbn?: string | null;
+  google_books_id?: string | null;
+  open_library_id?: string | null;
+  genres?: string[];
+  page_count?: number | null;
+  published_date?: string | null;
+  average_rating?: number | null;
+  ratings_count?: number;
+}
+
+/**
+ * Insert a book with automatic slug collision handling.
+ * Uses database unique constraint instead of check-then-insert to avoid race conditions.
+ * On collision, retries with random suffix until success or max retries reached.
+ */
+async function insertBookWithUniqueSlug(
   supabase: Awaited<ReturnType<typeof createClient>>,
+  bookData: BookInsertData,
   baseSlug: string
-): Promise<string> {
+): Promise<{ id: string; slug: string } | { error: string }> {
   let slug = baseSlug;
-  let counter = 1;
+  let attempt = 0;
 
-  while (true) {
-    const { data: existing } = await supabase
+  while (attempt < MAX_SLUG_RETRIES) {
+    const { data, error } = await supabase
       .from("books")
-      .select("id")
-      .eq("slug", slug)
-      .limit(1);
+      .insert({ ...bookData, slug })
+      .select("id, slug")
+      .single();
 
-    if (!existing || existing.length === 0) {
-      return slug;
+    if (data) {
+      // Success
+      return { id: data.id, slug: data.slug };
     }
 
-    slug = `${baseSlug}-${counter}`;
-    counter++;
+    if (error) {
+      // Check if this is a unique constraint violation on slug
+      if (error.code === UNIQUE_VIOLATION && error.message?.includes("slug")) {
+        // Collision - retry with random suffix
+        attempt++;
+        slug = `${baseSlug}-${generateRandomSuffix()}`;
+        continue;
+      }
 
-    if (counter > 100) {
-      // Safety valve
-      return `${baseSlug}-${Date.now()}`;
+      // Different error - fail immediately
+      console.error("Error inserting book:", error);
+      return { error: error.message };
     }
   }
+
+  // Exhausted retries - use timestamp as last resort
+  const lastResortSlug = `${baseSlug}-${Date.now()}`;
+  const { data, error } = await supabase
+    .from("books")
+    .insert({ ...bookData, slug: lastResortSlug })
+    .select("id, slug")
+    .single();
+
+  if (data) {
+    return { id: data.id, slug: data.slug };
+  }
+
+  return { error: error?.message || "Failed to create book after multiple attempts" };
 }
 
 export async function addToShelf(bookId: string, status: string) {
@@ -257,16 +310,14 @@ export async function importAndAddToShelf(
       bookId = existingBook.id;
       bookSlug = existingBook.slug;
     } else {
-      // Create new book in catalog
+      // Create new book in catalog with race-condition-safe slug generation
       const baseSlug = generateSlug(externalBook.title);
-      bookSlug = await ensureUniqueSlug(supabase, baseSlug);
 
-      const { data: newBook, error: insertError } = await supabase
-        .from("books")
-        .insert({
+      const result = await insertBookWithUniqueSlug(
+        supabase,
+        {
           title: externalBook.title,
           author: externalBook.author,
-          slug: bookSlug,
           description: externalBook.description || null,
           cover_url: externalBook.coverUrl || null,
           isbn: externalBook.isbn || null,
@@ -278,16 +329,16 @@ export async function importAndAddToShelf(
           // User-submitted books start with no ratings
           average_rating: null,
           ratings_count: 0,
-        })
-        .select("id")
-        .single();
+        },
+        baseSlug
+      );
 
-      if (insertError || !newBook) {
-        console.error("Error creating book:", insertError);
-        return { success: false, error: "Failed to add book to catalog" };
+      if ("error" in result) {
+        return { success: false, error: result.error };
       }
 
-      bookId = newBook.id;
+      bookId = result.id;
+      bookSlug = result.slug;
     }
 
     // Now add to user's shelf

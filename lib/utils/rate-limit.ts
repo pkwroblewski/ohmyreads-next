@@ -1,22 +1,32 @@
 /**
  * Distributed rate limiter using Vercel KV
- * Falls back to in-memory storage for local development or when KV is unavailable
+ * Falls back to in-memory storage for local development only.
+ * In production, fails closed (returns 429) when KV is unavailable to prevent
+ * distributed denial attacks from bypassing limits across server instances.
  */
 
 import { kv } from "@vercel/kv";
+import { logger } from "@/lib/utils/log";
 
 interface RateLimitEntry {
   count: number;
   resetTime: number;
+  lastAccess: number; // For LRU eviction
 }
 
-// In-memory fallback for local development
+// In-memory fallback for local development only
 const rateLimitMap = new Map<string, RateLimitEntry>();
+
+// Maximum entries in memory fallback to prevent memory exhaustion
+const MAX_MEMORY_ENTRIES = 10000;
 
 // Check if KV is configured
 const isKVConfigured = !!(
   process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
 );
+
+// Check if we're in production
+const isProduction = process.env.NODE_ENV === "production";
 
 // Clean up old entries periodically (for in-memory fallback)
 const CLEANUP_INTERVAL = 60000;
@@ -27,15 +37,51 @@ function cleanupMemory() {
   if (now - lastCleanup < CLEANUP_INTERVAL) return;
 
   lastCleanup = now;
+
+  // Remove expired entries
   for (const [key, entry] of rateLimitMap.entries()) {
     if (now > entry.resetTime) {
       rateLimitMap.delete(key);
     }
   }
+
+  // If still over limit after cleanup, evict oldest entries (LRU)
+  if (rateLimitMap.size > MAX_MEMORY_ENTRIES) {
+    const entries = Array.from(rateLimitMap.entries());
+    entries.sort((a, b) => a[1].lastAccess - b[1].lastAccess);
+
+    const toEvict = rateLimitMap.size - MAX_MEMORY_ENTRIES;
+    for (let i = 0; i < toEvict; i++) {
+      rateLimitMap.delete(entries[i][0]);
+    }
+  }
+}
+
+/**
+ * Enforce size limit on memory map - evict oldest if necessary
+ */
+function enforceMemoryLimit() {
+  if (rateLimitMap.size < MAX_MEMORY_ENTRIES) return;
+
+  // Find and remove the oldest entry (lowest lastAccess)
+  let oldestKey: string | null = null;
+  let oldestTime = Infinity;
+
+  for (const [key, entry] of rateLimitMap.entries()) {
+    if (entry.lastAccess < oldestTime) {
+      oldestTime = entry.lastAccess;
+      oldestKey = key;
+    }
+  }
+
+  if (oldestKey) {
+    rateLimitMap.delete(oldestKey);
+  }
 }
 
 /**
  * Check if a request should be rate limited (in-memory fallback)
+ * Only used in development - production should fail-closed on KV errors
  */
 function checkRateLimitMemory(
   key: string,
@@ -48,9 +94,13 @@ function checkRateLimitMemory(
   const entry = rateLimitMap.get(key);
 
   if (!entry || now > entry.resetTime) {
+    // Enforce size limit before adding new entry
+    enforceMemoryLimit();
+
     rateLimitMap.set(key, {
       count: 1,
       resetTime: now + windowMs,
+      lastAccess: now,
     });
     return {
       allowed: true,
@@ -60,6 +110,7 @@ function checkRateLimitMemory(
   }
 
   if (entry.count >= limit) {
+    entry.lastAccess = now; // Update access time even on rejection
     return {
       allowed: false,
       remaining: 0,
@@ -68,6 +119,7 @@ function checkRateLimitMemory(
   }
 
   entry.count++;
+  entry.lastAccess = now;
   return {
     allowed: true,
     remaining: limit - entry.count,
@@ -109,8 +161,17 @@ async function checkRateLimitKV(
 
     return { allowed, remaining, resetIn };
   } catch (error) {
-    console.error("KV rate limit error, falling back to memory:", error);
-    // Fall back to in-memory on KV errors
+    logger.error("KV rate limit error", { error, key });
+
+    // In production: fail-closed to prevent distributed attack bypass
+    // In development: fall back to in-memory for local testing convenience
+    if (isProduction) {
+      logger.warn("Rate limit fail-closed in production due to KV error", {
+        key,
+      });
+      return { allowed: false, remaining: 0, resetIn: 60000 };
+    }
+
     return checkRateLimitMemory(key, limit, windowMs);
   }
 }
@@ -162,7 +223,7 @@ export async function resetRateLimit(key: string): Promise<void> {
     try {
       await kv.del(`ratelimit:${key}`);
     } catch (error) {
-      console.error("KV reset error:", error);
+      logger.error("KV reset error", { error, key });
     }
   }
   rateLimitMap.delete(key);
@@ -196,7 +257,7 @@ export async function getRateLimitStatus(
         resetIn: ttl * 1000,
       };
     } catch (error) {
-      console.error("KV status error:", error);
+      logger.error("KV status error", { error, key });
     }
   }
 

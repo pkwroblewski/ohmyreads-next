@@ -7,6 +7,8 @@ export interface Profile {
   avatar_url: string | null;
   website: string | null;
   is_admin: boolean;
+  admin_granted_at: string | null;
+  admin_granted_by: string | null;
   followers_count: number;
   following_count: number;
   friends_count: number;
@@ -14,6 +16,17 @@ export interface Profile {
   discovery_visible: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// Admin role change audit record
+export interface AdminRoleChange {
+  id: string;
+  user_id: string;
+  changed_by: string | null;
+  action: "granted" | "revoked";
+  source: "env_initial" | "admin_action" | "system";
+  reason: string | null;
+  created_at: string;
 }
 
 // Book

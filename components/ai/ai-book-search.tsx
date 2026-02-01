@@ -172,7 +172,7 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-full bg-primary/10">
-              <Sparkles className="h-5 w-5 text-primary" />
+              <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
             </div>
             <div>
               <h2 className="font-semibold">AI Book Finder</h2>
@@ -184,8 +184,9 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
           <button
             onClick={handleClose}
             className="p-2 rounded-lg hover:bg-muted transition-colors"
+            aria-label="Close AI book finder"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -223,11 +224,11 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
 
             {/* Loading indicator */}
             {isLoading && (
-              <div className="flex justify-start">
+              <div className="flex justify-start" role="status" aria-live="polite">
                 <div className="bg-muted rounded-2xl px-4 py-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <Search className="h-4 w-4" />
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <Search className="h-4 w-4" aria-hidden="true" />
                     Searching for books...
                   </div>
                 </div>
@@ -250,7 +251,7 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
           {allBooks.length > 0 && (
             <div ref={resultsRef} className="border-t bg-muted/30 p-4">
               <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="h-4 w-4 text-primary" />
+                <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
                 <h3 className="font-medium text-sm">
                   Found {allBooks.length} book{allBooks.length !== 1 ? "s" : ""}
                 </h3>
@@ -268,7 +269,11 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
         {/* Input */}
         <form onSubmit={handleSubmit} className="p-4 border-t bg-background">
           <div className="flex items-center gap-2">
+            <label htmlFor="ai-search-input" className="sr-only">
+              Describe the book you&apos;re looking for
+            </label>
             <input
+              id="ai-search-input"
               ref={inputRef}
               type="text"
               value={inputValue}
@@ -282,11 +287,12 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
               size="icon"
               disabled={isLoading || !inputValue.trim()}
               className="rounded-full h-10 w-10"
+              aria-label={isLoading ? "Searching for books" : "Search for books"}
             >
               {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
-                <Send className="h-4 w-4" />
+                <Send className="h-4 w-4" aria-hidden="true" />
               )}
             </Button>
           </div>
@@ -419,8 +425,9 @@ function BookResultCard({ book }: { book: BookResult }) {
               <Link
                 href={`/books/${book.slug}`}
                 className="flex-shrink-0 text-primary hover:text-primary/80"
+                aria-label={`View ${book.title} details`}
               >
-                <ExternalLink className="h-4 w-4" />
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
               </Link>
             ) : isExternal ? (
               <span className="flex-shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground bg-muted px-1.5 py-0.5 rounded">

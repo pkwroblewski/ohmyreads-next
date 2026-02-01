@@ -138,14 +138,15 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
               config.color
             )}
           >
-            <StatusIcon className="h-3 w-3" />
+            <StatusIcon className="h-3 w-3" aria-hidden="true" />
             {config.label}
           </div>
 
           {/* Rating Badge */}
           {userBook.rating && (
             <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-background/90 backdrop-blur-sm z-10">
-              <Star className="h-3 w-3 fill-accent text-accent" />
+              <Star className="h-3 w-3 fill-accent text-accent" aria-hidden="true" />
+              <span className="sr-only">Your rating:</span>
               {userBook.rating}
             </div>
           )}
@@ -215,20 +216,25 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
             isMenuOpen && "opacity-100"
           )}
           onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-label={`Book options for ${book.title}`}
+          aria-expanded={isMenuOpen}
+          aria-haspopup="menu"
         >
-          <MoreVertical className="h-4 w-4" />
+          <MoreVertical className="h-4 w-4" aria-hidden="true" />
         </Button>
 
         {/* Dropdown Menu */}
         {isMenuOpen && (
           <div
+            role="menu"
+            aria-label="Book actions"
             className={cn(
               "absolute right-0 top-full mt-1 w-44 z-50",
               "rounded-lg border border-border bg-card shadow-lg",
               "py-1 animate-in fade-in-0 zoom-in-95"
             )}
           >
-            <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
+            <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground" id="move-to-label">
               Move to...
             </p>
             {(Object.keys(statusConfig) as ShelfStatus[]).map((status) => {
@@ -238,23 +244,26 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
               return (
                 <button
                   key={status}
+                  role="menuitem"
                   onClick={() => handleStatusChange(status)}
                   className={cn(
                     "w-full flex items-center gap-2 px-3 py-2 text-sm",
                     "hover:bg-muted transition-colors text-left",
                     isSelected && "text-primary"
                   )}
+                  aria-current={isSelected ? "true" : undefined}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4" aria-hidden="true" />
                   {label}
-                  {isSelected && <Check className="h-4 w-4 ml-auto" />}
+                  {isSelected && <Check className="h-4 w-4 ml-auto" aria-hidden="true" />}
                 </button>
               );
             })}
 
-            <div className="my-1 border-t border-border" />
+            <div className="my-1 border-t border-border" role="separator" />
 
             <button
+              role="menuitem"
               onClick={() => {
                 setIsMenuOpen(false);
                 setIsShelfModalOpen(true);
@@ -264,18 +273,19 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
                 "hover:bg-muted transition-colors text-left"
               )}
             >
-              <FolderPlus className="h-4 w-4" />
+              <FolderPlus className="h-4 w-4" aria-hidden="true" />
               Add to Custom Shelf
             </button>
 
             <button
+              role="menuitem"
               onClick={handleRemove}
               className={cn(
                 "w-full flex items-center gap-2 px-3 py-2 text-sm",
                 "hover:bg-destructive/10 text-destructive transition-colors text-left"
               )}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
               Remove from Shelf
             </button>
           </div>

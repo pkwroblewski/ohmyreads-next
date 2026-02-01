@@ -103,6 +103,7 @@ export function ThemeToggleSimple({ className }: { className?: string }) {
         variant="ghost"
         size="icon"
         className={cn("h-9 w-9", className)}
+        aria-label="Toggle theme"
       >
         <span className="h-5 w-5" />
       </Button>

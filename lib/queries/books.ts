@@ -24,6 +24,7 @@ export async function getBookBySlug(slug: string): Promise<Book | null> {
 
 /**
  * Get reviews for a book with structured fields and sorting
+ * Uses FK join to fetch profiles in a single query
  */
 export async function getBookReviews(
   bookId: string,
@@ -43,7 +44,7 @@ export async function getBookReviews(
 
   const supabase = await createClient();
 
-  // Fetch reviews first (no FK join - reviews.user_id references auth.users, not profiles)
+  // Use FK join to fetch reviews with profiles in a single query
   let query = supabase
     .from("reviews")
     .select(`
@@ -59,7 +60,13 @@ export async function getBookReviews(
       likes_count,
       is_spoiler,
       created_at,
-      updated_at
+      updated_at,
+      profile:profiles!reviews_user_profile_fkey(
+        id,
+        username,
+        display_name,
+        avatar_url
+      )
     `)
     .eq("book_id", bookId);
 
@@ -101,27 +108,12 @@ export async function getBookReviews(
     return [];
   }
 
-  // Fetch profiles for all review authors
-  const userIds = [...new Set(reviews.map((r) => r.user_id))];
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .in("id", userIds);
-
-  // Create a map for quick profile lookup
-  const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-
-  // Combine reviews with profiles
-  const reviewsWithProfiles = reviews.map((review) => ({
-    ...review,
-    profile: profileMap.get(review.user_id) || null,
-  }));
-
-  return reviewsWithProfiles as unknown as ReviewWithUser[];
+  return reviews as unknown as ReviewWithUser[];
 }
 
 /**
  * Get a user's review for a specific book
+ * Uses FK join to fetch profile in a single query
  */
 export async function getUserReviewForBook(
   userId: string,
@@ -144,7 +136,13 @@ export async function getUserReviewForBook(
       likes_count,
       is_spoiler,
       created_at,
-      updated_at
+      updated_at,
+      profile:profiles!reviews_user_profile_fkey(
+        id,
+        username,
+        display_name,
+        avatar_url
+      )
     `)
     .eq("user_id", userId)
     .eq("book_id", bookId)
@@ -157,17 +155,7 @@ export async function getUserReviewForBook(
     return null;
   }
 
-  // Fetch the user's profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .eq("id", userId)
-    .single();
-
-  return {
-    ...review,
-    profile: profile || null,
-  } as unknown as ReviewWithUser;
+  return review as unknown as ReviewWithUser;
 }
 
 /**

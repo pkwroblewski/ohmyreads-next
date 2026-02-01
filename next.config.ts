@@ -58,18 +58,26 @@ const nextConfig: NextConfig = {
             value: "1; mode=block",
           },
           // Content Security Policy
-          // IMPORTANT: wss: is required in connect-src for Supabase realtime WebSocket connections.
-          // Without it, Firefox blocks WebSocket connections and auth fails (Firefox enforces CSP strictly).
-          // Chrome is more lenient but Firefox will break without wss: included.
+          // Explicit domains prevent data exfiltration to arbitrary third parties.
+          // wss: for Supabase is required - Firefox enforces CSP strictly.
           {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live",
+              // 'unsafe-inline' needed for Next.js inline scripts; 'unsafe-eval' removed
+              "script-src 'self' 'unsafe-inline' https://vercel.live https://*.sentry.io",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https: data: blob:",
-              "font-src 'self' https: data:",
-              "connect-src 'self' https: wss:", // wss: needed for Supabase realtime (Firefox requires this)
+              "font-src 'self' https://fonts.gstatic.com data:",
+              // Explicit domains for API connections and WebSockets
+              "connect-src 'self' " +
+                "https://*.supabase.co wss://*.supabase.co " + // Supabase API + realtime
+                "https://api.mapbox.com https://*.mapbox.com " + // Mapbox services
+                "https://events.mapbox.com " + // Mapbox telemetry
+                "https://openlibrary.org https://covers.openlibrary.org " + // OpenLibrary
+                "https://www.googleapis.com https://books.google.com " + // Google Books
+                "https://*.sentry.io https://*.ingest.sentry.io " + // Sentry
+                "https://vercel.live wss://ws-us3.pusher.com", // Vercel Live (dev)
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
             ].join("; "),

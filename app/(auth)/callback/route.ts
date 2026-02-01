@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { sendWelcomeEmail } from "@/lib/actions/email";
+import { logger, extractErrorInfo, extractSupabaseErrorInfo } from "@/lib/utils/log";
 
 // Whitelist of allowed redirect paths to prevent open redirect attacks
 const ALLOWED_REDIRECTS = [
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
         .maybeSingle();
 
       if (profileError) {
-        console.error("Profile fetch error:", profileError);
+        logger.error("Profile fetch error", extractSupabaseErrorInfo(profileError));
       }
 
       if (!profile) {
@@ -77,6 +78,7 @@ export async function GET(request: Request) {
           null;
 
         // Check if user should be admin based on ADMIN_EMAILS env var
+        // This is ONLY for initial provisioning of new users
         const adminEmails = (process.env.ADMIN_EMAILS || "")
           .split(",")
           .map((e) => e.trim().toLowerCase())
@@ -87,34 +89,53 @@ export async function GET(request: Request) {
 
         // Try inserting profile with error handling
         try {
-          const { error: insertError } = await supabase.from("profiles").insert({
+          const profileData: Record<string, unknown> = {
             id: user.id,
             username: username,
             display_name: displayName,
             avatar_url: avatarUrl,
             is_admin: isAdmin,
-          });
+          };
+
+          // If granting admin, record when it was granted
+          if (isAdmin) {
+            profileData.admin_granted_at = new Date().toISOString();
+            // admin_granted_by is NULL for env var provisioning
+          }
+
+          const { error: insertError } = await supabase.from("profiles").insert(profileData);
 
           // If username taken (unique constraint), append random suffix
           if (insertError?.code === "23505") {
             username = `${username}_${Math.random().toString(36).slice(2, 6)}`;
-            const { error: retryError } = await supabase.from("profiles").insert({
-              id: user.id,
-              username: username,
-              display_name: displayName,
-              avatar_url: avatarUrl,
-              is_admin: isAdmin,
-            });
+            profileData.username = username;
+            const { error: retryError } = await supabase.from("profiles").insert(profileData);
             if (retryError) {
-              console.error("Profile insert retry error:", retryError);
+              logger.error("Profile insert retry error", extractSupabaseErrorInfo(retryError));
               return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`);
             }
           } else if (insertError) {
-            console.error("Profile insert error:", insertError);
+            logger.error("Profile insert error", extractSupabaseErrorInfo(insertError));
             return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`);
           }
+
+          // Log admin role grant in audit table (if admin was granted)
+          if (isAdmin) {
+            try {
+              await supabase.from("admin_role_changes").insert({
+                user_id: user.id,
+                changed_by: null, // System/env var provisioning
+                action: "granted",
+                source: "env_initial",
+                reason: "Initial admin provisioning from ADMIN_EMAILS environment variable",
+              });
+            } catch (auditError) {
+              logger.error("Admin audit log error", extractErrorInfo(auditError));
+              // Non-fatal, continue
+            }
+          }
         } catch (error) {
-          console.error("Profile creation exception:", error);
+          logger.error("Profile creation exception", extractErrorInfo(error));
           return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`);
         }
 
@@ -124,11 +145,11 @@ export async function GET(request: Request) {
             .from("reading_stats")
             .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
           if (statsError) {
-            console.error("Reading stats upsert error:", statsError);
+            logger.error("Reading stats upsert error", extractSupabaseErrorInfo(statsError));
             // Non-fatal, continue with login
           }
         } catch (error) {
-          console.error("Reading stats exception:", error);
+          logger.error("Reading stats exception", extractErrorInfo(error));
           // Non-fatal, continue with login
         }
 
@@ -139,35 +160,13 @@ export async function GET(request: Request) {
             username: username,
             displayName: displayName || undefined,
           }).catch((err) => {
-            console.error("Failed to send welcome email:", err);
+            logger.error("Failed to send welcome email", extractErrorInfo(err));
           });
         }
       } else {
-        // Profile exists - check and update admin status based on ADMIN_EMAILS
-        const adminEmails = (process.env.ADMIN_EMAILS || "")
-          .split(",")
-          .map((e) => e.trim().toLowerCase())
-          .filter(Boolean);
-        const shouldBeAdmin = data.user.email
-          ? adminEmails.includes(data.user.email.toLowerCase())
-          : false;
-
-        // Update is_admin if it should change (with error handling)
-        if (shouldBeAdmin) {
-          try {
-            const { error: adminError } = await supabase
-              .from("profiles")
-              .update({ is_admin: true })
-              .eq("id", data.user.id);
-            if (adminError) {
-              console.error("Admin status update error:", adminError);
-              // Non-fatal, continue with login
-            }
-          } catch (error) {
-            console.error("Admin status update exception:", error);
-            // Non-fatal, continue with login
-          }
-        }
+        // Profile exists - admin status is now managed via database only
+        // We no longer update admin status on every login based on ADMIN_EMAILS
+        // Admins are granted/revoked through the admin panel with full audit trail
 
         // Check if new (created in last 5 minutes) for welcome email
         const createdAt = new Date(profile.created_at);
@@ -181,7 +180,7 @@ export async function GET(request: Request) {
             username: profile.username,
             displayName: profile.display_name || undefined,
           }).catch((err) => {
-            console.error("Failed to send welcome email:", err);
+            logger.error("Failed to send welcome email", extractErrorInfo(err));
           });
         }
       }
