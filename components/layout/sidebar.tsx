@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -121,19 +120,16 @@ export function Sidebar({ user, profile }: SidebarProps) {
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <ThemeToggle className="flex-shrink-0" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={signOut}
-            className="flex-1 justify-start text-muted-foreground hover:text-destructive"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
-        </div>
+        {/* Sign Out Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={signOut}
+          className="w-full justify-start text-muted-foreground hover:text-destructive"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Sign Out
+        </Button>
       </div>
     </div>
   );
