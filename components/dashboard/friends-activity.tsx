@@ -110,7 +110,6 @@ export function FriendsActivity({ activities }: FriendsActivityProps) {
                   title: activity.book_title,
                   cover_url: activity.book_cover_url,
                 }}
-                className="w-8 h-12"
               />
             </Link>
 

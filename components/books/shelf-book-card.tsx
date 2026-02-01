@@ -126,7 +126,8 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
         <div className="relative aspect-[2/3]">
           <CoverImage
             book={book}
-            className="absolute inset-0 w-full h-full rounded-none rounded-t-xl"
+            fill={true}
+            className="rounded-none rounded-t-xl"
           />
 
           {/* Status Badge */}
