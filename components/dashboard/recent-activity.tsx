@@ -1,10 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
-import { BookOpen, Library, Upload } from "lucide-react";
+import { Library, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { CoverImageMini } from "@/components/books/cover-image";
 import type { Book, UserBook } from "@/types/database";
 
 interface ActivityItem extends UserBook {
@@ -70,21 +70,7 @@ export async function RecentActivity() {
                 href={`/books/${activity.book.slug}`}
                 className="flex-shrink-0"
               >
-                <div className="relative w-10 h-14 rounded overflow-hidden bg-muted">
-                  {activity.book.cover_url ? (
-                    <Image
-                      src={activity.book.cover_url}
-                      alt={activity.book.title}
-                      fill
-                      className="object-cover"
-                      sizes="40px"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center w-full h-full">
-                      <BookOpen className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
+                <CoverImageMini book={activity.book} />
               </Link>
 
               {/* Activity Text */}

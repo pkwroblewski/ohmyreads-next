@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Star, BookOpen, ExternalLink } from "lucide-react";
@@ -73,6 +76,7 @@ export function BookCard({
   size = "md",
   variant = "rail",
 }: BookCardProps) {
+  const [hasError, setHasError] = useState(false);
   const classes = sizeClasses[size];
   const isGrid = variant === "grid";
 
@@ -86,6 +90,19 @@ export function BookCard({
 
   // Resolve best available cover URL
   const coverUrl = resolveCoverUrl(book);
+  const showPlaceholder = !coverUrl || hasError;
+
+  // Error handlers for image loading
+  const handleImageError = () => setHasError(true);
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    // Detect Google Books placeholder images (1x1 pixel or suspiciously small)
+    if (img.naturalWidth === 1 && img.naturalHeight === 1) {
+      setHasError(true);
+    } else if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+      setHasError(true);
+    }
+  };
 
   // Compact rating for grid variant
   const compactRating = formatCompactRating(
@@ -121,9 +138,14 @@ export function BookCard({
             )}
             style={{ aspectRatio: "2/3" }}
           >
-            {coverUrl ? (
+            {showPlaceholder ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
+                <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
+              </div>
+            ) : (
               <Image
-                src={coverUrl}
+                src={coverUrl!}
                 alt={book.title}
                 fill
                 quality={85}
@@ -131,12 +153,9 @@ export function BookCard({
                 blurDataURL={BLUR_DATA_URL}
                 className="object-cover object-[center_top] transition-transform duration-300 group-hover:scale-[1.03]"
                 sizes={imageSizes}
+                onError={handleImageError}
+                onLoad={handleImageLoad}
               />
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
-                <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
-                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
-              </div>
             )}
           </div>
 
@@ -216,9 +235,14 @@ export function BookCard({
             )}
             style={{ aspectRatio: "2/3" }}
           >
-            {coverUrl ? (
+            {showPlaceholder ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
+                <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
+              </div>
+            ) : (
               <Image
-                src={coverUrl}
+                src={coverUrl!}
                 alt={book.title}
                 fill
                 quality={85}
@@ -226,12 +250,9 @@ export function BookCard({
                 blurDataURL={BLUR_DATA_URL}
                 className="object-cover object-[center_top] transition-transform duration-300 group-hover:scale-[1.03]"
                 sizes={imageSizes}
+                onError={handleImageError}
+                onLoad={handleImageLoad}
               />
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
-                <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
-                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
-              </div>
             )}
           </div>
 
@@ -318,9 +339,13 @@ export function BookCard({
         )}
         style={{ aspectRatio: "2/3" }}
       >
-        {coverUrl ? (
+        {showPlaceholder ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <BookOpen className="w-8 h-8 text-muted-foreground/50" />
+          </div>
+        ) : (
           <Image
-            src={coverUrl}
+            src={coverUrl!}
             alt={book.title}
             fill
             quality={85}
@@ -328,11 +353,9 @@ export function BookCard({
             blurDataURL={BLUR_DATA_URL}
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             sizes={imageSizes}
+            onError={handleImageError}
+            onLoad={handleImageLoad}
           />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <BookOpen className="w-8 h-8 text-muted-foreground/50" />
-          </div>
         )}
       </div>
 

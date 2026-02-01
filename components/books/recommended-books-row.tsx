@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { BookOpen, Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CoverImage } from "./cover-image";
 import { RecommendationReason } from "./recommendation-reason";
 import type { RecommendedBook } from "@/lib/queries/recommendations";
 
@@ -64,31 +64,16 @@ function RecommendedBookCard({ book }: { book: RecommendedBook }) {
       )}
     >
       {/* Book Cover */}
-      <div
-        className={cn(
-          "relative aspect-[2/3] rounded-lg overflow-hidden mb-2",
-          "bg-muted shadow-md",
-          "group-hover:shadow-lg group-hover:scale-[1.02]",
-          "transition-all duration-200"
-        )}
-      >
-        {book.cover_url ? (
-          <Image
-            src={book.cover_url}
-            alt={book.title}
-            fill
-            className="object-cover"
-            sizes="(max-width: 640px) 140px, 160px"
-          />
-        ) : (
-          <div className="flex items-center justify-center w-full h-full">
-            <BookOpen className="w-8 h-8 text-muted-foreground" />
-          </div>
-        )}
+      <div className="relative mb-2">
+        <CoverImage
+          book={book}
+          size="lg"
+          className="w-full aspect-[2/3]"
+        />
 
         {/* Rating Badge */}
         {book.average_rating && (
-          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/70 text-white text-xs font-medium">
+          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/70 text-white text-xs font-medium z-10">
             ★ {book.average_rating.toFixed(1)}
           </div>
         )}

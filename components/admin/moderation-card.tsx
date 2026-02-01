@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
-import { Check, X, BookOpen, Hash, Calendar } from "lucide-react";
+import { Check, X, Hash, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CoverImage } from "@/components/books/cover-image";
 import {
   approveBookSubmission,
   rejectBookSubmission,
@@ -68,19 +68,16 @@ export default function ModerationCard({
         <div className="flex gap-6">
           {/* Cover */}
           <div className="flex-shrink-0">
-            {submission.cover_url ? (
-              <Image
-                src={submission.cover_url}
-                alt={submission.title}
-                width={100}
-                height={150}
-                className="rounded-lg object-cover"
-              />
-            ) : (
-              <div className="w-[100px] h-[150px] rounded-lg bg-muted flex items-center justify-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground" />
-              </div>
-            )}
+            <CoverImage
+              book={{
+                title: submission.title,
+                author: submission.author,
+                cover_url: submission.cover_url,
+              }}
+              width={100}
+              height={150}
+              hover={false}
+            />
           </div>
 
           {/* Details */}

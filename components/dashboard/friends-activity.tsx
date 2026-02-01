@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Users, BookOpen, ArrowRight } from "lucide-react";
+import { Users, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { CoverImageMini } from "@/components/books/cover-image";
 import type { FriendActivity } from "@/lib/queries/follows";
 
 interface FriendsActivityProps {
@@ -104,21 +105,13 @@ export function FriendsActivity({ activities }: FriendsActivityProps) {
               href={`/books/${activity.book_slug}`}
               className="flex-shrink-0"
             >
-              <div className="relative w-8 h-12 rounded overflow-hidden bg-muted">
-                {activity.book_cover_url ? (
-                  <Image
-                    src={activity.book_cover_url}
-                    alt={activity.book_title}
-                    fill
-                    className="object-cover"
-                    sizes="32px"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center w-full h-full">
-                    <BookOpen className="w-3 h-3 text-muted-foreground" />
-                  </div>
-                )}
-              </div>
+              <CoverImageMini
+                book={{
+                  title: activity.book_title,
+                  cover_url: activity.book_cover_url,
+                }}
+                className="w-8 h-12"
+              />
             </Link>
 
             {/* Activity Text */}

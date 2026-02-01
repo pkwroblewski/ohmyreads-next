@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { BookOpen, Calendar, Ruler, Star, Trophy, Zap } from "lucide-react";
+import { Calendar, Ruler, Star, Trophy, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { CoverImage } from "@/components/books/cover-image";
 import type { ReadingStats } from "@/lib/queries/stats";
 
 interface StatsHighlightsProps {
@@ -152,19 +152,12 @@ function HighlightCard({
         </div>
         <CardContent className="p-4">
           <div className="flex gap-3">
-            {book.cover_url ? (
-              <Image
-                src={book.cover_url}
-                alt={book.title}
-                width={48}
-                height={72}
-                className="rounded shadow-sm object-cover"
-              />
-            ) : (
-              <div className="w-12 h-[72px] bg-muted rounded flex items-center justify-center">
-                <BookOpen className="h-6 w-6 text-muted-foreground" />
-              </div>
-            )}
+            <CoverImage
+              book={book}
+              width={48}
+              height={72}
+              hover={false}
+            />
             <div className="flex-1 min-w-0">
               <h4 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
                 {book.title}
