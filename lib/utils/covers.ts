@@ -151,3 +151,33 @@ export function getCoverAttribution(url: string | null): string | null {
   }
 }
 
+/**
+ * Get all possible cover URLs for a book in priority order
+ * Used for fallback chain when primary source fails (e.g., Google Books returns 1x1 pixel)
+ */
+export function getCoverUrlsWithFallbacks(book: BookCoverData): string[] {
+  const urls: string[] = [];
+
+  // 1. Google Books (highest quality when available)
+  if (book.google_books_id) {
+    urls.push(getGoogleBooksCoverUrl(book.google_books_id, 3));
+  }
+
+  // 2. Existing cover_url (may be from different source)
+  if (book.cover_url) {
+    urls.push(upgradeOpenLibraryCoverSize(book.cover_url));
+  }
+
+  // 3. Open Library by cover ID
+  if (book.open_library_cover_id) {
+    urls.push(getOpenLibraryCoverById(book.open_library_cover_id, "L"));
+  }
+
+  // 4. Open Library by ISBN
+  if (book.isbn) {
+    urls.push(getOpenLibraryCoverByIsbn(book.isbn, "L"));
+  }
+
+  return urls;
+}
+

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { resolveCoverUrl, type BookCoverData } from "@/lib/utils/covers";
+import { getCoverUrlsWithFallbacks, type BookCoverData } from "@/lib/utils/covers";
 
 // Placeholder blur data URL (dark gradient)
 const BLUR_DATA_URL =
@@ -65,14 +65,37 @@ export function CoverImage({
   className,
   priority = false,
 }: CoverImageProps) {
-  const [hasError, setHasError] = useState(false);
-  
-  const dimensions = fill 
-    ? null 
+  const [urlIndex, setUrlIndex] = useState(0);
+  const [allFailed, setAllFailed] = useState(false);
+
+  const dimensions = fill
+    ? null
     : (width && height ? { width, height } : SIZE_PRESETS[size]);
-  
-  const coverUrl = resolveCoverUrl(book);
-  const showPlaceholder = !coverUrl || hasError;
+
+  const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
+  const currentUrl = coverUrls[urlIndex];
+  const showPlaceholder = !currentUrl || allFailed;
+
+  const handleImageError = useCallback(() => {
+    if (urlIndex < coverUrls.length - 1) {
+      // Try next URL in fallback chain
+      setUrlIndex(prev => prev + 1);
+    } else {
+      // All URLs failed
+      setAllFailed(true);
+    }
+  }, [urlIndex, coverUrls.length]);
+
+  const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    // Detect Google Books placeholder images (1x1 pixel)
+    const img = e.currentTarget;
+    if (img.naturalWidth === 1 && img.naturalHeight === 1) {
+      handleImageError();
+    } else if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+      // Suspiciously small = likely placeholder
+      handleImageError();
+    }
+  }, [handleImageError]);
 
   // Responsive sizes hint for next/image
   const sizes = fill 
@@ -96,7 +119,7 @@ export function CoverImage({
         <PlaceholderCover title={book.title} author={book.author} />
       ) : (
         <Image
-          src={coverUrl}
+          src={currentUrl}
           alt={`Cover of ${book.title}`}
           fill
           sizes={sizes}
@@ -111,18 +134,8 @@ export function CoverImage({
             hover && "transition-transform duration-300",
             hover && "group-hover:scale-[1.03]"
           )}
-          onError={() => setHasError(true)}
-          onLoad={(e) => {
-            // Detect Google Books placeholder images
-            const img = e.currentTarget;
-            if (img.naturalWidth === 1 && img.naturalHeight === 1) {
-              // 1x1 pixel = placeholder
-              setHasError(true);
-            } else if (img.naturalWidth < 50 || img.naturalHeight < 50) {
-              // Suspiciously small = likely placeholder
-              setHasError(true);
-            }
-          }}
+          onError={handleImageError}
+          onLoad={handleLoad}
         />
       )}
     </div>
@@ -175,9 +188,29 @@ export function CoverImageMini({
   book: BookCoverData & { title: string };
   className?: string;
 }) {
-  const [hasError, setHasError] = useState(false);
-  const coverUrl = resolveCoverUrl(book);
-  const showPlaceholder = !coverUrl || hasError;
+  const [urlIndex, setUrlIndex] = useState(0);
+  const [allFailed, setAllFailed] = useState(false);
+
+  const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
+  const currentUrl = coverUrls[urlIndex];
+  const showPlaceholder = !currentUrl || allFailed;
+
+  const handleImageError = useCallback(() => {
+    if (urlIndex < coverUrls.length - 1) {
+      setUrlIndex(prev => prev + 1);
+    } else {
+      setAllFailed(true);
+    }
+  }, [urlIndex, coverUrls.length]);
+
+  const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (img.naturalWidth === 1 && img.naturalHeight === 1) {
+      handleImageError();
+    } else if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+      handleImageError();
+    }
+  }, [handleImageError]);
 
   return (
     <div
@@ -193,13 +226,14 @@ export function CoverImageMini({
         </div>
       ) : (
         <Image
-          src={coverUrl}
+          src={currentUrl}
           alt={book.title}
           fill
           sizes="40px"
           quality={75}
           className="object-cover object-[center_top]"
-          onError={() => setHasError(true)}
+          onError={handleImageError}
+          onLoad={handleLoad}
         />
       )}
     </div>
