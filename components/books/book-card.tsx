@@ -125,6 +125,7 @@ export function BookCard({
         [128, 196],
         [200, 303],
         [128, 171],
+        [144, 187],
       ];
       const isKnownPlaceholder = knownPlaceholders.some(
         ([w, h]) => img.naturalWidth === w && img.naturalHeight === h
