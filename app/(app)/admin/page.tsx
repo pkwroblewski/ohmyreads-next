@@ -17,6 +17,7 @@ import {
   Flag,
   Upload,
   Eye,
+  Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
@@ -415,6 +416,7 @@ export default async function AdminDashboardPage() {
             { label: "Site Settings", href: "/admin/settings", icon: Settings },
             { label: "Audit Logs", href: "/admin/logs", icon: FileText },
             { label: "Import Data", href: "/admin/import", icon: Upload },
+            { label: "Enrich Books", href: "/admin/enrichment", icon: Sparkles },
           ].map((tool) => (
             <Link
               key={tool.label}

@@ -26,10 +26,11 @@ export type CoverSize = "S" | "M" | "L";
 
 /**
  * Get Google Books cover URL
+ * zoom levels: 1 (standard), 2 (medium), 3 (highest quality)
  */
 export function getGoogleBooksCoverUrl(
   googleBooksId: string,
-  zoom: 1 | 2 | 3 = 1
+  zoom: 1 | 2 | 3 = 3
 ): string {
   return `${GOOGLE_BOOKS_COVER_URL}?id=${googleBooksId}&printsec=frontcover&img=1&zoom=${zoom}&source=gbs_api`;
 }
@@ -87,7 +88,7 @@ export function isGoogleBooksCover(url: string): boolean {
 export function resolveCoverUrl(book: BookCoverData): string | null {
   // 1. Prefer Google Books if we have the ID (often cleaner covers)
   if (book.google_books_id) {
-    return getGoogleBooksCoverUrl(book.google_books_id, 1);
+    return getGoogleBooksCoverUrl(book.google_books_id, 3);
   }
 
   // 2. If we have an existing cover URL, upgrade it if it's Open Library
@@ -111,15 +112,15 @@ export function resolveCoverUrl(book: BookCoverData): string | null {
 
 /**
  * Get high-resolution cover URL (for detail pages)
- * Uses zoom=2 for Google Books, -L for Open Library
+ * Uses zoom=3 for Google Books (highest quality), -L for Open Library
  */
 export function resolveHighResCoverUrl(book: BookCoverData): string | null {
-  // 1. Prefer Google Books with higher zoom
+  // 1. Prefer Google Books with highest zoom
   if (book.google_books_id) {
-    return getGoogleBooksCoverUrl(book.google_books_id, 2);
+    return getGoogleBooksCoverUrl(book.google_books_id, 3);
   }
 
-  // Use standard resolution for others
+  // Use standard resolution for others (already uses -L for Open Library)
   return resolveCoverUrl(book);
 }
 
