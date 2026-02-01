@@ -1,11 +1,11 @@
 /**
  * Centralized book cover URL resolution
- * 
- * Priority order:
- * 1. Google Books (often cleaner, no barcodes)
- * 2. Open Library high-res (-L suffix)
- * 3. Open Library by ISBN
- * 4. Fallback to null (component handles placeholder)
+ *
+ * Priority order (Open Library first - more reliable, Google Books has placeholder issues):
+ * 1. Open Library by cover ID (most reliable)
+ * 2. Open Library by ISBN
+ * 3. Existing cover_url
+ * 4. Google Books (fallback - may return "image not available" placeholders)
  */
 
 // Google Books cover URL template
@@ -86,24 +86,24 @@ export function isGoogleBooksCover(url: string): boolean {
  * Returns null if no cover is available (caller should show placeholder)
  */
 export function resolveCoverUrl(book: BookCoverData): string | null {
-  // 1. Prefer Google Books if we have the ID (often cleaner covers)
-  if (book.google_books_id) {
-    return getGoogleBooksCoverUrl(book.google_books_id, 3);
-  }
-
-  // 2. If we have an existing cover URL, upgrade it if it's Open Library
-  if (book.cover_url) {
-    return upgradeOpenLibraryCoverSize(book.cover_url);
-  }
-
-  // 3. Try Open Library cover ID if available
+  // 1. Open Library by cover ID (most reliable - returns 404 for missing)
   if (book.open_library_cover_id) {
     return getOpenLibraryCoverById(book.open_library_cover_id, "L");
   }
 
-  // 4. Try Open Library by ISBN as last resort
+  // 2. Open Library by ISBN
   if (book.isbn) {
     return getOpenLibraryCoverByIsbn(book.isbn, "L");
+  }
+
+  // 3. Existing cover_url (may be from different source)
+  if (book.cover_url) {
+    return upgradeOpenLibraryCoverSize(book.cover_url);
+  }
+
+  // 4. Google Books as fallback (may return "image not available" placeholders)
+  if (book.google_books_id) {
+    return getGoogleBooksCoverUrl(book.google_books_id, 3);
   }
 
   // No cover available
@@ -112,15 +112,10 @@ export function resolveCoverUrl(book: BookCoverData): string | null {
 
 /**
  * Get high-resolution cover URL (for detail pages)
- * Uses zoom=3 for Google Books (highest quality), -L for Open Library
+ * Uses -L for Open Library, zoom=3 for Google Books
  */
 export function resolveHighResCoverUrl(book: BookCoverData): string | null {
-  // 1. Prefer Google Books with highest zoom
-  if (book.google_books_id) {
-    return getGoogleBooksCoverUrl(book.google_books_id, 3);
-  }
-
-  // Use standard resolution for others (already uses -L for Open Library)
+  // Same priority as resolveCoverUrl - Open Library first, Google Books last
   return resolveCoverUrl(book);
 }
 
@@ -153,31 +148,88 @@ export function getCoverAttribution(url: string | null): string | null {
 
 /**
  * Get all possible cover URLs for a book in priority order
- * Used for fallback chain when primary source fails (e.g., Google Books returns 1x1 pixel)
+ * Used for fallback chain when primary source fails
+ *
+ * Order: Open Library first (reliable 404 for missing), Google Books last (placeholder issues)
  */
 export function getCoverUrlsWithFallbacks(book: BookCoverData): string[] {
   const urls: string[] = [];
 
-  // 1. Google Books (highest quality when available)
-  if (book.google_books_id) {
-    urls.push(getGoogleBooksCoverUrl(book.google_books_id, 3));
-  }
-
-  // 2. Existing cover_url (may be from different source)
-  if (book.cover_url) {
-    urls.push(upgradeOpenLibraryCoverSize(book.cover_url));
-  }
-
-  // 3. Open Library by cover ID
+  // 1. Open Library by cover ID (most reliable - returns 404 for missing)
   if (book.open_library_cover_id) {
     urls.push(getOpenLibraryCoverById(book.open_library_cover_id, "L"));
   }
 
-  // 4. Open Library by ISBN
+  // 2. Open Library by ISBN
   if (book.isbn) {
     urls.push(getOpenLibraryCoverByIsbn(book.isbn, "L"));
   }
 
+  // 3. Existing cover_url (may be from different source)
+  if (book.cover_url) {
+    urls.push(upgradeOpenLibraryCoverSize(book.cover_url));
+  }
+
+  // 4. Google Books as fallback (may return "image not available" placeholders)
+  if (book.google_books_id) {
+    urls.push(getGoogleBooksCoverUrl(book.google_books_id, 3));
+  }
+
   return urls;
+}
+
+/**
+ * Pre-load and validate a cover URL in a hidden Image element.
+ * Client-side only - validates image dimensions and detects Google Books placeholders.
+ * Returns true if the image is valid, false otherwise.
+ */
+export async function validateCoverUrl(url: string): Promise<boolean> {
+  // Only run in browser
+  if (typeof window === "undefined") return true;
+
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () => {
+      // Too small = likely placeholder
+      if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+        resolve(false);
+        return;
+      }
+
+      // Detect Google Books "image not available" placeholders by aspect ratio
+      if (url.includes("books.google.com")) {
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+        // Google Books placeholders have aspect ratio ~0.75
+        // Real book covers have aspect ratio ~0.65 (2:3)
+        if (aspectRatio > 0.72 && aspectRatio < 0.80) {
+          resolve(false);
+          return;
+        }
+      }
+
+      resolve(true);
+    };
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
+
+/**
+ * Find the first valid cover URL from a list of URLs.
+ * Pre-loads each URL and validates it before returning.
+ * Client-side only.
+ */
+export async function findFirstValidCoverUrl(
+  urls: string[],
+  signal?: AbortSignal
+): Promise<string | null> {
+  for (const url of urls) {
+    if (signal?.aborted) return null;
+    const isValid = await validateCoverUrl(url);
+    if (isValid && !signal?.aborted) {
+      return url;
+    }
+  }
+  return null;
 }
 

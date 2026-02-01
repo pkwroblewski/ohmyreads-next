@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCoverUrlsWithFallbacks, type BookCoverData } from "@/lib/utils/covers";
+import {
+  getCoverUrlsWithFallbacks,
+  findFirstValidCoverUrl,
+  type BookCoverData,
+} from "@/lib/utils/covers";
 
 // Placeholder blur data URL (dark gradient)
 const BLUR_DATA_URL =
@@ -46,12 +50,13 @@ const SIZE_PRESETS: Record<CoverSize, { width: number; height: number }> = {
 
 /**
  * Unified book cover image component
- * 
+ *
  * Features:
- * - Automatic cover URL resolution (Google Books → Open Library → ISBN → placeholder)
+ * - Pre-load validation: images are tested in hidden elements before display
+ * - Automatic cover URL resolution (Open Library → ISBN → cover_url → Google Books)
  * - Consistent styling with rounded corners, shadows, and optional hover effects
  * - Optimized blur placeholder for loading states
- * - Fallback to modern gradient placeholder with book icon on load error
+ * - Fallback to modern gradient placeholder with book icon when no valid cover
  * - Object-position top to crop barcodes on scanned covers
  * - Fill mode for responsive parent-sized layouts
  */
@@ -65,60 +70,42 @@ export function CoverImage({
   className,
   priority = false,
 }: CoverImageProps) {
-  const [urlIndex, setUrlIndex] = useState(0);
-  const [allFailed, setAllFailed] = useState(false);
+  const [validatedUrl, setValidatedUrl] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(true);
 
   const dimensions = fill
     ? null
     : (width && height ? { width, height } : SIZE_PRESETS[size]);
 
   const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
-  const currentUrl = coverUrls[urlIndex];
-  const showPlaceholder = !currentUrl || allFailed;
 
-  const handleImageError = useCallback(() => {
-    if (urlIndex < coverUrls.length - 1) {
-      // Try next URL in fallback chain
-      setUrlIndex(prev => prev + 1);
-    } else {
-      // All URLs failed
-      setAllFailed(true);
-    }
-  }, [urlIndex, coverUrls.length]);
+  // Pre-load and validate URLs before displaying
+  useEffect(() => {
+    const controller = new AbortController();
+    setIsValidating(true);
+    setValidatedUrl(null);
 
-  const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    const url = currentUrl || "";
-
-    // Detect Google Books placeholder images (1x1 pixel)
-    if (img.naturalWidth === 1 && img.naturalHeight === 1) {
-      handleImageError();
-      return;
-    }
-    if (img.naturalWidth < 50 || img.naturalHeight < 50) {
-      // Suspiciously small = likely placeholder
-      handleImageError();
+    if (coverUrls.length === 0) {
+      setIsValidating(false);
       return;
     }
 
-    // Detect Google Books "image not available" placeholders
-    // Google Books placeholders have a distinctive aspect ratio around 0.75-0.77
-    // Real book covers have aspect ratio around 0.65-0.67 (2:3)
-    if (url.includes("books.google.com")) {
-      const { naturalWidth: w, naturalHeight: h } = img;
-      const aspectRatio = w / h;
-      // Placeholder aspect ratio: ~0.75 (width/height)
-      // Real cover aspect ratio: ~0.65 (2:3)
-      const isPlaceholderRatio = aspectRatio > 0.72 && aspectRatio < 0.80;
-      if (isPlaceholderRatio) {
-        handleImageError();
-        return;
+    findFirstValidCoverUrl(coverUrls, controller.signal).then((url) => {
+      if (!controller.signal.aborted) {
+        setValidatedUrl(url);
+        setIsValidating(false);
       }
-    }
-  }, [currentUrl, handleImageError]);
+    });
+
+    return () => {
+      controller.abort();
+    };
+  }, [coverUrls]);
+
+  const showPlaceholder = !isValidating && !validatedUrl;
 
   // Responsive sizes hint for next/image
-  const sizes = fill 
+  const sizes = fill
     ? "(max-width: 640px) 50vw, 200px"
     : `(max-width: 640px) ${dimensions?.width}px, ${(dimensions?.width || 128) * 1.5}px`;
 
@@ -135,11 +122,14 @@ export function CoverImage({
       )}
       style={dimensions ? { width: dimensions.width, height: dimensions.height } : undefined}
     >
-      {showPlaceholder ? (
+      {isValidating ? (
+        // Show blur placeholder while validating
+        <div className="absolute inset-0 animate-pulse bg-muted" />
+      ) : showPlaceholder ? (
         <PlaceholderCover title={book.title} author={book.author} />
       ) : (
         <Image
-          src={currentUrl}
+          src={validatedUrl!}
           alt={`Cover of ${book.title}`}
           fill
           sizes={sizes}
@@ -154,8 +144,6 @@ export function CoverImage({
             hover && "transition-transform duration-300",
             hover && "group-hover:scale-[1.03]"
           )}
-          onError={handleImageError}
-          onLoad={handleLoad}
         />
       )}
     </div>
@@ -200,6 +188,7 @@ function PlaceholderCover({
 
 /**
  * Minimal cover for tiny displays (e.g., activity feed)
+ * Uses same pre-load validation as CoverImage
  */
 export function CoverImageMini({
   book,
@@ -208,49 +197,35 @@ export function CoverImageMini({
   book: BookCoverData & { title: string };
   className?: string;
 }) {
-  const [urlIndex, setUrlIndex] = useState(0);
-  const [allFailed, setAllFailed] = useState(false);
+  const [validatedUrl, setValidatedUrl] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(true);
 
   const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
-  const currentUrl = coverUrls[urlIndex];
-  const showPlaceholder = !currentUrl || allFailed;
 
-  const handleImageError = useCallback(() => {
-    if (urlIndex < coverUrls.length - 1) {
-      setUrlIndex(prev => prev + 1);
-    } else {
-      setAllFailed(true);
-    }
-  }, [urlIndex, coverUrls.length]);
+  // Pre-load and validate URLs before displaying
+  useEffect(() => {
+    const controller = new AbortController();
+    setIsValidating(true);
+    setValidatedUrl(null);
 
-  const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    const url = currentUrl || "";
-
-    if (img.naturalWidth === 1 && img.naturalHeight === 1) {
-      handleImageError();
-      return;
-    }
-    if (img.naturalWidth < 50 || img.naturalHeight < 50) {
-      handleImageError();
+    if (coverUrls.length === 0) {
+      setIsValidating(false);
       return;
     }
 
-    // Detect Google Books "image not available" placeholders
-    // Google Books placeholders have a distinctive aspect ratio around 0.75-0.77
-    // Real book covers have aspect ratio around 0.65-0.67 (2:3)
-    if (url.includes("books.google.com")) {
-      const { naturalWidth: w, naturalHeight: h } = img;
-      const aspectRatio = w / h;
-      // Placeholder aspect ratio: ~0.75 (width/height)
-      // Real cover aspect ratio: ~0.65 (2:3)
-      const isPlaceholderRatio = aspectRatio > 0.72 && aspectRatio < 0.80;
-      if (isPlaceholderRatio) {
-        handleImageError();
-        return;
+    findFirstValidCoverUrl(coverUrls, controller.signal).then((url) => {
+      if (!controller.signal.aborted) {
+        setValidatedUrl(url);
+        setIsValidating(false);
       }
-    }
-  }, [currentUrl, handleImageError]);
+    });
+
+    return () => {
+      controller.abort();
+    };
+  }, [coverUrls]);
+
+  const showPlaceholder = !isValidating && !validatedUrl;
 
   return (
     <div
@@ -260,20 +235,20 @@ export function CoverImageMini({
         className
       )}
     >
-      {showPlaceholder ? (
+      {isValidating ? (
+        <div className="absolute inset-0 animate-pulse bg-muted" />
+      ) : showPlaceholder ? (
         <div className="w-full h-full flex items-center justify-center">
           <BookOpen className="w-4 h-4 text-muted-foreground/50" />
         </div>
       ) : (
         <Image
-          src={currentUrl}
+          src={validatedUrl!}
           alt={book.title}
           fill
           sizes="40px"
           quality={75}
           className="object-cover object-[center_top]"
-          onError={handleImageError}
-          onLoad={handleLoad}
         />
       )}
     </div>
