@@ -70,6 +70,7 @@ export function BookListHorizontal({
                   cover_url: book.cover_url,
                   google_books_id: book.google_books_id,
                   isbn: book.isbn,
+                  open_library_cover_id: book.open_library_cover_id,
                   average_rating: book.average_rating,
                 }}
                 size="md"

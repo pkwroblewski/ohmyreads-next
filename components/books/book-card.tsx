@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Star, BookOpen, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { resolveCoverUrl } from "@/lib/utils/covers";
+import { getCoverUrlsWithFallbacks, type BookCoverData } from "@/lib/utils/covers";
 import { AddToShelfButton } from "./add-to-shelf-button";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -18,6 +18,7 @@ interface BookCardProps {
     cover_url: string | null;
     google_books_id?: string | null;
     isbn?: string | null;
+    open_library_cover_id?: number | null;
     average_rating: number | null;
     ratings_count?: number;
   };
@@ -76,7 +77,8 @@ export function BookCard({
   size = "md",
   variant = "rail",
 }: BookCardProps) {
-  const [hasError, setHasError] = useState(false);
+  const [urlIndex, setUrlIndex] = useState(0);
+  const [allFailed, setAllFailed] = useState(false);
   const classes = sizeClasses[size];
   const isGrid = variant === "grid";
 
@@ -88,21 +90,50 @@ export function BookCard({
     `${book.title} ${book.author}`
   )}`;
 
-  // Resolve best available cover URL
-  const coverUrl = resolveCoverUrl(book);
-  const showPlaceholder = !coverUrl || hasError;
+  // Get all possible cover URLs for fallback chain
+  const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
+  const currentUrl = coverUrls[urlIndex];
+  const showPlaceholder = !currentUrl || allFailed;
 
-  // Error handlers for image loading
-  const handleImageError = () => setHasError(true);
-  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  // Error handler - tries next URL in fallback chain
+  const handleImageError = useCallback(() => {
+    if (urlIndex < coverUrls.length - 1) {
+      setUrlIndex(prev => prev + 1);
+    } else {
+      setAllFailed(true);
+    }
+  }, [urlIndex, coverUrls.length]);
+
+  // Load handler - detects placeholder images and triggers fallback
+  const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
+    const url = currentUrl || "";
+
     // Detect Google Books placeholder images (1x1 pixel or suspiciously small)
     if (img.naturalWidth === 1 && img.naturalHeight === 1) {
-      setHasError(true);
-    } else if (img.naturalWidth < 50 || img.naturalHeight < 50) {
-      setHasError(true);
+      handleImageError();
+      return;
     }
-  };
+    if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+      handleImageError();
+      return;
+    }
+
+    // Detect Google Books "image not available" placeholders by known dimensions
+    if (url.includes("books.google.com")) {
+      const knownPlaceholders = [
+        [128, 196],
+        [200, 303],
+        [128, 171],
+      ];
+      const isKnownPlaceholder = knownPlaceholders.some(
+        ([w, h]) => img.naturalWidth === w && img.naturalHeight === h
+      );
+      if (isKnownPlaceholder) {
+        handleImageError();
+      }
+    }
+  }, [currentUrl, handleImageError]);
 
   // Compact rating for grid variant
   const compactRating = formatCompactRating(
@@ -145,7 +176,7 @@ export function BookCard({
               </div>
             ) : (
               <Image
-                src={coverUrl!}
+                src={currentUrl!}
                 alt={book.title}
                 fill
                 quality={85}
@@ -242,7 +273,7 @@ export function BookCard({
               </div>
             ) : (
               <Image
-                src={coverUrl!}
+                src={currentUrl!}
                 alt={book.title}
                 fill
                 quality={85}
@@ -345,7 +376,7 @@ export function BookCard({
           </div>
         ) : (
           <Image
-            src={coverUrl!}
+            src={currentUrl!}
             alt={book.title}
             fill
             quality={85}

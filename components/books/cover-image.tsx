@@ -87,15 +87,35 @@ export function CoverImage({
   }, [urlIndex, coverUrls.length]);
 
   const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    // Detect Google Books placeholder images (1x1 pixel)
     const img = e.currentTarget;
+    const url = currentUrl || "";
+
+    // Detect Google Books placeholder images (1x1 pixel)
     if (img.naturalWidth === 1 && img.naturalHeight === 1) {
       handleImageError();
-    } else if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+      return;
+    }
+    if (img.naturalWidth < 50 || img.naturalHeight < 50) {
       // Suspiciously small = likely placeholder
       handleImageError();
+      return;
     }
-  }, [handleImageError]);
+
+    // Detect Google Books "image not available" placeholders by known dimensions
+    if (url.includes("books.google.com")) {
+      const knownPlaceholders = [
+        [128, 196],
+        [200, 303],
+        [128, 171],
+      ];
+      const isKnownPlaceholder = knownPlaceholders.some(
+        ([w, h]) => img.naturalWidth === w && img.naturalHeight === h
+      );
+      if (isKnownPlaceholder) {
+        handleImageError();
+      }
+    }
+  }, [currentUrl, handleImageError]);
 
   // Responsive sizes hint for next/image
   const sizes = fill 
@@ -205,12 +225,32 @@ export function CoverImageMini({
 
   const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
+    const url = currentUrl || "";
+
     if (img.naturalWidth === 1 && img.naturalHeight === 1) {
       handleImageError();
-    } else if (img.naturalWidth < 50 || img.naturalHeight < 50) {
-      handleImageError();
+      return;
     }
-  }, [handleImageError]);
+    if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+      handleImageError();
+      return;
+    }
+
+    // Detect Google Books "image not available" placeholders by known dimensions
+    if (url.includes("books.google.com")) {
+      const knownPlaceholders = [
+        [128, 196],
+        [200, 303],
+        [128, 171],
+      ];
+      const isKnownPlaceholder = knownPlaceholders.some(
+        ([w, h]) => img.naturalWidth === w && img.naturalHeight === h
+      );
+      if (isKnownPlaceholder) {
+        handleImageError();
+      }
+    }
+  }, [currentUrl, handleImageError]);
 
   return (
     <div
