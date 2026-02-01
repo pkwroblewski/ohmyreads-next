@@ -3,6 +3,7 @@ import { Users, BookOpen } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { CoverImageMini } from "@/components/books/cover-image";
 import type { BookClubWithDetails } from "@/types/database";
 
 interface ClubCardProps {
@@ -50,13 +51,13 @@ export function ClubCard({ club }: ClubCardProps) {
                   {club.current_read.book.title}
                 </p>
               </div>
-              {club.current_read.book.cover_url && (
-                <img
-                  src={club.current_read.book.cover_url}
-                  alt={club.current_read.book.title}
-                  className="w-8 h-12 object-cover rounded shrink-0"
-                />
-              )}
+              <CoverImageMini
+                book={{
+                  title: club.current_read.book.title,
+                  cover_url: club.current_read.book.cover_url,
+                }}
+                className="w-8 h-12 shrink-0"
+              />
             </div>
           )}
 

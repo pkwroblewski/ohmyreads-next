@@ -119,19 +119,18 @@ export function BookCard({
       return;
     }
 
-    // Detect Google Books "image not available" placeholders by known dimensions
+    // Detect Google Books "image not available" placeholders
+    // Google Books placeholders have a distinctive aspect ratio around 0.75-0.77
+    // Real book covers have aspect ratio around 0.65-0.67 (2:3)
     if (url.includes("books.google.com")) {
-      const knownPlaceholders = [
-        [128, 196],
-        [200, 303],
-        [128, 171],
-        [144, 187],
-      ];
-      const isKnownPlaceholder = knownPlaceholders.some(
-        ([w, h]) => img.naturalWidth === w && img.naturalHeight === h
-      );
-      if (isKnownPlaceholder) {
+      const { naturalWidth: w, naturalHeight: h } = img;
+      const aspectRatio = w / h;
+      // Placeholder aspect ratio: ~0.75 (width/height)
+      // Real cover aspect ratio: ~0.65 (2:3)
+      const isPlaceholderRatio = aspectRatio > 0.72 && aspectRatio < 0.80;
+      if (isPlaceholderRatio) {
         handleImageError();
+        return;
       }
     }
   }, [currentUrl, handleImageError]);
