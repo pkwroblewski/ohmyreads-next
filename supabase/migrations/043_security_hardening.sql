@@ -32,7 +32,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Create BEFORE UPDATE trigger on profiles
 DROP TRIGGER IF EXISTS protect_admin_columns_trigger ON public.profiles;
