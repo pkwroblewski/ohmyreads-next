@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validateOrigin } from "@/lib/utils/csrf";
 
 // Valid atmosphere tags
 const ATMOSPHERE_TAGS = [
@@ -111,6 +112,11 @@ export async function POST(
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
+  // CSRF protection: validate origin
+  if (!validateOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
     const { rating, content, atmosphereTags } = body;
@@ -208,6 +214,11 @@ export async function DELETE(
 
   if (!user) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  // CSRF protection: validate origin
+  if (!validateOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {

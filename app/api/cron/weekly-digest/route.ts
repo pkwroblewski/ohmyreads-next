@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
               .eq("id", user.id);
 
             sentCount++;
-            logger.info("Sent weekly digest", { userId: user.id, email: authUser.user.email });
+            logger.info("Sent weekly digest", { userId: user.id });
           } catch (err) {
             logger.error("Error processing digest for user", {
               userId: user.id,

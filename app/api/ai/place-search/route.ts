@@ -6,6 +6,7 @@ import { NextRequest } from "next/server";
 import { placeSearchTools } from "@/lib/ai/place-tools";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createClient } from "@/lib/supabase/server";
+import { validateOrigin } from "@/lib/utils/csrf";
 
 // System prompt for the place search assistant
 const PLACE_SEARCH_SYSTEM_PROMPT = `You are a helpful assistant for OhMyReads, a reading community platform. Your role is to help users find literary places - bookstores, libraries, and cafes that are great for reading.
@@ -61,6 +62,14 @@ export async function POST(request: NextRequest) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // CSRF protection: validate origin
+    if (!validateOrigin(request)) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 

@@ -57,6 +57,11 @@ const nextConfig: NextConfig = {
             key: "X-XSS-Protection",
             value: "1; mode=block",
           },
+          // Enforce HTTPS
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains; preload",
+          },
           // Content Security Policy
           // Explicit domains prevent data exfiltration to arbitrary third parties.
           // wss: for Supabase is required - Firefox enforces CSP strictly.
@@ -67,7 +72,7 @@ const nextConfig: NextConfig = {
               // 'unsafe-inline' needed for Next.js inline scripts; 'unsafe-eval' removed
               "script-src 'self' 'unsafe-inline' https://vercel.live https://*.sentry.io",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' https: data: blob:",
+              "img-src 'self' data: blob: https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://*.supabase.co",
               "font-src 'self' https://fonts.gstatic.com data:",
               // Explicit domains for API connections and WebSockets
               "connect-src 'self' " +

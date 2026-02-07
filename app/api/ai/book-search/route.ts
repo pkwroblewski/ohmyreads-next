@@ -7,6 +7,7 @@ import { BOOK_SEARCH_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { bookSearchTools } from "@/lib/ai/tools";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createClient } from "@/lib/supabase/server";
+import { validateOrigin } from "@/lib/utils/csrf";
 
 // Select the AI model based on environment or preference
 // Default to Gemini Flash for cost efficiency
@@ -35,6 +36,14 @@ export async function POST(request: NextRequest) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // CSRF protection: validate origin
+    if (!validateOrigin(request)) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 
