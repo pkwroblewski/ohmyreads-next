@@ -6,6 +6,11 @@ import { createClient } from "@/lib/supabase/server";
  * This helps diagnose precision issues
  */
 export async function GET(request: NextRequest) {
+  // Disable debug endpoint in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const supabase = await createClient();
 
   const {

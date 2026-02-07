@@ -19,9 +19,9 @@
 
 | # | Task | Priority | Effort | Status | Files | Wave |
 |---|------|----------|--------|--------|-------|------|
-| 1+10 | Fix profiles RLS + admin_role_changes policy | 🔴 Critical | Low | [ ] PENDING | `supabase/migrations/043_security_hardening.sql` | 1 |
-| 2 | Fix cron endpoint auth bypass | 🔴 Critical | Low | [ ] PENDING | `app/api/cron/weekly-digest/route.ts` | 1 |
-| 3 | Wire up middleware (proxy.ts is dead code) | 🔴 Critical | Medium | [ ] PENDING | `middleware.ts`, `proxy.ts` | 1 |
+| 1+10 | Fix profiles RLS + admin_role_changes policy | 🔴 Critical | Low | [x] COMPLETE | `supabase/migrations/043_security_hardening.sql` | 1 |
+| 2 | Fix cron endpoint auth bypass | 🔴 Critical | Low | [x] COMPLETE | `app/api/cron/weekly-digest/route.ts` | 1 |
+| 3 | Wire up middleware (proxy.ts is dead code) | 🔴 Critical | Medium | [x] COMPLETE (N/A) | N/A | 1 |
 | 4 | Add auth to AI API routes | 🟠 High | Low | [ ] PENDING | `app/api/ai/*/route.ts` | 2 |
 | 5 | Sanitize PostgREST filter inputs | 🟠 High | Low | [ ] PENDING | `app/api/books/search/route.ts`, `lib/actions/admin-users.ts` | 2 |
 | 6+7 | Sanitize errors + add rate limiting | 🟠 High | Medium | [ ] PENDING | `lib/actions/messages.ts`, `app/api/geo/ip-location/route.ts` + others | 2 |
@@ -32,13 +32,13 @@
 | 13 | Tighten Sentry config for production | 🟢 Low | Low | [ ] PENDING | `sentry.client.config.ts` | 3 |
 | 14 | Final QA & Build Verification | - | Low | [ ] PENDING | - | 4 |
 
-**Progress: 0/12 tasks complete**
+**Progress: 3/12 tasks complete**
 
 ---
 
 ## Summary
 
-Pre-launch security audit addressing: RLS privilege escalation, dead middleware, cron auth bypass, API auth gaps, input sanitization, error disclosure, rate limiting, CSP hardening, PII redaction, CSRF protection, and Sentry config.
+Pre-launch security audit addressing: RLS privilege escalation, cron auth bypass, API auth gaps, input sanitization, error disclosure, rate limiting, CSP hardening, PII redaction, CSRF protection, and Sentry config.
 
 ---
 
@@ -46,4 +46,6 @@ Pre-launch security audit addressing: RLS privilege escalation, dead middleware,
 
 | Date | Task # | Status | Notes |
 |------|--------|--------|-------|
-| | | | |
+| 2026-02-07 | 1+10 | COMPLETE | Added BEFORE UPDATE trigger to protect admin columns + restricted admin_role_changes INSERT to admins. Fixed `current_role` reserved word → `db_role`. Migration applied. |
+| 2026-02-07 | 2 | COMPLETE | Changed cron auth to fail closed: returns 503 if CRON_SECRET not set, 401 if wrong |
+| 2026-02-07 | 3 | COMPLETE (N/A) | proxy.ts is NOT dead code — Next.js 16 uses proxy.ts instead of middleware.ts. Build confirmed `ƒ Proxy (Middleware)` active. No changes needed. |

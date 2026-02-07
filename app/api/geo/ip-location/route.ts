@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 /**
  * GET /api/geo/ip-location
@@ -11,6 +12,16 @@ export async function GET(request: Request) {
     const forwardedFor = request.headers.get("x-forwarded-for");
     const realIp = request.headers.get("x-real-ip");
     const ip = forwardedFor?.split(",")[0]?.trim() || realIp || null;
+
+    // Rate limit: 10 requests per minute per IP
+    const rateLimitKey = `geo-ip:${ip || "unknown"}`;
+    const { allowed } = await checkRateLimit(rateLimitKey, 10, 60000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
 
     // Build URL - if we have an IP use it, otherwise ipapi will use the request IP
     const url = ip ? `https://ipapi.co/${ip}/json/` : "https://ipapi.co/json/";

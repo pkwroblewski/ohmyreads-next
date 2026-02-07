@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
+import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -76,9 +77,10 @@ export async function adminGetUsers(filters: UserFilters = {}) {
         reviews(count)
       `, { count: "exact" });
 
-    // Search filter
+    // Search filter (sanitize input to prevent PostgREST query manipulation)
     if (search) {
-      query = query.or(`username.ilike.%${search}%,display_name.ilike.%${search}%`);
+      const safeSearch = sanitizePostgrestValue(search);
+      query = query.or(`username.ilike.%${safeSearch}%,display_name.ilike.%${safeSearch}%`);
     }
 
     // Admin filter

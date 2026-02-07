@@ -6,6 +6,7 @@ import { NextRequest } from "next/server";
 import { BOOK_SEARCH_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { bookSearchTools } from "@/lib/ai/tools";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { createClient } from "@/lib/supabase/server";
 
 // Select the AI model based on environment or preference
 // Default to Gemini Flash for cost efficiency
@@ -27,10 +28,18 @@ function getModel() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting: 30 requests per minute per IP
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-    const { allowed } = await checkRateLimit(`ai-chat:${ip}`, 30, 60000);
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Rate limiting: 30 requests per minute per user
+    const { allowed } = await checkRateLimit(`ai-chat:${user.id}`, 30, 60000);
 
     if (!allowed) {
       return new Response(

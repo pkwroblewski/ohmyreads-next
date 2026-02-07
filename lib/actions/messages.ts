@@ -73,7 +73,7 @@ export async function sendMessage(
 
     if (error) {
       console.error("Error sending message:", error);
-      return { success: false, messageId: null, error: error.message };
+      return { success: false, messageId: null, error: "Failed to send message" };
     }
 
     return { success: true, messageId: message.id, error: null };
@@ -113,7 +113,7 @@ export async function markMessagesAsRead(friendId: string): Promise<{
 
     if (error) {
       console.error("Error marking messages as read:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: "Failed to mark messages as read" };
     }
 
     // Recalculate unread count
@@ -167,7 +167,7 @@ export async function deleteMessage(messageId: string): Promise<{
 
     if (error) {
       console.error("Error deleting message:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: "Failed to delete message" };
     }
 
     return { success: true, error: null };

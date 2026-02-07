@@ -5,6 +5,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { NextRequest } from "next/server";
 import { placeSearchTools } from "@/lib/ai/place-tools";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { createClient } from "@/lib/supabase/server";
 
 // System prompt for the place search assistant
 const PLACE_SEARCH_SYSTEM_PROMPT = `You are a helpful assistant for OhMyReads, a reading community platform. Your role is to help users find literary places - bookstores, libraries, and cafes that are great for reading.
@@ -53,9 +54,18 @@ function getModel() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting: 20 requests per minute per IP
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-    const { allowed } = await checkRateLimit(`ai-place-search:${ip}`, 20, 60000);
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Rate limiting: 20 requests per minute per user
+    const { allowed } = await checkRateLimit(`ai-place-search:${user.id}`, 20, 60000);
 
     if (!allowed) {
       return new Response(

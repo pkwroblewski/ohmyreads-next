@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { parseSearchParams } from "@/lib/validation/search";
 import { logger, extractErrorInfo, extractSupabaseErrorInfo } from "@/lib/utils/log";
+import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 
 export async function GET(request: NextRequest) {
   // Rate limit by IP (60 requests per minute for search)
@@ -37,10 +38,10 @@ export async function GET(request: NextRequest) {
     // Build query
     let query = supabase.from("books").select("*", { count: "exact" });
 
-    // Apply search filter (safely escaped by Supabase client)
+    // Apply search filter (sanitize input to prevent PostgREST query manipulation)
     if (q) {
-      // Use separate ilike calls for cleaner filter construction
-      query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`);
+      const safeQ = sanitizePostgrestValue(q);
+      query = query.or(`title.ilike.%${safeQ}%,author.ilike.%${safeQ}%`);
     }
 
     // Apply genre filter

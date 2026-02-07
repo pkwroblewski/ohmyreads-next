@@ -1,7 +1,7 @@
 import { generateText, stepCountIs } from "ai";
 import { google } from "@ai-sdk/google";
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createPublicClient, createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 // Simple in-memory cache for trending insights (24 hour TTL)
@@ -23,6 +23,16 @@ function getModel() {
 
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     // Check cache first
     const cacheKey = "trending-insights";
     const cached = insightsCache.get(cacheKey);
@@ -30,9 +40,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ insights: cached.data, cached: true });
     }
 
-    // Rate limiting: 10 requests per minute
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-    const { allowed } = await checkRateLimit(`ai-trending:${ip}`, 10, 60000);
+    // Rate limiting: 10 requests per minute per user
+    const { allowed } = await checkRateLimit(`ai-trending:${user.id}`, 10, 60000);
 
     if (!allowed) {
       return NextResponse.json(
@@ -41,10 +50,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = createPublicClient();
+    const publicClient = createPublicClient();
 
     // Get trending books with their recent reviews
-    const { data: trendingBooks, error: booksError } = await supabase
+    const { data: trendingBooks, error: booksError } = await publicClient
       .from("books")
       .select(`
         id,
@@ -61,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     // Get recent reviews for these books
     const bookIds = trendingBooks.map((b) => b.id);
-    const { data: reviews } = await supabase
+    const { data: reviews } = await publicClient
       .from("reviews")
       .select("book_id, content, rating, vibe_tags")
       .in("book_id", bookIds)
