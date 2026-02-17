@@ -21,6 +21,16 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.googleusercontent.com",
       },
+      {
+        protocol: "https",
+        hostname: "archive.org",
+        pathname: "/download/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.us.archive.org",
+        pathname: "/**",
+      },
     ],
   },
 
@@ -72,7 +82,7 @@ const nextConfig: NextConfig = {
               // 'unsafe-inline' needed for Next.js inline scripts; 'unsafe-eval' removed
               "script-src 'self' 'unsafe-inline' https://vercel.live https://*.sentry.io",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://*.supabase.co",
+              "img-src 'self' data: blob: https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://*.supabase.co https://archive.org https://*.us.archive.org",
               "font-src 'self' https://fonts.gstatic.com data:",
               // Explicit domains for API connections and WebSockets
               "connect-src 'self' " +

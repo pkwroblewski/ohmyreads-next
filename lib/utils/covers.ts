@@ -196,16 +196,10 @@ export async function validateCoverUrl(url: string): Promise<boolean> {
         return;
       }
 
-      // Detect Google Books "image not available" placeholders by aspect ratio
-      if (url.includes("books.google.com")) {
-        const aspectRatio = img.naturalWidth / img.naturalHeight;
-        // Google Books placeholders have aspect ratio ~0.75
-        // Real book covers have aspect ratio ~0.65 (2:3)
-        if (aspectRatio > 0.72 && aspectRatio < 0.80) {
-          resolve(false);
-          return;
-        }
-      }
+      // Note: Google Books "no preview" grey placeholders (128x170, 575x750)
+      // cannot be reliably detected client-side without CORS canvas access.
+      // With the Open Library ISBN fallback (CSP fix in next.config.ts),
+      // these are rarely reached. The size check above catches 1x1 pixels.
 
       resolve(true);
     };
