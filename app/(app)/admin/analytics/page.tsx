@@ -175,7 +175,7 @@ export default function AdminAnalyticsPage() {
         <div className="p-6 rounded-xl bg-card border">
           <h2 className="text-lg font-semibold mb-4">Daily Activity (Last 30 Days)</h2>
           <div className="flex items-end gap-1 h-32">
-            {growthData.map((day, i) => {
+            {growthData.map((day) => {
               const total = day.users + day.reviews;
               const maxTotal = Math.max(...growthData.map((d) => d.users + d.reviews));
               const height = maxTotal > 0 ? (total / maxTotal) * 100 : 0;

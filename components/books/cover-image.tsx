@@ -70,8 +70,10 @@ export function CoverImage({
   className,
   priority = false,
 }: CoverImageProps) {
-  const [validatedUrl, setValidatedUrl] = useState<string | null>(null);
-  const [isValidating, setIsValidating] = useState(true);
+  const [coverResult, setCoverResult] = useState<{
+    urls: readonly string[];
+    validatedUrl: string | null;
+  } | null>(null);
 
   const dimensions = fill
     ? null
@@ -79,21 +81,19 @@ export function CoverImage({
 
   const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
 
+  // Derive validation state: no URLs means nothing to validate
+  const isValidating = coverUrls.length > 0 && (coverResult === null || coverResult.urls !== coverUrls);
+  const validatedUrl = !isValidating && coverResult?.urls === coverUrls ? coverResult.validatedUrl : null;
+
   // Pre-load and validate URLs before displaying
   useEffect(() => {
-    const controller = new AbortController();
-    setIsValidating(true);
-    setValidatedUrl(null);
+    if (coverUrls.length === 0) return;
 
-    if (coverUrls.length === 0) {
-      setIsValidating(false);
-      return;
-    }
+    const controller = new AbortController();
 
     findFirstValidCoverUrl(coverUrls, controller.signal).then((url) => {
       if (!controller.signal.aborted) {
-        setValidatedUrl(url);
-        setIsValidating(false);
+        setCoverResult({ urls: coverUrls, validatedUrl: url });
       }
     });
 
@@ -197,26 +197,26 @@ export function CoverImageMini({
   book: BookCoverData & { title: string };
   className?: string;
 }) {
-  const [validatedUrl, setValidatedUrl] = useState<string | null>(null);
-  const [isValidating, setIsValidating] = useState(true);
+  const [coverResult, setCoverResult] = useState<{
+    urls: readonly string[];
+    validatedUrl: string | null;
+  } | null>(null);
 
   const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
 
+  // Derive validation state: no URLs means nothing to validate
+  const isValidating = coverUrls.length > 0 && (coverResult === null || coverResult.urls !== coverUrls);
+  const validatedUrl = !isValidating && coverResult?.urls === coverUrls ? coverResult.validatedUrl : null;
+
   // Pre-load and validate URLs before displaying
   useEffect(() => {
-    const controller = new AbortController();
-    setIsValidating(true);
-    setValidatedUrl(null);
+    if (coverUrls.length === 0) return;
 
-    if (coverUrls.length === 0) {
-      setIsValidating(false);
-      return;
-    }
+    const controller = new AbortController();
 
     findFirstValidCoverUrl(coverUrls, controller.signal).then((url) => {
       if (!controller.signal.aborted) {
-        setValidatedUrl(url);
-        setIsValidating(false);
+        setCoverResult({ urls: coverUrls, validatedUrl: url });
       }
     });
 

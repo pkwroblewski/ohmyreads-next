@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GoodreadsImport } from "@/components/import/goodreads-import";
 import { Upload } from "lucide-react";
@@ -12,10 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ImportPage() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login?redirect=/import");

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ReaderCard } from "./reader-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { ReaderWithCompatibility, ReaderSearchFilters } from "@/types/database";
+import type { ReaderWithCompatibility } from "@/types/database";
 
 interface ReaderBrowserProps {
   initialReaders: ReaderWithCompatibility[];

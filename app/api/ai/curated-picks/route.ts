@@ -3,7 +3,7 @@ import { google } from "@ai-sdk/google";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/server";
-import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 
 // Simple in-memory cache for curated picks (1 hour TTL per user)
 const curatedCache = new Map<string, { data: CuratedPick[]; timestamp: number }>();
@@ -25,7 +25,7 @@ function getModel() {
 export async function GET(request: NextRequest) {
   try {
     // Rate limiting: 20 requests per minute
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    const ip = getClientIp(request);
     const { allowed } = await checkRateLimit(`ai-curated:${ip}`, 20, 60000);
 
     if (!allowed) {

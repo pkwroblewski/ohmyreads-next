@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ExternalLink, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getAffiliateLinks, type AffiliateLinks } from "@/lib/utils/affiliate-links";
+import { getAffiliateLinks } from "@/lib/utils/affiliate-links";
 
 interface BuyLinksProps {
   book: {

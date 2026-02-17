@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Search, Loader2, ArrowRight } from "lucide-react";
+import { Sparkles, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AIBookSearch } from "@/components/ai/ai-book-search";
 import { cn } from "@/lib/utils";

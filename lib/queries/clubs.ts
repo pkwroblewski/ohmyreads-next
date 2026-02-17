@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import type {
-  BookClub,
   BookClubWithDetails,
   BookClubMemberWithProfile,
   BookClubReadWithBook,

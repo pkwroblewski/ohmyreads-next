@@ -73,7 +73,7 @@ const eventTypeConfig = {
   },
 };
 
-function formatEventDate(startDate: string, startTime?: string, endDate?: string): string {
+function formatEventDate(startDate: string, startTime?: string): string {
   const start = new Date(startDate);
   const options: Intl.DateTimeFormatOptions = {
     weekday: "short",
@@ -131,7 +131,7 @@ export function EventCard({ event, onLocate, className }: EventCardProps) {
             </Badge>
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <CalendarDays className="h-3 w-3" />
-              {formatEventDate(event.start_date, event.start_time, event.end_date)}
+              {formatEventDate(event.start_date, event.start_time)}
             </span>
           </div>
         </div>

@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import {
   getCoverUrlsWithFallbacks,
   findFirstValidCoverUrl,
-  type BookCoverData,
 } from "@/lib/utils/covers";
 import { AddToShelfButton } from "./add-to-shelf-button";
 import { buttonVariants } from "@/components/ui/button";
@@ -81,8 +80,10 @@ export function BookCard({
   size = "md",
   variant = "rail",
 }: BookCardProps) {
-  const [validatedUrl, setValidatedUrl] = useState<string | null>(null);
-  const [isValidating, setIsValidating] = useState(true);
+  const [coverResult, setCoverResult] = useState<{
+    urls: readonly string[];
+    validatedUrl: string | null;
+  } | null>(null);
   const classes = sizeClasses[size];
   const isGrid = variant === "grid";
 
@@ -97,21 +98,19 @@ export function BookCard({
   // Get all possible cover URLs for fallback chain
   const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
 
+  // Derive validation state: no URLs means nothing to validate
+  const isValidating = coverUrls.length > 0 && (coverResult === null || coverResult.urls !== coverUrls);
+  const validatedUrl = !isValidating && coverResult?.urls === coverUrls ? coverResult.validatedUrl : null;
+
   // Pre-load and validate URLs before displaying
   useEffect(() => {
-    const controller = new AbortController();
-    setIsValidating(true);
-    setValidatedUrl(null);
+    if (coverUrls.length === 0) return;
 
-    if (coverUrls.length === 0) {
-      setIsValidating(false);
-      return;
-    }
+    const controller = new AbortController();
 
     findFirstValidCoverUrl(coverUrls, controller.signal).then((url) => {
       if (!controller.signal.aborted) {
-        setValidatedUrl(url);
-        setIsValidating(false);
+        setCoverResult({ urls: coverUrls, validatedUrl: url });
       }
     });
 

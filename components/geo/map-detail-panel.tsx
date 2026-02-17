@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, BookMarked, Landmark, Coffee, MapPin, Globe, Navigation, Users, MessageSquare, Camera, Star, Clock, Loader2, ExternalLink, Phone, Share2, Mail, Accessibility, Copy, Check, MapPinned, BookOpen } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { X, BookMarked, Landmark, Coffee, MapPin, Globe, Navigation, Users, MessageSquare, Camera, Star, Clock, Loader2, ExternalLink, Phone, Share2, Mail, Accessibility, Check, MapPinned, BookOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -25,10 +25,6 @@ interface MapDetailPanelProps {
 
 function isReader(item: MapItem): item is ReaderPin {
   return "username" in item;
-}
-
-function isPlace(item: MapItem): item is PlacePin {
-  return "type" in item && !("username" in item);
 }
 
 const placeConfig: Record<string, {
@@ -397,8 +393,6 @@ function PlaceContent({ place, currentUserId, onMarkSpotAtPlace }: {
   const phoneNumber = place.phone;
   const emailAddress = place.email;
   const googleMapsUrl = enrichment?.googleMapsUrl || (place.lat && place.lng ? `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}` : null);
-  const directionsUrl = place.lat && place.lng ? `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}` : null;
-
   // Share functionality
   const handleShare = async () => {
     const shareUrl = googleMapsUrl || window.location.href;

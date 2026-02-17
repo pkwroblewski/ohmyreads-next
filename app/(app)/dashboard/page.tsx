@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ArrowRight, Upload } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getChallenges } from "@/lib/actions/challenges";
@@ -38,12 +38,10 @@ function formatTodayDate(): string {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-
-  // Get current user
+  // Request-memoized — reuses the auth call from layout (no extra round-trip)
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return null; // Layout handles redirect
@@ -51,6 +49,7 @@ export default async function DashboardPage() {
 
   // Fetch critical data that blocks initial render
   // (These are fast and needed for personalized header/quick actions)
+  const supabase = await createClient();
   const [profileResult, challengesResult, pendingFriendRequests] =
     await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
@@ -150,17 +149,17 @@ export default async function DashboardPage() {
  * Server component for quick actions shown to new users
  */
 async function QuickActionsForNewUsers() {
-  const supabase = await createClient();
-
+  // Request-memoized — reuses the auth call from layout (no extra round-trip)
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return null;
   }
 
   // Check if user has stats or currently reading books
+  const supabase = await createClient();
   const [statsResult, currentlyReadingResult] = await Promise.all([
     supabase
       .from("reading_stats")

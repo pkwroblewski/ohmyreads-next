@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { Flame } from "lucide-react";
-import { getTrulyTrending, type TrendingBook } from "@/lib/queries/recommendations";
+import { getTrulyTrending } from "@/lib/queries/recommendations";
 import { TrendingGrid } from "@/components/trending/trending-grid";
 
 export const metadata: Metadata = {

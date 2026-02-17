@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { BookSubmissionForm } from "@/components/books/book-submission-form";
 
 export const metadata: Metadata = {
@@ -10,10 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default async function NewBookPage() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login?redirect=/books/new");

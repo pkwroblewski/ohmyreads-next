@@ -8,7 +8,6 @@ import {
   MapPin,
   FileText,
   Clock,
-  CheckCircle,
   AlertTriangle,
   TrendingUp,
   Star,

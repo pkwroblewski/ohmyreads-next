@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchExternalBooks } from "@/lib/utils/external-book-search";
 import { createPublicClient } from "@/lib/supabase/server";
-import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 
 export async function GET(request: NextRequest) {
   // Rate limit by IP (30 requests per minute for external search - more expensive)
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`external-search:${ip}`, 30, 60000);
   
   if (!allowed) {

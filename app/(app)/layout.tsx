@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
@@ -21,10 +21,8 @@ export default async function AppLayout({
   let unreadCount = 0;
 
   try {
-    const supabase = await createClient();
-
-    // Get current user
-    const { data: authData, error: authError } = await supabase.auth.getUser();
+    // Request-memoized — deduped across layout + page + nested components
+    const { data: authData, error: authError } = await getUser();
 
     if (authError) {
       console.error("Auth error in layout:", authError.message);
@@ -39,6 +37,7 @@ export default async function AppLayout({
     }
 
     // Get user profile - use maybeSingle() to avoid error when no row exists
+    const supabase = await createClient();
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("*")

@@ -12,7 +12,7 @@ import {
   Calendar,
   Settings,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import {
   getUserStats,
   getUserBooks,
@@ -35,17 +35,16 @@ export const metadata: Metadata = {
 };
 
 export default async function ProfilePage() {
-  const supabase = await createClient();
-
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login");
   }
 
   // Fetch profile
+  const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")

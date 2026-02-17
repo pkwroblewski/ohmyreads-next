@@ -101,12 +101,19 @@ export const searchBooksTool = tool({
       .order("ratings_count", { ascending: false, nullsFirst: false })
       .limit(limit);
 
-    // Text search on title/author
+    // Full-text search using GIN-indexed tsvector column (title + author)
     if (query && query.trim()) {
-      const sanitized = query.replace(/[%_(),."'\\]/g, "");
-      bookQuery = bookQuery.or(
-        `title.ilike.%${sanitized}%,author.ilike.%${sanitized}%`
-      );
+      if (query.trim().length <= 2) {
+        const sanitized = query.replace(/[%_(),."'\\]/g, "");
+        bookQuery = bookQuery.or(
+          `title.ilike.%${sanitized}%,author.ilike.%${sanitized}%`
+        );
+      } else {
+        bookQuery = bookQuery.textSearch("fts", query.trim(), {
+          type: "websearch",
+          config: "english",
+        });
+      }
     }
 
     // Genre filter - match any of the specified genres

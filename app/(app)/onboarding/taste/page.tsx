@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { getAllGenres } from "@/lib/queries/books";
 import { getTasteProfile } from "@/lib/actions/taste";
 import { TasteOnboardingWizard } from "@/components/onboarding/taste-onboarding-wizard";
@@ -34,10 +34,9 @@ const FALLBACK_GENRES = [
 ];
 
 export default async function TasteOnboardingPage() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login?redirect=/onboarding/taste");

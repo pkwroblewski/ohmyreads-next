@@ -5,8 +5,6 @@ import { Award, ChevronRight } from "lucide-react";
 import BadgeCard from "./badge-card";
 import BadgeIcon from "./badge-icon";
 import type { UserBadgeWithDefinition } from "@/lib/queries/badges";
-import { cn } from "@/lib/utils";
-
 interface BadgesSectionProps {
   badges: UserBadgeWithDefinition[];
   userId: string;
@@ -17,7 +15,6 @@ interface BadgesSectionProps {
 
 export default function BadgesSection({
   badges,
-  userId,
   isOwnProfile = false,
   variant = "compact",
   maxDisplay = 6,

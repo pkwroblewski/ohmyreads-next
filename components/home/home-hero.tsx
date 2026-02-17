@@ -84,7 +84,7 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
-                <Link href="/import">
+                <Link href="/login?redirect=/import">
                   <Button
                     variant="outline"
                     size="lg"

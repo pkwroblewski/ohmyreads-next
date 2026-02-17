@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -28,6 +29,15 @@ export async function createClient() {
     }
   );
 }
+
+/**
+ * Request-memoized auth.getUser() — deduplicates the Supabase auth round-trip
+ * across layout, page, and nested server components within a single request.
+ */
+export const getUser = cache(async () => {
+  const supabase = await createClient();
+  return supabase.auth.getUser();
+});
 
 /**
  * Create a Supabase client for public/cached queries that don't need cookies.

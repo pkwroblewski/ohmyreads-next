@@ -202,9 +202,19 @@ export async function searchBooks(
 
   let bookQuery = supabase.from("books").select("*", { count: "exact" });
 
-  // Text search
+  // Full-text search using GIN-indexed tsvector column (title + author)
+  // Falls back to ilike for very short queries (1-2 chars) that FTS can't handle
   if (query) {
-    bookQuery = bookQuery.or(`title.ilike.%${query}%,author.ilike.%${query}%`);
+    if (query.trim().length <= 2) {
+      bookQuery = bookQuery.or(
+        `title.ilike.%${query}%,author.ilike.%${query}%`
+      );
+    } else {
+      bookQuery = bookQuery.textSearch("fts", query, {
+        type: "websearch",
+        config: "english",
+      });
+    }
   }
 
   // Genre filter
@@ -310,16 +320,14 @@ export const getRecentBooks = unstable_cache(
 async function fetchAllGenres(): Promise<string[]> {
   const supabase = createPublicClient();
 
-  const { data, error } = await supabase.from("books").select("genres");
+  const { data, error } = await supabase.rpc("get_distinct_genres");
 
   if (error) {
     console.error("Error fetching genres:", error);
     return [];
   }
 
-  // Flatten and deduplicate genres
-  const allGenres = data?.flatMap((b) => b.genres || []) || [];
-  return [...new Set(allGenres)].sort();
+  return (data?.map((row: { genre: string }) => row.genre) || []);
 }
 
 export const getAllGenres = unstable_cache(

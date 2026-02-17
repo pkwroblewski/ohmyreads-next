@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import {
   getIsochrone,
   isMcpConfigured,
@@ -22,8 +22,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Rate limit by IP (30 requests per minute)
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`geo-isochrone:${ip}`, 30, 60000);
 
   if (!allowed) {

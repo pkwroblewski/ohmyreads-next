@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import {
   Sparkles,
   BookOpen,
@@ -11,11 +10,9 @@ import {
   ArrowLeft,
   Check,
   Loader2,
-  Search,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { completeTasteOnboarding } from "@/lib/actions/taste";
@@ -149,7 +146,7 @@ export function TasteOnboardingWizard({
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="h-8 w-8 text-primary" />
               </div>
-              <h1 className="text-2xl font-bold mb-2">What do you love to read?</h1>
+              <h2 className="text-2xl font-bold mb-2">What do you love to read?</h2>
               <p className="text-muted-foreground">
                 Select your favorite genres. This helps us recommend books you&apos;ll enjoy.
               </p>
@@ -213,7 +210,7 @@ export function TasteOnboardingWizard({
               <div className="w-16 h-16 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-4">
                 <Heart className="h-8 w-8 text-pink-500" />
               </div>
-              <h1 className="text-2xl font-bold mb-2">What vibes do you enjoy?</h1>
+              <h2 className="text-2xl font-bold mb-2">What vibes do you enjoy?</h2>
               <p className="text-muted-foreground">
                 Optional: Select the moods and styles you look for in books.
               </p>
@@ -323,7 +320,7 @@ export function TasteOnboardingWizard({
               <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
                 <Sparkles className="h-8 w-8 text-blue-500" />
               </div>
-              <h1 className="text-2xl font-bold mb-2">Reading preferences</h1>
+              <h2 className="text-2xl font-bold mb-2">Reading preferences</h2>
               <p className="text-muted-foreground">
                 Optional: Tell us about your reading style preferences.
               </p>
@@ -346,9 +343,9 @@ export function TasteOnboardingWizard({
                     )}
                   >
                     <div className="text-2xl mb-1">
-                      {option === "slow" && "🐢"}
-                      {option === "medium" && "🚶"}
-                      {option === "fast" && "🚀"}
+                      {option === "slow" && <span role="img" aria-label="Turtle">🐢</span>}
+                      {option === "medium" && <span role="img" aria-label="Walking">🚶</span>}
+                      {option === "fast" && <span role="img" aria-label="Rocket">🚀</span>}
                     </div>
                     <div className="font-medium text-sm">
                       {option === "slow" && "Slow & Contemplative"}
@@ -377,9 +374,9 @@ export function TasteOnboardingWizard({
                     )}
                   >
                     <div className="text-2xl mb-1">
-                      {option === "short" && "📖"}
-                      {option === "medium" && "📚"}
-                      {option === "long" && "📕"}
+                      {option === "short" && <span role="img" aria-label="Open book">📖</span>}
+                      {option === "medium" && <span role="img" aria-label="Books">📚</span>}
+                      {option === "long" && <span role="img" aria-label="Closed book">📕</span>}
                     </div>
                     <div className="font-medium text-sm">
                       {option === "short" && "Short (<250 pages)"}
@@ -404,7 +401,7 @@ export function TasteOnboardingWizard({
               <Check className="h-10 w-10 text-green-500" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold mb-2">You&apos;re all set!</h1>
+              <h2 className="text-2xl font-bold mb-2">You&apos;re all set!</h2>
               <p className="text-muted-foreground">
                 We&apos;ll use your preferences to recommend books you&apos;ll love.
               </p>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 
 /**
  * GET /api/geo/ip-location
@@ -9,13 +9,11 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 export async function GET(request: Request) {
   try {
     // Get the user's IP from headers (works on Vercel and most hosting)
-    const forwardedFor = request.headers.get("x-forwarded-for");
-    const realIp = request.headers.get("x-real-ip");
-    const ip = forwardedFor?.split(",")[0]?.trim() || realIp || null;
+    const ip = getClientIp(request);
+    const ipForLookup = ip !== "unknown" ? ip : null;
 
     // Rate limit: 10 requests per minute per IP
-    const rateLimitKey = `geo-ip:${ip || "unknown"}`;
-    const { allowed } = await checkRateLimit(rateLimitKey, 10, 60000);
+    const { allowed } = await checkRateLimit(`geo-ip:${ip}`, 10, 60000);
     if (!allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },
@@ -24,7 +22,7 @@ export async function GET(request: Request) {
     }
 
     // Build URL - if we have an IP use it, otherwise ipapi will use the request IP
-    const url = ip ? `https://ipapi.co/${ip}/json/` : "https://ipapi.co/json/";
+    const url = ipForLookup ? `https://ipapi.co/${ipForLookup}/json/` : "https://ipapi.co/json/";
 
     const res = await fetch(url, {
       headers: {

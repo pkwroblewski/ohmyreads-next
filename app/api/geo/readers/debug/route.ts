@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * DEBUG: Get raw reader data for the current user
  * This helps diagnose precision issues
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   // Disable debug endpoint in production
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

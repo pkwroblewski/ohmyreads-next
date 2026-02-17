@@ -26,7 +26,7 @@ type Step = "upload" | "preview" | "importing" | "results";
 
 export default function AdminImportPage() {
   const [step, setStep] = useState<Step>("upload");
-  const [csvContent, setCsvContent] = useState("");
+  const [, setCsvContent] = useState("");
   const [parsedRows, setParsedRows] = useState<ParsedBookRow[]>([]);
   const [parseStats, setParseStats] = useState({ total: 0, valid: 0, errors: 0 });
   const [parseErrors, setParseErrors] = useState<string[]>([]);

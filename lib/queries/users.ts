@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Profile, ReviewWithUser, UserBook, UserBookWithBook } from "@/types/database";
+import type { Profile, ReviewWithUser, UserBookWithBook } from "@/types/database";
 
 /**
  * Get profile by username

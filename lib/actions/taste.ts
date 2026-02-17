@@ -28,7 +28,7 @@ export async function updateTasteProfile(input: UpdateTasteProfileInput) {
     }
 
     // Rate limiting: 10 updates per minute
-    const { allowed, remaining } = await checkRateLimit(`taste:${user.id}`, 10, 60000);
+    const { allowed } = await checkRateLimit(`taste:${user.id}`, 10, 60000);
     if (!allowed) {
       logger.warn("Rate limit exceeded for taste profile update", {
         userId: user.id,

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { MapPin, CheckCircle, XCircle, ExternalLink, Clock } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { MapPin, CheckCircle, ExternalLink, Clock } from "lucide-react";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { getPendingPlaceSubmissions } from "@/lib/actions/places";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlaceModerationActions } from "@/components/admin/place-moderation-actions";
@@ -15,16 +15,16 @@ export const metadata: Metadata = {
 };
 
 export default async function PlaceModerationPage() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login?redirect=/admin/moderation/places");
   }
 
   // Check if admin
+  const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")

@@ -28,7 +28,7 @@ export function TrendingNowList({
 }: TrendingNowListProps) {
   const displayBooks = books.slice(0, maxItems);
   const [insights, setInsights] = useState<Map<string, TrendingInsight>>(new Map());
-  const [loadingInsights, setLoadingInsights] = useState(false);
+  const [, setLoadingInsights] = useState(false);
 
   // Fetch AI insights on mount
   useEffect(() => {
@@ -105,7 +105,6 @@ export function TrendingNowList({
 function TrendingBookItem({
   book,
   rank,
-  compact,
   insight,
 }: {
   book: Book;

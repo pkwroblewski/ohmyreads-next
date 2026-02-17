@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   FileText,
-  Search,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -12,10 +11,8 @@ import {
   User,
   Calendar,
   Target,
-  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,7 +24,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   adminGetAuditLogs,
   adminGetLogActionTypes,
-  type LogFilters,
   type AuditLogEntry,
 } from "@/lib/queries/admin-logs";
 import { type AuditAction } from "@/lib/utils/audit-log";

@@ -6,6 +6,6 @@ export {
   truncate,
   formatTimeRemaining,
 } from "./format";
-export { checkRateLimit, resetRateLimit, getRateLimitStatus } from "./rate-limit";
+export { getClientIp, checkRateLimit, resetRateLimit, getRateLimitStatus } from "./rate-limit";
 export { logger, extractErrorInfo } from "./log";
 

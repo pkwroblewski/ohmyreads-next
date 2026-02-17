@@ -46,11 +46,11 @@ const nextConfig: NextConfig = {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
-          // Disable sensitive browser APIs we don't use
+          // Disable sensitive browser APIs we don't use (geolocation allowed for own origin)
           {
             key: "Permissions-Policy",
             value:
-              "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+              "camera=(), microphone=(), geolocation=(self), interest-cohort=()",
           },
           // Prevent XSS attacks (modern browsers)
           {

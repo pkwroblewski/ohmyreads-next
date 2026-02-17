@@ -196,6 +196,42 @@ npm run test:coverage  # With coverage
 
 ---
 
+## 🖼️ Book Cover Display Fix
+
+### Problem
+Google Books cover URLs were returning "image not available" placeholder images instead of 404 errors. Previous attempts to fix this (aspect ratio detection) failed because:
+- Google Books placeholders don't always have consistent aspect ratios
+- Some placeholders have ~0.65 ratio (like real covers), passing detection
+- Client-side detection happened AFTER image loads = visible flash
+
+### Solution (Commit: `daff906`)
+Two-pronged approach:
+
+1. **Changed cover source priority:**
+   - Open Library cover ID (most reliable - returns 404 for missing)
+   - Open Library ISBN
+   - Existing cover_url
+   - Google Books (last - may have placeholders)
+
+2. **Added pre-load validation:**
+   - Test image in hidden `Image()` element before displaying
+   - Validate dimensions and aspect ratio
+   - Only display after validation passes (no visible flash)
+
+### Files Changed
+| File | Changes |
+|------|---------|
+| `lib/utils/covers.ts` | Changed priority order, added `validateCoverUrl()` and `findFirstValidCoverUrl()` |
+| `components/books/cover-image.tsx` | Pre-load validation with `useEffect`, loading shimmer during validation |
+| `components/books/book-card.tsx` | Same pre-load validation approach for all 3 render variants |
+
+### Verification
+- User confirmed fix works across Homepage, Browse, and Dashboard
+- No "image not available" placeholders visible
+- Proper fallback to app placeholder (gradient with title) when no valid cover exists
+
+---
+
 ## 🔜 Future Considerations
 
 ### Deferred Work
@@ -235,9 +271,11 @@ npm run test:coverage  # With coverage
 **Files Changed:** 44 files, +4627 / -581 lines
 **Production:** ✅ Deployed and verified
 
+**Book Cover Fix:** Resolved Google Books placeholder issue with priority reordering + pre-load validation
+
 ---
 
 _Generated: 2026-02-01_
-_Commit: 9a048f9_
+_Commits: 9a048f9 (code review), daff906 (book cover fix)_
 _Plan: .claude/plans/code-review-remediation-2026-02-01.md_
 _Review: .claude/reviews/code-review-2026-02-01.md_

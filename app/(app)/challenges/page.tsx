@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Target, Trophy, Clock, CheckCircle2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { getChallenges } from "@/lib/actions/challenges";
 import ChallengeCard from "@/components/challenges/challenge-card";
 import CreateChallengeForm from "@/components/challenges/create-challenge-form";
@@ -14,10 +14,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ChallengesPage() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login?redirect=/challenges");

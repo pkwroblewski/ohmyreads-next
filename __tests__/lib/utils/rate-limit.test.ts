@@ -6,7 +6,7 @@
  * The checkRateLimitSync function provides a synchronous API for testing.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { checkRateLimitSync, resetRateLimit } from "@/lib/utils/rate-limit";
 
 describe("checkRateLimitSync (in-memory rate limiting)", () => {

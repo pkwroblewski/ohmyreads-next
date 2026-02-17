@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { BookPlus, Clock, CheckCircle, XCircle, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,17 +12,16 @@ export const metadata = {
 };
 
 export default async function MySubmissionsPage() {
-  const supabase = await createClient();
-
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login?redirect=/my-submissions");
   }
 
   // Fetch user's submissions
+  const supabase = await createClient();
   const { data: submissions } = await supabase
     .from("book_submissions")
     .select("*")

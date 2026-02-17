@@ -22,7 +22,6 @@ interface CuratedMiniGridProps {
 export function CuratedMiniGrid({
   books,
   title = "Personalized Recommendations",
-  isLoggedIn,
 }: CuratedMiniGridProps) {
   // Only show first 4 books
   const displayBooks = books.slice(0, 4);

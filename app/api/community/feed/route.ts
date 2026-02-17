@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCommunityFeedPage } from "@/lib/queries/community";
-import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 
 export async function GET(request: NextRequest) {
   // Rate limit by IP (100 requests per minute for feed pagination)
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`feed:${ip}`, 100, 60000);
   
   if (!allowed) {

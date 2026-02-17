@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { DirectMessage } from "@/types/database";
 import type { RealtimeChannel, RealtimePostgresInsertPayload } from "@supabase/supabase-js";

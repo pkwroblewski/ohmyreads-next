@@ -13,6 +13,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/relative-time";
@@ -59,7 +60,7 @@ export function ReviewCard({
   const [isLiking, setIsLiking] = useState(false);
   const [showSpoiler, setShowSpoiler] = useState(false);
   const [showFullReview, setShowFullReview] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
+
 
   const profile = review.profile;
   const displayName = profile?.display_name || profile?.username || "Anonymous";
@@ -182,44 +183,43 @@ export function ReviewCard({
 
           {/* Owner menu */}
           {isOwner && (onEdit || onDelete) && (
-            <div className="relative">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setShowMenu(!showMenu)}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-              {showMenu && (
-                <div className="absolute right-0 top-full mt-1 py-1 w-32 bg-popover border rounded-md shadow-md z-10">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={4}
+                  className="w-32 py-1 bg-popover border rounded-md shadow-md z-50"
+                >
                   {onEdit && (
-                    <button
-                      onClick={() => {
-                        setShowMenu(false);
-                        onEdit();
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted"
+                    <DropdownMenu.Item
+                      onSelect={onEdit}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted outline-none cursor-pointer"
                     >
                       <Edit className="h-3.5 w-3.5" />
                       Edit
-                    </button>
+                    </DropdownMenu.Item>
                   )}
                   {onDelete && (
-                    <button
-                      onClick={() => {
-                        setShowMenu(false);
-                        onDelete();
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-destructive hover:bg-muted"
+                    <DropdownMenu.Item
+                      onSelect={onDelete}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-destructive hover:bg-muted outline-none cursor-pointer"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Delete
-                    </button>
+                    </DropdownMenu.Item>
                   )}
-                </div>
-              )}
-            </div>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
           )}
         </div>
       </div>

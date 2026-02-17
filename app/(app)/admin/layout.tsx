@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -8,17 +8,16 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login?redirect=/admin");
   }
 
   // Check if user is admin - use maybeSingle() to avoid error when no row exists
+  const supabase = await createClient();
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("is_admin")

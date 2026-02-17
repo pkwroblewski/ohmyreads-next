@@ -5,7 +5,6 @@ import {
   Footprints,
   Bike,
   Car,
-  Clock,
   X,
   Loader2,
   Timer,

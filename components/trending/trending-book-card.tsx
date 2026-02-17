@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Star, MessageSquare, Bookmark, TrendingUp } from "lucide-react";
+import { Star, Bookmark, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "@/components/books/cover-image";
 import { AddToShelfButton } from "@/components/books/add-to-shelf-button";

@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createClient, createPublicClient } from "@/lib/supabase/server";
 import type { Book, UserTasteProfile } from "@/types/database";
 
 // Recommendation reason types
@@ -594,27 +595,16 @@ export async function getTrendingGlobally(
   }));
 }
 
-// In-memory cache for trending results (1 hour TTL)
-const trendingCache = new Map<string, { data: TrendingBook[]; timestamp: number }>();
-const TRENDING_CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
 /**
- * Get truly trending books based on recent activity
- * Scores based on reviews and shelf adds in the time window
+ * Fetch truly trending books based on recent activity.
+ * Uses createPublicClient (no cookies) so it can be wrapped with unstable_cache.
  */
-export async function getTrulyTrending(
-  limit: number = 12,
-  daysWindow: number = 7,
-  genre?: string
+async function fetchTrulyTrending(
+  limit: number,
+  daysWindow: number,
+  genre: string
 ): Promise<TrendingBook[]> {
-  const cacheKey = `trending:${daysWindow}:${genre || "all"}:${limit}`;
-  const cached = trendingCache.get(cacheKey);
-
-  if (cached && Date.now() - cached.timestamp < TRENDING_CACHE_TTL) {
-    return cached.data;
-  }
-
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const windowStart = new Date();
   windowStart.setDate(windowStart.getDate() - daysWindow);
   const windowStartISO = windowStart.toISOString();
@@ -729,15 +719,27 @@ export async function getTrulyTrending(
   }
 
   // Assign ranks and limit to requested amount
-  const result = trendingBooks.slice(0, limit).map((book, index) => ({
+  return trendingBooks.slice(0, limit).map((book, index) => ({
     ...book,
     rank: index + 1,
   }));
+}
 
-  // Cache the results
-  trendingCache.set(cacheKey, { data: result, timestamp: Date.now() });
-
-  return result;
+/**
+ * Get truly trending books based on recent activity - cached for 1 hour.
+ * Scores based on reviews and shelf adds in the time window.
+ */
+export async function getTrulyTrending(
+  limit: number = 12,
+  daysWindow: number = 7,
+  genre?: string
+): Promise<TrendingBook[]> {
+  const cachedFn = unstable_cache(
+    fetchTrulyTrending,
+    ["truly-trending", String(limit), String(daysWindow), genre || "all"],
+    { revalidate: 3600 } // 1 hour
+  );
+  return cachedFn(limit, daysWindow, genre || "");
 }
 
 /**

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useTheme } from "next-themes";
-import { Loader2, Locate, Search, X, MapPin, Star, Clock, LogOut } from "lucide-react";
+import { Loader2, Locate, Search, X, MapPin, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {

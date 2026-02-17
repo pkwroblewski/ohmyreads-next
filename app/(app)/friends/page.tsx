@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Users, UserPlus, Clock } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { getFriends, getPendingRequests, getSentRequests } from "@/lib/queries/friends";
 import { FriendsList } from "@/components/social/friends-list";
 import { PendingRequestsList, SentRequestsList } from "@/components/social/friend-requests-list";
@@ -18,11 +19,9 @@ interface FriendsPageProps {
 export default async function FriendsPage({ searchParams }: FriendsPageProps) {
   const { tab = "friends" } = await searchParams;
 
-  const supabase = await createClient();
-
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login");
@@ -74,7 +73,7 @@ export default async function FriendsPage({ searchParams }: FriendsPageProps) {
           const isActive = tab === t.id;
 
           return (
-            <a
+            <Link
               key={t.id}
               href={`/friends?tab=${t.id}`}
               className={cn(
@@ -98,7 +97,7 @@ export default async function FriendsPage({ searchParams }: FriendsPageProps) {
                   {t.count}
                 </span>
               )}
-            </a>
+            </Link>
           );
         })}
       </div>

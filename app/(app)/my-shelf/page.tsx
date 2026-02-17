@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BookOpen, CheckCircle, Bookmark, Library, Upload, Folder } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { BookOpen, CheckCircle, Bookmark, Library, Upload } from "lucide-react";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import { ShelfTabs } from "@/components/books/shelf-tabs";
 import { ShelfBookCard } from "@/components/books/shelf-book-card";
@@ -25,16 +25,16 @@ export default async function MyShelfPage({
 }) {
   const { status: statusFilter, shelf: shelfFilter } = await searchParams;
 
-  const supabase = await createClient();
-
   // Get current user
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login");
   }
+
+  const supabase = await createClient();
 
   // If filtering by custom shelf, get those books
   let filteredBooks: UserBookWithBook[] = [];

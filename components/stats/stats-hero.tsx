@@ -9,7 +9,7 @@ interface StatsHeroProps {
   userId: string;
 }
 
-export default function StatsHero({ stats, userId }: StatsHeroProps) {
+export default function StatsHero({ stats }: StatsHeroProps) {
   const currentYear = new Date().getFullYear();
 
   // Calculate goal percentage

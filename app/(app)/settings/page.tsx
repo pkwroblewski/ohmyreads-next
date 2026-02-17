@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { getAllGenres } from "@/lib/queries/books";
 import { getTasteProfile } from "@/lib/actions/taste";
 import { getUserLocation } from "@/lib/queries/geo";
@@ -41,10 +41,9 @@ const FALLBACK_GENRES = [
 ];
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login?redirect=/settings");

@@ -1,13 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { parseSearchParams } from "@/lib/validation/search";
 import { logger, extractErrorInfo, extractSupabaseErrorInfo } from "@/lib/utils/log";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 
 export async function GET(request: NextRequest) {
   // Rate limit by IP (60 requests per minute for search)
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`search:${ip}`, 60, 60000);
 
   if (!allowed) {

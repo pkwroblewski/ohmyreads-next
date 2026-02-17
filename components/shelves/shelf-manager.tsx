@@ -6,10 +6,8 @@ import {
   Pencil,
   Trash2,
   Loader2,
-  FolderOpen,
   Lock,
   Globe,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {

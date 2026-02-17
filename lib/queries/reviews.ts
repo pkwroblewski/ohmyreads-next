@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Review, ReviewWithUser, Profile } from "@/types/database";
+import type { ReviewWithUser } from "@/types/database";
 
 export interface ReviewWithUserAndLikeStatus extends ReviewWithUser {
   hasLiked?: boolean;

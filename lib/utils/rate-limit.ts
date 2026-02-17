@@ -1,4 +1,17 @@
 /**
+ * Extract client IP from request headers.
+ * Prefers Vercel's `x-real-ip` (platform-set, not user-controllable),
+ * falls back to the last value in `x-forwarded-for` (platform-appended).
+ */
+export function getClientIp(request: Request): string {
+  return (
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
+    "unknown"
+  );
+}
+
+/**
  * Distributed rate limiter using Vercel KV
  * Falls back to in-memory storage for local development only.
  * In production, fails closed (returns 429) when KV is unavailable to prevent

@@ -2,7 +2,6 @@
 // Provides offline shell and caching for static assets
 
 const CACHE_NAME = "ohmyreads-v1";
-const OFFLINE_URL = "/offline";
 
 // Static assets to cache on install
 const STATIC_ASSETS = [

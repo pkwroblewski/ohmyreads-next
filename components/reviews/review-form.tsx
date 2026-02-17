@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { createReview, updateReview } from "@/lib/actions/reviews";
 import type { Review, VibeTag } from "@/types/database";
-import { VIBE_TAGS, ALL_VIBE_TAGS } from "@/types/database";
+import { VIBE_TAGS } from "@/types/database";
 
 interface ReviewFormProps {
   bookId: string;

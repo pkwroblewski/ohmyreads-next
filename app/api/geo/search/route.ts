@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { encodeGeohash } from "@/lib/utils/geohash";
 
 // In-memory cache for geocoding results (simple, server-local)
@@ -40,7 +40,7 @@ interface GeocodingResult {
  */
 export async function GET(request: NextRequest) {
   // Rate limit by IP (20 requests per minute)
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`geo-search:${ip}`, 20, 60000);
   
   if (!allowed) {

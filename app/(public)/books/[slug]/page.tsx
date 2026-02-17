@@ -11,6 +11,7 @@ import {
   getRelatedBooks,
   getUserBookStatus,
 } from "@/lib/queries/books";
+import { createAuthorSlug } from "@/lib/queries/authors";
 import { hasUserReviewedBook } from "@/lib/queries/reviews";
 import { getSimilarBookRecommendations } from "@/lib/queries/recommendations";
 import { BookListHorizontal } from "@/components/books/book-list-horizontal";
@@ -246,9 +247,12 @@ export default async function BookPage({ params }: Props) {
             {/* Author */}
             <p className="text-xl text-muted-foreground mb-4">
               by{" "}
-              <span className="text-foreground hover:text-primary transition-colors cursor-pointer">
+              <Link
+                href={`/authors/${createAuthorSlug(book.author)}`}
+                className="text-foreground hover:text-primary transition-colors"
+              >
                 {book.author}
-              </span>
+              </Link>
             </p>
 
             {/* Rating */}

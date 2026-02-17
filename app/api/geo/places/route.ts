@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { isValidGeohash, decodeGeohash } from "@/lib/utils/geohash";
 import { getNearbyPlaces, getCachedPlaces, type CachedPlaceData } from "@/lib/queries/geo";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -48,7 +48,7 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
  */
 export async function GET(request: NextRequest) {
   // Rate limit by IP (30 requests per minute - includes external API calls)
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`geo-places:${ip}`, 30, 60000);
   
   if (!allowed) {

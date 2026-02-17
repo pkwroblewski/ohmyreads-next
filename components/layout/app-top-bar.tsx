@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen } from "lucide-react";
+import { BookOpen, User, Settings, LogOut, Shield } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import { useState, useRef, useEffect } from "react";
-import { User, Library, Users, Settings, LogOut, Shield } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type { Profile } from "@/types/database";
 
@@ -25,17 +24,8 @@ const navLinks = [
   { href: "/about", label: "About" },
 ];
 
-const dropdownMenuItems = [
-  { href: "/profile", label: "Profile", icon: User },
-  { href: "/my-shelf", label: "Bookshelves", icon: Library },
-  { href: "/friends", label: "Friends", icon: Users },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
-
 export function AppTopBar({ user, profile, isAdmin = false }: AppTopBarProps) {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const { signOut } = useAuth();
 
   const displayName =
@@ -52,45 +42,6 @@ export function AppTopBar({ user, profile, isAdmin = false }: AppTopBarProps) {
     user.user_metadata?.picture;
 
   const email = user.email;
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen]);
-
-  // Close menu on escape key
-  useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [isOpen]);
-
-  const handleSignOut = async () => {
-    setIsOpen(false);
-    await signOut();
-  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-12 border-b border-border/50 bg-background/80 backdrop-blur-md">
@@ -130,42 +81,40 @@ export function AppTopBar({ user, profile, isAdmin = false }: AppTopBarProps) {
         <div className="flex items-center gap-2 ml-auto">
           <ThemeToggle className="h-8 w-8" />
 
-          {/* User Avatar Dropdown */}
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className={cn(
-                "flex items-center gap-2 p-0.5 rounded-full",
-                "transition-all duration-200",
-                "hover:ring-2 hover:ring-primary/20",
-                "focus:outline-none focus:ring-2 focus:ring-primary/50",
-                isOpen && "ring-2 ring-primary/50"
-              )}
-              aria-expanded={isOpen}
-              aria-haspopup="true"
-              aria-label="User menu"
-            >
-              <Avatar size="sm">
-                {avatarUrl ? (
-                  <AvatarImage src={avatarUrl} alt={displayName} />
-                ) : (
-                  <AvatarFallback initials={getInitials(displayName)} />
-                )}
-              </Avatar>
-            </button>
-
-            {/* Dropdown Menu */}
-            {isOpen && (
-              <div
+          {/* User Avatar Dropdown (Radix) */}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button
                 className={cn(
-                  "absolute right-0 mt-2 w-64 origin-top-right",
-                  "rounded-xl overflow-hidden",
+                  "flex items-center gap-2 p-0.5 rounded-full",
+                  "transition-all duration-200",
+                  "hover:ring-2 hover:ring-primary/20",
+                  "focus:outline-none focus:ring-2 focus:ring-primary/50",
+                  "data-[state=open]:ring-2 data-[state=open]:ring-primary/50"
+                )}
+                aria-label="User menu"
+              >
+                <Avatar size="sm">
+                  {avatarUrl ? (
+                    <AvatarImage src={avatarUrl} alt={displayName} />
+                  ) : (
+                    <AvatarFallback initials={getInitials(displayName)} />
+                  )}
+                </Avatar>
+              </button>
+            </DropdownMenu.Trigger>
+
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="end"
+                sideOffset={8}
+                className={cn(
+                  "w-64 rounded-xl overflow-hidden",
                   "bg-card border border-border",
                   "shadow-lg shadow-black/10 dark:shadow-black/30",
-                  "animate-in fade-in-0 zoom-in-95 duration-200"
+                  "animate-in fade-in-0 zoom-in-95 duration-200",
+                  "z-[60]"
                 )}
-                role="menu"
-                aria-orientation="vertical"
               >
                 {/* User Info Header */}
                 <div className="px-4 py-3 border-b border-border bg-muted/30">
@@ -178,60 +127,79 @@ export function AppTopBar({ user, profile, isAdmin = false }: AppTopBarProps) {
                 </div>
 
                 {/* Menu Items */}
-                <div className="py-1">
-                  {dropdownMenuItems.map((item) => (
+                <DropdownMenu.Group className="py-1">
+                  <DropdownMenu.Item asChild>
                     <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsOpen(false)}
+                      href="/profile"
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5",
                         "text-sm text-foreground",
-                        "hover:bg-accent/10 transition-colors"
+                        "hover:bg-accent/10 transition-colors outline-none",
+                        "data-[highlighted]:bg-accent/10"
                       )}
-                      role="menuitem"
                     >
-                      <item.icon className="w-4 h-4 text-muted-foreground" />
-                      {item.label}
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      Profile
                     </Link>
-                  ))}
-                  {/* Admin link - only visible to admins */}
-                  {isAdmin && (
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
                     <Link
-                      href="/admin"
-                      onClick={() => setIsOpen(false)}
+                      href="/settings"
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5",
                         "text-sm text-foreground",
-                        "hover:bg-accent/10 transition-colors",
-                        "border-t border-border mt-1 pt-2"
+                        "hover:bg-accent/10 transition-colors outline-none",
+                        "data-[highlighted]:bg-accent/10"
                       )}
-                      role="menuitem"
                     >
-                      <Shield className="w-4 h-4 text-primary" />
-                      <span className="font-medium">Admin</span>
+                      <Settings className="w-4 h-4 text-muted-foreground" />
+                      Settings
                     </Link>
-                  )}
-                </div>
+                  </DropdownMenu.Item>
+                </DropdownMenu.Group>
+
+                {/* Admin link - only visible to admins */}
+                {isAdmin && (
+                  <>
+                    <DropdownMenu.Separator className="h-px bg-border my-1" />
+                    <DropdownMenu.Group className="py-1">
+                      <DropdownMenu.Item asChild>
+                        <Link
+                          href="/admin"
+                          className={cn(
+                            "flex items-center gap-3 px-4 py-2.5",
+                            "text-sm text-foreground",
+                            "hover:bg-accent/10 transition-colors outline-none",
+                            "data-[highlighted]:bg-accent/10"
+                          )}
+                        >
+                          <Shield className="w-4 h-4 text-primary" />
+                          <span className="font-medium">Admin</span>
+                        </Link>
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Group>
+                  </>
+                )}
 
                 {/* Sign Out */}
-                <div className="border-t border-border py-1">
-                  <button
-                    onClick={handleSignOut}
+                <DropdownMenu.Separator className="h-px bg-border" />
+                <DropdownMenu.Group className="py-1">
+                  <DropdownMenu.Item
+                    onSelect={signOut}
                     className={cn(
                       "flex items-center gap-3 px-4 py-2.5 w-full",
-                      "text-sm text-destructive",
-                      "hover:bg-destructive/10 transition-colors"
+                      "text-sm text-destructive cursor-pointer",
+                      "hover:bg-destructive/10 transition-colors outline-none",
+                      "data-[highlighted]:bg-destructive/10"
                     )}
-                    role="menuitem"
                   >
                     <LogOut className="w-4 h-4" />
                     Sign Out
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+                  </DropdownMenu.Item>
+                </DropdownMenu.Group>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </div>
       </div>
     </header>

@@ -17,8 +17,6 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { submitPlace } from "@/lib/actions/places";
-import { encodeGeohash } from "@/lib/utils/geohash";
-
 const PLACE_TYPES = [
   { value: "bookstore", label: "Bookstore" },
   { value: "library", label: "Library" },

@@ -73,17 +73,6 @@ export function MapPageClient({ currentUserId, userName, userPresence }: MapPage
     }
   }, []);
 
-  // Open mark spot modal (generic - no place)
-  const handleMarkSpot = useCallback(() => {
-    if (!currentUserId) {
-      window.location.href = "/login?redirect=/community/map";
-      return;
-    }
-    setMarkSpotPlace(undefined);
-    setDefaultPresenceType("temporary");
-    setShowMarkSpotModal(true);
-  }, [currentUserId]);
-
   // Open mark spot modal at a specific place
   const handleMarkSpotAtPlace = useCallback((place: PlacePin, presenceType: "temporary" | "recommended") => {
     if (!currentUserId) {
@@ -199,7 +188,6 @@ export function MapPageClient({ currentUserId, userName, userPresence }: MapPage
             selectedItem={selectedItem}
             onClearSelection={handleClearSelection}
             nearbyReaders={readers}
-            onMarkSpot={handleMarkSpot}
             onMarkSpotAtPlace={handleMarkSpotAtPlace}
             onClearPresence={handleClearPresence}
             onFlyToReader={handleFlyToReader}

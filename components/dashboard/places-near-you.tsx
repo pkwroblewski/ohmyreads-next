@@ -10,7 +10,6 @@ import {
   Clock,
   ArrowRight,
   Loader2,
-  Navigation,
   MapPinOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

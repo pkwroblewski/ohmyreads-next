@@ -48,7 +48,6 @@ interface MapContextPanelProps {
   selectedItem: MapItem | null;
   onClearSelection: () => void;
   nearbyReaders: ReaderPin[];
-  onMarkSpot: () => void;
   onMarkSpotAtPlace: (place: PlacePin, presenceType: "temporary" | "recommended") => void;
   onClearPresence: () => void;
   onFlyToReader: (reader: ReaderPin) => void;
@@ -102,7 +101,6 @@ export function MapContextPanel({
   selectedItem,
   onClearSelection,
   nearbyReaders,
-  onMarkSpot,
   onMarkSpotAtPlace,
   onClearPresence,
   onFlyToReader,
@@ -132,7 +130,6 @@ export function MapContextPanel({
           currentUserId={currentUserId}
           userName={userName}
           nearbyReaders={nearbyReaders}
-          onMarkSpot={onMarkSpot}
           onFlyToReader={onFlyToReader}
           userPresence={userPresence}
           onClearPresence={onClearPresence}
@@ -161,7 +158,6 @@ function DefaultView({
   currentUserId,
   userName,
   nearbyReaders,
-  onMarkSpot,
   onFlyToReader,
   userPresence,
   onClearPresence,
@@ -169,7 +165,6 @@ function DefaultView({
   currentUserId?: string;
   userName?: string;
   nearbyReaders: ReaderPin[];
-  onMarkSpot: () => void;
   onFlyToReader: (reader: ReaderPin) => void;
   userPresence?: UserPresenceData | null;
   onClearPresence: () => void;

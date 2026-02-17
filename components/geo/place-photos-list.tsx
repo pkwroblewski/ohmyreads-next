@@ -5,7 +5,6 @@ import Image from "next/image";
 import { Camera, Loader2, Trash2, X, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { PlacePhotoUpload } from "./place-photo-upload";
 
 interface Photo {

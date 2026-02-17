@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 
 /**
  * GET /api/geo/places/enrich?name=BookStore&lat=51.5&lng=-0.1
@@ -9,7 +9,7 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
  */
 export async function GET(request: NextRequest) {
   // Rate limit by IP (20 requests per minute - Google API is expensive)
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`places-enrich:${ip}`, 20, 60000);
 
   if (!allowed) {

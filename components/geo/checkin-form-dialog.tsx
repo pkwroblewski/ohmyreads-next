@@ -120,7 +120,7 @@ export function CheckinFormDialog({
       }
 
       onSuccess?.();
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred");
     } finally {
       setIsSubmitting(false);

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 
 export interface AuthorSuggestion {
   name: string;
@@ -23,8 +23,7 @@ export interface AutocompleteResponse {
 
 export async function GET(request: NextRequest) {
   // Rate limit: 100 requests per minute
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`autocomplete:${ip}`, 100, 60000);
 
   if (!allowed) {
