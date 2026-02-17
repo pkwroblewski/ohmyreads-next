@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import { CoverImage } from "@/components/books/cover-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen, Calendar, FileText, Star } from "lucide-react";
+import { Calendar, FileText, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -217,23 +217,12 @@ export default async function BookPage({ params }: Props) {
               )}
               style={{ aspectRatio: "2/3" }}
             >
-              {book.cover_url ? (
-                <Image
-                  src={book.cover_url}
-                  alt={book.title}
-                  fill
-                  className="object-cover"
-                  sizes="288px"
-                  priority
-                />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
-                  <BookOpen className="w-16 h-16 text-muted-foreground/50 mb-4" />
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {book.title}
-                  </p>
-                </div>
-              )}
+              <CoverImage
+                book={book}
+                fill
+                hover={false}
+                priority
+              />
             </div>
           </div>
 

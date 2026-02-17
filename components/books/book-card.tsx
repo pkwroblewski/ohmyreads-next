@@ -96,7 +96,13 @@ export function BookCard({
   )}`;
 
   // Get all possible cover URLs for fallback chain
-  const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
+  // Intentionally use primitive fields (not the book object) so coverUrls stays
+  // referentially stable across parent re-renders.
+  const coverUrls = useMemo(
+    () => getCoverUrlsWithFallbacks(book),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [book.open_library_cover_id, book.isbn, book.cover_url, book.google_books_id]
+  );
 
   // Derive validation state: no URLs means nothing to validate
   const isValidating = coverUrls.length > 0 && (coverResult === null || coverResult.urls !== coverUrls);
@@ -156,7 +162,7 @@ export function BookCard({
             style={{ aspectRatio: "2/3" }}
           >
             {isValidating ? (
-              <div className="absolute inset-0 animate-pulse bg-muted" />
+              <div className="absolute inset-0 animate-pulse bg-muted" aria-busy="true" role="img" aria-label="Loading book cover" />
             ) : showPlaceholder ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
                 <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
@@ -253,7 +259,7 @@ export function BookCard({
             style={{ aspectRatio: "2/3" }}
           >
             {isValidating ? (
-              <div className="absolute inset-0 animate-pulse bg-muted" />
+              <div className="absolute inset-0 animate-pulse bg-muted" aria-busy="true" role="img" aria-label="Loading book cover" />
             ) : showPlaceholder ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
                 <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
@@ -357,7 +363,7 @@ export function BookCard({
         style={{ aspectRatio: "2/3" }}
       >
         {isValidating ? (
-          <div className="absolute inset-0 animate-pulse bg-muted" />
+          <div className="absolute inset-0 animate-pulse bg-muted" aria-busy="true" role="img" aria-label="Loading book cover" />
         ) : showPlaceholder ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <BookOpen className="w-8 h-8 text-muted-foreground/50" />

@@ -79,7 +79,15 @@ export function CoverImage({
     ? null
     : (width && height ? { width, height } : SIZE_PRESETS[size]);
 
-  const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
+  // Use primitive fields as deps so coverUrls is referentially stable across re-renders
+  // Intentionally use primitive fields (not the book object) so coverUrls stays
+  // referentially stable across parent re-renders. Without this, the identity check
+  // `coverResult.urls !== coverUrls` always fails and covers never resolve.
+  const coverUrls = useMemo(
+    () => getCoverUrlsWithFallbacks(book),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [book.open_library_cover_id, book.isbn, book.cover_url, book.google_books_id]
+  );
 
   // Derive validation state: no URLs means nothing to validate
   const isValidating = coverUrls.length > 0 && (coverResult === null || coverResult.urls !== coverUrls);
@@ -124,7 +132,7 @@ export function CoverImage({
     >
       {isValidating ? (
         // Show blur placeholder while validating
-        <div className="absolute inset-0 animate-pulse bg-muted" />
+        <div className="absolute inset-0 animate-pulse bg-muted" aria-busy="true" role="img" aria-label="Loading book cover" />
       ) : showPlaceholder ? (
         <PlaceholderCover title={book.title} author={book.author} />
       ) : (
@@ -202,7 +210,14 @@ export function CoverImageMini({
     validatedUrl: string | null;
   } | null>(null);
 
-  const coverUrls = useMemo(() => getCoverUrlsWithFallbacks(book), [book]);
+  // Use primitive fields as deps so coverUrls is referentially stable across re-renders
+  // Intentionally use primitive fields (not the book object) so coverUrls stays
+  // referentially stable across parent re-renders.
+  const coverUrls = useMemo(
+    () => getCoverUrlsWithFallbacks(book),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [book.open_library_cover_id, book.isbn, book.cover_url, book.google_books_id]
+  );
 
   // Derive validation state: no URLs means nothing to validate
   const isValidating = coverUrls.length > 0 && (coverResult === null || coverResult.urls !== coverUrls);
@@ -236,7 +251,7 @@ export function CoverImageMini({
       )}
     >
       {isValidating ? (
-        <div className="absolute inset-0 animate-pulse bg-muted" />
+        <div className="absolute inset-0 animate-pulse bg-muted" aria-busy="true" role="img" aria-label="Loading book cover" />
       ) : showPlaceholder ? (
         <div className="w-full h-full flex items-center justify-center">
           <BookOpen className="w-4 h-4 text-muted-foreground/50" />
