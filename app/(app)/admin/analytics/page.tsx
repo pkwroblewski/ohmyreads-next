@@ -256,7 +256,7 @@ export default function AdminAnalyticsPage() {
               {topUsers.slice(0, 5).map((user, i) => (
                 <Link
                   key={user.id}
-                  href={`/u/${user.username}`}
+                  href={`/users/${user.username}`}
                   className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <span className="w-6 text-center text-muted-foreground font-medium">

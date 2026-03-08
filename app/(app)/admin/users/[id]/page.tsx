@@ -50,7 +50,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
             </Button>
           </Link>
         </div>
-        <Link href={`/u/${user.username}`} target="_blank">
+        <Link href={`/users/${user.username}`} target="_blank">
           <Button variant="outline" size="sm">
             <ExternalLink className="h-4 w-4 mr-2" />
             View Profile

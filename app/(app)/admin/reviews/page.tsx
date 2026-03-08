@@ -361,7 +361,7 @@ export default function AdminReviewsPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Link
-                          href={`/u/${review.user.username}`}
+                          href={`/users/${review.user.username}`}
                           className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
                         >
                           <Avatar className="h-6 w-6">

@@ -255,7 +255,7 @@ export default function AdminUsersPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <Link
-                              href={`/u/${user.username}`}
+                              href={`/users/${user.username}`}
                               className="font-medium hover:text-primary transition-colors"
                             >
                               {user.display_name || user.username}
