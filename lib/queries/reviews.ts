@@ -274,11 +274,14 @@ export async function getBookReviewStats(bookId: string): Promise<{
       return { totalReviews: 0, averageRating: null, ratingDistribution: {} };
     }
 
-    // Calculate average
-    const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
-    const averageRating = Math.round((sum / totalReviews) * 10) / 10;
+    // Calculate average (exclude null ratings)
+    const ratedReviews = reviews.filter((r) => r.rating != null);
+    const sum = ratedReviews.reduce((acc, r) => acc + r.rating!, 0);
+    const averageRating = ratedReviews.length > 0
+      ? Math.round((sum / ratedReviews.length) * 10) / 10
+      : null;
 
-    // Calculate distribution
+    // Calculate distribution (only count non-null ratings)
     const ratingDistribution: Record<number, number> = {
       1: 0,
       2: 0,
@@ -286,8 +289,8 @@ export async function getBookReviewStats(bookId: string): Promise<{
       4: 0,
       5: 0,
     };
-    for (const review of reviews) {
-      ratingDistribution[review.rating] = (ratingDistribution[review.rating] || 0) + 1;
+    for (const review of ratedReviews) {
+      ratingDistribution[review.rating!] = (ratingDistribution[review.rating!] || 0) + 1;
     }
 
     return { totalReviews, averageRating, ratingDistribution };

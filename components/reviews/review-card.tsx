@@ -167,19 +167,21 @@ export function ReviewCard({
 
         <div className="flex items-center gap-2">
           {/* Rating */}
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                className={cn(
-                  "h-4 w-4",
-                  star <= review.rating
-                    ? "text-accent fill-accent"
-                    : "text-muted-foreground/30"
-                )}
-              />
-            ))}
-          </div>
+          {review.rating != null && (
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  className={cn(
+                    "h-4 w-4",
+                    star <= review.rating!
+                      ? "text-accent fill-accent"
+                      : "text-muted-foreground/30"
+                  )}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Owner menu */}
           {isOwner && (onEdit || onDelete) && (

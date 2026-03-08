@@ -353,14 +353,14 @@ function ReviewCard({
           {/* Review Text */}
           <div className="flex-1 min-w-0">
             {/* Rating */}
-            {review && (
+            {review && review.rating != null && (
               <div className="flex items-center gap-0.5 mb-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
                     className={cn(
                       "w-4 h-4",
-                      star <= review.rating
+                      star <= review.rating!
                         ? "fill-accent text-accent"
                         : "text-muted-foreground"
                     )}

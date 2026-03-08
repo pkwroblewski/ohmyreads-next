@@ -46,8 +46,9 @@ export async function GET(request: Request) {
       const bookData = getBookData(b);
       return sum + (bookData?.page_count || 0);
     }, 0);
-    const avgRating = reviews.length > 0
-      ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    const ratedReviews = reviews.filter((r) => r.rating != null);
+    const avgRating = ratedReviews.length > 0
+      ? (ratedReviews.reduce((sum, r) => sum + r.rating!, 0) / ratedReviews.length).toFixed(1)
       : "0";
 
     // Get top genres

@@ -211,19 +211,21 @@ function ReviewCard({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  className={cn(
-                    "h-3.5 w-3.5",
-                    star <= review.rating
-                      ? "fill-yellow-400 text-yellow-400"
-                      : "text-muted-foreground/30"
-                  )}
-                />
-              ))}
-            </div>
+            {review.rating != null && (
+              <div className="flex items-center">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={cn(
+                      "h-3.5 w-3.5",
+                      star <= review.rating!
+                        ? "fill-yellow-400 text-yellow-400"
+                        : "text-muted-foreground/30"
+                    )}
+                  />
+                ))}
+              </div>
+            )}
             <span className="text-xs text-muted-foreground">
               {new Date(review.created_at).toLocaleDateString()}
             </span>

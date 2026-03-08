@@ -92,7 +92,7 @@ export async function createReview(input: CreateReviewInput) {
         disliked: data.disliked || null,
         takeaway: data.takeaway || null,
         vibe_tags: data.vibeTags || [],
-        rating: data.rating,
+        rating: data.rating ?? null,
         is_spoiler: data.isSpoiler,
       })
       .select()
@@ -100,7 +100,7 @@ export async function createReview(input: CreateReviewInput) {
 
     if (error) {
       console.error("Error creating review:", error);
-      return { error: error.message };
+      return { error: "Failed to create review" };
     }
 
     // Update book's average rating and count
@@ -149,7 +149,7 @@ export async function updateReview(input: UpdateReviewInput) {
     // Verify ownership
     const { data: review } = await supabase
       .from("reviews")
-      .select("user_id, book_id, summary, liked, disliked, takeaway, vibe_tags")
+      .select("user_id, book_id, rating, summary, liked, disliked, takeaway, vibe_tags")
       .eq("id", data.reviewId)
       .single();
 
@@ -162,7 +162,7 @@ export async function updateReview(input: UpdateReviewInput) {
       updated_at: new Date().toISOString(),
     };
 
-    if (data.rating !== undefined) updateData.rating = data.rating;
+    if (data.rating !== undefined) updateData.rating = data.rating ?? null;
     if (data.summary !== undefined) updateData.summary = data.summary || null;
     if (data.liked !== undefined) updateData.liked = data.liked || null;
     if (data.disliked !== undefined) updateData.disliked = data.disliked || null;
@@ -170,11 +170,23 @@ export async function updateReview(input: UpdateReviewInput) {
     if (data.vibeTags !== undefined) updateData.vibe_tags = data.vibeTags;
     if (data.isSpoiler !== undefined) updateData.is_spoiler = data.isSpoiler;
 
-    // Rebuild content from structured fields
+    // Compute final state and validate business rule
+    const finalRating = data.rating !== undefined ? (data.rating ?? null) : review.rating;
     const finalSummary = data.summary !== undefined ? data.summary : review.summary;
     const finalLiked = data.liked !== undefined ? data.liked : review.liked;
     const finalDisliked = data.disliked !== undefined ? data.disliked : review.disliked;
     const finalTakeaway = data.takeaway !== undefined ? data.takeaway : review.takeaway;
+
+    const finalTextLength =
+      (finalSummary?.length || 0) +
+      (finalLiked?.length || 0) +
+      (finalDisliked?.length || 0) +
+      (finalTakeaway?.length || 0);
+
+    // Must have at least a rating or 50+ chars of text
+    if (finalRating == null && finalTextLength < 50) {
+      return { error: "Add a star rating, or write at least 50 characters for a text-only review" };
+    }
 
     const contentParts: string[] = [];
     if (finalSummary) contentParts.push(finalSummary);
@@ -189,7 +201,8 @@ export async function updateReview(input: UpdateReviewInput) {
       .eq("id", data.reviewId);
 
     if (error) {
-      return { error: error.message };
+      console.error("Error updating review:", error);
+      return { error: "Failed to update review" };
     }
 
     // Update book rating if rating changed

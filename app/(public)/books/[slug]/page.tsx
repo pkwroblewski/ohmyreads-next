@@ -154,12 +154,14 @@ export default async function BookPage({ params }: Props) {
       },
       datePublished: review.created_at,
       reviewBody: review.summary || review.content?.substring(0, 500),
-      reviewRating: {
-        "@type": "Rating",
-        ratingValue: review.rating,
-        bestRating: 5,
-        worstRating: 1,
-      },
+      ...(review.rating != null && {
+        reviewRating: {
+          "@type": "Rating",
+          ratingValue: review.rating,
+          bestRating: 5,
+          worstRating: 1,
+        },
+      }),
     })),
   };
 

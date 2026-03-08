@@ -42,7 +42,7 @@ export interface ReviewWithDetails {
   id: string;
   content: string;
   summary: string | null;
-  rating: number;
+  rating: number | null;
   likes_count: number;
   is_spoiler: boolean;
   vibe_tags: string[];
@@ -280,7 +280,7 @@ export async function adminGetReviewStats() {
 
     const ratingDist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     (ratingData || []).forEach((r) => {
-      if (r.rating >= 1 && r.rating <= 5) {
+      if (r.rating != null && r.rating >= 1 && r.rating <= 5) {
         ratingDist[r.rating]++;
       }
     });

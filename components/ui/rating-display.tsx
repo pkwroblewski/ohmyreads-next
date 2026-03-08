@@ -2,7 +2,7 @@ import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface RatingDisplayProps {
-  rating: number;
+  rating: number | null;
   count?: number;
   size?: "sm" | "md" | "lg";
   showCount?: boolean;
@@ -33,6 +33,8 @@ export function RatingDisplay({
   showCount = true,
 }: RatingDisplayProps) {
   const config = sizeConfig[size];
+
+  if (rating == null) return null;
 
   // Generate stars array
   const stars = Array.from({ length: 5 }, (_, index) => {

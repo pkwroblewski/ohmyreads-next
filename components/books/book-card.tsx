@@ -30,6 +30,8 @@ interface BookCardProps {
   size?: "sm" | "md" | "lg";
   /** Use 'grid' for browse page grids (full-width, uniform height), 'rail' for horizontal carousels */
   variant?: "grid" | "rail";
+  /** Priority loading for above-the-fold images */
+  priority?: boolean;
 }
 
 const sizeClasses = {
@@ -79,6 +81,7 @@ export function BookCard({
   showActions = false,
   size = "md",
   variant = "rail",
+  priority = false,
 }: BookCardProps) {
   const [coverResult, setCoverResult] = useState<{
     urls: readonly string[];
@@ -176,6 +179,7 @@ export function BookCard({
                 quality={85}
                 placeholder="blur"
                 blurDataURL={BLUR_DATA_URL}
+                priority={priority}
                 className="object-cover object-[center_top] transition-transform duration-300 group-hover:scale-[1.03]"
                 sizes={imageSizes}
               />
@@ -273,6 +277,7 @@ export function BookCard({
                 quality={85}
                 placeholder="blur"
                 blurDataURL={BLUR_DATA_URL}
+                priority={priority}
                 className="object-cover object-[center_top] transition-transform duration-300 group-hover:scale-[1.03]"
                 sizes={imageSizes}
               />
@@ -376,6 +381,7 @@ export function BookCard({
             quality={85}
             placeholder="blur"
             blurDataURL={BLUR_DATA_URL}
+            priority={priority}
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             sizes={imageSizes}
           />

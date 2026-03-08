@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BookOpen, CheckCircle, Bookmark, Library, Upload } from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle, Bookmark, Library, Upload } from "lucide-react";
+import Link from "next/link";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import { ShelfTabs } from "@/components/books/shelf-tabs";
@@ -113,6 +114,16 @@ export default async function MyShelfPage({
 
       {/* Main Content */}
       <div className="flex-1 space-y-6 min-w-0">
+        {/* Back to Dashboard */}
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Back to Dashboard"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to Dashboard
+        </Link>
+
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>

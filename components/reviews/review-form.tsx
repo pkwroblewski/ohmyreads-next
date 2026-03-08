@@ -53,8 +53,9 @@ export function ReviewForm({
     (disliked?.length || 0) +
     (takeaway?.length || 0);
 
-  // Allow star-only ratings (quick rating mode)
-  const canSubmit = rating > 0;
+  // Allow star-only, text-only (50+ chars), or both
+  const hasTextContent = totalCharCount >= 50;
+  const canSubmit = rating > 0 || hasTextContent;
 
   const toggleVibeTag = (tag: VibeTag) => {
     if (vibeTags.includes(tag)) {
@@ -73,7 +74,7 @@ export function ReviewForm({
       const result = isEditing
         ? await updateReview({
             reviewId: existingReview.id,
-            rating,
+            rating: rating > 0 ? rating : null,
             summary: summary || undefined,
             liked: liked || undefined,
             disliked: disliked || undefined,
@@ -83,7 +84,7 @@ export function ReviewForm({
           })
         : await createReview({
             bookId,
-            rating,
+            rating: rating > 0 ? rating : null,
             summary: summary || undefined,
             liked: liked || undefined,
             disliked: disliked || undefined,
@@ -125,13 +126,13 @@ export function ReviewForm({
 
       {/* Star Rating Input */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Your Rating *</label>
+        <label className="text-sm font-medium">Your Rating <span className="text-muted-foreground font-normal">(optional)</span></label>
         <div className="flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
               key={star}
               type="button"
-              onClick={() => setRating(star)}
+              onClick={() => setRating(star === rating ? 0 : star)}
               onMouseEnter={() => setHoverRating(star)}
               onMouseLeave={() => setHoverRating(0)}
               className="p-1 transition-transform hover:scale-110 focus:outline-none"
@@ -277,11 +278,15 @@ export function ReviewForm({
 
       {/* Character count hint - encouraging, not punitive */}
       <p className="text-sm text-muted-foreground">
-        {totalCharCount === 0
+        {totalCharCount === 0 && rating > 0
           ? "Star rating only, or add some thoughts to help other readers!"
+          : totalCharCount === 0
+          ? "Add a star rating or write 50+ characters for a text-only review."
           : totalCharCount >= 50
           ? `${totalCharCount} characters - great detail!`
-          : `${totalCharCount}/50 characters. Quick reviews are fine, but 50+ chars help others discover this book.`}
+          : rating > 0
+          ? `${totalCharCount}/50 characters. Quick reviews are fine, but 50+ chars help others discover this book.`
+          : `${totalCharCount}/50 characters needed for a text-only review (or add a star rating).`}
       </p>
 
       {/* Vibe Tags Toggle */}

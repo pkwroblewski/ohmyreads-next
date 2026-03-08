@@ -10,7 +10,9 @@ export const createReviewSchema = z
     rating: z
       .number()
       .min(1, "Rating must be at least 1")
-      .max(5, "Rating cannot exceed 5"),
+      .max(5, "Rating cannot exceed 5")
+      .nullable()
+      .optional(),
     summary: z
       .string()
       .max(2000, "Summary must be less than 2000 characters")
@@ -40,15 +42,21 @@ export const createReviewSchema = z
         (data.liked?.length || 0) +
         (data.disliked?.length || 0) +
         (data.takeaway?.length || 0);
-      // Allow rating-only reviews (no text) OR reviews with 50+ chars
-      return totalLength === 0 || totalLength >= 50;
+      const hasRating = data.rating != null;
+      const hasText = totalLength >= 50;
+      // Must have at least a rating OR 50+ chars of text (or both)
+      // If text is present but < 50 chars, it's not enough on its own
+      if (!hasRating && !hasText) return false;
+      // If there's some text but not enough, only allow if there's also a rating
+      if (totalLength > 0 && totalLength < 50 && !hasRating) return false;
+      return true;
     },
-    { message: "Reviews need at least 50 characters, or leave text empty for a quick star rating" }
+    { message: "Add a star rating, or write at least 50 characters for a text-only review" }
   );
 
 export const updateReviewSchema = z.object({
   reviewId: z.string().uuid("Invalid review ID"),
-  rating: z.number().min(1).max(5).optional(),
+  rating: z.number().min(1).max(5).nullable().optional(),
   summary: z.string().max(2000).optional(),
   liked: z.string().max(1000).optional(),
   disliked: z.string().max(1000).optional(),

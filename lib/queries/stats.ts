@@ -132,11 +132,12 @@ export async function getUserReadingStats(
     0
   );
   const totalReviews = reviewsData.length;
+  const ratedReviews = reviewsData.filter((r) => r.rating != null);
   const averageRating =
-    reviewsData.length > 0
+    ratedReviews.length > 0
       ? Math.round(
-          (reviewsData.reduce((sum, r) => sum + r.rating, 0) /
-            reviewsData.length) *
+          (ratedReviews.reduce((sum, r) => sum + r.rating!, 0) /
+            ratedReviews.length) *
             10
         ) / 10
       : 0;
@@ -260,8 +261,10 @@ export async function getUserReadingStats(
       }
     : null;
 
-  // Find highest rated by user
-  const reviewMap = new Map(reviewsData.map((r) => [r.book_id, r.rating]));
+  // Find highest rated by user (exclude null ratings)
+  const reviewMap = new Map(
+    reviewsData.filter((r) => r.rating != null).map((r) => [r.book_id, r.rating!])
+  );
   const booksWithRatings = books
     .filter((ub) => reviewMap.has(ub.book?.id))
     .map((ub) => ({ ...ub, userRating: reviewMap.get(ub.book?.id)! }))
@@ -276,10 +279,10 @@ export async function getUserReadingStats(
       }
     : null;
 
-  // Rating distribution
+  // Rating distribution (only count non-null ratings)
   const ratingCounts = [1, 2, 3, 4, 5].map((rating) => ({
     rating,
-    count: reviewsData.filter((r) => r.rating === rating).length,
+    count: ratedReviews.filter((r) => r.rating === rating).length,
   }));
 
   // Genre distribution

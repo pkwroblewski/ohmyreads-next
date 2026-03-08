@@ -374,9 +374,15 @@ export default async function AdminDashboardPage() {
                     className="p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-1 text-accent">
-                      <Star className="h-4 w-4 fill-current" aria-hidden="true" />
-                      <span className="sr-only">Rating:</span>
-                      <span className="font-medium">{review.rating}</span>
+                      {review.rating != null ? (
+                        <>
+                          <Star className="h-4 w-4 fill-current" aria-hidden="true" />
+                          <span className="sr-only">Rating:</span>
+                          <span className="font-medium">{review.rating}</span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">&mdash;</span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">
@@ -410,7 +416,7 @@ export default async function AdminDashboardPage() {
             { label: "Manage Users", href: "/admin/users", icon: Users },
             { label: "Manage Books", href: "/admin/books", icon: BookOpen },
             { label: "Manage Reviews", href: "/admin/reviews", icon: Star },
-            { label: "Manage Places", href: "/admin/places", icon: MapPin },
+            { label: "Manage Places", href: "/admin/moderation/places", icon: MapPin },
             { label: "Email Settings", href: "/admin/email", icon: MessageSquare },
             { label: "Site Settings", href: "/admin/settings", icon: Settings },
             { label: "Audit Logs", href: "/admin/logs", icon: FileText },

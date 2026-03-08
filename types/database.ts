@@ -79,7 +79,7 @@ export interface Review {
   disliked: string | null;
   takeaway: string | null;
   vibe_tags: string[];
-  rating: number;
+  rating: number | null;
   likes_count: number;
   is_spoiler: boolean;
   created_at: string;
@@ -493,7 +493,7 @@ export interface ActivityFeedItemWithRelations extends ActivityFeedItem {
   } | null;
   review?: {
     id: string;
-    rating: number;
+    rating: number | null;
     content: string | null;
     likes_count: number;
   } | null;

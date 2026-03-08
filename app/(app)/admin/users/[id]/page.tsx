@@ -219,7 +219,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
             <div className="space-y-3">
               {user.recent_reviews.map((review: {
                 id: string;
-                rating: number;
+                rating: number | null;
                 summary: string | null;
                 created_at: string;
                 book: { id: string; title: string; slug: string } | { id: string; title: string; slug: string }[];
@@ -238,8 +238,14 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
                         {book?.title || "Unknown"}
                       </Link>
                       <div className="flex items-center gap-1 text-accent">
-                        <Star className="h-4 w-4 fill-current" />
-                        <span>{review.rating}</span>
+                        {review.rating != null ? (
+                          <>
+                            <Star className="h-4 w-4 fill-current" />
+                            <span>{review.rating}</span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">&mdash;</span>
+                        )}
                       </div>
                     </div>
                     {review.summary && (

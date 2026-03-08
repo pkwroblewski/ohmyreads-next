@@ -45,7 +45,9 @@ export async function GET(request: Request) {
       : reviewText;
 
     // Generate star display
-    const stars = "★".repeat(review.rating) + "☆".repeat(5 - review.rating);
+    const stars = review.rating != null
+      ? "★".repeat(review.rating) + "☆".repeat(5 - review.rating)
+      : null;
 
     return new ImageResponse(
       (
@@ -140,7 +142,7 @@ export async function GET(request: Request) {
                 gap: "8px",
               }}
             >
-              <span style={{ fontSize: "24px", color: "#d4a853" }}>{stars}</span>
+              {stars && <span style={{ fontSize: "24px", color: "#d4a853" }}>{stars}</span>}
             </div>
 
             {/* Review Quote */}

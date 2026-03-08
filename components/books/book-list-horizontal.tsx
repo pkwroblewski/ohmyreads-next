@@ -59,7 +59,7 @@ export function BookListHorizontal({
             "-mx-6 px-6 sm:-mx-10 sm:px-10 lg:-mx-16 lg:px-16" // Extend to edges with padding
           )}
         >
-          {books.map((book) => (
+          {books.map((book, index) => (
             <div key={book.id} className="snap-start flex-shrink-0">
               <BookCard
                 book={{
@@ -74,6 +74,7 @@ export function BookListHorizontal({
                   average_rating: book.average_rating,
                 }}
                 size="md"
+                priority={index < 3}
               />
             </div>
           ))}

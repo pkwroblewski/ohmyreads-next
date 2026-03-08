@@ -334,8 +334,14 @@ export default function AdminReviewsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1 text-accent">
-                          <Star className="h-4 w-4 fill-current" />
-                          <span className="font-medium">{review.rating}</span>
+                          {review.rating != null ? (
+                            <>
+                              <Star className="h-4 w-4 fill-current" />
+                              <span className="font-medium">{review.rating}</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">&mdash;</span>
+                          )}
                         </div>
                         {review.is_spoiler && (
                           <Badge variant="destructive" className="gap-1">
@@ -348,7 +354,7 @@ export default function AdminReviewsPage() {
 
                     {/* Content Preview */}
                     <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                      {review.summary || review.content.slice(0, 150)}...
+                      {review.summary || review.content || "No text content"}
                     </p>
 
                     {/* Footer */}
@@ -436,8 +442,14 @@ export default function AdminReviewsPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1 text-accent">
-                  <Star className="h-5 w-5 fill-current" />
-                  <span className="font-bold text-lg">{reviewToView.rating}</span>
+                  {reviewToView.rating != null ? (
+                    <>
+                      <Star className="h-5 w-5 fill-current" />
+                      <span className="font-bold text-lg">{reviewToView.rating}</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">No rating</span>
+                  )}
                 </div>
                 {reviewToView.is_spoiler && (
                   <Badge variant="destructive">Contains Spoilers</Badge>

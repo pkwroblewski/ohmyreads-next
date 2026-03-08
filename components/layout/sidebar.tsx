@@ -8,7 +8,6 @@ import {
   Search,
   Settings,
   LogOut,
-  BookOpen,
   BarChart3,
   Upload,
   Target,
@@ -89,20 +88,8 @@ export function Sidebar({ user, profile }: SidebarProps) {
 
   return (
     <div className="flex h-full flex-col bg-card border-r border-border">
-      {/* Logo Section */}
-      <div className="p-6">
-        <Link href="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-105">
-            <BookOpen className="w-5 h-5" />
-          </div>
-          <span className="text-xl font-bold font-serif tracking-tight">
-            OhMyReads
-          </span>
-        </Link>
-      </div>
-
       {/* Navigation Section */}
-      <nav className="flex-1 px-3 py-2 overflow-y-auto">
+      <nav className="flex-1 px-3 pt-4 pb-2 overflow-y-auto">
         {navSections.map((section, sectionIndex) => (
           <div key={section.label}>
             {sectionIndex > 0 && (

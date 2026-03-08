@@ -103,10 +103,10 @@ export async function adminGetOverviewStats(): Promise<{ success: boolean; stats
       supabase.from("places").select("id", { count: "exact", head: true }).eq("status", "pending"),
     ]);
 
-    // Calculate average rating
-    const ratings = avgRating.data || [];
+    // Calculate average rating (exclude null ratings)
+    const ratings = (avgRating.data || []).filter((r) => r.rating != null);
     const avgRatingValue = ratings.length > 0
-      ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+      ? ratings.reduce((sum, r) => sum + r.rating!, 0) / ratings.length
       : 0;
 
     return {
@@ -315,10 +315,10 @@ export async function adminGetRatingDistribution(): Promise<{ success: boolean; 
 
     if (error) throw error;
 
-    // Count ratings
+    // Count ratings (skip null ratings)
     const ratingCount: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     (data || []).forEach((review) => {
-      if (review.rating >= 1 && review.rating <= 5) {
+      if (review.rating != null && review.rating >= 1 && review.rating <= 5) {
         ratingCount[review.rating]++;
       }
     });

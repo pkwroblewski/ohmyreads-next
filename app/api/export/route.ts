@@ -215,7 +215,7 @@ export async function GET(request: NextRequest) {
         [
           escapeCsv(book?.title as string),
           escapeCsv(book?.author as string),
-          review.rating,
+          review.rating ?? "",
           escapeCsv(review.summary as string),
           escapeCsv(review.content as string),
           escapeCsv((review.vibe_tags as string[])?.join("; ") || ""),
