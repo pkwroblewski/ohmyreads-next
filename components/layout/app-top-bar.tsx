@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, User, Settings, LogOut, Shield } from "lucide-react";
+import { BookOpen, Search, User, Settings, LogOut, Shield } from "lucide-react";
+import { GlobalSearchModal } from "@/components/search/global-search-modal";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
@@ -27,6 +29,7 @@ const navLinks = [
 export function AppTopBar({ user, profile, isAdmin = false }: AppTopBarProps) {
   const pathname = usePathname();
   const { signOut } = useAuth();
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const displayName =
     profile?.display_name ||
@@ -56,6 +59,23 @@ export function AppTopBar({ user, profile, isAdmin = false }: AppTopBarProps) {
           </span>
         </Link>
 
+        {/* Global Search trigger (Desktop pill) */}
+        <button
+          onClick={() => setSearchOpen(true)}
+          className={cn(
+            "hidden md:flex items-center gap-2 ml-6 h-8 w-56 px-3 rounded-md",
+            "border bg-muted/50 text-sm text-muted-foreground",
+            "hover:bg-muted transition-colors"
+          )}
+          aria-label="Search books and authors"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="flex-1 text-left">Search...</span>
+          <kbd className="pointer-events-none rounded border bg-background px-1.5 text-[10px] font-medium">
+            ⌘K
+          </kbd>
+        </button>
+
         {/* Center Navigation (Desktop only) */}
         <nav className="hidden md:flex items-center gap-1 mx-auto">
           {navLinks.map((link) => {
@@ -79,6 +99,15 @@ export function AppTopBar({ user, profile, isAdmin = false }: AppTopBarProps) {
 
         {/* Right: Theme toggle + User avatar dropdown */}
         <div className="flex items-center gap-2 ml-auto">
+          {/* Global Search trigger (Mobile icon) */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="md:hidden flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Search books and authors"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+
           <ThemeToggle className="h-8 w-8" />
 
           {/* User Avatar Dropdown (Radix) */}
@@ -202,6 +231,9 @@ export function AppTopBar({ user, profile, isAdmin = false }: AppTopBarProps) {
           </DropdownMenu.Root>
         </div>
       </div>
+
+      {/* Global Search Modal (Ctrl/Cmd+K) */}
+      <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 }

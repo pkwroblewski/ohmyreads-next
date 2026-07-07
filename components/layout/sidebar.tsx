@@ -13,8 +13,12 @@ import {
   Target,
   Users,
   UserPlus,
+  UserSearch,
+  User,
   List,
   Globe,
+  TrendingUp,
+  Sparkles,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -40,6 +44,15 @@ const navSections: NavSection[] = [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/my-shelf", label: "Bookshelves", icon: Library },
       { href: "/books", label: "Browse", icon: Search },
+      { href: "/profile", label: "Profile", icon: User },
+    ],
+  },
+  {
+    label: "Discover",
+    items: [
+      { href: "/trending", label: "Trending", icon: TrendingUp },
+      { href: "/recommendations", label: "For You", icon: Sparkles },
+      { href: "/discover", label: "Find Readers", icon: UserSearch },
     ],
   },
   {

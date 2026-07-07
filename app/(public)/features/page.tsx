@@ -9,7 +9,7 @@ import {
   Library,
   Target,
   Share2,
-  Bell,
+  Mail,
   Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -70,10 +70,10 @@ const features = [
       "Share your reviews and reading progress on social media. Recommend books to friends.",
   },
   {
-    icon: Bell,
-    title: "Notifications",
+    icon: Mail,
+    title: "Weekly Reading Digest",
     description:
-      "Stay updated with notifications for new comments, followers, and friend activity.",
+      "Get a weekly email with your reading progress and what your friends have been reading.",
   },
   {
     icon: Shield,

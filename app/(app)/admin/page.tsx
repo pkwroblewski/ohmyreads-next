@@ -326,7 +326,7 @@ export default async function AdminDashboardPage() {
             title="Add New Book"
             description="Manually add a book to the catalog"
             icon={Upload}
-            href="/books/new"
+            href="/submit-book"
           />
           <QuickActionCard
             title="View All Submissions"

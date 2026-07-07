@@ -5,9 +5,30 @@ import { Button } from "@/components/ui/button";
 
 interface HomeHeroProps {
   isLoggedIn?: boolean;
+  readerCount?: number;
+  reviewCount?: number;
 }
 
-export function HomeHero({ isLoggedIn }: HomeHeroProps) {
+// Below this, numeric social proof reads as small — show qualitative copy instead
+const COUNT_DISPLAY_THRESHOLD = 1000;
+
+function formatCount(count: number): string {
+  if (count >= 1000) {
+    const thousands = count / 1000;
+    return `${thousands >= 10 ? Math.floor(thousands) : (Math.floor(thousands * 10) / 10).toString().replace(/\.0$/, "")}k+`;
+  }
+  return String(count);
+}
+
+export function HomeHero({
+  isLoggedIn,
+  readerCount = 0,
+  reviewCount = 0,
+}: HomeHeroProps) {
+  const showCounts =
+    readerCount >= COUNT_DISPLAY_THRESHOLD ||
+    reviewCount >= COUNT_DISPLAY_THRESHOLD;
+
   return (
     <section className="relative min-h-[500px] sm:min-h-[550px] lg:min-h-[600px] overflow-hidden">
       {/* Full-width background image */}
@@ -111,14 +132,33 @@ export function HomeHero({ isLoggedIn }: HomeHeroProps) {
 
           {/* Social proof and features */}
           <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-primary" />
-              <span><strong className="text-foreground">10,000+</strong> readers</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <BookOpen className="w-4 h-4 text-primary" />
-              <span><strong className="text-foreground">50,000+</strong> reviews</span>
-            </div>
+            {showCounts ? (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-primary" />
+                  <span>
+                    <strong className="text-foreground">
+                      {formatCount(readerCount)}
+                    </strong>{" "}
+                    readers
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-primary" />
+                  <span>
+                    <strong className="text-foreground">
+                      {formatCount(reviewCount)}
+                    </strong>{" "}
+                    reviews
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-primary" />
+                <span>A growing community of readers</span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-amber-500" />
               <span>Smart recommendations</span>

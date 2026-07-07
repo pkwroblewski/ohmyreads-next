@@ -82,13 +82,21 @@ export default async function HomePage() {
   } = await supabase.auth.getUser();
 
   // Fetch all data in parallel
-  const [curatedBooks, trendingBooks, activity, communityFeed] =
-    await Promise.all([
-      getCuratedBooks(user?.id, 4), // Only need 4 for mini grid
-      getTrulyTrending(7, 7), // 7 books, 7-day window for real trending
-      user ? getHomeReadingActivity(user.id) : Promise.resolve(null),
-      getCommunityFeed(6), // 6 recent reviews
-    ]);
+  const [
+    curatedBooks,
+    trendingBooks,
+    activity,
+    communityFeed,
+    { count: readerCount },
+    { count: reviewCount },
+  ] = await Promise.all([
+    getCuratedBooks(user?.id, 4), // Only need 4 for mini grid
+    getTrulyTrending(7, 7), // 7 books, 7-day window for real trending
+    user ? getHomeReadingActivity(user.id) : Promise.resolve(null),
+    getCommunityFeed(6), // 6 recent reviews
+    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    supabase.from("reviews").select("*", { count: "exact", head: true }),
+  ]);
 
   return (
     <div className="flex flex-col">
@@ -133,7 +141,11 @@ export default async function HomePage() {
       {/* ========================================
           HERO SECTION - Smaller, bookish
           ======================================== */}
-      <HomeHero isLoggedIn={!!user} />
+      <HomeHero
+        isLoggedIn={!!user}
+        readerCount={readerCount ?? 0}
+        reviewCount={reviewCount ?? 0}
+      />
 
       {/* ========================================
           3-PANEL FEED SECTION
@@ -221,7 +233,7 @@ export default async function HomePage() {
             
             {/* Subheading */}
             <p className="text-sm text-primary-foreground/80 mb-5">
-              Join thousands of readers tracking their books on OhMyReads.
+              Join readers who track, review, and share what they read.
             </p>
             
             {/* CTA Button */}

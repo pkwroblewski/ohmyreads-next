@@ -6,6 +6,7 @@ import { getInitialCommunityFeed, getCommunitySidebar, getUserLikedReviewIds } f
 import { getHomeReadingActivity } from "@/lib/queries/home";
 import { getSuggestedFollows, getFollowingIds } from "@/lib/queries/follows";
 import { CommunityFeedTabs } from "@/components/community/community-feed-tabs";
+import { CommunityMobileTabs } from "@/components/community/community-mobile-tabs";
 import { MyShelfPanel } from "@/components/community/my-shelf-panel";
 import { CommunitySidebar } from "@/components/community/community-sidebar";
 import { SuggestedFollows } from "@/components/social/suggested-follows";
@@ -76,9 +77,10 @@ export default async function CommunityPage() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid lg:grid-cols-[280px_1fr_280px] gap-6">
+        {/* Desktop: three-column grid (unchanged) */}
+        <div className="hidden lg:grid lg:grid-cols-[280px_1fr_280px] gap-6">
           {/* Left Sidebar - My Shelf */}
-          <aside className="hidden lg:block">
+          <aside>
             <div className="sticky top-20">
               <MyShelfPanel activity={activity} user={userProfile} />
             </div>
@@ -94,7 +96,7 @@ export default async function CommunityPage() {
           </main>
 
           {/* Right Sidebar - Community */}
-          <aside className="hidden lg:block">
+          <aside>
             <div className="sticky top-20 space-y-4">
               {user && suggestions.length > 0 && (
                 <SuggestedFollows suggestions={suggestions} followingIds={followingIds} />
@@ -104,13 +106,29 @@ export default async function CommunityPage() {
           </aside>
         </div>
 
-        {/* Mobile: Show sidebars below feed */}
-        <div className="lg:hidden mt-8 space-y-6">
-          <MyShelfPanel activity={activity} user={userProfile} />
-          {user && suggestions.length > 0 && (
-            <SuggestedFollows suggestions={suggestions} followingIds={followingIds} />
-          )}
-          <CommunitySidebar data={sidebarData} />
+        {/* Mobile: tabbed panels instead of stacking below the feed */}
+        <div className="lg:hidden">
+          <CommunityMobileTabs
+            feed={
+              <CommunityFeedTabs
+                initialGlobalData={initialFeed}
+                isLoggedIn={!!user}
+                likedReviewIds={likedReviewIds}
+              />
+            }
+            myShelf={<MyShelfPanel activity={activity} user={userProfile} />}
+            discover={
+              <>
+                {user && suggestions.length > 0 && (
+                  <SuggestedFollows
+                    suggestions={suggestions}
+                    followingIds={followingIds}
+                  />
+                )}
+                <CommunitySidebar data={sidebarData} />
+              </>
+            }
+          />
         </div>
       </div>
     </div>

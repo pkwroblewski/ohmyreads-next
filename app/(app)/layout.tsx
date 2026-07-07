@@ -1,9 +1,6 @@
 import { createClient, getUser } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Sidebar } from "@/components/layout/sidebar";
-import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
-import { AppTopBar } from "@/components/layout/app-top-bar";
-import { ChatWrapper } from "@/components/messages";
+import { AppShell } from "@/components/layout/app-shell";
 import { getConversations, getUnreadCount } from "@/lib/queries/messages";
 import type { Profile } from "@/types/database";
 
@@ -82,31 +79,14 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* App Top Bar - full width, fixed at top */}
-      <AppTopBar user={user} profile={profile} isAdmin={isAdmin} />
-
-      {/* Desktop Sidebar - hidden on mobile, starts below top bar */}
-      <aside className="hidden lg:fixed lg:top-12 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col lg:h-[calc(100vh-48px)]">
-        <Sidebar user={user} profile={profile} />
-      </aside>
-
-      {/* Main Content Area - padded for sidebar on desktop, starts below top bar */}
-      <div className="lg:pl-64 pt-12">
-        <main className="min-h-[calc(100vh-48px)]">
-          <div className="p-4 lg:p-8 pb-20 lg:pb-8">{children}</div>
-        </main>
-      </div>
-
-      {/* Mobile Bottom Nav - hidden on desktop */}
-      <MobileBottomNav />
-
-      {/* Chat Panel and Trigger */}
-      <ChatWrapper
-        userId={user.id}
-        initialConversations={conversations}
-        initialUnreadCount={unreadCount}
-      />
-    </div>
+    <AppShell
+      user={user}
+      profile={profile}
+      isAdmin={isAdmin}
+      conversations={conversations}
+      unreadCount={unreadCount}
+    >
+      {children}
+    </AppShell>
   );
 }

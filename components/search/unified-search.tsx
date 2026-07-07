@@ -23,12 +23,18 @@ interface UnifiedSearchProps {
   placeholder?: string;
   showMoodPills?: boolean;
   autoFocus?: boolean;
+  /** "hero" = gradient panel on the public home; "modal" = bare input for the ⌘K dialog */
+  variant?: "hero" | "modal";
+  /** Called after a selection navigates — lets a hosting modal close itself */
+  onNavigate?: () => void;
 }
 
 export function UnifiedSearch({
   placeholder = "Search books, authors, or describe a mood...",
   showMoodPills = true,
   autoFocus = false,
+  variant = "hero",
+  onNavigate,
 }: UnifiedSearchProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -166,6 +172,7 @@ export function UnifiedSearch({
     router.push(`/books?q=${encodeURIComponent(author.name)}`);
     closeDropdown();
     setQuery("");
+    onNavigate?.();
   };
 
   // Handle book selection
@@ -173,6 +180,7 @@ export function UnifiedSearch({
     router.push(`/books/${book.slug}`);
     closeDropdown();
     setQuery("");
+    onNavigate?.();
   };
 
   // Handle AI search
@@ -197,9 +205,16 @@ export function UnifiedSearch({
     inputRef.current?.focus();
   };
 
+  const isModal = variant === "modal";
+
   return (
     <>
-      <div className="bg-gradient-to-br from-primary/5 via-background to-accent/5 rounded-xl border border-border/50 p-4 sm:p-6">
+      <div
+        className={cn(
+          !isModal &&
+            "bg-gradient-to-br from-primary/5 via-background to-accent/5 rounded-xl border border-border/50 p-4 sm:p-6"
+        )}
+      >
         {/* Search Input */}
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -211,7 +226,7 @@ export function UnifiedSearch({
             onKeyDown={handleKeyDown}
             onFocus={() => query.length >= 2 && setShowDropdown(true)}
             placeholder={placeholder}
-            autoFocus={autoFocus}
+            autoFocus={autoFocus || isModal}
             className={cn(
               "w-full pl-12 pr-12 py-3 text-base rounded-xl",
               "bg-background border-2 border-border",
@@ -369,7 +384,7 @@ export function UnifiedSearch({
         </div>
 
         {/* Mood Pills */}
-        {showMoodPills && (
+        {showMoodPills && !isModal && (
           <div className="flex flex-wrap items-center gap-2 mt-4">
             <span className="text-xs text-muted-foreground">Quick moods:</span>
             {MOOD_PILLS.map((mood) => (

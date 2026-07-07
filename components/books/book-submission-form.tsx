@@ -90,8 +90,8 @@ export function BookSubmissionForm() {
         setGenres([]);
         setPublishedDate("");
         setPageCount("");
-        // Redirect to dashboard or submissions page
-        router.push("/dashboard");
+        // Land on My Submissions so the user sees their pending entry
+        router.push("/my-submissions");
         router.refresh();
       }
     } catch {

@@ -1,8 +1,10 @@
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { ChatWrapper } from "@/components/messages";
+import { AppShell } from "@/components/layout/app-shell";
 import { createClient } from "@/lib/supabase/server";
 import { getConversations, getUnreadCount } from "@/lib/queries/messages";
+import type { Profile } from "@/types/database";
 
 export default async function PublicLayout({
   children,
@@ -15,12 +17,32 @@ export default async function PublicLayout({
   // Fetch chat data if logged in
   let conversations: Awaited<ReturnType<typeof getConversations>> = [];
   let unreadCount = 0;
+  let profile: Profile | null = null;
 
   if (user) {
-    [conversations, unreadCount] = await Promise.all([
-      getConversations(),
-      getUnreadCount(),
+    const [chatData, profileResult] = await Promise.all([
+      Promise.all([getConversations(), getUnreadCount()]),
+      // No ensureUserProfile here — a public page must not hard-fail on
+      // profile creation; the rare profile-less user gets the Navbar branch
+      supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
     ]);
+    [conversations, unreadCount] = chatData;
+    profile = (profileResult.data as Profile | null) ?? null;
+  }
+
+  // Logged-in users keep the app chrome on public routes (no shell-swap)
+  if (user && profile) {
+    return (
+      <AppShell
+        user={user}
+        profile={profile}
+        isAdmin={profile.is_admin || false}
+        conversations={conversations}
+        unreadCount={unreadCount}
+      >
+        {children}
+      </AppShell>
+    );
   }
 
   return (

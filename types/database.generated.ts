@@ -379,6 +379,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           genres: string[] | null
+          google_books_id: string | null
           id: string
           isbn: string | null
           moderated_at: string | null
@@ -402,6 +403,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           genres?: string[] | null
+          google_books_id?: string | null
           id?: string
           isbn?: string | null
           moderated_at?: string | null
@@ -425,6 +427,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           genres?: string[] | null
+          google_books_id?: string | null
           id?: string
           isbn?: string | null
           moderated_at?: string | null
@@ -1710,6 +1713,7 @@ export type Database = {
         Args: { review_id: string }
         Returns: undefined
       }
+      is_club_admin: { Args: { p_club_id: string }; Returns: boolean }
       is_club_member: { Args: { p_club_id: string }; Returns: boolean }
       recalculate_book_rating: {
         Args: { p_book_id: string }

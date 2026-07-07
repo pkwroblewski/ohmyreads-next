@@ -9,6 +9,7 @@ import {
   Users,
   MoreHorizontal,
   UserPlus,
+  UserSearch,
   Target,
   List,
   BarChart3,
@@ -16,6 +17,8 @@ import {
   Settings,
   User,
   Globe,
+  TrendingUp,
+  Sparkles,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +32,9 @@ const primaryItems = [
 ];
 
 const overflowItems = [
+  { href: "/trending", label: "Trending", icon: TrendingUp },
+  { href: "/recommendations", label: "For You", icon: Sparkles },
+  { href: "/discover", label: "Find Readers", icon: UserSearch },
   { href: "/friends", label: "Friends", icon: UserPlus },
   { href: "/clubs", label: "Book Clubs", icon: Globe },
   { href: "/challenges", label: "Challenges", icon: Target },

@@ -171,6 +171,13 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
                 )}
               </div>
 
+              {currentUser && !isOwnProfile && (
+                <p className="text-xs text-muted-foreground mb-3">
+                  Follow to see their activity in your feed &middot; Friends
+                  can message each other
+                </p>
+              )}
+
               {/* Follow Stats */}
               <FollowStats
                 username={profile.username}

@@ -110,7 +110,7 @@ export default function PricingPage() {
           Ready to track your reading?
         </h2>
         <p className="text-muted-foreground mb-6">
-          Join thousands of readers. No credit card required.
+          Free to join. No credit card required.
         </p>
         <Link href="/signup">
           <Button size="lg">Create Free Account</Button>
