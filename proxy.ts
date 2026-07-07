@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
 // Routes that require authentication
+// Matching is exact-or-prefix, so "/profile" also covers "/profile/edit",
+// while "/clubs/create" does not catch the public "/clubs" pages.
 const protectedRoutes = [
   "/dashboard",
   "/my-shelf",
@@ -14,6 +16,10 @@ const protectedRoutes = [
   "/import",
   "/submit-book",
   "/my-submissions",
+  "/friends",
+  "/clubs/create",
+  "/lists/create",
+  "/books/new",
 ];
 
 // Routes that require admin role

@@ -13,7 +13,6 @@ import {
   Star,
   BarChart3,
   Settings,
-  Flag,
   Upload,
   Eye,
   Sparkles,
@@ -334,12 +333,6 @@ export default async function AdminDashboardPage() {
             description="See complete submission history"
             icon={Eye}
             href="/admin/submissions"
-          />
-          <QuickActionCard
-            title="User Reports"
-            description="Review flagged content and users"
-            icon={Flag}
-            href="/admin/reports"
           />
           <QuickActionCard
             title="Analytics"

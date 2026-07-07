@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 interface JoinButtonProps {
   clubId: string;
+  clubSlug: string;
   isMember: boolean;
   userRole?: "admin" | "member" | null;
   isAuthenticated: boolean;
@@ -20,6 +21,7 @@ interface JoinButtonProps {
 
 export function JoinButton({
   clubId,
+  clubSlug,
   isMember,
   userRole,
   isAuthenticated,
@@ -32,7 +34,7 @@ export function JoinButton({
 
   const handleJoin = () => {
     if (!isAuthenticated) {
-      router.push(`/login?redirect=/clubs`);
+      router.push(`/login?redirect=/clubs/${clubSlug}`);
       return;
     }
 

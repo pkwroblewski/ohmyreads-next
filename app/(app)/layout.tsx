@@ -31,7 +31,7 @@ export default async function AppLayout({
 
     user = authData.user;
 
-    // Redirect to login if not authenticated
+    // Fallback only — proxy.ts handles redirect-preserving auth for all (app) routes
     if (!user) {
       redirect("/login");
     }

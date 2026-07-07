@@ -80,7 +80,7 @@ export function FriendsActivity({ activities }: FriendsActivityProps) {
           >
             {/* User Avatar */}
             <Link
-              href={`/@${activity.username}`}
+              href={`/users/${activity.username}`}
               className="flex-shrink-0"
             >
               <div className="relative w-10 h-10 rounded-full overflow-hidden bg-muted">
@@ -117,7 +117,7 @@ export function FriendsActivity({ activities }: FriendsActivityProps) {
             <div className="flex-1 min-w-0">
               <p className="text-sm">
                 <Link
-                  href={`/@${activity.username}`}
+                  href={`/users/${activity.username}`}
                   className="font-medium hover:text-primary transition-colors"
                 >
                   {activity.display_name || activity.username}

@@ -118,13 +118,13 @@ export default async function ListsPage({ searchParams }: ListsPageProps) {
       </div>
 
       {/* Curated Lists Section */}
-      <section>
+      <section id="curated" className="scroll-mt-20">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="h-5 w-5 text-amber-500" />
           <h2 className="text-lg font-semibold">Curated Collections</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CURATED_LISTS.slice(0, 6).map((list) => (
+          {CURATED_LISTS.map((list) => (
             <Link
               key={list.slug}
               href={`/lists/${list.slug}`}
@@ -148,15 +148,6 @@ export default async function ListsPage({ searchParams }: ListsPageProps) {
             </Link>
           ))}
         </div>
-        {CURATED_LISTS.length > 6 && (
-          <div className="text-center mt-4">
-            <Link href="/lists/curated">
-              <Button variant="ghost" size="sm">
-                View all curated lists
-              </Button>
-            </Link>
-          </div>
-        )}
       </section>
 
       {/* Community Lists Section */}

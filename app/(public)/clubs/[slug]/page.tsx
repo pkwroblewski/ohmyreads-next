@@ -87,6 +87,7 @@ export default async function ClubPage({ params }: ClubPageProps) {
               )}
               <JoinButton
                 clubId={club.id}
+                clubSlug={club.slug}
                 isMember={club.is_member || false}
                 userRole={club.user_role}
                 isAuthenticated={!!user}
