@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { encodeGeohash, isValidGeohash } from "@/lib/utils/geohash";
+import {
+  updateLocationSchema,
+  updateLocationFromGeohashSchema,
+  locationEnabledSchema,
+  locationPrecisionSchema,
+  setPresenceSchema,
+} from "@/lib/validation/location";
 
 // ============================================
 // UPDATE LOCATION
@@ -38,14 +45,12 @@ export async function updateLocation(input: UpdateLocationInput) {
       return { error: "Too many requests. Please wait a moment." };
     }
 
-    // Validate coordinates
-    if (input.lat < -90 || input.lat > 90 || input.lng < -180 || input.lng > 180) {
-      return { error: "Invalid coordinates" };
-    }
-
-    // Validate label
-    if (!input.label || input.label.length > 200) {
-      return { error: "Invalid location label" };
+    // Validate input with Zod
+    const validationResult = updateLocationSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Use precision (default 6 = ~1.2km)
@@ -105,14 +110,17 @@ export async function updateLocationFromGeohash(input: {
       return { error: "Too many requests. Please wait a moment." };
     }
 
-    // Validate geohash
-    if (!input.geohash || !isValidGeohash(input.geohash)) {
-      return { error: "Invalid geohash" };
+    // Validate input with Zod
+    const validationResult = updateLocationFromGeohashSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
-    // Validate label
-    if (!input.label || input.label.length > 200) {
-      return { error: "Invalid location label" };
+    // Validate geohash alphabet/format (domain check beyond shape)
+    if (!isValidGeohash(input.geohash)) {
+      return { error: "Invalid geohash" };
     }
 
     // Apply precision (truncate geohash)
@@ -172,6 +180,14 @@ export async function toggleLocationSharing(enabled: boolean) {
       return { error: "Too many requests. Please wait a moment." };
     }
 
+    // Validate input with Zod
+    const validationResult = locationEnabledSchema.safeParse(enabled);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
     // Update profile - clear location data when disabling for privacy
     const now = new Date().toISOString();
     const { error } = await supabase
@@ -224,7 +240,15 @@ export async function updateLocationPrecision(precision: number) {
       return { error: "Not authenticated" };
     }
 
-    // Validate precision (4-8)
+    // Validate input with Zod (rejects NaN/non-integers before the clamp)
+    const validationResult = locationPrecisionSchema.safeParse(precision);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
+    // Clamp precision (4-8)
     const validPrecision = Math.min(Math.max(precision, 4), 8);
 
     // Get current location
@@ -304,9 +328,12 @@ export async function setPresence(input: SetPresenceInput) {
       return { error: "Too many requests. Please wait a moment." };
     }
 
-    // Validate note length
-    if (input.note && input.note.length > 140) {
-      return { error: "Note must be 140 characters or less" };
+    // Validate input with Zod
+    const validationResult = setPresenceSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Validate duration for temporary presence

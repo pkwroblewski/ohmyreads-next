@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { targetUserIdSchema } from "@/lib/validation/social";
 
 export async function followUser(targetUserId: string): Promise<{
   success: boolean;
@@ -17,6 +19,21 @@ export async function followUser(targetUserId: string): Promise<{
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
+    }
+
+    // Rate limit: 30 follow actions per minute per user
+    const { allowed } = await checkRateLimit(`follow:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = targetUserIdSchema.safeParse(targetUserId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     if (user.id === targetUserId) {
@@ -72,6 +89,21 @@ export async function unfollowUser(targetUserId: string): Promise<{
       return { success: false, error: "Not authenticated" };
     }
 
+    // Rate limit: 30 follow actions per minute per user
+    const { allowed } = await checkRateLimit(`follow:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = targetUserIdSchema.safeParse(targetUserId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
     const { error } = await supabase
       .from("follows")
       .delete()
@@ -108,6 +140,17 @@ export async function toggleFollow(targetUserId: string): Promise<{
 
     if (authError || !user) {
       return { success: false, isFollowing: false, error: "Not authenticated" };
+    }
+
+    // Validate input with Zod (rate limiting happens in the delegated
+    // followUser/unfollowUser call — checking here too would double-count)
+    const validationResult = targetUserIdSchema.safeParse(targetUserId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        isFollowing: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     if (user.id === targetUserId) {

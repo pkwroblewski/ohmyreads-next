@@ -45,6 +45,8 @@ export const createBookSubmissionSchema = z.object({
 
 export const updateBookSubmissionSchema = createBookSubmissionSchema.partial();
 
+export const submissionIdSchema = z.string().uuid("Invalid submission ID");
+
 export const moderateBookSubmissionSchema = z.object({
   submissionId: z.string().uuid("Invalid submission ID"),
   action: z.enum(["approve", "reject"]),

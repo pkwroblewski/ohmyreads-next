@@ -5,6 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { generateSlug } from "@/lib/utils/slug";
 import { syncUserBadges } from "@/lib/actions/badges";
 import { syncChallengeProgress } from "@/lib/actions/challenges";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import {
+  addToShelfSchema,
+  updateReadingProgressSchema,
+  importAndAddToShelfSchema,
+  bookIdSchema,
+} from "@/lib/validation/book-action";
 import crypto from "crypto";
 import type { Database } from "@/types/database";
 
@@ -169,10 +176,18 @@ export async function addToShelf(bookId: string, status: string) {
       return { error: "Not authenticated" };
     }
 
-    // Validate status
-    const validStatuses = ["want_to_read", "reading", "read"];
-    if (!validStatuses.includes(status)) {
-      return { error: "Invalid status" };
+    // Rate limit: 20 shelf mutations per minute per user
+    const { allowed } = await checkRateLimit(`book:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = addToShelfSchema.safeParse({ bookId, status });
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Prepare data
@@ -232,10 +247,6 @@ export async function addToShelf(bookId: string, status: string) {
   }
 }
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const MAX_PAGES = 50000;
-
 export async function updateReadingProgress(
   bookId: string,
   currentPage: number,
@@ -261,21 +272,22 @@ export async function updateReadingProgress(
       return { error: "Not authenticated" };
     }
 
-    if (typeof bookId !== "string" || !UUID_RE.test(bookId)) {
-      return { error: "Invalid book" };
+    // Rate limit: 20 shelf mutations per minute per user
+    const { allowed } = await checkRateLimit(`book:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
     }
-    if (
-      !Number.isInteger(currentPage) ||
-      currentPage < 0 ||
-      currentPage > MAX_PAGES
-    ) {
-      return { error: "Invalid page number" };
-    }
-    if (
-      totalPages !== undefined &&
-      (!Number.isInteger(totalPages) || totalPages <= 0 || totalPages > MAX_PAGES)
-    ) {
-      return { error: "Invalid total pages" };
+
+    // Validate input with Zod
+    const validationResult = updateReadingProgressSchema.safeParse({
+      bookId,
+      currentPage,
+      totalPages,
+    });
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Fetch the shelf row to resolve the effective total and enforce status
@@ -351,6 +363,20 @@ export async function removeFromShelf(bookId: string) {
       return { error: "Not authenticated" };
     }
 
+    // Rate limit: 20 shelf mutations per minute per user
+    const { allowed } = await checkRateLimit(`book:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = bookIdSchema.safeParse(bookId);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
     const { error } = await supabase
       .from("user_books")
       .delete()
@@ -398,6 +424,26 @@ export async function importAndAddToShelf(
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
     }
+
+    // Rate limit: 20 shelf mutations per minute per user
+    const { allowed } = await checkRateLimit(`book:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = importAndAddToShelfSchema.safeParse({
+      externalBook,
+      status,
+    });
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+    externalBook = validationResult.data.externalBook;
+    status = validationResult.data.status;
 
     // Check if book already exists by ISBN, Google Books ID, or Open Library ID
     let existingBook = null;

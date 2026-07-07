@@ -6,10 +6,12 @@ import {
   createBookSubmissionSchema,
   updateBookSubmissionSchema,
   moderateBookSubmissionSchema,
+  submissionIdSchema,
   type CreateBookSubmissionInput,
   type UpdateBookSubmissionInput,
   type ModerateBookSubmissionInput,
 } from "@/lib/validation/book-submission";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { generateSlug } from "@/lib/utils/slug";
 import type { BookSubmissionWithSubmitter } from "@/types/database";
@@ -75,6 +77,16 @@ export async function submitBook(input: CreateBookSubmissionInput) {
 
     if (authError || !user) {
       return { error: "You must be logged in to submit a book" };
+    }
+
+    // Rate limit: 10 submissions per minute per user
+    const { allowed } = await checkRateLimit(
+      `submission:create:${user.id}`,
+      10,
+      60000
+    );
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
@@ -170,7 +182,23 @@ export async function updateBookSubmission(
       return { error: "Not authenticated" };
     }
 
+    // Rate limit: 20 submission updates per minute per user
+    const { allowed } = await checkRateLimit(
+      `submission:update:${user.id}`,
+      20,
+      60000
+    );
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
     // Validate input
+    const idValidation = submissionIdSchema.safeParse(submissionId);
+    if (!idValidation.success) {
+      return {
+        error: idValidation.error.issues[0]?.message || "Invalid input",
+      };
+    }
     const validationResult = updateBookSubmissionSchema.safeParse(input);
     if (!validationResult.success) {
       return {
@@ -256,6 +284,24 @@ export async function deleteBookSubmission(submissionId: string) {
 
     if (authError || !user) {
       return { error: "Not authenticated" };
+    }
+
+    // Rate limit: 20 submission deletes per minute per user
+    const { allowed } = await checkRateLimit(
+      `submission:delete:${user.id}`,
+      20,
+      60000
+    );
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = submissionIdSchema.safeParse(submissionId);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Verify ownership and status
@@ -420,6 +466,12 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
     // Check admin status
     if (!(await isAdmin(supabase, user.id))) {
       return { error: "Not authorized to moderate submissions" };
+    }
+
+    // Rate limit: 30 admin mutations per minute per admin
+    const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input

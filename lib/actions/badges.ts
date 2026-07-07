@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkAndUnlockBadges } from "@/lib/queries/badges";
 import { getBadgeById } from "@/lib/data/badges";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { badgeIdSchema } from "@/lib/validation/badge";
 
 // Sync badges for the current user (check and unlock any new badges)
 export async function syncUserBadges(): Promise<{
@@ -20,6 +22,12 @@ export async function syncUserBadges(): Promise<{
 
     if (authError || !user) {
       return { newBadges: [], error: "Not authenticated" };
+    }
+
+    // Rate limit: 20 badge mutations per minute per user
+    const { allowed } = await checkRateLimit(`badge:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { newBadges: [], error: "Too many requests. Please wait a moment." };
     }
 
     const newlyUnlocked = await checkAndUnlockBadges(user.id);
@@ -61,6 +69,21 @@ export async function removeBadge(badgeId: string): Promise<{
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
+    }
+
+    // Rate limit: 20 badge mutations per minute per user
+    const { allowed } = await checkRateLimit(`badge:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = badgeIdSchema.safeParse(badgeId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     const { error } = await supabase

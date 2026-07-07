@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { updateReadingGoalSchema } from "@/lib/validation/goal";
 
 export async function updateReadingGoal(targetBooks: number) {
   try {
@@ -15,8 +17,18 @@ export async function updateReadingGoal(targetBooks: number) {
       return { error: "Not authenticated" };
     }
 
-    if (targetBooks < 1 || targetBooks > 1000) {
-      return { error: "Goal must be between 1 and 1000 books" };
+    // Rate limit: 10 goal updates per minute per user
+    const { allowed } = await checkRateLimit(`goal:${user.id}`, 10, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = updateReadingGoalSchema.safeParse(targetBooks);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     const currentYear = new Date().getFullYear();

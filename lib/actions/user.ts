@@ -9,6 +9,7 @@ import {
   type SocialLinkInput,
 } from "@/lib/validation/profile";
 import { sendWelcomeEmail } from "@/lib/actions/email";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 import type { Database, Profile } from "@/types/database";
 
 /**
@@ -25,6 +26,12 @@ export async function updateProfile(input: UpdateProfileInput) {
 
     if (authError || !user) {
       return { error: "Not authenticated" };
+    }
+
+    // Rate limit: 20 profile updates per minute per user
+    const { allowed } = await checkRateLimit(`profile:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
@@ -102,6 +109,12 @@ export async function updateSocialLinks(links: SocialLinkInput[]) {
 
     if (authError || !user) {
       return { error: "Not authenticated" };
+    }
+
+    // Rate limit: 20 profile updates per minute per user
+    const { allowed } = await checkRateLimit(`profile:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
@@ -239,6 +252,17 @@ export async function ensureUserProfile(): Promise<{
 
     if (existingProfile) {
       return { profile: existingProfile as Profile };
+    }
+
+    // Rate limit the creation path only — the existing-profile early return
+    // above must never be blocked (this runs on routine page loads)
+    const { allowed } = await checkRateLimit(
+      `profile-create:${user.id}`,
+      5,
+      60000
+    );
+    if (!allowed) {
+      return { profile: null, error: "Too many requests. Please wait a moment." };
     }
 
     // Create profile - same logic as callback/route.ts

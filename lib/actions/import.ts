@@ -7,6 +7,8 @@ import {
   mapGoodreadsShelf,
   type GoodreadsRow,
 } from "@/lib/utils/csv-parser";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { goodreadsRowsSchema } from "@/lib/validation/import";
 
 export interface ImportResult {
   success: boolean;
@@ -100,6 +102,13 @@ export async function importFromGoodreads(
       return result;
     }
 
+    // Rate limit: 3 imports per minute per user (imports are heavy)
+    const { allowed } = await checkRateLimit(`import:${user.id}`, 3, 60000);
+    if (!allowed) {
+      result.errors.push("Too many imports. Please wait a moment.");
+      return result;
+    }
+
     // Parse CSV
     let rows: GoodreadsRow[];
     try {
@@ -115,6 +124,16 @@ export async function importFromGoodreads(
       result.errors.push("No books found in CSV");
       return result;
     }
+
+    // Validate parsed rows with Zod (row cap + per-row field bounds)
+    const validationResult = goodreadsRowsSchema.safeParse(rows);
+    if (!validationResult.success) {
+      result.errors.push(
+        validationResult.error.issues[0]?.message || "Invalid CSV data"
+      );
+      return result;
+    }
+    rows = validationResult.data;
 
     // Get user's existing books to avoid duplicates
     const { data: existingUserBooks } = await supabase

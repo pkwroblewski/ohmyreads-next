@@ -2,6 +2,14 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import {
+  createListSchema,
+  updateListSchema,
+  addBookToListSchema,
+  removeBookFromListSchema,
+  listIdSchema,
+} from "@/lib/validation/list";
 import type { ListVisibility } from "@/types/database";
 
 interface CreateListInput {
@@ -23,19 +31,27 @@ export async function createList(
     return { success: false, error: "Not authenticated" };
   }
 
-  // Validate title
-  if (!input.title || input.title.trim().length < 3) {
-    return { success: false, error: "List title must be at least 3 characters" };
+  // Rate limit: 10 list creations per minute per user
+  const { allowed } = await checkRateLimit(`list:create:${user.id}`, 10, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
   }
 
-  if (input.title.length > 100) {
-    return { success: false, error: "List title must be less than 100 characters" };
+  // Validate input with Zod
+  const validationResult = createListSchema.safeParse(input);
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
   }
+
+  const data = validationResult.data;
 
   // Generate slug
   const { data: slugData, error: slugError } = await supabase.rpc(
     "generate_list_slug",
-    { list_title: input.title.trim(), owner_id: user.id }
+    { list_title: data.title, owner_id: user.id }
   );
 
   if (slugError) {
@@ -50,10 +66,10 @@ export async function createList(
     .from("reading_lists")
     .insert({
       user_id: user.id,
-      title: input.title.trim(),
+      title: data.title,
       slug,
-      description: input.description?.trim() || null,
-      visibility: input.visibility || "public",
+      description: data.description || null,
+      visibility: data.visibility || "public",
     })
     .select("id")
     .single();
@@ -81,11 +97,28 @@ export async function updateList(
     return { success: false, error: "Not authenticated" };
   }
 
+  // Rate limit: 20 list updates per minute per user
+  const { allowed } = await checkRateLimit(`list:update:${user.id}`, 20, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = updateListSchema.safeParse({ listId, ...updates });
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
+  }
+
+  const data = validationResult.data;
+
   // Verify ownership
   const { data: list } = await supabase
     .from("reading_lists")
     .select("user_id")
-    .eq("id", listId)
+    .eq("id", data.listId)
     .single();
 
   if (!list || list.user_id !== user.id) {
@@ -93,14 +126,14 @@ export async function updateList(
   }
 
   const updateData: Record<string, unknown> = {};
-  if (updates.title) updateData.title = updates.title.trim();
-  if (updates.description !== undefined) updateData.description = updates.description?.trim() || null;
-  if (updates.visibility) updateData.visibility = updates.visibility;
+  if (data.title) updateData.title = data.title;
+  if (data.description !== undefined) updateData.description = data.description || null;
+  if (data.visibility) updateData.visibility = data.visibility;
 
   const { error } = await supabase
     .from("reading_lists")
     .update(updateData)
-    .eq("id", listId);
+    .eq("id", data.listId);
 
   if (error) {
     console.error("Error updating list:", error);
@@ -122,6 +155,21 @@ export async function deleteList(
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
+  }
+
+  // Rate limit: 20 list deletes per minute per user
+  const { allowed } = await checkRateLimit(`list:delete:${user.id}`, 20, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = listIdSchema.safeParse(listId);
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
   }
 
   const { error } = await supabase
@@ -154,11 +202,28 @@ export async function addBookToList(
     return { success: false, error: "Not authenticated" };
   }
 
+  // Rate limit: 30 list-book toggles per minute per user
+  const { allowed } = await checkRateLimit(`list:book:${user.id}`, 30, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = addBookToListSchema.safeParse({ listId, bookId, note });
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
+  }
+
+  const data = validationResult.data;
+
   // Verify ownership
   const { data: list } = await supabase
     .from("reading_lists")
     .select("user_id")
-    .eq("id", listId)
+    .eq("id", data.listId)
     .single();
 
   if (!list || list.user_id !== user.id) {
@@ -190,10 +255,10 @@ export async function addBookToList(
 
   // Add book
   const { error } = await supabase.from("reading_list_books").insert({
-    list_id: listId,
-    book_id: bookId,
+    list_id: data.listId,
+    book_id: data.bookId,
     position,
-    note: note?.trim() || null,
+    note: data.note || null,
   });
 
   if (error) {
@@ -218,6 +283,21 @@ export async function removeBookFromList(
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
+  }
+
+  // Rate limit: 30 list-book toggles per minute per user
+  const { allowed } = await checkRateLimit(`list:book:${user.id}`, 30, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = removeBookFromListSchema.safeParse({ listId, bookId });
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
   }
 
   // Verify ownership
@@ -258,6 +338,21 @@ export async function likeList(
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
+  }
+
+  // Rate limit: 30 like toggles per minute per user
+  const { allowed } = await checkRateLimit(`list:like:${user.id}`, 30, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = listIdSchema.safeParse(listId);
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
   }
 
   // Check if already liked

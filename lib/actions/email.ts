@@ -6,6 +6,8 @@ import {
   getWelcomeEmailHtml,
   getWelcomeEmailText,
 } from "@/lib/email/templates/welcome";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { sendWelcomeEmailSchema } from "@/lib/validation/email";
 
 interface SendWelcomeEmailParams {
   email: string;
@@ -27,12 +29,43 @@ export async function sendWelcomeEmail({
   }
 
   try {
+    // Validate input with Zod (before the rate limit — its key embeds email;
+    // no auth here: legitimately called from signup webhook/callback contexts)
+    const validationResult = sendWelcomeEmailSchema.safeParse({
+      email,
+      username,
+      displayName,
+    });
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+    const validated = validationResult.data;
+
+    // Rate limit: 5 emails per minute per recipient address
+    const { allowed } = await checkRateLimit(
+      `email:${validated.email.toLowerCase()}`,
+      5,
+      60000
+    );
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
     const { error } = await resend.emails.send({
       from: FROM_EMAIL,
-      to: email,
+      to: validated.email,
       subject: getWelcomeEmailSubject(),
-      html: getWelcomeEmailHtml({ username, displayName }),
-      text: getWelcomeEmailText({ username, displayName }),
+      html: getWelcomeEmailHtml({
+        username: validated.username,
+        displayName: validated.displayName,
+      }),
+      text: getWelcomeEmailText({
+        username: validated.username,
+        displayName: validated.displayName,
+      }),
     });
 
     if (error) {

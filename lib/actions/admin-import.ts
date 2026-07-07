@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { parseBookCSV, type ParsedBookRow } from "@/lib/utils/book-csv-parser";
 import { generateSlug } from "@/lib/utils/slug";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { importBookRowsSchema } from "@/lib/validation/admin";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -71,6 +73,47 @@ export interface ImportResult {
 export async function importBooksFromCSV(rows: ParsedBookRow[]): Promise<ImportResult> {
   try {
     const { supabase, user } = await requireAdmin();
+
+    // Rate limit: 30 admin mutations per minute per admin
+    const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return {
+        success: false,
+        totalRows: rows.length,
+        imported: 0,
+        skipped: 0,
+        failed: rows.length,
+        results: [
+          {
+            rowNumber: 0,
+            title: "",
+            success: false,
+            error: "Too many requests. Please wait a moment.",
+          },
+        ],
+      };
+    }
+
+    // Validate input with Zod (row cap + per-row field bounds)
+    const validationResult = importBookRowsSchema.safeParse(rows);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        totalRows: rows.length,
+        imported: 0,
+        skipped: 0,
+        failed: rows.length,
+        results: [
+          {
+            rowNumber: 0,
+            title: "",
+            success: false,
+            error:
+              validationResult.error.issues[0]?.message || "Invalid input",
+          },
+        ],
+      };
+    }
 
     const results: ImportRowResult[] = [];
     let imported = 0;

@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import {
+  targetUserIdSchema,
+  friendRequestIdSchema,
+} from "@/lib/validation/social";
 
 // ============================================
 // SEND FRIEND REQUEST
@@ -21,6 +26,21 @@ export async function sendFriendRequest(targetUserId: string): Promise<{
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
+    }
+
+    // Rate limit: 30 friend actions per minute per user
+    const { allowed } = await checkRateLimit(`friend:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = targetUserIdSchema.safeParse(targetUserId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     if (user.id === targetUserId) {
@@ -90,6 +110,21 @@ export async function acceptFriendRequest(requestId: string): Promise<{
       return { success: false, error: "Not authenticated" };
     }
 
+    // Rate limit: 30 friend actions per minute per user
+    const { allowed } = await checkRateLimit(`friend:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = friendRequestIdSchema.safeParse(requestId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
     // Verify this is a pending request to the current user
     const { data: request } = await supabase
       .from("friend_requests")
@@ -151,6 +186,21 @@ export async function rejectFriendRequest(requestId: string): Promise<{
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
+    }
+
+    // Rate limit: 30 friend actions per minute per user
+    const { allowed } = await checkRateLimit(`friend:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = friendRequestIdSchema.safeParse(requestId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Verify this is a pending request to the current user
@@ -215,6 +265,21 @@ export async function cancelFriendRequest(requestId: string): Promise<{
       return { success: false, error: "Not authenticated" };
     }
 
+    // Rate limit: 30 friend actions per minute per user
+    const { allowed } = await checkRateLimit(`friend:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = friendRequestIdSchema.safeParse(requestId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
     // Verify this is a pending request from the current user
     const { data: request } = await supabase
       .from("friend_requests")
@@ -272,6 +337,21 @@ export async function removeFriend(targetUserId: string): Promise<{
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
+    }
+
+    // Rate limit: 30 friend actions per minute per user
+    const { allowed } = await checkRateLimit(`friend:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = targetUserIdSchema.safeParse(targetUserId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Find the accepted friendship

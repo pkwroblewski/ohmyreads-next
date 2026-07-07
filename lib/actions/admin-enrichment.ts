@@ -3,6 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { enrichBookEntry } from "@/lib/utils/external-book-search";
 import { logger } from "@/lib/utils/log";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import {
+  enrichmentLimitSchema,
+  bookToEnrichSchema,
+  enrichBookIdsSchema,
+} from "@/lib/validation/admin";
 
 // ============================================
 // TYPES
@@ -87,7 +93,7 @@ function normalizeDate(dateStr: string | null): string | null {
 // ADMIN CHECK
 // ============================================
 
-async function requireAdmin(): Promise<void> {
+async function requireAdmin(): Promise<{ userId: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -104,6 +110,16 @@ async function requireAdmin(): Promise<void> {
   if (!profile?.is_admin) {
     throw new Error("Admin access required");
   }
+
+  return { userId: user.id };
+}
+
+async function requireAdminRateLimit(userId: string): Promise<void> {
+  // Rate limit: 30 admin mutations per minute per admin
+  const { allowed } = await checkRateLimit(`admin:${userId}`, 30, 60000);
+  if (!allowed) {
+    throw new Error("Too many requests. Please wait a moment.");
+  }
 }
 
 // ============================================
@@ -117,6 +133,11 @@ export async function getBooksNeedingEnrichment(
   limit: number = 50
 ): Promise<{ stats: EnrichmentStats; books: BookToEnrich[] }> {
   await requireAdmin();
+
+  // Read-only: validate limit param only
+  if (!enrichmentLimitSchema.safeParse(limit).success) {
+    throw new Error("Invalid limit");
+  }
 
   const supabase = await createClient();
 
@@ -179,8 +200,32 @@ export async function getBooksNeedingEnrichment(
 export async function enrichSingleBook(
   book: BookToEnrich
 ): Promise<EnrichmentResultItem> {
-  await requireAdmin();
+  const { userId } = await requireAdmin();
+  await requireAdminRateLimit(userId);
 
+  // Validate input with Zod
+  const validationResult = bookToEnrichSchema.safeParse(book);
+  if (!validationResult.success) {
+    return {
+      bookId: book?.id ?? "",
+      title: book?.title ?? "",
+      success: false,
+      fieldsUpdated: [],
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
+  }
+
+  return enrichSingleBookCore(book);
+}
+
+/**
+ * Core enrichment logic — called by enrichSingleBook (after auth/rate
+ * limit/validation) and by enrichBooks in a loop (batch is validated and
+ * rate-limited once; per-book checks here would burn one token per book).
+ */
+async function enrichSingleBookCore(
+  book: BookToEnrich
+): Promise<EnrichmentResultItem> {
   const supabase = await createClient();
 
   const result: EnrichmentResultItem = {
@@ -292,7 +337,16 @@ export async function enrichSingleBook(
 export async function enrichBooks(
   bookIds: string[]
 ): Promise<EnrichmentResult> {
-  await requireAdmin();
+  const { userId } = await requireAdmin();
+  await requireAdminRateLimit(userId);
+
+  // Validate input with Zod
+  const validationResult = enrichBookIdsSchema.safeParse(bookIds);
+  if (!validationResult.success) {
+    throw new Error(
+      validationResult.error.issues[0]?.message || "Invalid input"
+    );
+  }
 
   const supabase = await createClient();
 
@@ -318,7 +372,7 @@ export async function enrichBooks(
 
   // Process books one at a time with rate limiting
   for (const book of books) {
-    const enrichResult = await enrichSingleBook(book as BookToEnrich);
+    const enrichResult = await enrichSingleBookCore(book as BookToEnrich);
     result.results.push(enrichResult);
 
     if (enrichResult.error) {

@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { encodeGeohash } from "@/lib/utils/geohash";
 import { createAuditLog } from "@/lib/utils/audit-log";
+import {
+  submitPlaceSchema,
+  placeModerationSchema,
+} from "@/lib/validation/place";
 
 // ============================================
 // TYPES
@@ -48,22 +52,17 @@ export async function submitPlace(input: SubmitPlaceInput) {
       return { error: "You've submitted too many places recently. Please try again later." };
     }
 
-    // Validate input
-    if (!input.name || input.name.length < 2 || input.name.length > 200) {
-      return { error: "Name must be between 2 and 200 characters" };
-    }
-
-    const validTypes = ["bookstore", "library", "cafe", "bookclub", "popup", "other"];
-    if (!validTypes.includes(input.placeType)) {
-      return { error: "Invalid place type" };
+    // Validate input with Zod
+    const validationResult = submitPlaceSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Generate geohash if coordinates provided
     let geohash = null;
     if (input.lat && input.lng) {
-      if (input.lat < -90 || input.lat > 90 || input.lng < -180 || input.lng > 180) {
-        return { error: "Invalid coordinates" };
-      }
       geohash = encodeGeohash(input.lat, input.lng, 7);
     }
 
@@ -217,6 +216,17 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
       return { error: "Not authorized" };
     }
 
+    // Validate input with Zod
+    const validationResult = placeModerationSchema.safeParse({
+      submissionId,
+      notes,
+    });
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
     // Fetch submission for audit log
     const { data: submission } = await supabase
       .from("place_submissions")
@@ -290,6 +300,17 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
 
     if (!profile?.is_admin) {
       return { error: "Not authorized" };
+    }
+
+    // Validate input with Zod
+    const validationResult = placeModerationSchema.safeParse({
+      submissionId,
+      notes,
+    });
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Fetch submission for audit log

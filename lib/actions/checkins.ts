@@ -3,6 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getRateLimitStatus } from "@/lib/utils/rate-limit";
+import {
+  createCheckinSchema,
+  checkinIdSchema,
+  placeIdSchema,
+  checkinUserIdSchema,
+} from "@/lib/validation/checkin";
 import type { CheckinWithRelations, UserCheckinStats } from "@/types/database";
 
 // ============================================
@@ -49,6 +55,15 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
       return { error: "You must be logged in to check in" };
     }
 
+    // Validate input with Zod (before the rate limit — its key embeds placeId)
+    const validationResult = createCheckinSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+    input = validationResult.data;
+
     // Rate limit: 1 check-in per place per 4 hours
     const rateLimitKey = `checkin:${user.id}:${input.placeId}`;
     const { allowed, resetIn } = await checkRateLimit(rateLimitKey, 1, FOUR_HOURS_MS);
@@ -82,11 +97,6 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
       if (bookError || !book) {
         return { error: "Book not found" };
       }
-    }
-
-    // Validate note length
-    if (input.note && input.note.length > 500) {
-      return { error: "Note must be 500 characters or less" };
     }
 
     // Create the check-in
@@ -135,6 +145,11 @@ export async function getPlaceCheckins(
   limit = 20
 ): Promise<{ checkins: CheckinWithRelations[] }> {
   try {
+    // Read-only: validate id param only
+    if (!placeIdSchema.safeParse(placeId).success) {
+      return { checkins: [] };
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -212,6 +227,11 @@ export async function getPlaceCheckins(
  */
 export async function getUserCheckinStats(userId: string): Promise<{ stats: UserCheckinStats | null }> {
   try {
+    // Read-only: validate id param only
+    if (!checkinUserIdSchema.safeParse(userId).success) {
+      return { stats: null };
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -303,6 +323,14 @@ export async function deleteCheckin(checkinId: string): Promise<{ success?: bool
 
     if (authError || !user) {
       return { error: "You must be logged in" };
+    }
+
+    // Validate input with Zod
+    const validationResult = checkinIdSchema.safeParse(checkinId);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Check ownership

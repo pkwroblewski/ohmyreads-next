@@ -2,6 +2,13 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import {
+  createClubSchema,
+  setCurrentBookSchema,
+  updateClubSchema,
+  clubIdSchema,
+} from "@/lib/validation/club";
 import type { ClubVisibility } from "@/types/database";
 
 interface CreateClubInput {
@@ -19,25 +26,31 @@ export async function createClub(
     data: { user },
   } = await supabase.auth.getUser();
 
-  console.log("[createClub] User:", user?.id ?? "NOT AUTHENTICATED");
-
   if (!user) {
     return { success: false, error: "Not authenticated" };
   }
 
-  // Validate name
-  if (!input.name || input.name.trim().length < 3) {
-    return { success: false, error: "Club name must be at least 3 characters" };
+  // Rate limit: 10 club creations per minute per user
+  const { allowed } = await checkRateLimit(`club:create:${user.id}`, 10, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
   }
 
-  if (input.name.length > 100) {
-    return { success: false, error: "Club name must be less than 100 characters" };
+  // Validate input with Zod
+  const validationResult = createClubSchema.safeParse(input);
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
   }
+
+  const data = validationResult.data;
 
   // Generate slug
   const { data: slugData, error: slugError } = await supabase.rpc(
     "generate_club_slug",
-    { club_name: input.name.trim() }
+    { club_name: data.name }
   );
 
   if (slugError) {
@@ -47,16 +60,14 @@ export async function createClub(
 
   const slug = slugData as string;
 
-  console.log("[createClub] Generated slug:", slug);
-
   // Create club
   const { data: club, error: clubError } = await supabase
     .from("book_clubs")
     .insert({
-      name: input.name.trim(),
+      name: data.name,
       slug,
-      description: input.description?.trim() || null,
-      visibility: input.visibility || "public",
+      description: data.description || null,
+      visibility: data.visibility || "public",
       created_by: user.id,
     })
     .select("id, slug")
@@ -95,6 +106,21 @@ export async function joinClub(
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
+  }
+
+  // Rate limit: 20 join/leave actions per minute per user
+  const { allowed } = await checkRateLimit(`club:member:${user.id}`, 20, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = clubIdSchema.safeParse(clubId);
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
   }
 
   // Check if already a member
@@ -136,6 +162,21 @@ export async function leaveClub(
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
+  }
+
+  // Rate limit: 20 join/leave actions per minute per user
+  const { allowed } = await checkRateLimit(`club:member:${user.id}`, 20, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = clubIdSchema.safeParse(clubId);
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
   }
 
   // Check if user is the only admin
@@ -198,6 +239,25 @@ export async function setCurrentBook(
     return { success: false, error: "Not authenticated" };
   }
 
+  // Rate limit: 20 club updates per minute per user
+  const { allowed } = await checkRateLimit(`club:update:${user.id}`, 20, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = setCurrentBookSchema.safeParse({
+    clubId,
+    bookId,
+    clubSlug,
+  });
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
+  }
+
   // Check if user is admin
   const { data: membership } = await supabase
     .from("book_club_members")
@@ -257,6 +317,23 @@ export async function updateClub(
     return { success: false, error: "Not authenticated" };
   }
 
+  // Rate limit: 20 club updates per minute per user
+  const { allowed } = await checkRateLimit(`club:update:${user.id}`, 20, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = updateClubSchema.safeParse({ clubId, ...updates });
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
+  }
+
+  const data = validationResult.data;
+
   // Check if user is admin
   const { data: membership } = await supabase
     .from("book_club_members")
@@ -270,9 +347,9 @@ export async function updateClub(
   }
 
   const updateData: Record<string, unknown> = {};
-  if (updates.name) updateData.name = updates.name.trim();
-  if (updates.description !== undefined) updateData.description = updates.description?.trim() || null;
-  if (updates.visibility) updateData.visibility = updates.visibility;
+  if (data.name) updateData.name = data.name;
+  if (data.description !== undefined) updateData.description = data.description || null;
+  if (data.visibility) updateData.visibility = data.visibility;
 
   const { error } = await supabase
     .from("book_clubs")
@@ -299,6 +376,21 @@ export async function deleteClub(
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
+  }
+
+  // Rate limit: 20 club deletes per minute per user
+  const { allowed } = await checkRateLimit(`club:delete:${user.id}`, 20, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = clubIdSchema.safeParse(clubId);
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
   }
 
   // Check if user is admin

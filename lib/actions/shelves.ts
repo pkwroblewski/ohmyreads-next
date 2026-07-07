@@ -2,6 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import {
+  createShelfSchema,
+  updateShelfSchema,
+  addBookToShelfSchema,
+  removeBookFromShelfSchema,
+  updateBookShelvesSchema,
+  addBookToShelfByBookIdSchema,
+  updateBookShelvesByBookIdSchema,
+  shelfIdSchema,
+  userBookIdSchema,
+} from "@/lib/validation/shelf";
 import type { UserShelf, UserShelfWithCount } from "@/types/database";
 
 // ============================================
@@ -77,11 +89,21 @@ export async function createShelf(input: {
       return { error: "Not authenticated" };
     }
 
-    // Validate name
-    const name = input.name.trim();
-    if (!name || name.length > 100) {
-      return { error: "Shelf name must be 1-100 characters" };
+    // Rate limit: 10 shelf creations per minute per user
+    const { allowed } = await checkRateLimit(`shelf:create:${user.id}`, 10, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
     }
+
+    // Validate input with Zod
+    const validationResult = createShelfSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
+    const { name, ...data } = validationResult.data;
 
     // Check if shelf with this name already exists
     const { data: existing } = await supabase
@@ -112,10 +134,10 @@ export async function createShelf(input: {
       .insert({
         user_id: user.id,
         name,
-        description: input.description?.trim() || null,
-        is_public: input.isPublic ?? true,
-        color: input.color || null,
-        icon: input.icon || null,
+        description: data.description || null,
+        is_public: data.isPublic ?? true,
+        color: data.color || null,
+        icon: data.icon || null,
         sort_order: sortOrder,
       })
       .select()
@@ -157,11 +179,27 @@ export async function updateShelf(input: {
       return { error: "Not authenticated" };
     }
 
+    // Rate limit: 20 shelf updates per minute per user
+    const { allowed } = await checkRateLimit(`shelf:update:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = updateShelfSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
+    const data = validationResult.data;
+
     // Verify ownership
     const { data: shelf } = await supabase
       .from("user_shelves")
       .select("user_id")
-      .eq("id", input.shelfId)
+      .eq("id", data.shelfId)
       .single();
 
     if (!shelf || shelf.user_id !== user.id) {
@@ -171,28 +209,24 @@ export async function updateShelf(input: {
     // Build update object
     const updateData: Record<string, unknown> = {};
 
-    if (input.name !== undefined) {
-      const name = input.name.trim();
-      if (!name || name.length > 100) {
-        return { error: "Shelf name must be 1-100 characters" };
-      }
-      updateData.name = name;
+    if (data.name !== undefined) {
+      updateData.name = data.name;
     }
 
-    if (input.description !== undefined) {
-      updateData.description = input.description.trim() || null;
+    if (data.description !== undefined) {
+      updateData.description = data.description || null;
     }
 
-    if (input.isPublic !== undefined) {
-      updateData.is_public = input.isPublic;
+    if (data.isPublic !== undefined) {
+      updateData.is_public = data.isPublic;
     }
 
-    if (input.color !== undefined) {
-      updateData.color = input.color || null;
+    if (data.color !== undefined) {
+      updateData.color = data.color || null;
     }
 
-    if (input.icon !== undefined) {
-      updateData.icon = input.icon || null;
+    if (data.icon !== undefined) {
+      updateData.icon = data.icon || null;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -202,7 +236,7 @@ export async function updateShelf(input: {
     const { error } = await supabase
       .from("user_shelves")
       .update(updateData)
-      .eq("id", input.shelfId);
+      .eq("id", data.shelfId);
 
     if (error) {
       console.error("Error updating shelf:", error);
@@ -233,6 +267,20 @@ export async function deleteShelf(
 
     if (!user) {
       return { error: "Not authenticated" };
+    }
+
+    // Rate limit: 20 shelf deletes per minute per user
+    const { allowed } = await checkRateLimit(`shelf:delete:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = shelfIdSchema.safeParse(shelfId);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Verify ownership
@@ -289,11 +337,27 @@ export async function addBookToShelf(input: {
       return { error: "Not authenticated" };
     }
 
+    // Rate limit: 30 shelf-book toggles per minute per user
+    const { allowed } = await checkRateLimit(`shelf:book:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = addBookToShelfSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
+    const data = validationResult.data;
+
     // Verify shelf ownership
     const { data: shelf } = await supabase
       .from("user_shelves")
       .select("user_id")
-      .eq("id", input.shelfId)
+      .eq("id", data.shelfId)
       .single();
 
     if (!shelf || shelf.user_id !== user.id) {
@@ -304,7 +368,7 @@ export async function addBookToShelf(input: {
     const { data: userBook } = await supabase
       .from("user_books")
       .select("user_id")
-      .eq("id", input.userBookId)
+      .eq("id", data.userBookId)
       .single();
 
     if (!userBook || userBook.user_id !== user.id) {
@@ -313,9 +377,9 @@ export async function addBookToShelf(input: {
 
     // Add to shelf
     const { error } = await supabase.from("shelf_books").insert({
-      shelf_id: input.shelfId,
-      user_book_id: input.userBookId,
-      notes: input.notes?.trim() || null,
+      shelf_id: data.shelfId,
+      user_book_id: data.userBookId,
+      notes: data.notes || null,
     });
 
     if (error) {
@@ -354,11 +418,27 @@ export async function removeBookFromShelf(input: {
       return { error: "Not authenticated" };
     }
 
+    // Rate limit: 30 shelf-book toggles per minute per user
+    const { allowed } = await checkRateLimit(`shelf:book:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = removeBookFromShelfSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
+    const data = validationResult.data;
+
     // Verify shelf ownership
     const { data: shelf } = await supabase
       .from("user_shelves")
       .select("user_id")
-      .eq("id", input.shelfId)
+      .eq("id", data.shelfId)
       .single();
 
     if (!shelf || shelf.user_id !== user.id) {
@@ -369,8 +449,8 @@ export async function removeBookFromShelf(input: {
     const { error } = await supabase
       .from("shelf_books")
       .delete()
-      .eq("shelf_id", input.shelfId)
-      .eq("user_book_id", input.userBookId);
+      .eq("shelf_id", data.shelfId)
+      .eq("user_book_id", data.userBookId);
 
     if (error) {
       console.error("Error removing book from shelf:", error);
@@ -401,6 +481,11 @@ export async function getBookShelves(
 
     if (!user) {
       return { shelfIds: [], error: "Not authenticated" };
+    }
+
+    // Validate id param
+    if (!userBookIdSchema.safeParse(userBookId).success) {
+      return { shelfIds: [], error: "Invalid book ID" };
     }
 
     const { data: shelfBooks, error } = await supabase
@@ -440,11 +525,27 @@ export async function updateBookShelves(input: {
       return { error: "Not authenticated" };
     }
 
+    // Rate limit: 30 shelf-book toggles per minute per user
+    const { allowed } = await checkRateLimit(`shelf:book:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = updateBookShelvesSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
+    const data = validationResult.data;
+
     // Verify user_book ownership
     const { data: userBook } = await supabase
       .from("user_books")
       .select("user_id")
-      .eq("id", input.userBookId)
+      .eq("id", data.userBookId)
       .single();
 
     if (!userBook || userBook.user_id !== user.id) {
@@ -460,7 +561,7 @@ export async function updateBookShelves(input: {
     const userShelfIds = new Set((userShelves || []).map((s) => s.id));
 
     // Verify all target shelves belong to user
-    for (const shelfId of input.shelfIds) {
+    for (const shelfId of data.shelfIds) {
       if (!userShelfIds.has(shelfId)) {
         return { error: "One or more shelves not found" };
       }
@@ -470,15 +571,15 @@ export async function updateBookShelves(input: {
     const { data: currentShelfBooks } = await supabase
       .from("shelf_books")
       .select("shelf_id")
-      .eq("user_book_id", input.userBookId);
+      .eq("user_book_id", data.userBookId);
 
     const currentShelfIds = new Set(
       (currentShelfBooks || []).map((sb) => sb.shelf_id)
     );
-    const targetShelfIds = new Set(input.shelfIds);
+    const targetShelfIds = new Set(data.shelfIds);
 
     // Determine adds and removes
-    const toAdd = input.shelfIds.filter((id) => !currentShelfIds.has(id));
+    const toAdd = data.shelfIds.filter((id) => !currentShelfIds.has(id));
     const toRemove = Array.from(currentShelfIds).filter(
       (id) => !targetShelfIds.has(id)
     );
@@ -488,7 +589,7 @@ export async function updateBookShelves(input: {
       const { error: removeError } = await supabase
         .from("shelf_books")
         .delete()
-        .eq("user_book_id", input.userBookId)
+        .eq("user_book_id", data.userBookId)
         .in("shelf_id", toRemove);
 
       if (removeError) {
@@ -502,7 +603,7 @@ export async function updateBookShelves(input: {
       const { error: addError } = await supabase.from("shelf_books").insert(
         toAdd.map((shelfId) => ({
           shelf_id: shelfId,
-          user_book_id: input.userBookId,
+          user_book_id: data.userBookId,
         }))
       );
 
@@ -540,11 +641,27 @@ export async function addBookToShelfByBookId(input: {
       return { error: "Not authenticated" };
     }
 
+    // Rate limit: 30 shelf-book toggles per minute per user
+    const { allowed } = await checkRateLimit(`shelf:book:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = addBookToShelfByBookIdSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
+    const data = validationResult.data;
+
     // Verify shelf ownership
     const { data: shelf } = await supabase
       .from("user_shelves")
       .select("user_id")
-      .eq("id", input.shelfId)
+      .eq("id", data.shelfId)
       .single();
 
     if (!shelf || shelf.user_id !== user.id) {
@@ -557,7 +674,7 @@ export async function addBookToShelfByBookId(input: {
       .from("user_books")
       .select("id")
       .eq("user_id", user.id)
-      .eq("book_id", input.bookId)
+      .eq("book_id", data.bookId)
       .single();
 
     if (existingUserBook) {
@@ -568,7 +685,7 @@ export async function addBookToShelfByBookId(input: {
         .from("user_books")
         .insert({
           user_id: user.id,
-          book_id: input.bookId,
+          book_id: data.bookId,
           status: "want_to_read",
         })
         .select("id")
@@ -584,7 +701,7 @@ export async function addBookToShelfByBookId(input: {
 
     // Add to shelf (handle duplicate gracefully)
     const { error: shelfError } = await supabase.from("shelf_books").insert({
-      shelf_id: input.shelfId,
+      shelf_id: data.shelfId,
       user_book_id: userBookId,
     });
 
@@ -621,6 +738,11 @@ export async function getBookShelvesByBookId(
 
     if (!user) {
       return { shelfIds: [], error: "Not authenticated" };
+    }
+
+    // Validate id param
+    if (!userBookIdSchema.safeParse(bookId).success) {
+      return { shelfIds: [], error: "Invalid book ID" };
     }
 
     // Get user_book for this book
@@ -676,24 +798,40 @@ export async function updateBookShelvesByBookId(input: {
       return { error: "Not authenticated" };
     }
 
+    // Rate limit: 30 shelf-book toggles per minute per user
+    const { allowed } = await checkRateLimit(`shelf:book:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = updateBookShelvesByBookIdSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
+    const data = validationResult.data;
+
     // Get or create user_book entry
     let userBookId: string;
     const { data: existingUserBook } = await supabase
       .from("user_books")
       .select("id")
       .eq("user_id", user.id)
-      .eq("book_id", input.bookId)
+      .eq("book_id", data.bookId)
       .single();
 
     if (existingUserBook) {
       userBookId = existingUserBook.id;
-    } else if (input.shelfIds.length > 0) {
+    } else if (data.shelfIds.length > 0) {
       // Only create if we're adding to at least one shelf
       const { data: newUserBook, error: createError } = await supabase
         .from("user_books")
         .insert({
           user_id: user.id,
-          book_id: input.bookId,
+          book_id: data.bookId,
           status: "want_to_read",
         })
         .select("id")
@@ -719,7 +857,7 @@ export async function updateBookShelvesByBookId(input: {
     const userShelfIds = new Set((userShelves || []).map((s) => s.id));
 
     // Verify all target shelves belong to user
-    for (const shelfId of input.shelfIds) {
+    for (const shelfId of data.shelfIds) {
       if (!userShelfIds.has(shelfId)) {
         return { error: "One or more shelves not found" };
       }
@@ -734,10 +872,10 @@ export async function updateBookShelvesByBookId(input: {
     const currentShelfIds = new Set(
       (currentShelfBooks || []).map((sb) => sb.shelf_id)
     );
-    const targetShelfIds = new Set(input.shelfIds);
+    const targetShelfIds = new Set(data.shelfIds);
 
     // Determine adds and removes
-    const toAdd = input.shelfIds.filter((id) => !currentShelfIds.has(id));
+    const toAdd = data.shelfIds.filter((id) => !currentShelfIds.has(id));
     const toRemove = Array.from(currentShelfIds).filter(
       (id) => !targetShelfIds.has(id)
     );
@@ -799,6 +937,11 @@ export async function getShelfBooks(shelfId: string): Promise<{
 }> {
   try {
     const supabase = await createClient();
+
+    // Validate id param
+    if (!shelfIdSchema.safeParse(shelfId).success) {
+      return { books: [], error: "Invalid shelf ID" };
+    }
 
     // First get shelf_books
     const { data: shelfBooks, error } = await supabase

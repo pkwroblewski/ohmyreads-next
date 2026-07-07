@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { discoveryVisibilitySchema } from "@/lib/validation/privacy";
 
 export async function updateDiscoveryVisibility(visible: boolean): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
@@ -12,6 +14,21 @@ export async function updateDiscoveryVisibility(visible: boolean): Promise<{ suc
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
+  }
+
+  // Rate limit: 10 privacy updates per minute per user
+  const { allowed } = await checkRateLimit(`privacy:${user.id}`, 10, 60000);
+  if (!allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
+
+  // Validate input with Zod
+  const validationResult = discoveryVisibilitySchema.safeParse(visible);
+  if (!validationResult.success) {
+    return {
+      success: false,
+      error: validationResult.error.issues[0]?.message || "Invalid input",
+    };
   }
 
   const { error } = await supabase

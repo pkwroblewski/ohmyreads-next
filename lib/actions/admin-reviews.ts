@@ -3,6 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import {
+  adminReviewIdSchema,
+  adminDeleteReviewSchema,
+} from "@/lib/validation/admin";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -164,6 +169,11 @@ export async function adminGetReview(reviewId: string) {
   try {
     const { supabase } = await requireAdmin();
 
+    // Read-only: validate id param only
+    if (!adminReviewIdSchema.safeParse(reviewId).success) {
+      return { success: false, error: "Invalid review ID" };
+    }
+
     const { data, error } = await supabase
       .from("reviews")
       .select(`
@@ -201,6 +211,24 @@ export async function adminGetReview(reviewId: string) {
 export async function adminDeleteReview(reviewId: string, reason?: string) {
   try {
     const { supabase, user } = await requireAdmin();
+
+    // Rate limit: 30 admin mutations per minute per admin
+    const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = adminDeleteReviewSchema.safeParse({
+      reviewId,
+      reason,
+    });
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
 
     // Get review info for audit log
     const { data: review } = await supabase

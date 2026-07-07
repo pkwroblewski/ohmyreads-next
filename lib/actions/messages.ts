@@ -3,6 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import {
+  sendMessageSchema,
+  friendIdSchema,
+  messageIdSchema,
+} from "@/lib/validation/message";
 
 // ============================================
 // SEND MESSAGE
@@ -34,18 +39,23 @@ export async function sendMessage(
       return { success: false, messageId: null, error: "Too many messages. Please wait a moment." };
     }
 
+    // Validate input with Zod
+    const validationResult = sendMessageSchema.safeParse({
+      receiverId,
+      content,
+    });
+    if (!validationResult.success) {
+      return {
+        success: false,
+        messageId: null,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
+    const { content: trimmedContent } = validationResult.data;
+
     if (user.id === receiverId) {
       return { success: false, messageId: null, error: "You cannot message yourself" };
-    }
-
-    // Trim and validate content
-    const trimmedContent = content.trim();
-    if (!trimmedContent) {
-      return { success: false, messageId: null, error: "Message cannot be empty" };
-    }
-
-    if (trimmedContent.length > 2000) {
-      return { success: false, messageId: null, error: "Message is too long (max 2000 characters)" };
     }
 
     // Verify friendship (RLS will also check but we provide better error message)
@@ -103,6 +113,15 @@ export async function markMessagesAsRead(friendId: string): Promise<{
       return { success: false, error: "Not authenticated" };
     }
 
+    // Validate input with Zod
+    const validationResult = friendIdSchema.safeParse(friendId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
     // Mark all unread messages from this friend as read
     const { error } = await supabase
       .from("direct_messages")
@@ -156,6 +175,15 @@ export async function deleteMessage(messageId: string): Promise<{
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
+    }
+
+    // Validate input with Zod
+    const validationResult = messageIdSchema.safeParse(messageId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Delete message (RLS ensures only sender can delete)

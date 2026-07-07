@@ -4,6 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import {
+  adminUserIdSchema,
+  adminUserActionSchema,
+} from "@/lib/validation/admin";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -153,6 +158,11 @@ export async function adminGetUser(userId: string) {
   try {
     const { supabase } = await requireAdmin();
 
+    // Read-only: validate id param only
+    if (!adminUserIdSchema.safeParse(userId).success) {
+      return { success: false, error: "Invalid user ID" };
+    }
+
     // Get profile with stats
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -207,6 +217,21 @@ export async function adminGetUser(userId: string) {
 export async function adminToggleAdmin(userId: string, reason?: string) {
   try {
     const { supabase, user } = await requireAdmin();
+
+    // Rate limit: 30 admin mutations per minute per admin
+    const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = adminUserActionSchema.safeParse({ userId, reason });
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
 
     // Cannot change own admin status
     if (userId === user.id) {
@@ -297,6 +322,21 @@ export async function adminDisableUser(userId: string, reason?: string) {
   try {
     const { supabase, user } = await requireAdmin();
 
+    // Rate limit: 30 admin mutations per minute per admin
+    const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = adminUserActionSchema.safeParse({ userId, reason });
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
     // Cannot disable self
     if (userId === user.id) {
       return { success: false, error: "Cannot disable your own account" };
@@ -351,6 +391,21 @@ export async function adminDisableUser(userId: string, reason?: string) {
 export async function adminEnableUser(userId: string) {
   try {
     const { supabase, user } = await requireAdmin();
+
+    // Rate limit: 30 admin mutations per minute per admin
+    const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = adminUserIdSchema.safeParse(userId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
 
     // Get user info
     const { data: profile } = await supabase

@@ -2,6 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import {
+  createChallengeSchema,
+  updateChallengeSchema,
+  challengeIdSchema,
+} from "@/lib/validation/challenge";
 import type {
   ChallengeType,
   ReadingChallenge,
@@ -30,20 +36,26 @@ export async function createChallenge(input: CreateChallengeInput) {
       return { error: "Not authenticated" };
     }
 
-    // Validation
-    if (!input.name.trim()) {
-      return { error: "Challenge name is required" };
+    // Rate limit: 10 challenge creations per minute per user
+    const { allowed } = await checkRateLimit(`challenge:${user.id}`, 10, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
     }
 
-    if (input.target_value < 1 || input.target_value > 10000) {
-      return { error: "Target must be between 1 and 10,000" };
+    // Validate input with Zod
+    const validationResult = createChallengeSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
+    const validated = validationResult.data;
 
-    if (new Date(input.end_date) <= new Date(input.start_date)) {
+    if (new Date(validated.end_date) <= new Date(validated.start_date)) {
       return { error: "End date must be after start date" };
     }
 
-    if (input.challenge_type === "genre_books" && !input.genre) {
+    if (validated.challenge_type === "genre_books" && !validated.genre) {
       return { error: "Genre is required for genre-based challenges" };
     }
 
@@ -51,13 +63,13 @@ export async function createChallenge(input: CreateChallengeInput) {
       .from("reading_challenges")
       .insert({
         user_id: user.id,
-        name: input.name.trim(),
-        description: input.description?.trim() || null,
-        challenge_type: input.challenge_type,
-        target_value: input.target_value,
-        genre: input.genre || null,
-        start_date: input.start_date,
-        end_date: input.end_date,
+        name: validated.name,
+        description: validated.description || null,
+        challenge_type: validated.challenge_type,
+        target_value: validated.target_value,
+        genre: validated.genre || null,
+        start_date: validated.start_date,
+        end_date: validated.end_date,
         current_value: 0,
         status: "active",
       })
@@ -94,10 +106,27 @@ export async function updateChallenge(
       return { error: "Not authenticated" };
     }
 
+    // Rate limit: 10 challenge mutations per minute per user
+    const { allowed } = await checkRateLimit(`challenge:${user.id}`, 10, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod (also strips unknown keys from the spread)
+    const validationResult = updateChallengeSchema.safeParse({
+      challengeId,
+      updates,
+    });
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
+
     const { error } = await supabase
       .from("reading_challenges")
       .update({
-        ...updates,
+        ...validationResult.data.updates,
         updated_at: new Date().toISOString(),
       })
       .eq("id", challengeId)
@@ -128,6 +157,20 @@ export async function deleteChallenge(challengeId: string) {
     } = await supabase.auth.getUser();
     if (authError || !user) {
       return { error: "Not authenticated" };
+    }
+
+    // Rate limit: 10 challenge mutations per minute per user
+    const { allowed } = await checkRateLimit(`challenge:${user.id}`, 10, 60000);
+    if (!allowed) {
+      return { error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = challengeIdSchema.safeParse(challengeId);
+    if (!validationResult.success) {
+      return {
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     const { error } = await supabase

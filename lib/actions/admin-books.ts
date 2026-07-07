@@ -4,6 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { generateSlug } from "@/lib/utils/slug";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
+import {
+  adminBookIdSchema,
+  adminCreateBookSchema,
+  adminUpdateBookSchema,
+} from "@/lib/validation/admin";
 import type { Book } from "@/types/database";
 
 // Check if current user is admin
@@ -70,9 +77,10 @@ export async function adminGetBooks(filters: BookFilters = {}) {
       .from("books")
       .select("*", { count: "exact" });
 
-    // Search filter
+    // Search filter (sanitize input to prevent PostgREST query manipulation)
     if (search) {
-      query = query.or(`title.ilike.%${search}%,author.ilike.%${search}%,isbn.ilike.%${search}%`);
+      const safeSearch = sanitizePostgrestValue(search);
+      query = query.or(`title.ilike.%${safeSearch}%,author.ilike.%${safeSearch}%,isbn.ilike.%${safeSearch}%`);
     }
 
     // Genre filter
@@ -110,6 +118,11 @@ export async function adminGetBook(bookId: string) {
   try {
     const { supabase } = await requireAdmin();
 
+    // Read-only: validate id param only
+    if (!adminBookIdSchema.safeParse(bookId).success) {
+      return { success: false, error: "Invalid book ID" };
+    }
+
     const { data, error } = await supabase
       .from("books")
       .select("*")
@@ -130,9 +143,19 @@ export async function adminCreateBook(input: AdminBookInput) {
   try {
     const { supabase, user } = await requireAdmin();
 
-    // Validate required fields
-    if (!input.title?.trim() || !input.author?.trim()) {
-      return { success: false, error: "Title and author are required" };
+    // Rate limit: 30 admin mutations per minute per admin
+    const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = adminCreateBookSchema.safeParse(input);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     // Generate slug
@@ -198,6 +221,21 @@ export async function adminCreateBook(input: AdminBookInput) {
 export async function adminUpdateBook(bookId: string, input: Partial<AdminBookInput>) {
   try {
     const { supabase, user } = await requireAdmin();
+
+    // Rate limit: 30 admin mutations per minute per admin
+    const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = adminUpdateBookSchema.safeParse({ bookId, input });
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
 
     // Build update object with only provided fields
     const updates: Record<string, unknown> = {};
@@ -266,6 +304,21 @@ export async function adminUpdateBook(bookId: string, input: Partial<AdminBookIn
 export async function adminDeleteBook(bookId: string) {
   try {
     const { supabase, user } = await requireAdmin();
+
+    // Rate limit: 30 admin mutations per minute per admin
+    const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    // Validate input with Zod
+    const validationResult = adminBookIdSchema.safeParse(bookId);
+    if (!validationResult.success) {
+      return {
+        success: false,
+        error: validationResult.error.issues[0]?.message || "Invalid input",
+      };
+    }
 
     // Get book info for audit log
     const { data: book } = await supabase
