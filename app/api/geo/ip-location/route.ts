@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { isForeignOrigin } from "@/lib/utils/csrf";
 
 /**
  * GET /api/geo/ip-location
@@ -7,6 +8,11 @@ import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
  * Server-side proxy to avoid CORS issues with ipapi.co
  */
 export async function GET(request: Request) {
+  // Block cross-site requests farming this external-API proxy
+  if (isForeignOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     // Get the user's IP from headers (works on Vercel and most hosting)
     const ip = getClientIp(request);

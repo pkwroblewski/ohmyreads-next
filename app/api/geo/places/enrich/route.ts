@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { isForeignOrigin } from "@/lib/utils/csrf";
 
 /**
  * GET /api/geo/places/enrich?name=BookStore&lat=51.5&lng=-0.1
@@ -8,6 +9,11 @@ import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
  * Returns: photo, rating, review count, hours, website
  */
 export async function GET(request: NextRequest) {
+  // Block cross-site requests farming this paid-API proxy
+  if (isForeignOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   // Rate limit by IP (20 requests per minute - Google API is expensive)
   const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`places-enrich:${ip}`, 20, 60000);
@@ -15,6 +21,16 @@ export async function GET(request: NextRequest) {
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
+  // Daily backstop (200 requests per day)
+  const daily = await checkRateLimit(`places-enrich-daily:${ip}`, 200, 86400000);
+
+  if (!daily.allowed) {
+    return NextResponse.json(
+      { error: "Daily limit reached." },
       { status: 429 }
     );
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { isForeignOrigin } from "@/lib/utils/csrf";
 import { encodeGeohash } from "@/lib/utils/geohash";
 
 // In-memory cache for geocoding results (simple, server-local)
@@ -39,6 +40,11 @@ interface GeocodingResult {
  * Rate-limited and cached.
  */
 export async function GET(request: NextRequest) {
+  // Block cross-site requests farming this external-API proxy
+  if (isForeignOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   // Rate limit by IP (20 requests per minute)
   const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`geo-search:${ip}`, 20, 60000);

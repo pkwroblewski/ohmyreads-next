@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { isForeignOrigin } from "@/lib/utils/csrf";
 import {
   getDirections,
   isMcpConfigured,
@@ -13,6 +14,11 @@ import {
  * Returns duration, distance, and optionally step-by-step directions
  */
 export async function GET(request: NextRequest) {
+  // Block cross-site requests farming this paid-API proxy
+  if (isForeignOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   // Check MCP is configured
   if (!isMcpConfigured()) {
     return NextResponse.json(
@@ -21,13 +27,23 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Rate limit by IP (60 requests per minute)
+  // Rate limit by IP (15 requests per minute)
   const ip = getClientIp(request);
-  const { allowed } = await checkRateLimit(`geo-directions:${ip}`, 60, 60000);
+  const { allowed } = await checkRateLimit(`geo-directions:${ip}`, 15, 60000);
 
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
+  // Daily backstop (100 requests per day)
+  const daily = await checkRateLimit(`geo-directions-daily:${ip}`, 100, 86400000);
+
+  if (!daily.allowed) {
+    return NextResponse.json(
+      { error: "Daily limit reached." },
       { status: 429 }
     );
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { isForeignOrigin } from "@/lib/utils/csrf";
 import {
   getIsochrone,
   isMcpConfigured,
@@ -13,6 +14,11 @@ import {
  * Returns GeoJSON polygon that can be rendered on the map
  */
 export async function GET(request: NextRequest) {
+  // Block cross-site requests farming this paid-API proxy
+  if (isForeignOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   // Check MCP is configured
   if (!isMcpConfigured()) {
     return NextResponse.json(
@@ -21,13 +27,23 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Rate limit by IP (30 requests per minute)
+  // Rate limit by IP (10 requests per minute)
   const ip = getClientIp(request);
-  const { allowed } = await checkRateLimit(`geo-isochrone:${ip}`, 30, 60000);
+  const { allowed } = await checkRateLimit(`geo-isochrone:${ip}`, 10, 60000);
 
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
+  // Daily backstop (50 requests per day)
+  const daily = await checkRateLimit(`geo-isochrone-daily:${ip}`, 50, 86400000);
+
+  if (!daily.allowed) {
+    return NextResponse.json(
+      { error: "Daily limit reached." },
       { status: 429 }
     );
   }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { isForeignOrigin } from "@/lib/utils/csrf";
 import { encodeGeohash, isValidGeohash, getNeighbors } from "@/lib/utils/geohash";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createClient, createPublicClient } from "@/lib/supabase/server";
 import {
   getMatrix,
   isMcpConfigured,
@@ -30,9 +31,20 @@ interface NearbyPlace {
  * Used by the dashboard "Places Near You" widget
  */
 export async function GET(request: NextRequest) {
-  // Rate limit by IP (30 requests per minute)
-  const ip = getClientIp(request);
-  const { allowed } = await checkRateLimit(`geo-nearby:${ip}`, 30, 60000);
+  // Block cross-site requests farming this paid-API proxy
+  if (isForeignOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Auth required: sole caller is the authenticated dashboard widget
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit by user (30 requests per minute)
+  const { allowed } = await checkRateLimit(`geo-nearby:${user.id}`, 30, 60000);
 
   if (!allowed) {
     return NextResponse.json(

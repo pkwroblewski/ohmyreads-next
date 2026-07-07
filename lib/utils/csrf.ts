@@ -30,3 +30,36 @@ export function validateOrigin(request: Request): boolean {
 
   return ALLOWED_ORIGINS.some((allowed) => source === allowed);
 }
+
+/**
+ * Detect cross-site requests to public GET endpoints.
+ * Returns true only when an Origin (or, failing that, Referer) header is
+ * present AND its host differs from the request's own host and all allowed
+ * origins. Requests without either header (same-origin GETs, server-to-server,
+ * curl) are allowed — this blocks browser-based cross-site farming, not
+ * direct access.
+ */
+export function isForeignOrigin(request: Request): boolean {
+  const source =
+    request.headers.get("origin") ?? request.headers.get("referer");
+  if (!source) return false;
+
+  let sourceHost: string;
+  try {
+    sourceHost = new URL(source).host;
+  } catch {
+    // Malformed header (e.g. "Origin: null" from sandboxed iframes) — foreign
+    return true;
+  }
+
+  const allowedHosts = new Set([new URL(request.url).host]);
+  for (const origin of ALLOWED_ORIGINS) {
+    try {
+      allowedHosts.add(new URL(origin.trim()).host);
+    } catch {
+      // Skip malformed configured origins
+    }
+  }
+
+  return !allowedHosts.has(sourceHost);
+}
