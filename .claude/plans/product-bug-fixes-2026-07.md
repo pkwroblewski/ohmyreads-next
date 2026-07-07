@@ -15,13 +15,13 @@
 
 | # | Task | Priority | Effort | Status | Files |
 |---|------|----------|--------|--------|-------|
-| 1 | Fix community lists 404 + add list-management UI | 🔴 Critical | High | [ ] Pending | `app/(public)/lists/[slug]/page.tsx`, `lib/actions/lists.ts`, 2 new components |
+| 1 | Fix community lists 404 + add list-management UI | 🔴 Critical | High | [x] Complete | `app/(public)/lists/[slug]/page.tsx`, `lib/actions/lists.ts`, 2 new components |
 | 2 | Fix `/@username` 404 links on dashboard | 🔴 Critical | Low | [ ] Pending | `components/dashboard/friends-activity.tsx` |
 | 3 | Fix dead links: `/admin/reports`, `/lists/curated` | 🟠 High | Low | [ ] Pending | `app/(app)/admin/page.tsx`, `app/(public)/lists/page.tsx` |
 | 4 | Auth-redirect consistency (returnTo everywhere) | 🟠 High | Low | [ ] Pending | `components/clubs/join-button.tsx`, `app/(app)/layout.tsx`, `proxy.ts` |
 | 5 | Final QA | 🔴 Critical | Low | [ ] Pending | - |
 
-**Progress: 0/5 complete**
+**Progress: 1/5 complete**
 
 ## Summary
 
@@ -37,35 +37,35 @@ Three parallel product audits (2026-07-07) found outright-broken user flows ship
 **Context:** `app/(public)/lists/[slug]/page.tsx` resolves only curated static lists via `getCuratedListWithBooks(slug)` and calls `notFound()` otherwise. But `components/lists/list-card.tsx:14` links `/lists/${list.id}` (UUID) and `app/(app)/lists/create/page.tsx:48` pushes `/lists/${result.listId}` (UUID). So a user creates a list, gets redirected to it, and sees a 404. `lib/queries/lists.ts:165` already has `getListById()` — visibility enforcement, owner join, ordered books — with ZERO callers. Also: after creating a list, there is NO UI anywhere to add books to it (`addBookToList` at `lib/actions/lists.ts:142` has no UI caller). UUID routing is correct permanently: the `reading_lists.slug` column is only `UNIQUE(user_id, slug)` (migration `026_reading_lists.sql`), so a bare slug cannot uniquely resolve a community list. Curated slugs are kebab-case words (`lib/data/curated-lists.ts`) — a UUID regex can never collide.
 
 **Steps:**
-1. [ ] Read fully: `app/(public)/lists/[slug]/page.tsx`, `lib/queries/lists.ts` (esp. `getListById` at :165 and its return type), `lib/actions/lists.ts`, `components/lists/list-card.tsx`, `components/search/unified-search.tsx:53-99` (the debounce+autocomplete pattern to copy).
-2. [ ] In `app/(public)/lists/[slug]/page.tsx` add at module level:
+1. [x] Read fully: `app/(public)/lists/[slug]/page.tsx`, `lib/queries/lists.ts` (esp. `getListById` at :165 and its return type), `lib/actions/lists.ts`, `components/lists/list-card.tsx`, `components/search/unified-search.tsx:53-99` (the debounce+autocomplete pattern to copy).
+2. [x] In `app/(public)/lists/[slug]/page.tsx` add at module level:
    ```ts
    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
    ```
    In BOTH `generateMetadata` and the page component: if `UUID_RE.test(slug)` → fetch via `getListById(slug)`; `null` result → `notFound()` (handles private lists viewed by strangers — `getListById` already enforces visibility); render `<CommunityListView ... />`. Else: existing curated path, byte-for-byte untouched. Do NOT emit the curated JSON-LD for community lists; emit ItemList JSON-LD only when `visibility === "public"` (or skip entirely for v1 — note choice). Leave `generateStaticParams` unchanged (curated slugs only; `dynamicParams` defaults to true so UUIDs pass through).
-3. [ ] Create `components/lists/community-list-view.tsx` (server-compatible): header with title, description, owner (reuse the owner avatar/name row markup from `list-card.tsx`, linking `/users/{username}`), book count, then a simple responsive grid of cover+title cards each linking `/books/{book.slug}`. Use the exact shape `getListById` returns — do NOT widen the query to satisfy the full `BookCard` prop type.
-4. [ ] Create `components/lists/list-book-manager.tsx` (`"use client"`), rendered by `CommunityListView` when the viewer is the owner (pass `isOwner` computed in the page from the authed user):
+3. [x] Create `components/lists/community-list-view.tsx` (server-compatible): header with title, description, owner (reuse the owner avatar/name row markup from `list-card.tsx`, linking `/users/{username}`), book count, then a simple responsive grid of cover+title cards each linking `/books/{book.slug}`. Use the exact shape `getListById` returns — do NOT widen the query to satisfy the full `BookCard` prop type.
+4. [x] Create `components/lists/list-book-manager.tsx` (`"use client"`), rendered by `CommunityListView` when the viewer is the owner (pass `isOwner` computed in the page from the authed user):
    - Add-book search input: debounced fetch to `/api/books/autocomplete?q=` (copy the debounce/dropdown/keyboard pattern and `BookSuggestion` type from `unified-search.tsx:53-99`); selecting a book calls `addBookToList(listId, bookId)` (`lib/actions/lists.ts:142`) then `router.refresh()` + success toast (Sonner, as used elsewhere).
    - A remove (X) button on each book row → `removeBookFromList` → `router.refresh()`.
    - For non-owners: render the like button wired to `likeList` (check `lib/actions/lists.ts` for the exact export name and current like-state source from `getListById`).
-5. [ ] In `lib/actions/lists.ts`: `addBookToList` and `removeBookFromList` currently only `revalidatePath("/lists")` — add `` revalidatePath(`/lists/${listId}`) `` to both.
-6. [ ] Run `npm run lint` and `npm run build`.
+5. [x] In `lib/actions/lists.ts`: `addBookToList` and `removeBookFromList` currently only `revalidatePath("/lists")` — add `` revalidatePath(`/lists/${listId}`) `` to both.
+6. [x] Run `npm run lint` and `npm run build`.
 
 **Verify:**
-- [ ] `grep -n "getListById" app/(public)/lists/[slug]/page.tsx` matches (dead code now wired)
-- [ ] Dev test: log in → `/lists/create` → create a list → redirected detail page renders (NOT 404)
-- [ ] Dev test: add a book via the search UI → appears; remove it → disappears
-- [ ] Dev test: open a curated list (e.g. from `/lists`) → renders exactly as before
-- [ ] Dev test: set list private, open its URL logged out / as another user → 404
-- [ ] `npm run build` exits 0
+- [x] `grep -n "getListById" app/(public)/lists/[slug]/page.tsx` matches (dead code now wired) → 3 matches
+- [x] Dev test: log in → `/lists/create` → create a list → redirected detail page renders (NOT 404)
+- [x] Dev test: add a book via the search UI → appears; remove it → disappears
+- [x] Dev test: open a curated list (e.g. from `/lists`) → renders exactly as before
+- [x] Dev test: set list private, open its URL logged out / as another user → 404
+- [x] `npm run build` exits 0
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `app/(public)/lists/[slug]/page.tsx` (UUID branch in generateMetadata + page), `components/lists/community-list-view.tsx` (new, server), `components/lists/list-book-manager.tsx` (new, client — exports `ListBookManager` + `ListLikeButton`), `lib/actions/lists.ts` (detail-page revalidation in add/remove).
+- Approach taken: UUID-regex branch → `getListById` (finally wired) → `CommunityListView` with `isOwner` from the authed user. Owner sees row list (cover/title/author/X-remove) + debounced autocomplete add-search (pattern from unified-search, `BookSuggestion` type reused, already-in-list suggestions disabled); non-owner sees static cover grid + like button (auth-error → "Sign in to like lists" toast). Curated path byte-for-byte untouched.
+- Deviations from plan: JSON-LD skipped entirely for community lists (plan-sanctioned v1 choice). Owner add/remove UI is a row list rather than reusing the non-owner grid — X-per-row needs client interactivity; grid stays server-rendered for visitors.
+- Issues encountered: none in the feature. Dev smoke verified end-to-end via Playwright: create→detail renders (was 404), add "The Hobbit"→appears+count updates, remove→empty state; HTTP checks: private-as-stranger 404, public-as-stranger 200, curated 200, nonexistent UUID 404. One transient hydration warning on first dev-compile of a curated page (PublicLayout, not touched here; clean on reload and on other curated pages). Smoke-test lists deleted from live DB afterwards.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ## Task 2: Fix `/@username` 404 links on dashboard
 
@@ -200,3 +200,4 @@ Three parallel product audits (2026-07-07) found outright-broken user flows ship
 
 | Date | Task # | Status | Notes |
 |------|--------|--------|-------|
+| 2026-07-07 | 1 | COMPLETE | Community lists 404 fixed (UUID branch → getListById wired), CommunityListView + ListBookManager (add-search/remove/like) created, detail revalidation added. Full dev smoke passed incl. private-list 404 + curated regression. tsc/lint/build green. |

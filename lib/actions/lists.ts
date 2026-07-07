@@ -202,6 +202,7 @@ export async function addBookToList(
   }
 
   revalidatePath("/lists");
+  revalidatePath(`/lists/${listId}`);
   return { success: true };
 }
 
@@ -242,6 +243,7 @@ export async function removeBookFromList(
   }
 
   revalidatePath("/lists");
+  revalidatePath(`/lists/${listId}`);
   return { success: true };
 }
 

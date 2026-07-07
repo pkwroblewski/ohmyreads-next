@@ -2,10 +2,16 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BookOpen } from "lucide-react";
-import { getCuratedListWithBooks } from "@/lib/queries/lists";
+import { getCuratedListWithBooks, getListById } from "@/lib/queries/lists";
 import { getAllListSlugs } from "@/lib/data/curated-lists";
 import { BookCard } from "@/components/books/book-card";
+import { CommunityListView } from "@/components/lists/community-list-view";
+import { createClient } from "@/lib/supabase/server";
 import { safeJsonLd } from "@/lib/utils/jsonld";
+
+// User-created lists are routed by UUID; curated slugs are kebab-case words, so no collision
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -13,6 +19,18 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
+
+  if (UUID_RE.test(slug)) {
+    const list = await getListById(slug);
+    if (!list) {
+      return { title: "List Not Found" };
+    }
+    return {
+      title: list.title,
+      description: list.description || undefined,
+    };
+  }
+
   const list = await getCuratedListWithBooks(slug);
 
   if (!list) {
@@ -35,6 +53,22 @@ export async function generateStaticParams() {
 
 export default async function ListPage({ params }: Props) {
   const { slug } = await params;
+
+  if (UUID_RE.test(slug)) {
+    const list = await getListById(slug);
+
+    if (!list) {
+      notFound();
+    }
+
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    return <CommunityListView list={list} isOwner={user?.id === list.user_id} />;
+  }
+
   const list = await getCuratedListWithBooks(slug);
 
   if (!list) {
