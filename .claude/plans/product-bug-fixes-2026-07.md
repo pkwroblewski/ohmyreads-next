@@ -19,9 +19,9 @@
 | 2 | Fix `/@username` 404 links on dashboard | 🔴 Critical | Low | [x] Complete | `components/dashboard/friends-activity.tsx` |
 | 3 | Fix dead links: `/admin/reports`, `/lists/curated` | 🟠 High | Low | [x] Complete | `app/(app)/admin/page.tsx`, `app/(public)/lists/page.tsx` |
 | 4 | Auth-redirect consistency (returnTo everywhere) | 🟠 High | Low | [x] Code Complete* | `components/clubs/join-button.tsx`, `app/(app)/layout.tsx`, `proxy.ts` |
-| 5 | Final QA | 🔴 Critical | Low | [ ] Pending | - |
+| 5 | Final QA | 🔴 Critical | Low | [x] Code Complete* | - |
 
-**Progress: 4/5 complete** (*Task 4: login round-trip verification deferred, user-approved)
+**Progress: 5/5 complete — PLAN DONE** (*Tasks 4+5: login-dependent verifications deferred to Plan B B4, user-approved 2026-07-07)
 
 ## Summary
 
@@ -159,20 +159,20 @@ Three parallel product audits (2026-07-07) found outright-broken user flows ship
 **File(s):** -
 
 **Steps:**
-1. [ ] `npm run lint`, `npm run test:run`, `npm run build` — all exit 0.
-2. [ ] Full journey (dev): create list → open it → add 2 books → remove 1 → dashboard → click friend in activity → profile loads → logged-out `/clubs/create` round-trips through login back to `/clubs/create`.
+1. [x] `npm run lint`, `npm run test:run`, `npm run build` — all exit 0.
+2. [x] Full journey (dev): create list → open it → add 2 books → remove 1 → dashboard → click friend in activity → profile loads → logged-out `/clubs/create` round-trips through login back to `/clubs/create`. (Partially — see notes.)
 
 **Verify:**
-- [ ] All three npm commands exit 0
-- [ ] Journey passes (or `CODE COMPLETE - Verification blocked` with reason)
+- [x] All three npm commands exit 0 (lint 0 errors/25 pre-existing warnings, tests 80/80, build clean)
+- [x] Journey passes (or `CODE COMPLETE - Verification blocked` with reason) → blocked-in-part, reason below
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: none (QA-only task).
+- Approach taken: Commands all green. Journey legs verified individually during task execution rather than as one continuous logged-in walk: create-list→detail→add→remove proven live in Task 1 (Playwright, logged in); `/users/[username]` target route proven rendering in earlier sessions; friend-activity hrefs grep-verified; `/clubs/create` 307+redirect-param proven via headers in Task 4.
+- Deviations from plan: journey not walked end-to-end in one session.
+- Issues encountered: the continuous journey's login-dependent legs (fresh login → dashboard → click friend link; post-login redirect landing) fall under the user's standing skip-logins decision (2026-07-07) — tracked in the Out of Scope table and in memory (`deferred-verifications-2026-07`), to be closed during Plan B B4 testing which requires a login anyway.
 
-**Status:** [ ] PENDING
+**Status:** [x] CODE COMPLETE - Verification blocked (login-dependent journey legs deferred per user decision; all command checks + logged-out checks pass)
 
 ## Out of Scope (Deferred)
 
@@ -187,12 +187,12 @@ Three parallel product audits (2026-07-07) found outright-broken user flows ship
 
 ## Final QA Checklist
 
-- [ ] All files created/modified exist
-- [ ] No broken imports or references
-- [ ] Build passes (`npm run build`)
-- [ ] Lint passes (`npm run lint`)
-- [ ] Feature works as expected (manual test)
-- [ ] No console errors
+- [x] All files created/modified exist
+- [x] No broken imports or references
+- [x] Build passes (`npm run build`)
+- [x] Lint passes (`npm run lint`)
+- [x] Feature works as expected (manual test — lists flow fully; login-dependent legs deferred, see Task 5)
+- [x] No console errors (except pre-existing club RLS bug, recorded in deferred table)
 
 ## Changelog
 
@@ -202,3 +202,4 @@ Three parallel product audits (2026-07-07) found outright-broken user flows ship
 | 2026-07-07 | 2 | COMPLETE | 2 `/@username` hrefs → `/users/`; grep-clean app-wide. |
 | 2026-07-07 | 3 | COMPLETE | User Reports admin card removed; curated slice bug fixed (14 lists now all render, dead View-all button removed); dead-link audit: 0 unmatched hrefs. |
 | 2026-07-07 | 4 | CODE COMPLETE | Join button carries club slug; 4 routes added to protectedRoutes (all 307+redirect verified via headers). Login round-trips deferred (user-approved) → re-verify during Plan B B4. Found pre-existing club RLS recursion bug (42P17) → deferred table. |
+| 2026-07-07 | 5 | CODE COMPLETE | lint/tests(80)/build green. Journey legs verified piecewise during Tasks 1-4; login-dependent legs deferred per user decision. PLAN DONE. |
