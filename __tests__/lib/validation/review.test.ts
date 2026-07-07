@@ -110,10 +110,9 @@ describe("createReviewSchema", () => {
       // The important thing is that 0 and 6 are rejected
     });
 
-    it("should reject text review under 50 characters", () => {
+    it("should reject text-only review under 50 characters", () => {
       const result = createReviewSchema.safeParse({
         bookId: validUUID,
-        rating: 4,
         summary: "Too short",
       });
       expect(result.success).toBe(false);
@@ -158,10 +157,9 @@ describe("createReviewSchema", () => {
       expect(result.success).toBe(true);
     });
 
-    it("should reject 49 characters total across fields", () => {
+    it("should reject 49 characters total across fields without a rating", () => {
       const result = createReviewSchema.safeParse({
         bookId: validUUID,
-        rating: 4,
         summary: "A".repeat(25),
         liked: "B".repeat(24),
       });

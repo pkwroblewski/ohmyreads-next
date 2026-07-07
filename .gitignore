@@ -44,6 +44,9 @@ next-env.d.ts
 .env*.local
 nul
 
+# debugging artifacts (screenshots in repo root)
+/*.png
+
 # supabase
 supabase/.temp/
 

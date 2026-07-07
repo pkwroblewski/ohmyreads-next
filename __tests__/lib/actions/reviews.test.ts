@@ -63,6 +63,8 @@ describe("Review actions - auth guards", () => {
       const result = await createReview({
         bookId: "550e8400-e29b-41d4-a716-446655440000",
         rating: 4,
+        vibeTags: [],
+        isSpoiler: false,
       });
 
       expect(result).toHaveProperty("error");
@@ -133,6 +135,8 @@ describe("Review actions - auth guards", () => {
       const result = await createReview({
         bookId: "550e8400-e29b-41d4-a716-446655440000",
         rating: 4,
+        vibeTags: [],
+        isSpoiler: false,
       });
 
       // Should NOT get an auth error
