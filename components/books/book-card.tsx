@@ -23,7 +23,7 @@ interface BookCardProps {
     isbn?: string | null;
     open_library_cover_id?: number | null;
     average_rating: number | null;
-    ratings_count?: number;
+    ratings_count?: number | null;
   };
   showRating?: boolean;
   showActions?: boolean;
@@ -64,11 +64,11 @@ const BLUR_DATA_URL =
  */
 function formatCompactRating(
   rating: number | null,
-  count?: number
+  count?: number | null
 ): string | null {
   if (rating === null) return null;
   const ratingStr = rating.toFixed(1);
-  if (count !== undefined && count > 0) {
+  if (count != null && count > 0) {
     const countStr = count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
     return `${ratingStr} ★ · ${countStr}`;
   }

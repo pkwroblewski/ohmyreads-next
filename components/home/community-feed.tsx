@@ -88,11 +88,13 @@ function FeedCard({ item }: { item: CommunityFeedItem }) {
             </p>
           </div>
 
-          {/* Rating */}
-          <div className="flex items-center gap-1 bg-accent/10 px-2 py-1 rounded-full">
-            <Star className="w-3 h-3 fill-accent text-accent" />
-            <span className="text-xs font-semibold">{item.rating}</span>
-          </div>
+          {/* Rating (optional since reviews can be text-only) */}
+          {item.rating !== null && (
+            <div className="flex items-center gap-1 bg-accent/10 px-2 py-1 rounded-full">
+              <Star className="w-3 h-3 fill-accent text-accent" />
+              <span className="text-xs font-semibold">{item.rating}</span>
+            </div>
+          )}
         </div>
 
         {/* Book info */}

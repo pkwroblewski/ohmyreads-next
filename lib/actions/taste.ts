@@ -10,6 +10,7 @@ import {
   type UpdateTasteProfileInput,
   type OnboardingTasteProfileInput,
 } from "@/lib/validation/taste";
+import type { UserTasteProfile } from "@/types/database";
 
 /**
  * Update user's taste profile (preferences only)
@@ -214,7 +215,8 @@ export async function getTasteProfile() {
       return { profile: null };
     }
 
-    return { profile: profile || null };
+    // DB stores pace/length as plain text; narrow to the app unions at the boundary
+    return { profile: (profile as UserTasteProfile) || null };
   } catch {
     // Silently fail - taste profile is optional
     return { profile: null };

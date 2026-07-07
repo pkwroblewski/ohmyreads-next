@@ -19,7 +19,8 @@ export async function getBookBySlug(slug: string): Promise<Book | null> {
     return null;
   }
 
-  return data;
+  // DB stores cover_source as plain text; narrow to the app union at the boundary
+  return data as Book;
 }
 
 /**
@@ -259,7 +260,7 @@ export async function searchBooks(
     return { books: [], total: 0 };
   }
 
-  return { books: data || [], total: count || 0 };
+  return { books: (data as Book[]) || [], total: count || 0 };
 }
 
 /**
@@ -279,7 +280,7 @@ async function fetchPopularBooks(limit: number): Promise<Book[]> {
     return [];
   }
 
-  return data || [];
+  return (data as Book[]) || [];
 }
 
 export const getPopularBooks = unstable_cache(
@@ -305,7 +306,7 @@ async function fetchRecentBooks(limit: number): Promise<Book[]> {
     return [];
   }
 
-  return data || [];
+  return (data as Book[]) || [];
 }
 
 export const getRecentBooks = unstable_cache(

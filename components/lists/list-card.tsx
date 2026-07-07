@@ -23,7 +23,7 @@ export function ListCard({ list }: ListCardProps) {
               <h3 className="font-semibold truncate">{list.title}</h3>
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <span>{list.book_count} {list.book_count === 1 ? "book" : "books"}</span>
-                {list.likes_count > 0 && (
+                {(list.likes_count ?? 0) > 0 && (
                   <span className="flex items-center gap-1">
                     <Heart className="h-3.5 w-3.5" />
                     {list.likes_count}

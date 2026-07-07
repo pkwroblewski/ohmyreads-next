@@ -80,7 +80,7 @@ export async function getPersonalizedRecommendations(
   // Extract genres from loved books
   const lovedGenres = new Map<string, string>(); // genre -> book title
   for (const ub of lovedBooks || []) {
-    const book = ub.book as unknown as Book | null;
+    const book = ub.book;
     if (book?.genres) {
       for (const genre of book.genres) {
         if (!lovedGenres.has(genre)) {
@@ -140,7 +140,7 @@ export async function getPersonalizedRecommendations(
   // 6. Score and rank books
   const scoredBooks: RecommendedBook[] = [];
 
-  for (const book of allBooks) {
+  for (const book of allBooks as Book[]) {
     // Skip books already on shelf
     if (excludedBookIds.has(book.id)) {
       continue;
@@ -294,7 +294,7 @@ export async function getSimilarBookRecommendations(
       supabase.from("user_books").select("book_id").eq("user_id", userId),
     ]);
 
-    tasteProfile = profileResult.data;
+    tasteProfile = profileResult.data as UserTasteProfile | null;
     for (const ub of userBooksResult.data || []) {
       excludedBookIds.add(ub.book_id);
     }
@@ -311,7 +311,7 @@ export async function getSimilarBookRecommendations(
       .order("ratings_count", { ascending: false })
       .limit(limit);
 
-    return (popularBooks || []).map((book) => ({
+    return ((popularBooks as Book[]) || []).map((book) => ({
       ...book,
       score: 1,
       reason: {
@@ -356,7 +356,7 @@ export async function getSimilarBookRecommendations(
   // 5. Score similar books
   const scoredBooks: RecommendedBook[] = [];
 
-  for (const book of similarBooks) {
+  for (const book of similarBooks as Book[]) {
     if (excludedBookIds.has(book.id)) {
       continue;
     }
@@ -462,7 +462,7 @@ export async function getCuratedBooks(
       .order("ratings_count", { ascending: false, nullsFirst: false })
       .limit(limit);
 
-    return (fallbackBooks || []).map((book) => ({
+    return ((fallbackBooks as Book[]) || []).map((book) => ({
       ...book,
       score: book.ratings_count || 0,
       reason: {
@@ -473,10 +473,10 @@ export async function getCuratedBooks(
   }
 
   // Ensure genre diversity - pick books from different genres
-  const selectedBooks: typeof books = [];
+  const selectedBooks: Book[] = [];
   const usedGenres = new Set<string>();
 
-  for (const book of books) {
+  for (const book of books as Book[]) {
     if (selectedBooks.length >= limit) break;
 
     // Get primary genre
@@ -496,7 +496,7 @@ export async function getCuratedBooks(
   }
 
   // Fill remaining slots if needed
-  for (const book of books) {
+  for (const book of books as Book[]) {
     if (selectedBooks.length >= limit) break;
     if (!selectedBooks.includes(book)) {
       selectedBooks.push(book);
@@ -537,7 +537,8 @@ export async function getTrendingOnPlatform(
   // Count occurrences and dedupe
   const bookCounts = new Map<string, { book: Book; count: number }>();
   for (const item of recentActivity) {
-    const book = item.book as unknown as Book | null;
+    // books(*) join returns the generated row; narrow cover_source at the boundary
+    const book = item.book as Book | null;
     if (!book) continue;
 
     const existing = bookCounts.get(book.id);
@@ -583,7 +584,7 @@ export async function getTrendingGlobally(
     return [];
   }
 
-  return books.map((book) => ({
+  return (books as Book[]).map((book) => ({
     ...book,
     score: book.ratings_count || 0,
     reason: {
@@ -662,7 +663,7 @@ async function fetchTrulyTrending(
     const { data: books } = await query;
 
     // Sort by score, add rank and metrics
-    trendingBooks = (books || [])
+    trendingBooks = ((books as Book[]) || [])
       .sort((a, b) => (scores.get(b.id) || 0) - (scores.get(a.id) || 0))
       .map((book) => ({
         ...book,
@@ -699,7 +700,7 @@ async function fetchTrulyTrending(
     const { data: popularBooks } = await popularQuery;
 
     // Add popular books that aren't already in the list
-    const fillerBooks = (popularBooks || [])
+    const fillerBooks = ((popularBooks as Book[]) || [])
       .filter((b) => !existingIds.has(b.id))
       .slice(0, needed)
       .map((book) => ({
@@ -760,8 +761,8 @@ export async function hasEnoughSignals(userId: string): Promise<boolean> {
   }
 
   if (
-    tasteProfile?.preferred_genres?.length >= 3 ||
-    tasteProfile?.seed_book_ids?.length >= 2
+    (tasteProfile?.preferred_genres?.length ?? 0) >= 3 ||
+    (tasteProfile?.seed_book_ids?.length ?? 0) >= 2
   ) {
     return true;
   }

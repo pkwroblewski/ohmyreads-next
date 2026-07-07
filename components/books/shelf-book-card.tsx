@@ -170,29 +170,9 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
           <div className="mb-2">
             <RatingDisplay
               rating={book.average_rating}
-              count={book.ratings_count}
+              count={book.ratings_count ?? undefined}
               size="sm"
             />
-          </div>
-        )}
-
-        {/* Progress Bar (for reading status) */}
-        {currentStatus === "reading" && (
-          <div className="mb-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <span>
-                {userBook.current_page ?? 0} / {userBook.total_pages ?? book.page_count ?? "?"} pages
-              </span>
-              <span className="font-medium">
-                {userBook.progress_percentage ?? 0}%
-              </span>
-            </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-accent rounded-full transition-all duration-300"
-                style={{ width: `${userBook.progress_percentage ?? 0}%` }}
-              />
-            </div>
           </div>
         )}
 

@@ -65,7 +65,11 @@ export async function adminGetAuditLogs(filters: LogFilters = {}) {
     });
 
     // Enrich with user info
-    const userIds = [...new Set(result.logs.map((log) => log.user_id).filter(Boolean))];
+    const userIds = [
+      ...new Set(
+        result.logs.map((log) => log.user_id).filter((id): id is string => Boolean(id))
+      ),
+    ];
     const enrichedLogs: AuditLogEntry[] = [];
 
     if (userIds.length > 0) {

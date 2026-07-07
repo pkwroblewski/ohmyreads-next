@@ -81,7 +81,7 @@ export default async function PlaceModerationPage() {
                   </div>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock className="h-3 w-3" />
-                    {formatDate(submission.created_at)}
+                    {formatDate(submission.created_at ?? "")}
                   </div>
                 </div>
               </CardHeader>

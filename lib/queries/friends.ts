@@ -142,7 +142,7 @@ export async function getPendingRequests(): Promise<FriendRequestWithSender[]> {
         display_name: sender?.display_name || null,
         avatar_url: sender?.avatar_url || null,
       },
-    };
+    } as FriendRequestWithSender;
   });
 }
 
@@ -192,7 +192,7 @@ export async function getSentRequests(): Promise<FriendRequestWithReceiver[]> {
         display_name: receiver?.display_name || null,
         avatar_url: receiver?.avatar_url || null,
       },
-    };
+    } as FriendRequestWithReceiver;
   });
 }
 

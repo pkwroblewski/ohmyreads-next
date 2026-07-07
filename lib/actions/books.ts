@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { generateSlug } from "@/lib/utils/slug";
 import crypto from "crypto";
+import type { Database } from "@/types/database";
+
+type UserBookInsert = Database["public"]["Tables"]["user_books"]["Insert"];
 
 // Types for external book data
 export interface ExternalBookData {
@@ -172,7 +175,7 @@ export async function addToShelf(bookId: string, status: string) {
 
     // Prepare data
     const now = new Date().toISOString();
-    const data: Record<string, string> = {
+    const data: UserBookInsert = {
       user_id: user.id,
       book_id: bookId,
       status,
@@ -343,7 +346,7 @@ export async function importAndAddToShelf(
 
     // Now add to user's shelf
     const now = new Date().toISOString();
-    const shelfData: Record<string, string> = {
+    const shelfData: UserBookInsert = {
       user_id: user.id,
       book_id: bookId,
       status,

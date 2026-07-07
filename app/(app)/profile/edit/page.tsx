@@ -78,7 +78,7 @@ export default function EditProfilePage() {
             id: link.id,
             platform: link.platform,
             url: link.url,
-            display_order: link.display_order,
+            display_order: link.display_order ?? 0,
           }))
         );
       }

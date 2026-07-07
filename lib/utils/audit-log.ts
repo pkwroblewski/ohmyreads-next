@@ -7,6 +7,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/utils/log";
+import type { Json } from "@/types/database";
 
 // Audit action types
 export type AuditAction =
@@ -88,7 +89,7 @@ export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
       target_type: entry.targetType,
       target_id: entry.targetId || null,
       user_id: entry.userId || null,
-      metadata: entry.metadata || {},
+      metadata: (entry.metadata || {}) as Json,
       ip_address: entry.ipAddress || null,
       user_agent: entry.userAgent || null,
     });
@@ -173,7 +174,11 @@ export async function getAuditLogs(options?: {
   }
 
   return {
-    logs: data || [],
+    // metadata is a Json column; the declared shape narrows it to an object
+    logs: (data || []).map((log) => ({
+      ...log,
+      metadata: (log.metadata ?? {}) as Record<string, unknown>,
+    })),
     total: count || 0,
   };
 }

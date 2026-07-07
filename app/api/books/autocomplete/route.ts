@@ -60,9 +60,16 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
 
     // Run both queries in parallel
+    // (No `search_authors` RPC exists in the DB — authors are deduped from a
+    // plain books query.)
     const [authorsResult, booksResult] = await Promise.all([
-      // Authors: distinct authors matching query with book count
-      supabase.rpc("search_authors", { search_query: q }).limit(3),
+      // Authors: books matching the author name, deduped below
+      supabase
+        .from("books")
+        .select("author")
+        .ilike("author", `%${q}%`)
+        .order("ratings_count", { ascending: false, nullsFirst: false })
+        .limit(20),
       // Books: top 5 books matching title or author
       supabase
         .from("books")
@@ -72,57 +79,40 @@ export async function GET(request: NextRequest) {
         .limit(5),
     ]);
 
-    // Handle potential RPC not existing - fallback to simpler query
-    let authors: AuthorSuggestion[] = [];
-    if (authorsResult.error) {
-      // Fallback: simple distinct author query
-      const { data: fallbackAuthors } = await supabase
-        .from("books")
-        .select("author")
-        .ilike("author", `%${q}%`)
-        .order("ratings_count", { ascending: false, nullsFirst: false })
-        .limit(20);
+    const fallbackAuthors = authorsResult.data;
 
-      // Manually count and dedupe
-      const authorCounts = new Map<string, number>();
-      (fallbackAuthors || []).forEach((b) => {
-        if (b.author) {
-          const key = b.author.toLowerCase();
-          const existing = authorCounts.get(key);
-          if (!existing) {
-            authorCounts.set(key, 1);
-          } else {
-            authorCounts.set(key, existing + 1);
-          }
+    // Manually count and dedupe
+    const authorCounts = new Map<string, number>();
+    (fallbackAuthors || []).forEach((b) => {
+      if (b.author) {
+        const key = b.author.toLowerCase();
+        const existing = authorCounts.get(key);
+        if (!existing) {
+          authorCounts.set(key, 1);
+        } else {
+          authorCounts.set(key, existing + 1);
         }
-      });
+      }
+    });
 
-      // Get original case for display
-      const authorNames = new Map<string, string>();
-      (fallbackAuthors || []).forEach((b) => {
-        if (b.author) {
-          const key = b.author.toLowerCase();
-          if (!authorNames.has(key)) {
-            authorNames.set(key, b.author);
-          }
+    // Get original case for display
+    const authorNames = new Map<string, string>();
+    (fallbackAuthors || []).forEach((b) => {
+      if (b.author) {
+        const key = b.author.toLowerCase();
+        if (!authorNames.has(key)) {
+          authorNames.set(key, b.author);
         }
-      });
+      }
+    });
 
-      authors = Array.from(authorCounts.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([key, count]) => ({
-          name: authorNames.get(key) || key,
-          bookCount: count,
-        }));
-    } else {
-      authors = (authorsResult.data || []).map(
-        (a: { author: string; book_count: number }) => ({
-          name: a.author,
-          bookCount: a.book_count,
-        })
-      );
-    }
+    const authors: AuthorSuggestion[] = Array.from(authorCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([key, count]) => ({
+        name: authorNames.get(key) || key,
+        bookCount: count,
+      }));
 
     // Format books
     const books: BookSuggestion[] = (booksResult.data || []).map((book) => ({

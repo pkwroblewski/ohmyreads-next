@@ -139,7 +139,7 @@ export default async function ClubPage({ params }: ClubPageProps) {
                       </p>
                       <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        Started {new Date(club.current_read.started_at).toLocaleDateString()}
+                        Started {new Date(club.current_read.started_at ?? 0).toLocaleDateString()}
                       </p>
                     </div>
                   </div>

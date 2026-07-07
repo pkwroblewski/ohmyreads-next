@@ -22,7 +22,7 @@ export interface HomeReadingActivity {
 
 export interface CommunityFeedItem {
   id: string;
-  rating: number;
+  rating: number | null;
   content: string | null;
   created_at: string;
   user: {
@@ -94,23 +94,17 @@ export async function getHomeReadingActivity(
     .limit(2);
 
   const currentlyReading =
-    currentlyReadingData
-      ?.filter((ub) => ub.book)
-      .map((ub) => {
-        // Supabase returns single relation as object, not array
-        const bookData = ub.book as unknown as {
-          id: string;
-          title: string;
-          author: string;
-          slug: string;
-          cover_url: string | null;
-        };
-        return {
-          id: ub.id,
-          book: bookData,
-          started_at: ub.started_at,
-        };
-      }) || [];
+    currentlyReadingData?.flatMap((ub) =>
+      ub.book
+        ? [
+            {
+              id: ub.id,
+              book: ub.book,
+              started_at: ub.started_at,
+            },
+          ]
+        : []
+    ) || [];
 
   return { goal, currentlyReading };
 }
@@ -166,7 +160,7 @@ export async function getCommunityFeed(
   return reviewsData
     .filter((item) => item.book && profilesMap.has(item.user_id))
     .map((item) => {
-      const bookData = item.book as unknown as CommunityFeedItem["book"];
+      const bookData = item.book as CommunityFeedItem["book"];
       const userData = profilesMap.get(item.user_id)!;
       return {
         id: item.id,

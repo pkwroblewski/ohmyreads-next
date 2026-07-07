@@ -269,7 +269,7 @@ export default function AdminBooksPage() {
                         ))}
                         {(book.genres || []).length > 2 && (
                           <Badge variant="outline" className="text-xs">
-                            +{book.genres.length - 2}
+                            +{(book.genres || []).length - 2}
                           </Badge>
                         )}
                       </div>

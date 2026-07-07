@@ -15,7 +15,7 @@ export async function getSubmissionById(
       .select(
         `
         *,
-        submitter:profiles!book_submissions_submitted_by_fkey(
+        submitter:profiles!book_submissions_submitted_by_profiles_fkey(
           id,
           username,
           display_name,
@@ -65,7 +65,8 @@ export async function getUserSubmissions(
       return [];
     }
 
-    return data || [];
+    // DB stores status/cover_source as plain text; narrow to the app unions at the boundary
+    return (data as BookSubmission[]) || [];
   } catch (error) {
     console.error("Error in getUserSubmissions:", error);
     return [];
@@ -86,7 +87,7 @@ export async function getPendingSubmissions(
       .select(
         `
         *,
-        submitter:profiles!book_submissions_submitted_by_fkey(
+        submitter:profiles!book_submissions_submitted_by_profiles_fkey(
           id,
           username,
           display_name,
@@ -124,7 +125,7 @@ export async function getSubmissionHistory(
       .select(
         `
         *,
-        submitter:profiles!book_submissions_submitted_by_fkey(
+        submitter:profiles!book_submissions_submitted_by_profiles_fkey(
           id,
           username,
           display_name,
@@ -167,7 +168,7 @@ export async function getAllSubmissions(options?: {
       .select(
         `
         *,
-        submitter:profiles!book_submissions_submitted_by_fkey(
+        submitter:profiles!book_submissions_submitted_by_profiles_fkey(
           id,
           username,
           display_name,
@@ -277,7 +278,11 @@ export async function checkDuplicateBook(
       .single();
 
     if (submission) {
-      return { exists: true, existingSubmission: submission };
+      return {
+        exists: true,
+        // status can't be null here — the query filters on status = "pending"
+        existingSubmission: { id: submission.id, status: submission.status ?? "pending" },
+      };
     }
 
     return { exists: false };
@@ -301,7 +306,7 @@ export async function getRecentlyApprovedSubmissions(
       .select(
         `
         *,
-        submitter:profiles!book_submissions_submitted_by_fkey(
+        submitter:profiles!book_submissions_submitted_by_profiles_fkey(
           id,
           username,
           display_name,

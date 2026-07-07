@@ -107,7 +107,7 @@ export const searchNearbyPlacesTool = tool({
       // Fetch community places
       let query = supabase
         .from("places")
-        .select("id, name, place_type, address, lat, lng, opening_hours, website")
+        .select("id, name, place_type, address, lat, lng, website")
         .or(patterns.map((p) => `geohash.like.${p}`).join(","))
         .not("lat", "is", null)
         .not("lng", "is", null);
@@ -148,8 +148,7 @@ export const searchNearbyPlacesTool = tool({
               address: p.address,
               lat: p.lat,
               lng: p.lng,
-              opening_hours: p.opening_hours,
-              website: p.website,
+              website: p.website ?? undefined,
               source: "community",
             });
           }
@@ -168,7 +167,7 @@ export const searchNearbyPlacesTool = tool({
             address?: string;
             tags?: Record<string, string>;
           }
-          const places = (cache.data as CachedPlace[]) || [];
+          const places = (cache.data as unknown as CachedPlace[]) || [];
           for (const p of places) {
             if (!communityNames.has(p.name.toLowerCase()) && types.includes(p.type)) {
               allPlaces.push({

@@ -83,9 +83,6 @@ export async function GET(request: NextRequest) {
           `
           status,
           rating,
-          current_page,
-          total_pages,
-          progress_percentage,
           started_at,
           finished_at,
           created_at,
@@ -188,7 +185,7 @@ export async function GET(request: NextRequest) {
     // Add books section
     csvRows.push("=== BOOKS ===");
     csvRows.push(
-      "Title,Author,Status,Rating,Progress,Started,Finished,Added"
+      "Title,Author,Status,Rating,Started,Finished,Added"
     );
     for (const item of exportData.books) {
       const book = item.book as Record<string, unknown> | null;
@@ -198,7 +195,6 @@ export async function GET(request: NextRequest) {
           escapeCsv(book?.author as string),
           item.status,
           item.rating || "",
-          `${item.progress_percentage || 0}%`,
           item.started_at || "",
           item.finished_at || "",
           item.created_at,

@@ -845,7 +845,7 @@ export async function getShelfBooks(shelfId: string): Promise<{
           slug: book.slug,
           cover_url: book.cover_url,
           status: ub.status,
-          added_at: sb.added_at,
+          added_at: sb.added_at ?? "",
         };
       })
       .filter((b): b is NonNullable<typeof b> => b !== null);

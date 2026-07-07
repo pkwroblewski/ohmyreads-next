@@ -133,11 +133,11 @@ export async function getCommunityFeedPage(options: {
       })
       .slice(0, limit) // Remove the extra item we fetched
       .map((item) => {
-        const userData = item.user as unknown as ActivityFeedItemWithRelations["user"];
-        const bookData = item.book as unknown as ActivityFeedItemWithRelations["book"];
-        const reviewData = item.review as unknown as ActivityFeedItemWithRelations["review"];
-        const placeData = item.place as unknown as ActivityFeedItemWithRelations["place"];
-        const checkinData = item.checkin as unknown as ActivityFeedItemWithRelations["checkin"];
+        const userData = item.user as ActivityFeedItemWithRelations["user"];
+        const bookData = item.book as ActivityFeedItemWithRelations["book"];
+        const reviewData = item.review as ActivityFeedItemWithRelations["review"];
+        const placeData = item.place as ActivityFeedItemWithRelations["place"];
+        const checkinData = item.checkin as ActivityFeedItemWithRelations["checkin"];
 
         return {
           id: item.id,
@@ -250,11 +250,11 @@ export async function getFollowingFeedPage(options: {
     })
     .slice(0, limit)
     .map((item) => {
-      const userData = item.user as unknown as ActivityFeedItemWithRelations["user"];
-      const bookData = item.book as unknown as ActivityFeedItemWithRelations["book"];
-      const reviewData = item.review as unknown as ActivityFeedItemWithRelations["review"];
-      const placeData = item.place as unknown as ActivityFeedItemWithRelations["place"];
-      const checkinData = item.checkin as unknown as ActivityFeedItemWithRelations["checkin"];
+      const userData = item.user as ActivityFeedItemWithRelations["user"];
+      const bookData = item.book as ActivityFeedItemWithRelations["book"];
+      const reviewData = item.review as ActivityFeedItemWithRelations["review"];
+      const placeData = item.place as ActivityFeedItemWithRelations["place"];
+      const checkinData = item.checkin as ActivityFeedItemWithRelations["checkin"];
 
       return {
         id: item.id,

@@ -3,6 +3,7 @@ import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { isValidGeohash, decodeGeohash } from "@/lib/utils/geohash";
 import { getNearbyPlaces, getCachedPlaces, type CachedPlaceData } from "@/lib/queries/geo";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { Json } from "@/types/database";
 
 // Valid place types for filtering
 const VALID_TYPES = ["bookstore", "library", "cafe", "restaurant", "bookclub", "popup", "other"];
@@ -318,7 +319,7 @@ async function cacheOsmPlaces(
       .upsert({
         geohash_prefix: geohashPrefix,
         place_type: placeType,
-        data: places,
+        data: places as unknown as Json,
         fetched_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
       }, {

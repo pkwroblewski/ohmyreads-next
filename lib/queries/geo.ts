@@ -131,13 +131,7 @@ export async function getNearbyReaders(
     for (const entry of readingData) {
       // Only keep the first (most recently updated) book per user
       if (!readingMap.has(entry.user_id) && entry.book) {
-        const book = entry.book as unknown as {
-          id: string;
-          title: string;
-          author: string | null;
-          cover_url: string | null;
-          slug: string | null;
-        };
+        const book = entry.book;
         readingMap.set(entry.user_id, {
           id: book.id,
           title: book.title,
@@ -150,10 +144,11 @@ export async function getNearbyReaders(
   }
 
   // Merge readers with their currently reading books
+  // (presence_type is plain text in the DB; narrowed to the app union here)
   return validReaders.map((reader) => ({
     ...reader,
     currently_reading: readingMap.get(reader.id) || null,
-  }));
+  })) as NearbyReader[];
 }
 
 // ============================================
@@ -225,7 +220,7 @@ export async function getCachedPlaces(
 
   const isStale = new Date(data.expires_at) < new Date();
   return {
-    data: data.data as CachedPlaceData[],
+    data: data.data as unknown as CachedPlaceData[],
     isStale,
   };
 }

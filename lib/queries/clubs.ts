@@ -82,14 +82,14 @@ export async function getClubs(options: GetClubsOptions = {}): Promise<{
       .eq("user_id", user.id);
 
     memberships?.forEach((m) => {
-      membershipMap.set(m.club_id, m.role);
+      membershipMap.set(m.club_id, m.role ?? "member");
     });
   }
 
   // Map current reads to clubs
   const readsMap = new Map<string, BookClubReadWithBook>();
   currentReads?.forEach((read) => {
-    if (read.book) {
+    if (read.book && read.club_id) {
       readsMap.set(read.club_id, {
         ...read,
         book: Array.isArray(read.book) ? read.book[0] : read.book,
@@ -98,13 +98,16 @@ export async function getClubs(options: GetClubsOptions = {}): Promise<{
   });
 
   // Transform to BookClubWithDetails
-  const clubsWithDetails: BookClubWithDetails[] = clubs.map((club) => ({
-    ...club,
-    creator: Array.isArray(club.creator) ? club.creator[0] : club.creator,
-    current_read: readsMap.get(club.id) || null,
-    is_member: membershipMap.has(club.id),
-    user_role: membershipMap.get(club.id) || null,
-  }));
+  const clubsWithDetails: BookClubWithDetails[] = clubs.map(
+    (club) =>
+      ({
+        ...club,
+        creator: Array.isArray(club.creator) ? club.creator[0] : club.creator,
+        current_read: readsMap.get(club.id) || null,
+        is_member: membershipMap.has(club.id),
+        user_role: membershipMap.get(club.id) || null,
+      }) as BookClubWithDetails
+  );
 
   return { clubs: clubsWithDetails, total: count || 0 };
 }
@@ -294,7 +297,7 @@ export async function getUserClubs(): Promise<BookClubWithDetails[]> {
 
   const readsMap = new Map<string, BookClubReadWithBook>();
   currentReads?.forEach((read) => {
-    if (read.book) {
+    if (read.book && read.club_id) {
       readsMap.set(read.club_id, {
         ...read,
         book: Array.isArray(read.book) ? read.book[0] : read.book,

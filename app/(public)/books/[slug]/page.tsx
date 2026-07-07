@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     keywords: [
       book.title,
       book.author,
-      ...book.genres,
+      ...(book.genres ?? []),
       "book review",
       "reading",
     ],
@@ -114,7 +114,7 @@ export default async function BookPage({ params }: Props) {
   // Fetch related data in parallel
   const [reviews, relatedBooks, similarRecs, userBookStatus, userReviewCheck] = await Promise.all([
     getBookReviews(book.id),
-    getRelatedBooks(book.genres, book.id),
+    getRelatedBooks(book.genres ?? [], book.id),
     getSimilarBookRecommendations(book.id, user?.id || null, 6),
     user ? getUserBookStatus(user.id, book.id) : Promise.resolve(null),
     user ? hasUserReviewedBook(user.id, book.id) : Promise.resolve({ hasReviewed: false, review: null }),
@@ -251,7 +251,7 @@ export default async function BookPage({ params }: Props) {
               <div className="flex items-center gap-2 mb-4">
                 <RatingDisplay
                   rating={book.average_rating}
-                  count={book.ratings_count}
+                  count={book.ratings_count ?? undefined}
                   size="lg"
                 />
                 <span className="font-medium">{book.average_rating.toFixed(1)}</span>
@@ -259,9 +259,9 @@ export default async function BookPage({ params }: Props) {
             )}
 
             {/* Genres */}
-            {book.genres.length > 0 && (
+            {(book.genres ?? []).length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
-                {book.genres.map((genre) => (
+                {(book.genres ?? []).map((genre) => (
                   <Link
                     key={genre}
                     href={`/books?genre=${encodeURIComponent(genre)}`}

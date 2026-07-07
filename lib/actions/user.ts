@@ -9,7 +9,7 @@ import {
   type SocialLinkInput,
 } from "@/lib/validation/profile";
 import { sendWelcomeEmail } from "@/lib/actions/email";
-import type { Profile } from "@/types/database";
+import type { Database, Profile } from "@/types/database";
 
 /**
  * Update user profile
@@ -272,7 +272,7 @@ export async function ensureUserProfile(): Promise<{
       : false;
 
     // Prepare profile data
-    const profileData: Record<string, unknown> = {
+    const profileData: Database["public"]["Tables"]["profiles"]["Insert"] = {
       id: user.id,
       username: username,
       display_name: displayName,

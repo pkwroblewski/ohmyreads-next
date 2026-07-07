@@ -159,7 +159,8 @@ export async function getRecentReviews(
       return [];
     }
 
-    return data || [];
+    // Cast: profile is a 4-field subset of Profile (declared type predates the select)
+    return (data as unknown as (ReviewWithUser & { book: { id: string; title: string; slug: string; cover_url: string | null } | null })[]) || [];
   } catch (error) {
     console.error("Error in getRecentReviews:", error);
     return [];
@@ -195,7 +196,8 @@ export async function getMostHelpfulReviews(
       return [];
     }
 
-    return data || [];
+    // Cast: profile is a 4-field subset of Profile (declared type predates the select)
+    return (data as unknown as (ReviewWithUser & { book: { id: string; title: string; slug: string; cover_url: string | null } | null })[]) || [];
   } catch (error) {
     console.error("Error in getMostHelpfulReviews:", error);
     return [];

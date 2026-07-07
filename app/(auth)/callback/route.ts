@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { sendWelcomeEmail } from "@/lib/actions/email";
 import { logger, extractErrorInfo, extractSupabaseErrorInfo } from "@/lib/utils/log";
+import type { Database } from "@/types/database";
 
 // Whitelist of allowed redirect paths to prevent open redirect attacks
 const ALLOWED_REDIRECTS = [
@@ -89,7 +90,7 @@ export async function GET(request: Request) {
 
         // Try inserting profile with error handling
         try {
-          const profileData: Record<string, unknown> = {
+          const profileData: Database["public"]["Tables"]["profiles"]["Insert"] = {
             id: user.id,
             username: username,
             display_name: displayName,

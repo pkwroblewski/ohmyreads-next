@@ -63,7 +63,8 @@ export async function getEventsNearby(
     return [];
   }
 
-  return data || [];
+  // DB stores event_type as plain text; narrow to the app union at the boundary
+  return (data as BookEvent[]) || [];
 }
 
 /**
@@ -100,8 +101,8 @@ export async function getWeeklySummary(
 
   return {
     summary: data.summary,
-    event_count: data.event_count,
-    generated_at: data.generated_at,
+    event_count: data.event_count ?? 0,
+    generated_at: data.generated_at ?? "",
   };
 }
 
@@ -129,7 +130,7 @@ export async function getEventsByCity(
     return [];
   }
 
-  return data || [];
+  return (data as BookEvent[]) || [];
 }
 
 /**
@@ -153,5 +154,5 @@ export async function getFeaturedEvents(limit: number = 10): Promise<BookEvent[]
     return [];
   }
 
-  return data || [];
+  return (data as BookEvent[]) || [];
 }

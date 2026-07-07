@@ -266,8 +266,8 @@ export async function getUserReadingStats(
     reviewsData.filter((r) => r.rating != null).map((r) => [r.book_id, r.rating!])
   );
   const booksWithRatings = books
-    .filter((ub) => reviewMap.has(ub.book?.id))
-    .map((ub) => ({ ...ub, userRating: reviewMap.get(ub.book?.id)! }))
+    .filter((ub) => reviewMap.has(ub.book?.id ?? ""))
+    .map((ub) => ({ ...ub, userRating: reviewMap.get(ub.book?.id ?? "")! }))
     .sort((a, b) => b.userRating - a.userRating);
 
   const highestRated = booksWithRatings[0]?.book

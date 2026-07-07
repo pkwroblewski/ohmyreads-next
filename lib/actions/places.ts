@@ -227,7 +227,7 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
     // Call the database function to approve
     const { data, error } = await supabase.rpc("approve_place_submission", {
       submission_id: submissionId,
-      admin_notes: notes || null,
+      admin_notes: notes || undefined,
     });
 
     if (error) {
@@ -302,7 +302,7 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
     // Call the database function to reject
     const { error } = await supabase.rpc("reject_place_submission", {
       submission_id: submissionId,
-      admin_notes: notes || null,
+      admin_notes: notes || undefined,
     });
 
     if (error) {

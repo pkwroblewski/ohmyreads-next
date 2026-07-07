@@ -148,13 +148,16 @@ export async function getUserLists(options: GetListsOptions = {}): Promise<{
   }
 
   // Transform to ReadingListWithDetails
-  const listsWithDetails: ReadingListWithDetails[] = lists.map((list) => ({
-    ...list,
-    owner: Array.isArray(list.owner) ? list.owner[0] : list.owner,
-    books: [],
-    book_count: countMap.get(list.id) || 0,
-    is_liked: likedMap.get(list.id) || false,
-  }));
+  const listsWithDetails: ReadingListWithDetails[] = lists.map(
+    (list) =>
+      ({
+        ...list,
+        owner: Array.isArray(list.owner) ? list.owner[0] : list.owner,
+        books: [],
+        book_count: countMap.get(list.id) || 0,
+        is_liked: likedMap.get(list.id) || false,
+      }) as ReadingListWithDetails
+  );
 
   return { lists: listsWithDetails, total: count || 0 };
 }

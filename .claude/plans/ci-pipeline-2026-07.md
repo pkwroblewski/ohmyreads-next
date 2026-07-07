@@ -20,7 +20,7 @@
 | 3 | Create GitHub Actions CI workflow | 🔴 Critical | Low | [x] Complete | `.github/workflows/ci.yml` |
 | 4 | Final QA: push and confirm green run | 🔴 Critical | Low | [ ] Pending | - |
 
-**Progress: 3/4 complete**
+**Progress: 4/4 complete**
 
 ## Summary
 
@@ -156,22 +156,22 @@ The repo has `lint`, `test:run`, and `build` scripts but **no `.github/workflows
 **Context:** The only proof CI works is a green run on GitHub.
 
 **Steps:**
-1. [ ] Commit Tasks 1–3 changes: `git add -A && git commit -m "ci: Add GitHub Actions workflow (typecheck, lint, test, build) + repo hygiene"`
-2. [ ] Ask the user before pushing (per project convention, confirm outward-facing actions). After approval: `git push origin main`.
-3. [ ] Wait ~3 minutes, then run `gh run list --limit 1` — status must be `completed` / conclusion `success`.
-4. [ ] If the run failed: run `gh run view --log-failed`, fix ONLY workflow/env issues (not application code), commit, push again. If application code fails in CI but passed locally, STOP and report to user.
+1. [x] Commit Tasks 1–3 changes: `git add -A && git commit -m "ci: Add GitHub Actions workflow (typecheck, lint, test, build) + repo hygiene"`
+2. [x] Ask the user before pushing (per project convention, confirm outward-facing actions). After approval: `git push origin main`.
+3. [x] Wait ~3 minutes, then run `gh run list --limit 1` — status must be `completed` / conclusion `success`.
+4. [x] If the run failed: run `gh run view --log-failed`, fix ONLY workflow/env issues (not application code), commit, push again. If application code fails in CI but passed locally, STOP and report to user.
 
 **Verify:**
-- [ ] `gh run list --limit 1` shows `success`
-- [ ] `gh workflow list` shows the `CI` workflow as active
+- [x] `gh run list --limit 1` shows `success`
+- [x] `gh workflow list` shows the `CI` workflow as active
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: none (verification-only task; commit 3b92476 pushed in prior session)
+- Approach taken: Background watcher waited for run 28847251695; `gh run view` confirmed `completed`/`success`, `gh workflow list` shows CI active.
+- Deviations from plan: Verification completed in a later session after the background CI watcher finished.
+- Issues encountered: none — run was green on first attempt.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ## Out of Scope (Deferred)
 

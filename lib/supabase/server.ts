@@ -2,11 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { cache } from "react";
+import type { Database } from "@/types/database";
 
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!.trim(),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim(),
     {
@@ -44,7 +45,7 @@ export const getUser = cache(async () => {
  * Use this for queries inside unstable_cache or for public data.
  */
 export function createPublicClient() {
-  return createSupabaseClient(
+  return createSupabaseClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!.trim(),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim()
   );

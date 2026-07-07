@@ -108,8 +108,8 @@ export async function GET(request: NextRequest) {
               followingIds.length > 0
                 ? supabase
                     .from("activity_feed")
-                    .select("actor:profiles!activity_feed_actor_id_fkey(username), activity_type, book:books(title)")
-                    .in("actor_id", followingIds)
+                    .select("actor:profiles!activity_feed_user_id_profiles_fkey(username), type, book:books(title)")
+                    .in("user_id", followingIds)
                     .gte("created_at", oneWeekAgo.toISOString())
                     .limit(5)
                 : Promise.resolve({ data: [] }),
@@ -130,28 +130,29 @@ export async function GET(request: NextRequest) {
               current_streak: 0,
             };
 
-            const recentBooks = (booksResult.data || [])
-              .filter((item) => item.book)
-              .map((item) => {
-                const book = item.book as unknown as { title: string; author: string; cover_url?: string };
-                return {
-                  title: book.title,
-                  author: book.author,
-                  coverUrl: book.cover_url,
-                };
-              });
+            const recentBooks = (booksResult.data || []).flatMap((item) =>
+              item.book
+                ? [
+                    {
+                      title: item.book.title,
+                      author: item.book.author,
+                      coverUrl: item.book.cover_url ?? undefined,
+                    },
+                  ]
+                : []
+            );
 
-            const friendActivity = (activityResult.data || [])
-              .filter((item) => item.actor && item.book)
-              .map((item) => {
-                const actor = item.actor as unknown as { username: string };
-                const book = item.book as unknown as { title: string };
-                return {
-                  username: actor.username,
-                  action: formatActivityType(item.activity_type as string),
-                  bookTitle: book.title,
-                };
-              });
+            const friendActivity = (activityResult.data || []).flatMap((item) =>
+              item.actor && item.book
+                ? [
+                    {
+                      username: item.actor.username,
+                      action: formatActivityType(item.type),
+                      bookTitle: item.book.title,
+                    },
+                  ]
+                : []
+            );
 
             const challengeProgress = challengeResult.data
               ? {
@@ -172,10 +173,10 @@ export async function GET(request: NextRequest) {
               username: user.username,
               displayName: user.display_name || undefined,
               stats: {
-                booksRead: stats.books_read,
-                pagesRead: stats.pages_read,
-                reviewsWritten: stats.reviews_count,
-                currentStreak: stats.current_streak,
+                booksRead: stats.books_read ?? 0,
+                pagesRead: stats.pages_read ?? 0,
+                reviewsWritten: stats.reviews_count ?? 0,
+                currentStreak: stats.current_streak ?? 0,
               },
               recentBooks,
               friendActivity,

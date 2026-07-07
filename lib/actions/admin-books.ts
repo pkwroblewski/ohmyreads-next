@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { generateSlug } from "@/lib/utils/slug";
+import type { Book } from "@/types/database";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -93,7 +94,7 @@ export async function adminGetBooks(filters: BookFilters = {}) {
 
     return {
       success: true,
-      books: data || [],
+      books: (data as Book[]) || [],
       total: count || 0,
       page,
       totalPages: Math.ceil((count || 0) / limit),
@@ -117,7 +118,7 @@ export async function adminGetBook(bookId: string) {
 
     if (error) throw error;
 
-    return { success: true, book: data };
+    return { success: true, book: data as Book };
   } catch (error) {
     console.error("Error fetching book:", error);
     return { success: false, error: "Failed to fetch book" };

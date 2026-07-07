@@ -92,7 +92,7 @@ export function PendingRequestsList({ requests: initialRequests }: PendingReques
                   {request.sender.display_name || request.sender.username}
                 </Link>
                 <p className="text-sm text-muted-foreground">
-                  @{request.sender.username} · {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                  @{request.sender.username} · {formatDistanceToNow(new Date(request.created_at ?? 0), { addSuffix: true })}
                 </p>
               </div>
             </div>
@@ -194,7 +194,7 @@ export function SentRequestsList({ requests: initialRequests }: SentRequestsList
                   {request.receiver.display_name || request.receiver.username}
                 </Link>
                 <p className="text-sm text-muted-foreground">
-                  @{request.receiver.username} · Sent {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                  @{request.receiver.username} · Sent {formatDistanceToNow(new Date(request.created_at ?? 0), { addSuffix: true })}
                 </p>
               </div>
             </div>

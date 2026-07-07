@@ -87,8 +87,8 @@ export default function ModerationCard({
                 <h3 className="font-semibold text-lg">{submission.title}</h3>
                 <p className="text-muted-foreground">by {submission.author}</p>
               </div>
-              <Badge className={statusColors[submission.status]}>
-                {submission.status}
+              <Badge className={statusColors[submission.status ?? "pending"]}>
+                {submission.status ?? "pending"}
               </Badge>
             </div>
 
@@ -112,9 +112,9 @@ export default function ModerationCard({
             </div>
 
             {/* Genres */}
-            {submission.genres?.length > 0 && (
+            {(submission.genres?.length ?? 0) > 0 && (
               <div className="flex flex-wrap gap-1">
-                {submission.genres.map((genre) => (
+                {(submission.genres ?? []).map((genre) => (
                   <Badge key={genre} variant="secondary" className="text-xs">
                     {genre}
                   </Badge>
@@ -144,7 +144,7 @@ export default function ModerationCard({
               </span>
               <span className="text-muted-foreground">·</span>
               <span className="text-muted-foreground">
-                {formatDistanceToNow(new Date(submission.created_at), {
+                {formatDistanceToNow(new Date(submission.created_at ?? 0), {
                   addSuffix: true,
                 })}
               </span>

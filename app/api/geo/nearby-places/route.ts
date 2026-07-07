@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     // Fetch community places
     const { data: communityPlaces } = await supabase
       .from("places")
-      .select("id, name, place_type, address, lat, lng, opening_hours")
+      .select("id, name, place_type, address, lat, lng")
       .or(patterns.map((p) => `geohash.like.${p}`).join(","))
       .not("lat", "is", null)
       .not("lng", "is", null)
@@ -118,7 +118,6 @@ export async function GET(request: NextRequest) {
             address: p.address,
             lat: p.lat,
             lng: p.lng,
-            opening_hours: p.opening_hours,
             source: "community",
           });
         }
@@ -138,7 +137,7 @@ export async function GET(request: NextRequest) {
           address?: string;
           tags?: Record<string, string>;
         }
-        const places = (cache.data as CachedPlace[]) || [];
+        const places = (cache.data as unknown as CachedPlace[]) || [];
         for (const p of places) {
           if (!communityNames.has(p.name.toLowerCase())) {
             allPlaces.push({

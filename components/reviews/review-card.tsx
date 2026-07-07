@@ -27,7 +27,7 @@ interface ReviewUser {
   username: string;
   display_name: string | null;
   avatar_url: string | null;
-  is_admin?: boolean;
+  is_admin?: boolean | null;
 }
 
 interface ReviewCardProps {
@@ -55,7 +55,7 @@ export function ReviewCard({
   onEdit,
   onDelete,
 }: ReviewCardProps) {
-  const [likesCount, setLikesCount] = useState(review.likes_count);
+  const [likesCount, setLikesCount] = useState(review.likes_count ?? 0);
   const [hasLiked, setHasLiked] = useState(review.hasLiked || false);
   const [isLiking, setIsLiking] = useState(false);
   const [showSpoiler, setShowSpoiler] = useState(false);

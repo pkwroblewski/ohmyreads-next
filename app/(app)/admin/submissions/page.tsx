@@ -263,7 +263,7 @@ export default function AdminSubmissionsPage() {
                         </Link>
                       )}
                       <span className="text-muted-foreground">
-                        {formatDistanceToNow(new Date(submission.created_at), {
+                        {formatDistanceToNow(new Date(submission.created_at ?? 0), {
                           addSuffix: true,
                         })}
                       </span>

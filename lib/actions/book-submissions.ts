@@ -12,6 +12,7 @@ import {
 } from "@/lib/validation/book-submission";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { generateSlug } from "@/lib/utils/slug";
+import type { BookSubmissionWithSubmitter } from "@/types/database";
 
 // Helper function to ensure unique slug
 async function ensureUniqueSlug(
@@ -376,7 +377,7 @@ export async function getPendingSubmissions() {
       .select(
         `
         *,
-        submitter:profiles!book_submissions_submitted_by_fkey(
+        submitter:profiles!book_submissions_submitted_by_profiles_fkey(
           id,
           username,
           display_name,
@@ -392,7 +393,8 @@ export async function getPendingSubmissions() {
       return { error: "Failed to fetch submissions", submissions: [] };
     }
 
-    return { submissions: submissions || [] };
+    // DB stores status/cover_source as plain text; narrow to the app unions at the boundary
+    return { submissions: (submissions as BookSubmissionWithSubmitter[]) || [] };
   } catch (error) {
     console.error("Error in getPendingSubmissions:", error);
     return { error: "An unexpected error occurred", submissions: [] };
@@ -582,7 +584,7 @@ export async function getAllSubmissions(
       .select(
         `
         *,
-        submitter:profiles!book_submissions_submitted_by_fkey(
+        submitter:profiles!book_submissions_submitted_by_profiles_fkey(
           id,
           username,
           display_name,
@@ -603,7 +605,8 @@ export async function getAllSubmissions(
       return { error: "Failed to fetch submissions", submissions: [] };
     }
 
-    return { submissions: submissions || [] };
+    // DB stores status/cover_source as plain text; narrow to the app unions at the boundary
+    return { submissions: (submissions as BookSubmissionWithSubmitter[]) || [] };
   } catch (error) {
     console.error("Error in getAllSubmissions:", error);
     return { error: "An unexpected error occurred", submissions: [] };

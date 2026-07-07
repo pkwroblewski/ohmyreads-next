@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "types:gen": "npx supabase gen types typescript --project-id bgczdbmqievfilvdzlgl --schema public > types/database.generated.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.56",

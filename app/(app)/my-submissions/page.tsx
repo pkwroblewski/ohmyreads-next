@@ -129,7 +129,7 @@ export default async function MySubmissionsPage() {
                     <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
                       <span>
                         Submitted{" "}
-                        {formatDistanceToNow(new Date(submission.created_at), {
+                        {formatDistanceToNow(new Date(submission.created_at ?? 0), {
                           addSuffix: true,
                         })}
                       </span>

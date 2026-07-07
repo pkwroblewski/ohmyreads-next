@@ -72,16 +72,17 @@ export async function GET(request: NextRequest) {
         .limit(10);
 
       if (userBooks) {
-        recentBooks = userBooks
-          .filter((ub) => ub.books && !Array.isArray(ub.books))
-          .map((ub) => {
-            const book = ub.books as unknown as { title: string; author: string };
-            return {
-              title: book.title,
-              author: book.author,
-              rating: ub.rating || undefined,
-            };
-          });
+        recentBooks = userBooks.flatMap((ub) =>
+          ub.books && !Array.isArray(ub.books)
+            ? [
+                {
+                  title: ub.books.title,
+                  author: ub.books.author,
+                  rating: ub.rating || undefined,
+                },
+              ]
+            : []
+        );
       }
     }
 
