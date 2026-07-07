@@ -185,7 +185,8 @@ export async function leaveClub(
 
 export async function setCurrentBook(
   clubId: string,
-  bookId: string
+  bookId: string,
+  clubSlug?: string
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
 
@@ -236,6 +237,9 @@ export async function setCurrentBook(
   }
 
   revalidatePath("/clubs");
+  if (clubSlug) {
+    revalidatePath(`/clubs/${clubSlug}`);
+  }
   return { success: true };
 }
 

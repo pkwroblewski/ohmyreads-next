@@ -134,6 +134,9 @@ export function AddToShelfButton({
 
       setStatus(newStatus);
       toast.success(`Book marked as "${statusConfig[newStatus].label}"`);
+      result.newBadges?.forEach((badge) => {
+        toast.success(`Badge unlocked: ${badge.icon ?? "🏅"} ${badge.name}`);
+      });
     });
   };
 

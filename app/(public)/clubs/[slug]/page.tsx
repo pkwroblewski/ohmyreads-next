@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getClubBySlug, getClubMembers, getClubPastReads } from "@/lib/queries/clubs";
 import { createClient } from "@/lib/supabase/server";
 import { JoinButton } from "@/components/clubs/join-button";
+import { SetCurrentBookDialog } from "@/components/clubs/set-current-book-dialog";
 
 interface ClubPageProps {
   params: Promise<{ slug: string }>;
@@ -80,10 +81,13 @@ export default async function ClubPage({ params }: ClubPageProps) {
             </div>
             <div className="flex items-center gap-2">
               {isAdmin && (
-                <Button variant="outline" size="sm" disabled>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Settings
-                </Button>
+                <>
+                  <SetCurrentBookDialog clubId={club.id} clubSlug={club.slug} />
+                  <Button variant="outline" size="sm" disabled>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </Button>
+                </>
               )}
               <JoinButton
                 clubId={club.id}
@@ -146,11 +150,20 @@ export default async function ClubPage({ params }: ClubPageProps) {
                   </div>
                 </Link>
               ) : (
-                <p className="text-muted-foreground text-center py-4">
-                  {isAdmin
-                    ? "No book selected yet. Set a current read to get started!"
-                    : "No book being read currently."}
-                </p>
+                <div className="text-center py-4 space-y-3">
+                  <p className="text-muted-foreground">
+                    {isAdmin
+                      ? "No book selected yet. Set a current read to get started!"
+                      : "No book being read currently."}
+                  </p>
+                  {isAdmin && (
+                    <SetCurrentBookDialog
+                      clubId={club.id}
+                      clubSlug={club.slug}
+                      variant="default"
+                    />
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>

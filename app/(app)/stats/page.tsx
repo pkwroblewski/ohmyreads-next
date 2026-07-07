@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
+import { getUser, createClient } from "@/lib/supabase/server";
 import { getUserReadingStats } from "@/lib/queries/stats";
 import StatsHero from "@/components/stats/stats-hero";
 import StatsCharts from "@/components/stats/stats-charts";
@@ -23,7 +23,11 @@ export default async function StatsPage() {
     redirect("/login?redirect=/stats");
   }
 
-  const stats = await getUserReadingStats(user.id);
+  const supabase = await createClient();
+  const [stats, { data: profile }] = await Promise.all([
+    getUserReadingStats(user.id),
+    supabase.from("profiles").select("username").eq("id", user.id).single(),
+  ]);
 
   // Show empty state if no books read
   if (stats.totalBooksRead === 0) {
@@ -47,7 +51,7 @@ export default async function StatsPage() {
 
       {/* Highlights & Fun Facts */}
       <div className="container max-w-6xl pb-12">
-        <StatsHighlights stats={stats} />
+        <StatsHighlights stats={stats} username={profile?.username} />
       </div>
     </div>
   );

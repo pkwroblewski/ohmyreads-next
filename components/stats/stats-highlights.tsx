@@ -1,16 +1,51 @@
 "use client";
 
 import Link from "next/link";
-import { Calendar, Ruler, Star, Trophy, Zap } from "lucide-react";
+import { Calendar, Ruler, Share2, Star, Trophy, Zap } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { CoverImage } from "@/components/books/cover-image";
 import type { ReadingStats } from "@/lib/queries/stats";
 
 interface StatsHighlightsProps {
   stats: ReadingStats;
+  username?: string;
 }
 
-export default function StatsHighlights({ stats }: StatsHighlightsProps) {
+export default function StatsHighlights({
+  stats,
+  username,
+}: StatsHighlightsProps) {
+  const handleShare = async () => {
+    // Public profile is the shareable surface; stats page itself is private
+    const url = username
+      ? `${window.location.origin}/users/${username}`
+      : window.location.origin;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "My reading stats on OhMyReads",
+          text: `I've read ${stats.totalBooksRead} books — check out my reading profile!`,
+          url,
+        });
+        return;
+      } catch (error) {
+        if ((error as Error).name === "AbortError") {
+          return; // User cancelled, no fallback needed
+        }
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Profile link copied to clipboard!");
+    } catch (error) {
+      console.error("Failed to copy:", error);
+      toast.error("Failed to copy link");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Reading Highlights</h2>
@@ -118,8 +153,12 @@ export default function StatsHighlights({ stats }: StatsHighlightsProps) {
             Show off your reading achievements to friends and fellow book
             lovers.
           </p>
-          <button className="bg-white text-violet-600 px-6 py-2 rounded-full font-medium hover:bg-white/90 transition-colors">
-            Coming Soon
+          <button
+            onClick={handleShare}
+            className="inline-flex items-center gap-2 bg-white text-violet-600 px-6 py-2 rounded-full font-medium hover:bg-white/90 transition-colors"
+          >
+            <Share2 className="h-4 w-4" />
+            Share
           </button>
         </CardContent>
       </Card>

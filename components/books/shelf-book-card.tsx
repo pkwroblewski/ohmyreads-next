@@ -10,6 +10,7 @@ import {
   Trash2,
   Star,
   FolderPlus,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RatingDisplay } from "@/components/ui/rating-display";
@@ -19,6 +20,7 @@ import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AddToShelfModal } from "@/components/shelves/add-to-shelf-modal";
+import { UpdateProgressDialog } from "@/components/books/update-progress-dialog";
 import type { Book, UserBook } from "@/types/database";
 
 interface ShelfBookCardProps {
@@ -56,6 +58,17 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
     userBook.status as ShelfStatus
   );
   const [isShelfModalOpen, setIsShelfModalOpen] = useState(false);
+  const [isProgressOpen, setIsProgressOpen] = useState(false);
+  // Optimistic progress state, reconciled by revalidation on refresh
+  const [progress, setProgress] = useState<{
+    page: number | null;
+    total: number | null;
+    pct: number | null;
+  }>({
+    page: userBook.current_page ?? null,
+    total: userBook.total_pages ?? null,
+    pct: userBook.progress_percentage ?? null,
+  });
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
@@ -93,6 +106,9 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
         toast.error(result.error);
       } else {
         toast.success(`Moved to "${statusConfig[newStatus].label}"`);
+        result.newBadges?.forEach((badge) => {
+          toast.success(`Badge unlocked: ${badge.icon ?? "🏅"} ${badge.name}`);
+        });
       }
     });
   };
@@ -184,6 +200,35 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
               ? `Started ${formatDate(userBook.started_at)}`
               : `Added ${formatDate(userBook.created_at)}`}
         </p>
+
+        {/* Reading Progress */}
+        {currentStatus === "reading" && (
+          <button
+            type="button"
+            onClick={() => setIsProgressOpen(true)}
+            aria-label={`Update reading progress for ${book.title}`}
+            className="mt-2 w-full text-left group/progress cursor-pointer"
+          >
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span className="flex items-center gap-1">
+                {progress.page !== null
+                  ? `Page ${progress.page}${progress.total ? ` of ${progress.total}` : ""}`
+                  : "Update progress"}
+                <Pencil
+                  className="h-3 w-3 opacity-0 group-hover/progress:opacity-100 transition-opacity"
+                  aria-hidden="true"
+                />
+              </span>
+              {progress.pct !== null && <span>{progress.pct}%</span>}
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-accent rounded-full transition-all"
+                style={{ width: `${progress.pct ?? 0}%` }}
+              />
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Menu Button */}
@@ -279,6 +324,17 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
         onOpenChange={setIsShelfModalOpen}
         userBookId={userBook.id}
         bookTitle={book.title}
+      />
+
+      {/* Update Progress Dialog */}
+      <UpdateProgressDialog
+        bookId={book.id}
+        bookTitle={book.title}
+        currentPage={progress.page}
+        totalPages={progress.total}
+        open={isProgressOpen}
+        onOpenChange={setIsProgressOpen}
+        onUpdated={(page, total, pct) => setProgress({ page, total, pct })}
       />
     </div>
   );

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { generateSlug } from "@/lib/utils/slug";
+import { syncUserBadges } from "@/lib/actions/badges";
+import { syncChallengeProgress } from "@/lib/actions/challenges";
 import crypto from "crypto";
 import type { Database } from "@/types/database";
 
@@ -203,13 +205,135 @@ export async function addToShelf(bookId: string, status: string) {
     // Update reading stats
     await updateReadingStats(supabase, user.id);
 
+    // Sync challenges on any status change (moving OUT of "read" must recount
+    // too); badges only when a book becomes read — they are one-way.
+    // Must await: fire-and-forget promises can be frozen on serverless.
+    // allSettled isolates sync failures from the shelf write's success.
+    const syncs: Promise<unknown>[] = [syncChallengeProgress()];
+    if (status === "read") {
+      syncs.push(syncUserBadges());
+    }
+    const results = await Promise.allSettled(syncs);
+    const badgeResult = status === "read" ? results[1] : undefined;
+    const newBadges =
+      badgeResult?.status === "fulfilled"
+        ? ((badgeResult.value as Awaited<ReturnType<typeof syncUserBadges>>)
+            ?.newBadges ?? [])
+        : [];
+
     // Revalidate affected pages
     revalidatePath("/dashboard");
     revalidatePath("/my-shelf");
 
-    return { success: true };
+    return { success: true, newBadges };
   } catch (error) {
     console.error("Error in addToShelf:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_PAGES = 50000;
+
+export async function updateReadingProgress(
+  bookId: string,
+  currentPage: number,
+  totalPages?: number
+): Promise<
+  | { error: string }
+  | {
+      success: true;
+      currentPage: number;
+      totalPages: number | null;
+      progressPercentage: number | null;
+    }
+> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { error: "Not authenticated" };
+    }
+
+    if (typeof bookId !== "string" || !UUID_RE.test(bookId)) {
+      return { error: "Invalid book" };
+    }
+    if (
+      !Number.isInteger(currentPage) ||
+      currentPage < 0 ||
+      currentPage > MAX_PAGES
+    ) {
+      return { error: "Invalid page number" };
+    }
+    if (
+      totalPages !== undefined &&
+      (!Number.isInteger(totalPages) || totalPages <= 0 || totalPages > MAX_PAGES)
+    ) {
+      return { error: "Invalid total pages" };
+    }
+
+    // Fetch the shelf row to resolve the effective total and enforce status
+    const { data: row } = await supabase
+      .from("user_books")
+      .select("status, total_pages, book:books(page_count)")
+      .eq("user_id", user.id)
+      .eq("book_id", bookId)
+      .maybeSingle();
+
+    if (!row || row.status !== "reading") {
+      return { error: "Book is not in your currently-reading shelf" };
+    }
+
+    const bookPageCount = row.book?.page_count ?? null;
+    const effectiveTotal = totalPages ?? row.total_pages ?? bookPageCount;
+    const clampedPage =
+      effectiveTotal !== null
+        ? Math.min(currentPage, effectiveTotal)
+        : currentPage;
+    const progressPercentage =
+      effectiveTotal !== null
+        ? Math.min(100, Math.round((clampedPage / effectiveTotal) * 100))
+        : null;
+
+    // status filter prevents scribbling on want-to-read/read rows
+    const { data: updated, error } = await supabase
+      .from("user_books")
+      .update({
+        current_page: clampedPage,
+        total_pages: effectiveTotal,
+        progress_percentage: progressPercentage,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", user.id)
+      .eq("book_id", bookId)
+      .eq("status", "reading")
+      .select("book_id");
+
+    if (error) {
+      console.error("Error updating reading progress:", error);
+      return { error: "Failed to update progress" };
+    }
+    if (!updated || updated.length === 0) {
+      return { error: "Book is not in your currently-reading shelf" };
+    }
+
+    revalidatePath("/my-shelf");
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      currentPage: clampedPage,
+      totalPages: effectiveTotal,
+      progressPercentage,
+    };
+  } catch (error) {
+    console.error("Error in updateReadingProgress:", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -240,6 +364,9 @@ export async function removeFromShelf(bookId: string) {
 
     // Update reading stats
     await updateReadingStats(supabase, user.id);
+
+    // Un-shelving a read book must recount challenges; badges stay (one-way)
+    await Promise.allSettled([syncChallengeProgress()]);
 
     revalidatePath("/dashboard");
     revalidatePath("/my-shelf");
@@ -371,6 +498,13 @@ export async function importAndAddToShelf(
 
     // Update reading stats
     await updateReadingStats(supabase, user.id);
+
+    // Same sync wiring as addToShelf; badges not surfaced on the import path
+    const importSyncs: Promise<unknown>[] = [syncChallengeProgress()];
+    if (status === "read") {
+      importSyncs.push(syncUserBadges());
+    }
+    await Promise.allSettled(importSyncs);
 
     // Revalidate pages
     revalidatePath("/dashboard");

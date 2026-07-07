@@ -311,12 +311,22 @@ export async function syncChallengeProgress() {
 
     if (!challengesWithProgress) return { success: true };
 
-    // Update challenges that need status changes
+    // getChallenges overlays COMPUTED current_value/status on each row, so
+    // the stored values must be fetched separately to detect drift
+    const { data: stored } = await supabase
+      .from("reading_challenges")
+      .select("id, current_value, status")
+      .eq("user_id", user.id);
+
+    const storedById = new Map((stored ?? []).map((c) => [c.id, c]));
+
+    // Update challenges whose stored values drifted from computed progress
     for (const challenge of challengesWithProgress) {
+      const db = storedById.get(challenge.id);
       if (
-        challenge.status !== (challenge as ReadingChallenge).status ||
-        challenge.current_value !==
-          (challenge as ReadingChallenge).current_value
+        db &&
+        (challenge.status !== db.status ||
+          challenge.current_value !== db.current_value)
       ) {
         await supabase
           .from("reading_challenges")

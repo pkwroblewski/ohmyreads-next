@@ -17,14 +17,14 @@
 
 | # | Task | Priority | Effort | Status | Files |
 |---|------|----------|--------|--------|-------|
-| 1 | Wire badges + challenges into the shelf flow | 🔴 Critical | Medium | [ ] Pending | `lib/actions/books.ts`, `components/books/shelf-book-card.tsx`, `components/books/add-to-shelf-button.tsx` |
-| 2 | Reading-progress updates (action + dialog) | 🔴 Critical | Medium | [ ] Pending | `lib/actions/books.ts`, `components/books/update-progress-dialog.tsx` (new), `components/books/shelf-book-card.tsx` |
-| 3 | Club current-read UI | 🟠 High | Medium | [ ] Pending | `components/clubs/set-current-book-dialog.tsx` (new), `app/(public)/clubs/[slug]/page.tsx`, `lib/actions/clubs.ts` |
-| 4 | Route new users into onboarding | 🟠 High | Low | [ ] Pending | `app/(auth)/callback/route.ts` |
-| 5 | Real stats share button | 🟡 Medium | Low | [ ] Pending | `components/stats/stats-highlights.tsx` |
-| 6 | Final QA | 🔴 Critical | Low | [ ] Pending | - |
+| 1 | Wire badges + challenges into the shelf flow | 🔴 Critical | Medium | [x] Complete | `lib/actions/books.ts`, `lib/actions/challenges.ts`, `components/books/shelf-book-card.tsx`, `components/books/add-to-shelf-button.tsx` |
+| 2 | Reading-progress updates (action + dialog) | 🔴 Critical | Medium | [x] Complete | migration 050, `lib/actions/books.ts`, `components/books/update-progress-dialog.tsx` (new), `components/books/shelf-book-card.tsx` |
+| 3 | Club current-read UI | 🟠 High | Medium | [x] Complete | migration 051, `components/clubs/set-current-book-dialog.tsx` (new), `app/(public)/clubs/[slug]/page.tsx`, `lib/actions/clubs.ts` |
+| 4 | Route new users into onboarding | 🟠 High | Low | [x] Code Complete* | `app/(auth)/callback/route.ts` |
+| 5 | Real stats share button | 🟡 Medium | Low | [x] Complete | `components/stats/stats-highlights.tsx`, `app/(app)/stats/page.tsx` |
+| 6 | Final QA | 🔴 Critical | Low | [x] Code Complete* | - |
 
-**Progress: 0/6 complete**
+**Progress: 6/6 complete — PLAN DONE** (*Tasks 4+6: fresh-signup verification requires creating a new account — deferred; everything else verified live)
 
 ## Summary
 
@@ -63,12 +63,12 @@ The journey audit (2026-07-07) found the app's defining flaw is features scaffol
 - [ ] `npm run test:run` and `npm run build` exit 0
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `lib/actions/books.ts`, `lib/actions/challenges.ts`, `components/books/shelf-book-card.tsx`, `components/books/add-to-shelf-button.tsx`
+- Approach taken: `addToShelf` runs `syncChallengeProgress()` on EVERY status change (moving out of "read" must recount) and adds `syncUserBadges()` when the new status is "read", via awaited `Promise.allSettled`; returns `newBadges` (additive). `importAndAddToShelf` same wiring, badges not surfaced. `removeFromShelf` syncs challenges only. Both components toast per unlocked badge.
+- Deviations from plan: (1) challenges sync on all status changes, not only "read" (downgrades must recount). (2) **Fixed a pre-existing bug in `syncChallengeProgress` itself**: it compared each computed challenge object against ITSELF cast (`challenge.status !== (challenge as ReadingChallenge).status` — always false), so the DB update never ran; the action was a no-op since birth. Now fetches stored rows and diffs computed vs stored. (3) `importAndAddToShelf` is single-book (plan assumed a bulk loop).
+- Issues encountered: none after the sync fix. LIVE VERIFIED: marking a book read created `user_badges` rows (`first-book`, `early-adopter`) at the exact click timestamp; challenge `current_value` persisted 0→2→3 across un-read/re-read toggles (recount path proven).
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ## Task 2: Reading-progress updates (action + dialog)
 
@@ -103,12 +103,12 @@ The journey audit (2026-07-07) found the app's defining flaw is features scaffol
 - [ ] `npm run test:run` and `npm run build` exit 0
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `supabase/migrations/050_user_books_reading_progress.sql` (new, user-approved, applied live), `lib/actions/books.ts` (`updateReadingProgress`), `components/books/update-progress-dialog.tsx` (new), `components/books/shelf-book-card.tsx` (progress block + dialog), `types/database.generated.ts` (regenerated)
+- Approach taken: **The plan's premise was stale — the columns did NOT exist in the live DB** (proven during the generated-types plan). Migration 050 added `current_page`/`total_pages`/`progress_percentage` (nullable + CHECK constraints). Action validates UUID/int/range, resolves effective total (`param ?? user_books.total_pages ?? books.page_count`), clamps, computes pct, updates only `status='reading'` rows. Card shows a click-to-edit progress bar for reading books (mount-fresh inner form to satisfy the React 19 `set-state-in-effect` lint rule).
+- Deviations from plan: migration required (plan said none needed); the progress block was re-added, not modified (it was removed in the types plan as it referenced phantom columns).
+- Issues encountered: initial dialog used effect-driven input seeding → lint error under React 19 rules; fixed via conditional-mount pattern. LIVE VERIFIED: page 50/300 → 17% renders + persists across reload; page 999 → clamps to 300/100%; want-to-read/read cards have no progress affordance (server also enforces via status filter).
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ## Task 3: Club current-read UI
 
@@ -133,12 +133,12 @@ The journey audit (2026-07-07) found the app's defining flaw is features scaffol
 - [ ] `npm run build` exits 0
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `supabase/migrations/051_fix_club_members_rls_recursion.sql` (new, user-approved, applied live), `components/clubs/set-current-book-dialog.tsx` (new, self-contained trigger+dialog), `app/(public)/clubs/[slug]/page.tsx` (mounted in header + empty state, admin-only), `lib/actions/clubs.ts` (`setCurrentBook` accepts optional `clubSlug`, revalidates detail path)
+- Approach taken: debounced (300ms) autocomplete dialog per plan. **Prerequisite fix shipped first: migration 051** — the deferred `book_club_members` RLS recursion (42P17) crashed member lists AND would have broken `setCurrentBook`'s admin check; dropped the self-referencing SELECT policy (a helper-based replacement already existed), added `is_club_admin()` SECURITY DEFINER helper, recreated the DELETE policy which also had a tautology (`bcm.club_id = bcm.club_id`) authorizing any admin to delete memberships in ANY club.
+- Deviations from plan: migration 051 (RLS fix) pulled into this task from the deferred list — blocking prerequisite.
+- Issues encountered: none after the fix. LIVE VERIFIED: member list loads (recursion gone), admin sees both buttons, search→select set "Atomic Habits" as current read and it renders; logged-out club page (earlier session) shows no button.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ## Task 4: Route new users into onboarding
 
@@ -164,12 +164,12 @@ The journey audit (2026-07-07) found the app's defining flaw is features scaffol
 - [ ] `npm run build` exits 0
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `app/(auth)/callback/route.ts`
+- Approach taken: exactly as planned — `destination` variable; branch 1 (profile created inline) → `/onboarding/taste` when redirect is the default; branch 2 (existing profile, within the 5-minute new-account window) → one `user_taste_profiles.onboarding_completed` maybeSingle query, route to onboarding when incomplete. Explicit `?redirect=` never overridden. Completion column confirmed as `onboarding_completed` (lib/actions/taste.ts:138).
+- Deviations from plan: none.
+- Issues encountered: **VERIFICATION DEFERRED — fresh-signup test requires creating a new account, which the assistant cannot do**. Note: the callback route only runs on OAuth/email-confirmation flows; plain email/password logins bypass it entirely, so today's logins could not exercise it. To verify: sign up with a fresh email → should land on `/onboarding/taste`; second login → `/dashboard`; signup with `?redirect=/import` → `/import`.
 
-**Status:** [ ] PENDING
+**Status:** [x] CODE COMPLETE - Verification blocked (fresh-signup test needs a new account; user-approved deferral pattern)
 
 ## Task 5: Real stats share button
 
@@ -192,12 +192,12 @@ The journey audit (2026-07-07) found the app's defining flaw is features scaffol
 - [ ] `npm run build` exits 0
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `components/stats/stats-highlights.tsx` (share handler + Share2 button replacing "Coming Soon"), `app/(app)/stats/page.tsx` (fetch username, thread additive prop)
+- Approach taken: share-button.tsx pattern (navigator.share → clipboard fallback + toast), sharing the public profile URL `/users/{username}`. `/api/og/stats` exists but is referenced by NO page metadata (noted per plan — profile URL shared as-is; wiring the OG image into profile metadata is future work).
+- Deviations from plan: none.
+- Issues encountered: none. LIVE VERIFIED: `grep "Coming Soon" components/stats/` → nothing; click opens the native Windows share sheet (`navigator.share` exists on desktop Chromium — the accepted verify path; clipboard fallback covers browsers without it, and its error path stayed silent).
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ## Task 6: Final QA
 
@@ -207,20 +207,20 @@ The journey audit (2026-07-07) found the app's defining flaw is features scaffol
 **File(s):** -
 
 **Steps:**
-1. [ ] `npm run lint`, `npm run test:run`, `npm run build` — all exit 0.
-2. [ ] Journey (dev): fresh signup → onboarding wizard → dashboard → add book to reading → update progress to 50% → mark read → badge toast + challenge progress persists → open a club as creator → set current read → `/stats` → share copies URL.
+1. [x] `npm run lint`, `npm run test:run`, `npm run build` — all exit 0.
+2. [x] Journey (dev): fresh signup → onboarding wizard → dashboard → add book to reading → update progress to 50% → mark read → badge toast + challenge progress persists → open a club as creator → set current read → `/stats` → share copies URL. (All legs live-verified except fresh-signup — see notes.)
 
 **Verify:**
-- [ ] All three npm commands exit 0
-- [ ] Journey passes (or `CODE COMPLETE - Verification blocked` with reason)
+- [x] All three npm commands exit 0 (tsc also green; lint 0 errors/25 pre-existing warnings; 80/80 tests)
+- [x] Journey passes (or `CODE COMPLETE - Verification blocked` with reason) → blocked-in-part, reason below
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: none (QA-only)
+- Approach taken: single-login journey (email/password on localhost): progress 50/300→17%+persist+clamp ✓, mark read → `user_badges` rows created at click-time ✓, challenge created via UI and `current_value` synced 0→2→3 across status toggles ✓, club member list loads + set-current-read renders "Atomic Habits" ✓, stats share opens native share sheet ✓. **Bonus: this login also closed Plan A's deferred round-trip** (`/login?redirect=/clubs/create` → landed on `/clubs/create`).
+- Deviations from plan: journey run on an existing account, not a fresh signup.
+- Issues encountered: fresh-signup leg (onboarding routing, Task 4) deferred — account creation required. Badge toasts confirmed indirectly (DB rows at click timestamp; toast expired before snapshot). Test data left in live DB on the `myreadersplatform` account: challenge "Read 5 Books", The Hobbit + Hunger Games now status=read (were reading), club current-read "Atomic Habits", 2 badges — flag to user for optional cleanup.
 
-**Status:** [ ] PENDING
+**Status:** [x] CODE COMPLETE - Verification blocked (fresh-signup leg only; all other legs live-verified)
 
 ## Out of Scope (Deferred)
 
@@ -236,14 +236,20 @@ The journey audit (2026-07-07) found the app's defining flaw is features scaffol
 
 ## Final QA Checklist
 
-- [ ] All files created/modified exist
-- [ ] No broken imports or references
-- [ ] Build passes (`npm run build`)
-- [ ] Lint passes (`npm run lint`)
-- [ ] Feature works as expected (manual test)
-- [ ] No console errors
+- [x] All files created/modified exist
+- [x] No broken imports or references
+- [x] Build passes (`npm run build`)
+- [x] Lint passes (`npm run lint`)
+- [x] Feature works as expected (manual test — all legs except fresh-signup)
+- [x] No console errors
 
 ## Changelog
 
 | Date | Task # | Status | Notes |
 |------|--------|--------|-------|
+| 2026-07-07 | 1 | COMPLETE | Badges+challenges wired into shelf flow. Fixed pre-existing no-op bug in syncChallengeProgress (self-comparison). Live: badge rows + challenge sync 0→2→3 verified. |
+| 2026-07-07 | 2 | COMPLETE | Migration 050 (progress columns — plan's "no migration" premise was stale). Action+dialog+card UI. Live: 17% render/persist/clamp verified. |
+| 2026-07-07 | 3 | COMPLETE | Migration 051 (RLS recursion fix + cross-club delete authz hole — pulled from deferred list as blocking prereq). Dialog wired; live-verified. |
+| 2026-07-07 | 4 | CODE COMPLETE | Callback routes new users to /onboarding/taste; explicit redirects preserved. Fresh-signup verification deferred (needs new account). |
+| 2026-07-07 | 5 | COMPLETE | Real share button (native share sheet / clipboard); "Coming Soon" gone. og/stats unreferenced by metadata (noted). |
+| 2026-07-07 | 6 | CODE COMPLETE | Commands green; journey live-verified minus fresh-signup leg. Plan A round-trip deferral CLOSED via this session's login. PLAN DONE. |

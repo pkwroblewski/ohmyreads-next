@@ -1491,33 +1491,42 @@ export type Database = {
         Row: {
           book_id: string
           created_at: string
+          current_page: number | null
           finished_at: string | null
           id: string
+          progress_percentage: number | null
           rating: number | null
           started_at: string | null
           status: string
+          total_pages: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
           book_id: string
           created_at?: string
+          current_page?: number | null
           finished_at?: string | null
           id?: string
+          progress_percentage?: number | null
           rating?: number | null
           started_at?: string | null
           status: string
+          total_pages?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
           book_id?: string
           created_at?: string
+          current_page?: number | null
           finished_at?: string | null
           id?: string
+          progress_percentage?: number | null
           rating?: number | null
           started_at?: string | null
           status?: string
+          total_pages?: number | null
           updated_at?: string
           user_id?: string
         }

@@ -36,6 +36,11 @@ export async function GET(request: Request) {
   // Validate redirect to prevent open redirect attacks
   const redirect = isValidRedirect(redirectParam) ? redirectParam : "/dashboard";
 
+  // New users get routed to taste onboarding — but never when the user
+  // explicitly asked for a destination (e.g. ?redirect=/import from a CTA)
+  let destination = redirect;
+  const isDefaultRedirect = redirect === "/dashboard";
+
   if (code) {
     const supabase = await createClient();
     const { error, data } = await supabase.auth.exchangeCodeForSession(code);
@@ -164,6 +169,11 @@ export async function GET(request: Request) {
             logger.error("Failed to send welcome email", extractErrorInfo(err));
           });
         }
+
+        // Brand-new profile → route into taste onboarding
+        if (isDefaultRedirect) {
+          destination = "/onboarding/taste";
+        }
       } else {
         // Profile exists - admin status is now managed via database only
         // We no longer update admin status on every login based on ADMIN_EMAILS
@@ -184,9 +194,23 @@ export async function GET(request: Request) {
             logger.error("Failed to send welcome email", extractErrorInfo(err));
           });
         }
+
+        // Recent account that hasn't completed taste onboarding → route there
+        // (same new-account window as the welcome email; older accounts skip)
+        if (createdAt > fiveMinutesAgo && isDefaultRedirect) {
+          const { data: taste } = await supabase
+            .from("user_taste_profiles")
+            .select("onboarding_completed")
+            .eq("user_id", data.user.id)
+            .maybeSingle();
+
+          if (!taste?.onboarding_completed) {
+            destination = "/onboarding/taste";
+          }
+        }
       }
 
-      return NextResponse.redirect(`${origin}${redirect}`);
+      return NextResponse.redirect(`${origin}${destination}`);
     }
   }
 
