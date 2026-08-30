@@ -259,28 +259,33 @@ export async function checkAndUnlockBadges(userId: string): Promise<string[]> {
   ]);
 
   const existingBadgeIds = new Set(existingBadges.map((b) => b.badge_id));
-  const newlyUnlocked: string[] = [];
 
-  // Check each badge
-  for (const badge of BADGES) {
-    // Skip if already unlocked
-    if (existingBadgeIds.has(badge.id)) continue;
+  // Every badge whose criteria are newly met
+  const toUnlock = BADGES.filter(
+    (badge) => !existingBadgeIds.has(badge.id) && checkBadgeCriteria(badge, stats)
+  );
 
-    // Check if criteria is met
-    if (checkBadgeCriteria(badge, stats)) {
-      // Unlock the badge
-      const { error } = await supabase.from("user_badges").insert({
-        user_id: userId,
-        badge_id: badge.id,
-      });
+  if (toUnlock.length === 0) return [];
 
-      if (!error) {
-        newlyUnlocked.push(badge.id);
-      }
-    }
+  // One statement instead of a round trip per badge. upsert with
+  // ignoreDuplicates keeps the previous forgiving behaviour: a badge already
+  // inserted by a concurrent call is skipped rather than failing the batch on
+  // the user_badges(user_id, badge_id) unique constraint, and the returned
+  // rows are exactly the ones this call actually unlocked.
+  const { data, error } = await supabase
+    .from("user_badges")
+    .upsert(
+      toUnlock.map((badge) => ({ user_id: userId, badge_id: badge.id })),
+      { onConflict: "user_id,badge_id", ignoreDuplicates: true }
+    )
+    .select("badge_id");
+
+  if (error) {
+    console.error("Error unlocking badges:", error);
+    return [];
   }
 
-  return newlyUnlocked;
+  return (data || []).map((row) => row.badge_id);
 }
 
 // Get badge unlock progress for a user (for showing how close they are)

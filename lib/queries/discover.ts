@@ -68,55 +68,41 @@ type DiscoverClient =
   | Awaited<ReturnType<typeof createClient>>
   | ReturnType<typeof createPublicClient>;
 
+const EMPTY_TASTE: ReaderTasteData = { bookIds: [], genres: [], vibes: [] };
+
 /**
  * Shared query body. Takes the client so the caller decides whether this read
  * is scoped to the signed-in user's session or to the anonymous role.
+ *
+ * Aggregated in SQL (migration 060) so scoring N candidates costs one round
+ * trip instead of 2N, and so the per-candidate rows are never subject to
+ * PostgREST's 1000-row cap.
  */
-async function fetchReaderTasteData(
+async function fetchReaderTasteBatch(
   supabase: DiscoverClient,
-  userId: string
-): Promise<ReaderTasteData> {
-  // Fetch user's books (read or reading) with genres
-  const { data: userBooks } = await supabase
-    .from("user_books")
-    .select(`
-      book_id,
-      book:books(genres)
-    `)
-    .eq("user_id", userId)
-    .in("status", ["read", "reading"]);
+  userIds: string[]
+): Promise<Record<string, ReaderTasteData>> {
+  if (userIds.length === 0) return {};
 
-  // Fetch user's review vibe tags
-  const { data: reviews } = await supabase
-    .from("reviews")
-    .select("vibe_tags")
-    .eq("user_id", userId);
-
-  // Extract book IDs
-  const bookIds = (userBooks || []).map((ub) => ub.book_id);
-
-  // Extract and flatten genres
-  const genresSet = new Set<string>();
-  (userBooks || []).forEach((ub) => {
-    const book = Array.isArray(ub.book) ? ub.book[0] : ub.book;
-    if (book?.genres) {
-      book.genres.forEach((g: string) => genresSet.add(g));
-    }
+  const { data, error } = await supabase.rpc("get_reader_taste_batch", {
+    p_user_ids: userIds,
   });
 
-  // Extract and flatten vibes
-  const vibesSet = new Set<string>();
-  (reviews || []).forEach((r) => {
-    if (r.vibe_tags) {
-      r.vibe_tags.forEach((v: string) => vibesSet.add(v));
-    }
+  if (error) {
+    console.error("Error fetching reader taste data:", error);
+    return {};
+  }
+
+  const byUser: Record<string, ReaderTasteData> = {};
+  (data || []).forEach((row) => {
+    byUser[row.user_id] = {
+      bookIds: row.book_ids || [],
+      genres: row.genres || [],
+      vibes: row.vibes || [],
+    };
   });
 
-  return {
-    bookIds,
-    genres: Array.from(genresSet),
-    vibes: Array.from(vibesSet),
-  };
+  return byUser;
 }
 
 /**
@@ -127,22 +113,26 @@ async function fetchReaderTasteData(
  */
 export async function getReaderTasteData(userId: string): Promise<ReaderTasteData> {
   const supabase = await createClient();
-  return fetchReaderTasteData(supabase, userId);
+  const byUser = await fetchReaderTasteBatch(supabase, [userId]);
+  return byUser[userId] ?? EMPTY_TASTE;
 }
 
 /**
- * Taste data for *other* readers, read as anon. Every caller passes the id of
- * a discovery candidate, and those lists are already filtered to
+ * Taste data for *other* readers, read as anon. Every caller passes ids of
+ * discovery candidates, and those lists are already filtered to
  * discovery_visible = true, so the anonymous role sees the same rows the
  * session would — but without cookies, which is what makes this cacheable.
  *
  * This previously wrapped the cookie-based reader directly, which throws
  * "used `cookies` inside a function cached with `unstable_cache(...)`" at
  * runtime on the logged-in /discover path.
+ *
+ * Callers must pass a sorted id list: the argument is part of the cache key,
+ * so an unstable order would miss the cache on every render.
  */
-export const getCachedReaderTasteData = unstable_cache(
-  async (userId: string) => fetchReaderTasteData(createPublicClient(), userId),
-  ["reader-taste-data"],
+export const getCachedReaderTasteBatch = unstable_cache(
+  async (userIds: string[]) => fetchReaderTasteBatch(createPublicClient(), userIds),
+  ["reader-taste-batch"],
   { revalidate: 3600 } // Cache for 1 hour
 );
 
@@ -331,11 +321,16 @@ export async function getRecommendedReaders(
     reviewsPerUser.set(r.user_id, (reviewsPerUser.get(r.user_id) || 0) + 1);
   });
 
-  // Calculate compatibility for each candidate
+  // Calculate compatibility for each candidate. One batched fetch for all of
+  // them — this used to be a query pair per profile.
+  const tasteByUser = await getCachedReaderTasteBatch(
+    profiles.map((p) => p.id).sort()
+  );
+
   const readersWithCompatibility: ReaderWithCompatibility[] = [];
 
   for (const profile of profiles) {
-    const targetTaste = await getCachedReaderTasteData(profile.id);
+    const targetTaste = tasteByUser[profile.id] ?? EMPTY_TASTE;
     const compat = computeCompatibilityScore(userTaste, targetTaste);
 
     readersWithCompatibility.push({
@@ -519,30 +514,31 @@ export async function browseReaders(options: {
 
   if (currentUserId && filters.sortBy === "compatibility") {
     const userTaste = await getReaderTasteData(currentUserId);
-
-    readers = await Promise.all(
-      data.map(async (profile) => {
-        const targetTaste = await getCachedReaderTasteData(profile.id);
-        const compat = computeCompatibilityScore(userTaste, targetTaste);
-
-        return {
-          id: profile.id,
-          username: profile.username,
-          display_name: profile.display_name,
-          avatar_url: profile.avatar_url,
-          bio: profile.bio,
-          followers_count: profile.followers_count || 0,
-          following_count: profile.following_count || 0,
-          books_count: booksPerUser.get(profile.id) || 0,
-          reviews_count: reviewsPerUser.get(profile.id) || 0,
-          compatibility: compat.level,
-          compatibility_score: compat.score,
-          shared_books: compat.sharedBooks,
-          shared_genres: compat.sharedGenres,
-          shared_vibes: compat.sharedVibes,
-        };
-      })
+    const tasteByUser = await getCachedReaderTasteBatch(
+      data.map((p) => p.id).sort()
     );
+
+    readers = data.map((profile) => {
+      const targetTaste = tasteByUser[profile.id] ?? EMPTY_TASTE;
+      const compat = computeCompatibilityScore(userTaste, targetTaste);
+
+      return {
+        id: profile.id,
+        username: profile.username,
+        display_name: profile.display_name,
+        avatar_url: profile.avatar_url,
+        bio: profile.bio,
+        followers_count: profile.followers_count || 0,
+        following_count: profile.following_count || 0,
+        books_count: booksPerUser.get(profile.id) || 0,
+        reviews_count: reviewsPerUser.get(profile.id) || 0,
+        compatibility: compat.level,
+        compatibility_score: compat.score,
+        shared_books: compat.sharedBooks,
+        shared_genres: compat.sharedGenres,
+        shared_vibes: compat.sharedVibes,
+      };
+    });
 
     // Sort by compatibility score
     readers.sort((a, b) => b.compatibility_score - a.compatibility_score);

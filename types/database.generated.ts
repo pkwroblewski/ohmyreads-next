@@ -1768,6 +1768,15 @@ export type Database = {
           genre: string
         }[]
       }
+      get_reader_taste_batch: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          book_ids: string[]
+          genres: string[]
+          user_id: string
+          vibes: string[]
+        }[]
+      }
       get_top_reviewers: {
         Args: { limit_count?: number }
         Returns: {
