@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   updateProfileSchema,
   updateSocialLinksSchema,
@@ -11,6 +12,7 @@ import {
 import { sendWelcomeEmail } from "@/lib/actions/email";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import type { Database, Profile } from "@/types/database";
+import { reportError } from "@/lib/utils/log";
 
 /**
  * Update user profile
@@ -78,8 +80,7 @@ export async function updateProfile(input: UpdateProfileInput) {
       .eq("id", user.id);
 
     if (error) {
-      console.error("Error updating profile:", error);
-      return { error: error.message };
+      return { error: reportError("Error updating profile", error) };
     }
 
     revalidatePath("/profile");
@@ -144,8 +145,7 @@ export async function updateSocialLinks(links: SocialLinkInput[]) {
       );
 
       if (error) {
-        console.error("Error updating social links:", error);
-        return { error: error.message };
+        return { error: reportError("Error updating social links", error) };
       }
     }
 
@@ -327,8 +327,24 @@ export async function ensureUserProfile(): Promise<{
       return { profile: null, error: "Failed to create profile" };
     }
 
-    // Log admin role grant in audit table (if admin was granted)
+    // Promote to admin via the service-role client. The protect_admin_columns
+    // trigger strips is_admin from the anon-client insert above, so ADMIN_EMAILS
+    // provisioning must set it explicitly through service_role — the only role
+    // the trigger permits.
     if (isAdmin) {
+      const adminClient = createAdminClient();
+      const { error: promoteError } = await adminClient
+        .from("profiles")
+        .update({
+          is_admin: true,
+          admin_granted_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+      if (promoteError) {
+        console.error("Admin provisioning error:", promoteError);
+      }
+
+      // Log admin role grant in audit table
       try {
         await supabase.from("admin_role_changes").insert({
           user_id: user.id,

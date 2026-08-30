@@ -13,6 +13,7 @@ import type {
   ReadingChallenge,
   ChallengeWithProgress,
 } from "@/types/database";
+import { reportError } from "@/lib/utils/log";
 
 interface CreateChallengeInput {
   name: string;
@@ -77,8 +78,7 @@ export async function createChallenge(input: CreateChallengeInput) {
       .single();
 
     if (error) {
-      console.error("Error creating challenge:", error);
-      return { error: error.message };
+      return { error: reportError("Error creating challenge", error) };
     }
 
     revalidatePath("/challenges");
@@ -133,8 +133,7 @@ export async function updateChallenge(
       .eq("user_id", user.id);
 
     if (error) {
-      console.error("Error updating challenge:", error);
-      return { error: error.message };
+      return { error: reportError("Error updating challenge", error) };
     }
 
     revalidatePath("/challenges");
@@ -180,8 +179,7 @@ export async function deleteChallenge(challengeId: string) {
       .eq("user_id", user.id);
 
     if (error) {
-      console.error("Error deleting challenge:", error);
-      return { error: error.message };
+      return { error: reportError("Error deleting challenge", error) };
     }
 
     revalidatePath("/challenges");
@@ -221,8 +219,7 @@ export async function getChallenges(): Promise<{
       .order("created_at", { ascending: false });
 
     if (challengesError) {
-      console.error("Error fetching challenges:", challengesError);
-      return { data: null, error: challengesError.message };
+      return { data: null, error: reportError("Error fetching challenges", challengesError) };
     }
 
     if (!challenges || challenges.length === 0) {

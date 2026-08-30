@@ -6,6 +6,7 @@ import { checkAndUnlockBadges } from "@/lib/queries/badges";
 import { getBadgeById } from "@/lib/data/badges";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { badgeIdSchema } from "@/lib/validation/badge";
+import { reportError } from "@/lib/utils/log";
 
 // Sync badges for the current user (check and unlock any new badges)
 export async function syncUserBadges(): Promise<{
@@ -93,8 +94,7 @@ export async function removeBadge(badgeId: string): Promise<{
       .eq("badge_id", badgeId);
 
     if (error) {
-      console.error("Error removing badge:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: reportError("Error removing badge", error) };
     }
 
     revalidatePath("/profile");

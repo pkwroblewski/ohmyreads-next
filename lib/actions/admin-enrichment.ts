@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { enrichBookEntry } from "@/lib/utils/external-book-search";
-import { logger } from "@/lib/utils/log";
+import { logger, reportError } from "@/lib/utils/log";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   enrichmentLimitSchema,
@@ -310,7 +310,9 @@ async function enrichSingleBookCore(
         .eq("id", book.id);
 
       if (error) {
-        result.error = error.message;
+        result.error = reportError("Book enrichment update failed", error, {
+          bookId: book.id,
+        });
         return result;
       }
 
@@ -320,11 +322,9 @@ async function enrichSingleBookCore(
       result.success = true;
     }
   } catch (error) {
-    result.error = error instanceof Error ? error.message : "Unknown error";
-    logger.error("Book enrichment failed", {
+    result.error = reportError("Book enrichment failed", error, {
       bookId: book.id,
       title: book.title,
-      error: result.error,
     });
   }
 

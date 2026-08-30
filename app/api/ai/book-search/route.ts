@@ -8,6 +8,7 @@ import { bookSearchTools } from "@/lib/ai/tools";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import { validateOrigin } from "@/lib/utils/csrf";
+import { reportError } from "@/lib/utils/log";
 
 // Select the AI model based on environment or preference
 // Default to Gemini Flash for cost efficiency
@@ -92,10 +93,9 @@ export async function POST(request: NextRequest) {
       stream: result.toUIMessageStream(),
     });
   } catch (error) {
-    console.error("AI book search error:", error);
-
-    const message =
-      error instanceof Error ? error.message : "An error occurred";
+    // Never surface the raw message — getModel() throws one naming every AI
+    // provider env var the deployment is missing.
+    const message = reportError("AI book search error", error);
 
     return new Response(JSON.stringify({ error: message }), {
       status: 500,

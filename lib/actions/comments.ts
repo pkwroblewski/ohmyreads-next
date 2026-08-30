@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createCommentSchema } from "@/lib/validation/comment";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { logger } from "@/lib/utils/log";
+import { logger, reportError } from "@/lib/utils/log";
 
 /**
  * Helper to revalidate book page via review ID
@@ -86,8 +86,11 @@ export async function createComment(input: {
       .single();
 
     if (error) {
-      logger.error("Error creating comment", { error, userId: user.id });
-      return { error: error.message };
+      return {
+        error: reportError("Error creating comment", error, {
+          userId: user.id,
+        }),
+      };
     }
 
     await revalidateBookPageFromReview(data.reviewId);
@@ -133,8 +136,9 @@ export async function deleteComment(commentId: string) {
       .eq("id", commentId);
 
     if (error) {
-      logger.error("Error deleting comment", { error, commentId });
-      return { error: error.message };
+      return {
+        error: reportError("Error deleting comment", error, { commentId }),
+      };
     }
 
     await revalidateBookPageFromReview(comment.review_id);

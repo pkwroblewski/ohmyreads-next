@@ -7,6 +7,7 @@ import { parseBookCSV, type ParsedBookRow } from "@/lib/utils/book-csv-parser";
 import { generateSlug } from "@/lib/utils/slug";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { importBookRowsSchema } from "@/lib/validation/admin";
+import { reportError } from "@/lib/utils/log";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -218,7 +219,9 @@ export async function importBooksFromCSV(rows: ParsedBookRow[]): Promise<ImportR
           rowNumber: row.rowNumber,
           title: row.title,
           success: false,
-          error: insertError.message,
+          error: reportError("Admin import: row insert failed", insertError, {
+            rowNumber: row.rowNumber,
+          }),
         });
         failed++;
       } else {

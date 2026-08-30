@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
+import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import { getFollowingIds } from "./follows";
 import type {
   CompatibilityLevel,
@@ -142,13 +143,17 @@ export async function searchReaders(options: {
   const supabase = await createClient();
 
   // Use ILIKE for case-insensitive search
+  // Sanitized: `.` `,` `(` `)` are structural in PostgREST, so a raw term could
+  // otherwise append filters to this profiles select.
+  const safeQuery = sanitizePostgrestValue(query);
+
   let queryBuilder = supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url, bio, followers_count, following_count", {
       count: "exact",
     })
     .eq("discovery_visible", true)
-    .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+    .or(`username.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%`)
     .order("followers_count", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -419,10 +424,11 @@ export async function browseReaders(options: {
     })
     .eq("discovery_visible", true);
 
-  // Apply search filter
+  // Apply search filter (sanitized — see searchReaders above)
   if (filters.query && filters.query.length >= 2) {
+    const safeFilterQuery = sanitizePostgrestValue(filters.query);
     queryBuilder = queryBuilder.or(
-      `username.ilike.%${filters.query}%,display_name.ilike.%${filters.query}%`
+      `username.ilike.%${safeFilterQuery}%,display_name.ilike.%${safeFilterQuery}%`
     );
   }
 

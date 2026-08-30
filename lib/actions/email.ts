@@ -1,5 +1,9 @@
-"use server";
-
+// NOT a "use server" module. This was previously a server action, which exposed
+// it as an unauthenticated POST endpoint: any anonymous caller could send mail
+// to an arbitrary recipient from our verified Resend domain. It is only ever
+// invoked from trusted server-side contexts (the OAuth callback, the Supabase
+// signup webhook, and ensureUserProfile), so it is now a plain server module —
+// reachable by our own code, not by the network.
 import { getResendClient, FROM_EMAIL } from "@/lib/email/resend";
 import {
   getWelcomeEmailSubject,
@@ -8,6 +12,7 @@ import {
 } from "@/lib/email/templates/welcome";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { sendWelcomeEmailSchema } from "@/lib/validation/email";
+import { reportError } from "@/lib/utils/log";
 
 interface SendWelcomeEmailParams {
   email: string;
@@ -29,8 +34,8 @@ export async function sendWelcomeEmail({
   }
 
   try {
-    // Validate input with Zod (before the rate limit — its key embeds email;
-    // no auth here: legitimately called from signup webhook/callback contexts)
+    // Validate input with Zod (before the rate limit — its key embeds email).
+    // Callers are trusted server-side contexts; see the module comment above.
     const validationResult = sendWelcomeEmailSchema.safeParse({
       email,
       username,
@@ -69,16 +74,14 @@ export async function sendWelcomeEmail({
     });
 
     if (error) {
-      console.error("Failed to send welcome email:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: reportError("Failed to send welcome email", error) };
     }
 
     return { success: true };
   } catch (error) {
-    console.error("Unexpected error sending welcome email:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: reportError("Unexpected error sending welcome email", error),
     };
   }
 }

@@ -10,6 +10,7 @@ import {
 } from "@/lib/validation/review";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { updateReadingStats } from "./books";
+import { reportError } from "@/lib/utils/log";
 
 /**
  * Helper to revalidate book page by ID (fetches slug to build correct path)
@@ -253,7 +254,7 @@ export async function deleteReview(reviewId: string) {
       .eq("id", reviewId);
 
     if (error) {
-      return { error: error.message };
+      return { error: reportError("Error deleting review", error, { reviewId }) };
     }
 
     // Update book rating

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { updateReadingGoalSchema } from "@/lib/validation/goal";
+import { reportError } from "@/lib/utils/log";
 
 export async function updateReadingGoal(targetBooks: number) {
   try {
@@ -47,8 +48,7 @@ export async function updateReadingGoal(targetBooks: number) {
     );
 
     if (error) {
-      console.error("Error updating reading goal:", error);
-      return { error: error.message };
+      return { error: reportError("Error updating reading goal", error) };
     }
 
     revalidatePath("/stats");

@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { browseReaders, searchReaders } from "@/lib/queries/discover";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 
 export async function GET(request: NextRequest) {
+  // Rate limit: 60 requests per minute. This route is unauthenticated and scans
+  // the profiles table, so it needs a throttle like the other public search
+  // endpoints.
+  const ip = getClientIp(request);
+  const { allowed } = await checkRateLimit(`discover-browse:${ip}`, 60, 60000);
+
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q") || "";

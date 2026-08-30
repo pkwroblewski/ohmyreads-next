@@ -7,6 +7,7 @@ import {
   targetUserIdSchema,
   friendRequestIdSchema,
 } from "@/lib/validation/social";
+import { reportError } from "@/lib/utils/log";
 
 // ============================================
 // SEND FRIEND REQUEST
@@ -76,8 +77,7 @@ export async function sendFriendRequest(targetUserId: string): Promise<{
     });
 
     if (error) {
-      console.error("Error sending friend request:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: reportError("Error sending friend request", error) };
     }
 
     revalidatePath("/friends");
@@ -154,8 +154,7 @@ export async function acceptFriendRequest(requestId: string): Promise<{
       .eq("id", requestId);
 
     if (error) {
-      console.error("Error accepting friend request:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: reportError("Error accepting friend request", error) };
     }
 
     revalidatePath("/friends");
@@ -232,8 +231,7 @@ export async function rejectFriendRequest(requestId: string): Promise<{
       .eq("id", requestId);
 
     if (error) {
-      console.error("Error rejecting friend request:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: reportError("Error rejecting friend request", error) };
     }
 
     revalidatePath("/friends");
@@ -306,8 +304,7 @@ export async function cancelFriendRequest(requestId: string): Promise<{
       .eq("id", requestId);
 
     if (error) {
-      console.error("Error canceling friend request:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: reportError("Error canceling friend request", error) };
     }
 
     revalidatePath("/friends");
@@ -373,8 +370,7 @@ export async function removeFriend(targetUserId: string): Promise<{
       .eq("id", friendship.id);
 
     if (error) {
-      console.error("Error removing friend:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: reportError("Error removing friend", error) };
     }
 
     revalidatePath("/friends");

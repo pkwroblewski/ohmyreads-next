@@ -9,6 +9,7 @@ import {
 } from "@/lib/utils/csv-parser";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { goodreadsRowsSchema } from "@/lib/validation/import";
+import { reportError } from "@/lib/utils/log";
 
 export interface ImportResult {
   success: boolean;
@@ -318,7 +319,8 @@ export async function importFromGoodreads(
         .insert(booksToAdd);
 
       if (insertError) {
-        result.errors.push(`Failed to add books: ${insertError.message}`);
+        reportError("Import: batch insert failed", insertError);
+        result.errors.push("Failed to add books. Please try again.");
         return result;
       }
     }
@@ -332,9 +334,7 @@ export async function importFromGoodreads(
 
     return result;
   } catch (error) {
-    result.errors.push(
-      `Unexpected error: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
+    result.errors.push(reportError("Import: unexpected error", error));
     return result;
   }
 }

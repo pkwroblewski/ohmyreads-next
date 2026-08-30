@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
@@ -266,8 +267,13 @@ export async function adminToggleAdmin(userId: string, reason?: string) {
       updateData.admin_granted_by = null;
     }
 
-    // Update status
-    const { error } = await supabase
+    // Update status via the service-role client. The protect_admin_columns
+    // trigger (migration 045) silently reverts is_admin/admin_granted_* changes
+    // for any JWT role other than service_role, so the user-scoped client used
+    // for authorization cannot perform this write. Authorization has already
+    // been enforced above by requireAdmin() + the self-modification guard.
+    const adminClient = createAdminClient();
+    const { error } = await adminClient
       .from("profiles")
       .update(updateData)
       .eq("id", userId);

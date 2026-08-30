@@ -14,6 +14,7 @@ import {
 } from "@/lib/validation/book-action";
 import crypto from "crypto";
 import type { Database } from "@/types/database";
+import { reportError } from "@/lib/utils/log";
 
 type UserBookInsert = Database["public"]["Tables"]["user_books"]["Insert"];
 
@@ -142,8 +143,7 @@ async function insertBookWithUniqueSlug(
       }
 
       // Different error - fail immediately
-      console.error("Error inserting book:", error);
-      return { error: error.message };
+      return { error: reportError("Error inserting book", error) };
     }
   }
 
@@ -159,7 +159,11 @@ async function insertBookWithUniqueSlug(
     return { id: data.id, slug: data.slug };
   }
 
-  return { error: error?.message || "Failed to create book after multiple attempts" };
+  return {
+    error: error
+      ? reportError("Error inserting book (last-resort slug)", error)
+      : "Failed to create book after multiple attempts",
+  };
 }
 
 export async function addToShelf(bookId: string, status: string) {
@@ -213,8 +217,7 @@ export async function addToShelf(bookId: string, status: string) {
     });
 
     if (error) {
-      console.error("Error adding to shelf:", error);
-      return { error: error.message };
+      return { error: reportError("Error adding to shelf", error) };
     }
 
     // Update reading stats
@@ -384,8 +387,7 @@ export async function removeFromShelf(bookId: string) {
       .eq("book_id", bookId);
 
     if (error) {
-      console.error("Error removing from shelf:", error);
-      return { error: error.message };
+      return { error: reportError("Error removing from shelf", error) };
     }
 
     // Update reading stats

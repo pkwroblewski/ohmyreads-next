@@ -1,5 +1,6 @@
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
+import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import type { Book, ReviewWithUser, UserBook } from "@/types/database";
 
 /**
@@ -207,8 +208,10 @@ export async function searchBooks(
   // Falls back to ilike for very short queries (1-2 chars) that FTS can't handle
   if (query) {
     if (query.trim().length <= 2) {
+      // Sanitized: raw input here would let `.` `,` `(` `)` append filters
+      const safeQuery = sanitizePostgrestValue(query);
       bookQuery = bookQuery.or(
-        `title.ilike.%${query}%,author.ilike.%${query}%`
+        `title.ilike.%${safeQuery}%,author.ilike.%${safeQuery}%`
       );
     } else {
       bookQuery = bookQuery.textSearch("fts", query, {

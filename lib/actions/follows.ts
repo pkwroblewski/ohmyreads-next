@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { targetUserIdSchema } from "@/lib/validation/social";
+import { reportError } from "@/lib/utils/log";
 
 export async function followUser(targetUserId: string): Promise<{
   success: boolean;
@@ -59,8 +60,7 @@ export async function followUser(targetUserId: string): Promise<{
     });
 
     if (error) {
-      console.error("Error following user:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: reportError("Error following user", error) };
     }
 
     // Revalidate relevant pages
@@ -111,8 +111,7 @@ export async function unfollowUser(targetUserId: string): Promise<{
       .eq("following_id", targetUserId);
 
     if (error) {
-      console.error("Error unfollowing user:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: reportError("Error unfollowing user", error) };
     }
 
     // Revalidate relevant pages

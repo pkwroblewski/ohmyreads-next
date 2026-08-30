@@ -16,20 +16,27 @@ interface CuratedPick {
 interface CuratedMiniGridProps {
   books: Book[];
   title?: string;
+  /** Gates the AI-reasons fetch; the endpoint is authenticated. */
   isLoggedIn?: boolean;
 }
 
 export function CuratedMiniGrid({
   books,
   title = "Personalized Recommendations",
+  isLoggedIn = false,
 }: CuratedMiniGridProps) {
   // Only show first 4 books
   const displayBooks = books.slice(0, 4);
   const [picks, setPicks] = useState<Map<string, CuratedPick>>(new Map());
 
-  // Fetch AI-generated reasons on mount
+  // Fetch AI-generated reasons on mount. The books themselves are rendered from
+  // server data — these reasons are a progressive enhancement, so skipping the
+  // request simply omits the blurbs.
   useEffect(() => {
     if (displayBooks.length === 0) return;
+    // The endpoint requires auth (it spends LLM tokens per miss), so an
+    // anonymous fetch would be a guaranteed 401 on every homepage visit.
+    if (!isLoggedIn) return;
 
     const fetchPicks = async () => {
       try {
@@ -48,7 +55,7 @@ export function CuratedMiniGrid({
     };
 
     fetchPicks();
-  }, [displayBooks.length]);
+  }, [displayBooks.length, isLoggedIn]);
 
   if (displayBooks.length === 0) {
     return (

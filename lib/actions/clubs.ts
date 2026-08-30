@@ -10,6 +10,7 @@ import {
   clubIdSchema,
 } from "@/lib/validation/club";
 import type { ClubVisibility } from "@/types/database";
+import { reportError } from "@/lib/utils/log";
 
 interface CreateClubInput {
   name: string;
@@ -74,8 +75,8 @@ export async function createClub(
     .single();
 
   if (clubError) {
-    console.error("[createClub] Club insert error:", clubError);
-    return { success: false, error: "Failed to create club: " + clubError.message };
+    reportError("[createClub] Club insert error", clubError);
+    return { success: false, error: "Failed to create club. Please try again." };
   }
 
   // Add creator as admin member using SECURITY DEFINER function to bypass RLS recursion

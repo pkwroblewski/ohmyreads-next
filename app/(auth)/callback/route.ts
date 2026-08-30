@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { sendWelcomeEmail } from "@/lib/actions/email";
 import { logger, extractErrorInfo, extractSupabaseErrorInfo } from "@/lib/utils/log";
@@ -125,8 +126,27 @@ export async function GET(request: Request) {
             return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`);
           }
 
-          // Log admin role grant in audit table (if admin was granted)
+          // Promote to admin via the service-role client. The
+          // protect_admin_columns trigger strips is_admin from the anon-client
+          // insert above, so ADMIN_EMAILS provisioning must set it explicitly
+          // through service_role — the only role the trigger permits.
           if (isAdmin) {
+            const adminClient = createAdminClient();
+            const { error: promoteError } = await adminClient
+              .from("profiles")
+              .update({
+                is_admin: true,
+                admin_granted_at: new Date().toISOString(),
+              })
+              .eq("id", user.id);
+            if (promoteError) {
+              logger.error(
+                "Admin provisioning error",
+                extractSupabaseErrorInfo(promoteError)
+              );
+            }
+
+            // Log admin role grant in audit table
             try {
               await supabase.from("admin_role_changes").insert({
                 user_id: user.id,

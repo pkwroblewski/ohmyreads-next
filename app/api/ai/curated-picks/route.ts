@@ -3,7 +3,8 @@ import { google } from "@ai-sdk/google";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/server";
-import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { isForeignOrigin } from "@/lib/utils/csrf";
 
 // Simple in-memory cache for curated picks (1 hour TTL per user)
 const curatedCache = new Map<string, { data: CuratedPick[]; timestamp: number }>();
@@ -24,9 +25,26 @@ function getModel() {
 
 export async function GET(request: NextRequest) {
   try {
-    // Rate limiting: 20 requests per minute
-    const ip = getClientIp(request);
-    const { allowed } = await checkRateLimit(`ai-curated:${ip}`, 20, 60000);
+    // Block cross-site requests farming this LLM-backed endpoint
+    if (isForeignOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Auth required. This endpoint spends LLM tokens per cache miss, and it was
+    // previously reachable anonymously from the public homepage — an
+    // unauthenticated cost-amplification vector. Anonymous visitors still see
+    // the curated books (rendered server-side); they just don't get the
+    // AI-written reason blurbs, which are a progressive enhancement.
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limit per user (20/min) rather than per IP, so shared NATs don't
+    // throttle each other.
+    const { allowed } = await checkRateLimit(`ai-curated:${user.id}`, 20, 60000);
 
     if (!allowed) {
       return NextResponse.json(
@@ -35,12 +53,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user is authenticated
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // Use different cache keys for logged in vs anonymous users
-    const cacheKey = user ? `curated:${user.id}` : "curated:anonymous";
+    const cacheKey = `curated:${user.id}`;
     const cached = curatedCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return NextResponse.json({ picks: cached.data, cached: true });

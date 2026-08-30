@@ -2,9 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateOrigin } from "@/lib/utils/csrf";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+// Stored extension is derived from the verified MIME type, never from the
+// user-supplied filename (which can carry a second, executable extension).
+const EXTENSION_BY_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 // Magic number signatures for allowed image types
 const FILE_SIGNATURES: Record<string, number[][]> = {
@@ -145,6 +154,20 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Rate limit by user (10 uploads per hour — each write costs storage)
+  const { allowed } = await checkRateLimit(
+    `place-photo:${user.id}`,
+    10,
+    3600000
+  );
+
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many uploads. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -182,11 +205,6 @@ export async function POST(
       return NextResponse.json({ error: "Place not found" }, { status: 404 });
     }
 
-    // Generate unique filename
-    const ext = file.name.split(".").pop() || "jpg";
-    const filename = `${placeId}/${user.id}/${Date.now()}.${ext}`;
-
-    // Upload to Supabase Storage
     const arrayBuffer = await file.arrayBuffer();
 
     // Validate file signature (magic numbers) to prevent spoofed MIME types
@@ -196,6 +214,12 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    // Generate unique filename from the now-verified MIME type
+    const ext = EXTENSION_BY_TYPE[file.type];
+    const filename = `${placeId}/${user.id}/${Date.now()}.${ext}`;
+
+    // Upload to Supabase Storage
     const { error: uploadError } = await adminSupabase.storage
       .from("place-photos")
       .upload(filename, arrayBuffer, {

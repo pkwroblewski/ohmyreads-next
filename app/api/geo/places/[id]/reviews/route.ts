@@ -2,22 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateOrigin } from "@/lib/utils/csrf";
-
-// Valid atmosphere tags
-const ATMOSPHERE_TAGS = [
-  "cozy",
-  "quiet",
-  "busy",
-  "well-lit",
-  "good-coffee",
-  "great-selection",
-  "helpful-staff",
-  "good-for-reading",
-  "power-outlets",
-  "wifi",
-  "outdoor-seating",
-  "pet-friendly",
-];
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { placeReviewSchema } from "@/lib/validation/place";
 
 /**
  * GET /api/geo/places/[id]/reviews
@@ -117,22 +103,28 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  try {
-    const body = await request.json();
-    const { rating, content, atmosphereTags } = body;
+  // Rate limit by user (10 reviews per minute)
+  const { allowed } = await checkRateLimit(`place-review:${user.id}`, 10, 60000);
 
-    // Validate rating
-    if (!rating || typeof rating !== "number" || rating < 1 || rating > 5) {
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
+  try {
+    const parsed = placeReviewSchema.safeParse(await request.json());
+
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Rating must be a number between 1 and 5" },
+        { error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }
 
-    // Validate atmosphere tags
-    const validTags = (atmosphereTags || []).filter((tag: string) =>
-      ATMOSPHERE_TAGS.includes(tag)
-    );
+    const { rating, content, atmosphereTags } = parsed.data;
+    const validTags = atmosphereTags || [];
 
     // Check if place exists
     const adminSupabase = createAdminClient();
@@ -153,8 +145,8 @@ export async function POST(
         {
           place_id: placeId,
           user_id: user.id,
-          rating: Math.round(rating),
-          content: content?.trim() || null,
+          rating,
+          content: content || null,
           atmosphere_tags: validTags,
           updated_at: new Date().toISOString(),
         },

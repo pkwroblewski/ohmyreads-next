@@ -7,6 +7,7 @@ import { placeSearchTools } from "@/lib/ai/place-tools";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import { validateOrigin } from "@/lib/utils/csrf";
+import { reportError } from "@/lib/utils/log";
 
 // System prompt for the place search assistant
 const PLACE_SEARCH_SYSTEM_PROMPT = `You are a helpful assistant for OhMyReads, a reading community platform. Your role is to help users find literary places - bookstores, libraries, and cafes that are great for reading.
@@ -130,9 +131,7 @@ export async function POST(request: NextRequest) {
       places,
     });
   } catch (error) {
-    console.error("AI place search error:", error);
-
-    const message = error instanceof Error ? error.message : "An error occurred";
+    const message = reportError("AI place search error", error);
 
     return new Response(JSON.stringify({ error: message }), {
       status: 500,

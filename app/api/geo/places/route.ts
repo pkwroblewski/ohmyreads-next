@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { isForeignOrigin } from "@/lib/utils/csrf";
 import { isValidGeohash, decodeGeohash } from "@/lib/utils/geohash";
 import { getNearbyPlaces, getCachedPlaces, type CachedPlaceData } from "@/lib/queries/geo";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -48,6 +49,12 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
  * - OSM places from Overpass API (cached)
  */
 export async function GET(request: NextRequest) {
+  // Block cross-site requests farming this Overpass proxy (it also writes the
+  // places_cache table with the service role)
+  if (isForeignOrigin(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   // Rate limit by IP (30 requests per minute - includes external API calls)
   const ip = getClientIp(request);
   const { allowed } = await checkRateLimit(`geo-places:${ip}`, 30, 60000);

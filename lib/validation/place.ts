@@ -35,10 +35,48 @@ export const submitPlaceSchema = z.object({
     .optional(),
 });
 
+/**
+ * Atmosphere tags a reader can attach to a place review.
+ * Mirrors the options rendered by `components/geo/place-review-form.tsx`.
+ */
+export const PLACE_ATMOSPHERE_TAGS = [
+  "cozy",
+  "quiet",
+  "busy",
+  "well-lit",
+  "good-coffee",
+  "great-selection",
+  "helpful-staff",
+  "good-for-reading",
+  "power-outlets",
+  "wifi",
+  "outdoor-seating",
+  "pet-friendly",
+] as const;
+
+export const placeReviewSchema = z.object({
+  rating: z
+    .number()
+    .int("Rating must be a number between 1 and 5")
+    .min(1, "Rating must be a number between 1 and 5")
+    .max(5, "Rating must be a number between 1 and 5"),
+  content: z
+    .string()
+    .trim()
+    .max(2000, "Review must be less than 2000 characters")
+    .nullable()
+    .optional(),
+  atmosphereTags: z
+    .array(z.enum(PLACE_ATMOSPHERE_TAGS))
+    .max(PLACE_ATMOSPHERE_TAGS.length, "Too many tags")
+    .optional(),
+});
+
 export const placeModerationSchema = z.object({
   submissionId: z.string().uuid("Invalid submission ID"),
   notes: z.string().max(2000, "Notes must be less than 2000 characters").optional(),
 });
 
+export type PlaceReviewInput = z.infer<typeof placeReviewSchema>;
 export type SubmitPlaceValidatedInput = z.infer<typeof submitPlaceSchema>;
 export type PlaceModerationInput = z.infer<typeof placeModerationSchema>;

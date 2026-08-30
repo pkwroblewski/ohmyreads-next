@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEventsNearby, getEventsByCity } from "@/lib/queries/events";
 import { isValidGeohash } from "@/lib/utils/geohash";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 
 /**
  * GET /api/geo/events
@@ -11,6 +12,17 @@ import { isValidGeohash } from "@/lib/utils/geohash";
  * - limit: Max number of events (default 20, max 50)
  */
 export async function GET(request: NextRequest) {
+  // Rate limit by IP (30 requests per minute)
+  const ip = getClientIp(request);
+  const { allowed } = await checkRateLimit(`geo-events:${ip}`, 30, 60000);
+
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const geohash = searchParams.get("geohash");
   const city = searchParams.get("city");

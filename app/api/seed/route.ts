@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sampleBooks } from "@/lib/data/sample-books";
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
+import { reportError } from "@/lib/utils/log";
 
 /**
  * Timing-safe comparison of two strings to prevent timing attacks
@@ -70,8 +71,10 @@ export async function GET(request: Request) {
       .select();
 
     if (error) {
-      console.error("Seed error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: reportError("Seed error", error) },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({

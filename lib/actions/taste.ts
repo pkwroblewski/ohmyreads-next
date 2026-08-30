@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { logger } from "@/lib/utils/log";
+import { logger, reportError } from "@/lib/utils/log";
 import {
   updateTasteProfileSchema,
   onboardingTasteProfileSchema,
@@ -64,11 +64,11 @@ export async function updateTasteProfile(input: UpdateTasteProfileInput) {
     );
 
     if (error) {
-      logger.error("Error updating taste profile", {
-        userId: user.id,
-        error: error.message,
-      });
-      return { error: error.message };
+      return {
+        error: reportError("Error updating taste profile", error, {
+          userId: user.id,
+        }),
+      };
     }
 
     logger.info("Taste profile updated", {
@@ -144,11 +144,11 @@ export async function completeTasteOnboarding(input: OnboardingTasteProfileInput
     );
 
     if (error) {
-      logger.error("Error completing taste onboarding", {
-        userId: user.id,
-        error: error.message,
-      });
-      return { error: error.message };
+      return {
+        error: reportError("Error completing taste onboarding", error, {
+          userId: user.id,
+        }),
+      };
     }
 
     logger.info("Taste onboarding completed", {

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 
 export interface AuthorSuggestion {
   name: string;
@@ -51,11 +52,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Sanitize: cap length and remove special characters
+    // Sanitize: cap length, then strip PostgREST structural characters
     if (q.length > 100) {
       q = q.slice(0, 100);
     }
-    q = q.replace(/[%_(),."'\\]/g, "");
+    q = sanitizePostgrestValue(q);
 
     const supabase = await createClient();
 

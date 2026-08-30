@@ -93,7 +93,7 @@ export async function adminGetReviews(filters: ReviewFilters = {}) {
         is_spoiler,
         vibe_tags,
         created_at,
-        profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+        profiles!reviews_user_profile_fkey(id, username, display_name, avatar_url),
         books!reviews_book_id_fkey(id, title, author, slug, cover_url)
       `, { count: "exact" });
 
@@ -178,7 +178,7 @@ export async function adminGetReview(reviewId: string) {
       .from("reviews")
       .select(`
         *,
-        profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+        profiles!reviews_user_profile_fkey(id, username, display_name, avatar_url),
         books!reviews_book_id_fkey(id, title, author, slug, cover_url)
       `)
       .eq("id", reviewId)
@@ -236,7 +236,7 @@ export async function adminDeleteReview(reviewId: string, reason?: string) {
       .select(`
         id,
         user_id,
-        profiles!reviews_user_id_fkey(username),
+        profiles!reviews_user_profile_fkey(username),
         books!reviews_book_id_fkey(title)
       `)
       .eq("id", reviewId)

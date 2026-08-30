@@ -166,3 +166,42 @@ export function extractSupabaseErrorInfo(
   return info;
 }
 
+
+/**
+ * Stable, client-safe error copy.
+ *
+ * Raw Postgres/PostgREST messages must never reach the browser — they leak
+ * constraint, column, policy and function names that map out the schema.
+ */
+export const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
+
+/**
+ * Logs an error server-side (structured + sanitized) and returns a message that
+ * is safe to hand back to the client.
+ *
+ * Use this instead of `return { error: error.message }`. Where a call site has
+ * more useful copy of its own, call this for the log and return that copy.
+ *
+ * @example
+ * ```ts
+ * if (error) {
+ *   return { error: reportError("Error creating shelf", error, { userId }) };
+ * }
+ * ```
+ */
+export function reportError(
+  message: string,
+  error: unknown,
+  context?: LogContext
+): string {
+  // Supabase/PostgREST errors are plain objects, not Error instances, and carry
+  // the fields extractSupabaseErrorInfo knows how to strip.
+  const info =
+    error !== null && typeof error === "object" && !(error instanceof Error)
+      ? extractSupabaseErrorInfo(error as SupabaseError)
+      : extractErrorInfo(error);
+
+  logger.error(message, context ? { ...info, ...context } : info);
+
+  return GENERIC_ERROR_MESSAGE;
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { logger, extractSupabaseErrorInfo } from "@/lib/utils/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -140,13 +141,13 @@ export async function GET(request: NextRequest) {
       // Following
       supabase
         .from("follows")
-        .select("created_at, following:profiles!follows_following_id_fkey(username, display_name)")
+        .select("created_at, following:profiles!follows_following_profile_fkey(username, display_name)")
         .eq("follower_id", user.id),
 
       // Followers
       supabase
         .from("follows")
-        .select("created_at, follower:profiles!follows_follower_id_fkey(username, display_name)")
+        .select("created_at, follower:profiles!follows_follower_profile_fkey(username, display_name)")
         .eq("following_id", user.id),
 
       // Reading goals
@@ -156,6 +157,32 @@ export async function GET(request: NextRequest) {
         .eq("user_id", user.id)
         .order("year", { ascending: false }),
     ]);
+
+    // Every section below falls back to an empty value, so a failed query (a
+    // stale embed hint, an RLS change) would ship a silently incomplete export.
+    // Log it instead: an export missing data is a compliance problem.
+    const sections: Array<[string, { error: { code?: string } | null }]> = [
+      ["profile", profileResult],
+      ["books", booksResult],
+      ["reviews", reviewsResult],
+      ["tasteProfile", tasteResult],
+      ["challenges", challengesResult],
+      ["badges", badgesResult],
+      ["following", followingResult],
+      ["followers", followersResult],
+      ["readingGoals", goalsResult],
+    ];
+
+    for (const [section, result] of sections) {
+      // PGRST116 = no rows from .single(); no taste profile yet is normal.
+      if (result.error && result.error.code !== "PGRST116") {
+        logger.error("Data export section failed", {
+          userId: user.id,
+          section,
+          ...extractSupabaseErrorInfo(result.error),
+        });
+      }
+    }
 
     const exportData: ExportData = {
       profile: profileResult.data || {},

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { reportError } from "@/lib/utils/log";
 
 /**
  * DEBUG: Get raw reader data for the current user
@@ -40,7 +41,10 @@ export async function GET() {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: reportError("Reader debug profile fetch failed", error) },
+      { status: 500 }
+    );
   }
 
   // Return raw data for debugging

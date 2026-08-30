@@ -15,6 +15,7 @@ import {
   userBookIdSchema,
 } from "@/lib/validation/shelf";
 import type { UserShelf, UserShelfWithCount } from "@/types/database";
+import { reportError } from "@/lib/utils/log";
 
 // ============================================
 // SHELF MANAGEMENT
@@ -49,8 +50,7 @@ export async function getUserShelves(): Promise<{
       .order("sort_order", { ascending: true });
 
     if (error) {
-      console.error("Error fetching shelves:", error);
-      return { shelves: [], error: error.message };
+      return { shelves: [], error: reportError("Error fetching shelves", error) };
     }
 
     // Transform to include book_count
@@ -144,8 +144,7 @@ export async function createShelf(input: {
       .single();
 
     if (error) {
-      console.error("Error creating shelf:", error);
-      return { error: error.message };
+      return { error: reportError("Error creating shelf", error) };
     }
 
     revalidatePath("/my-shelf");
@@ -239,8 +238,7 @@ export async function updateShelf(input: {
       .eq("id", data.shelfId);
 
     if (error) {
-      console.error("Error updating shelf:", error);
-      return { error: error.message };
+      return { error: reportError("Error updating shelf", error) };
     }
 
     revalidatePath("/my-shelf");
@@ -301,8 +299,7 @@ export async function deleteShelf(
       .eq("id", shelfId);
 
     if (error) {
-      console.error("Error deleting shelf:", error);
-      return { error: error.message };
+      return { error: reportError("Error deleting shelf", error) };
     }
 
     revalidatePath("/my-shelf");
@@ -387,8 +384,7 @@ export async function addBookToShelf(input: {
         // Unique constraint violation
         return { error: "Book is already on this shelf" };
       }
-      console.error("Error adding book to shelf:", error);
-      return { error: error.message };
+      return { error: reportError("Error adding book to shelf", error) };
     }
 
     revalidatePath("/my-shelf");
@@ -453,8 +449,7 @@ export async function removeBookFromShelf(input: {
       .eq("user_book_id", data.userBookId);
 
     if (error) {
-      console.error("Error removing book from shelf:", error);
-      return { error: error.message };
+      return { error: reportError("Error removing book from shelf", error) };
     }
 
     revalidatePath("/my-shelf");
@@ -494,8 +489,7 @@ export async function getBookShelves(
       .eq("user_book_id", userBookId);
 
     if (error) {
-      console.error("Error fetching book shelves:", error);
-      return { shelfIds: [], error: error.message };
+      return { shelfIds: [], error: reportError("Error fetching book shelves", error) };
     }
 
     return {
@@ -593,8 +587,7 @@ export async function updateBookShelves(input: {
         .in("shelf_id", toRemove);
 
       if (removeError) {
-        console.error("Error removing from shelves:", removeError);
-        return { error: removeError.message };
+        return { error: reportError("Error removing from shelves", removeError) };
       }
     }
 
@@ -608,8 +601,7 @@ export async function updateBookShelves(input: {
       );
 
       if (addError) {
-        console.error("Error adding to shelves:", addError);
-        return { error: addError.message };
+        return { error: reportError("Error adding to shelves", addError) };
       }
     }
 
@@ -710,8 +702,7 @@ export async function addBookToShelfByBookId(input: {
         // Unique constraint - already on shelf
         return { error: "Book is already on this shelf" };
       }
-      console.error("Error adding book to shelf:", shelfError);
-      return { error: shelfError.message };
+      return { error: reportError("Error adding book to shelf", shelfError) };
     }
 
     revalidatePath("/my-shelf");
@@ -765,8 +756,7 @@ export async function getBookShelvesByBookId(
       .eq("user_book_id", userBook.id);
 
     if (error) {
-      console.error("Error fetching book shelves:", error);
-      return { shelfIds: [], userBookId: userBook.id, error: error.message };
+      return { shelfIds: [], userBookId: userBook.id, error: reportError("Error fetching book shelves", error) };
     }
 
     return {
@@ -889,8 +879,7 @@ export async function updateBookShelvesByBookId(input: {
         .in("shelf_id", toRemove);
 
       if (removeError) {
-        console.error("Error removing from shelves:", removeError);
-        return { error: removeError.message };
+        return { error: reportError("Error removing from shelves", removeError) };
       }
     }
 
@@ -904,8 +893,7 @@ export async function updateBookShelvesByBookId(input: {
       );
 
       if (addError) {
-        console.error("Error adding to shelves:", addError);
-        return { error: addError.message };
+        return { error: reportError("Error adding to shelves", addError) };
       }
     }
 
@@ -951,8 +939,7 @@ export async function getShelfBooks(shelfId: string): Promise<{
       .order("added_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching shelf books:", error);
-      return { books: [], error: error.message };
+      return { books: [], error: reportError("Error fetching shelf books", error) };
     }
 
     if (!shelfBooks || shelfBooks.length === 0) {

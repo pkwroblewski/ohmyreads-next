@@ -1,3 +1,5 @@
+import { escapeHtml } from "@/lib/utils/sanitize";
+
 export interface WelcomeEmailProps {
   username: string;
   displayName?: string;
@@ -8,7 +10,9 @@ export function getWelcomeEmailSubject(): string {
 }
 
 export function getWelcomeEmailHtml({ username, displayName }: WelcomeEmailProps): string {
-  const name = displayName || username;
+  // Escaped: this is hand-built HTML, so a display name containing markup would
+  // otherwise be injected verbatim into the delivered email.
+  const name = escapeHtml(displayName || username);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
 
   return `
