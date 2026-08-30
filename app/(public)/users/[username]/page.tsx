@@ -10,6 +10,7 @@ import {
   Star,
   Globe,
   Calendar,
+  Lock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -108,6 +109,11 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
   ]);
 
   const books = booksResult.userBooks;
+
+  // Migration 056 gates user_books / reading_stats reads on discovery_visible,
+  // so for an opted-out reader these come back empty rather than zero-by-fact.
+  // Say so instead of rendering a misleading "0 books read".
+  const shelfHidden = !isOwnProfile && profile.discovery_visible === false;
 
   const displayName = profile.display_name || profile.username;
   const memberSince = format(new Date(profile.created_at), "MMMM yyyy");
@@ -225,28 +231,45 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
             Stats Row
             ======================================== */}
         <section className="mb-8">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-card border border-border text-center">
-              <BookOpen className="h-5 w-5 mx-auto mb-2 text-primary" />
-              <p className="text-2xl font-bold">{stats.booksRead}</p>
-              <p className="text-xs text-muted-foreground">Books Read</p>
+          {shelfHidden ? (
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="sm:col-span-3 p-4 rounded-xl bg-card border border-border text-center flex flex-col items-center justify-center">
+                <Lock className="h-5 w-5 mb-2 text-muted-foreground" />
+                <p className="text-sm font-medium">Shelves are private</p>
+                <p className="text-xs text-muted-foreground">
+                  {displayName} has opted out of reader discovery.
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-card border border-border text-center">
+                <Star className="h-5 w-5 mx-auto mb-2 text-accent" />
+                <p className="text-2xl font-bold">{stats.reviewsCount}</p>
+                <p className="text-xs text-muted-foreground">Reviews</p>
+              </div>
             </div>
-            <div className="p-4 rounded-xl bg-card border border-border text-center">
-              <BookMarked className="h-5 w-5 mx-auto mb-2 text-accent" />
-              <p className="text-2xl font-bold">{stats.booksReading}</p>
-              <p className="text-xs text-muted-foreground">Reading</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl bg-card border border-border text-center">
+                <BookOpen className="h-5 w-5 mx-auto mb-2 text-primary" />
+                <p className="text-2xl font-bold">{stats.booksRead}</p>
+                <p className="text-xs text-muted-foreground">Books Read</p>
+              </div>
+              <div className="p-4 rounded-xl bg-card border border-border text-center">
+                <BookMarked className="h-5 w-5 mx-auto mb-2 text-accent" />
+                <p className="text-2xl font-bold">{stats.booksReading}</p>
+                <p className="text-xs text-muted-foreground">Reading</p>
+              </div>
+              <div className="p-4 rounded-xl bg-card border border-border text-center">
+                <Library className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-2xl font-bold">{stats.booksWantToRead}</p>
+                <p className="text-xs text-muted-foreground">Want to Read</p>
+              </div>
+              <div className="p-4 rounded-xl bg-card border border-border text-center">
+                <Star className="h-5 w-5 mx-auto mb-2 text-accent" />
+                <p className="text-2xl font-bold">{stats.reviewsCount}</p>
+                <p className="text-xs text-muted-foreground">Reviews</p>
+              </div>
             </div>
-            <div className="p-4 rounded-xl bg-card border border-border text-center">
-              <Library className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-2xl font-bold">{stats.booksWantToRead}</p>
-              <p className="text-xs text-muted-foreground">Want to Read</p>
-            </div>
-            <div className="p-4 rounded-xl bg-card border border-border text-center">
-              <Star className="h-5 w-5 mx-auto mb-2 text-accent" />
-              <p className="text-2xl font-bold">{stats.reviewsCount}</p>
-              <p className="text-xs text-muted-foreground">Reviews</p>
-            </div>
-          </div>
+          )}
         </section>
 
         {/* ========================================
@@ -262,6 +285,7 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
         {/* ========================================
             Bookshelves Section
             ======================================== */}
+        {!shelfHidden && (
         <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold font-serif">Bookshelves</h2>
@@ -320,6 +344,7 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
             </p>
           )}
         </section>
+        )}
 
         {/* ========================================
             Recent Reviews Section
