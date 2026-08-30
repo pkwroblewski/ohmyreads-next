@@ -7,22 +7,17 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logger, reportError } from "@/lib/utils/log";
 
 /**
- * Helper to revalidate book page via review ID
+ * Revalidate the book detail route.
+ *
+ * This used to join review -> book purely to build `/books/<slug>`, costing an
+ * extra round-trip on every comment write. It bought nothing: `/books/[slug]`
+ * reads cookies, so it is a dynamic route with no full-route cache entry to
+ * bust, and the client router-cache refresh a Server Action triggers is not
+ * path-specific. No cache tag applies either — nothing in `lib/cache/tags.ts`
+ * covers comments, because no `unstable_cache` entry reads them.
  */
-async function revalidateBookPageFromReview(reviewId: string) {
-  const supabase = await createClient();
-  const { data: review } = await supabase
-    .from("reviews")
-    .select("book_id, books(slug)")
-    .eq("id", reviewId)
-    .single();
-
-  if (review?.books && !Array.isArray(review.books)) {
-    const book = review.books as { slug: string };
-    if (book.slug) {
-      revalidatePath(`/books/${book.slug}`);
-    }
-  }
+function revalidateBookPages() {
+  revalidatePath("/books/[slug]", "page");
 }
 
 export async function createComment(input: {
@@ -93,7 +88,7 @@ export async function createComment(input: {
       };
     }
 
-    await revalidateBookPageFromReview(data.reviewId);
+    revalidateBookPages();
 
     return { success: true, commentId: comment.id };
   } catch (error) {
@@ -114,10 +109,10 @@ export async function deleteComment(commentId: string) {
       return { error: "Not authenticated" };
     }
 
-    // Verify ownership and get review_id for revalidation
+    // Verify ownership
     const { data: comment, error: fetchError } = await supabase
       .from("comments")
-      .select("user_id, review_id")
+      .select("user_id")
       .eq("id", commentId)
       .single();
 
@@ -141,7 +136,7 @@ export async function deleteComment(commentId: string) {
       };
     }
 
-    await revalidateBookPageFromReview(comment.review_id);
+    revalidateBookPages();
 
     return { success: true };
   } catch (error) {

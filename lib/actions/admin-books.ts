@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { generateSlug } from "@/lib/utils/slug";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
@@ -208,6 +209,7 @@ export async function adminCreateBook(input: AdminBookInput) {
       metadata: { title: input.title, author: input.author },
     });
 
+    invalidateTags(...BOOK_CATALOG_TAGS);
     revalidatePath("/admin/books");
     revalidatePath("/books");
 
@@ -290,6 +292,7 @@ export async function adminUpdateBook(bookId: string, input: Partial<AdminBookIn
       metadata: { updates: Object.keys(updates) },
     });
 
+    invalidateTags(...BOOK_CATALOG_TAGS);
     revalidatePath("/admin/books");
     revalidatePath(`/admin/books/${bookId}`);
     revalidatePath(`/books/${data.slug}`);
@@ -345,6 +348,7 @@ export async function adminDeleteBook(bookId: string) {
       metadata: { title: book?.title, author: book?.author },
     });
 
+    invalidateTags(...BOOK_CATALOG_TAGS);
     revalidatePath("/admin/books");
     revalidatePath("/books");
 

@@ -1,6 +1,7 @@
 import { generateText, stepCountIs } from "ai";
 import { google } from "@ai-sdk/google";
 import { unstable_cache } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache/tags";
 import { NextResponse } from "next/server";
 import { createPublicClient, createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
@@ -149,7 +150,7 @@ Generate a brief trending insight and 2-3 keywords that capture why this book re
 const getCachedTrendingInsights = unstable_cache(
   generateTrendingInsights,
   ["trending-insights"],
-  { revalidate: 86400 } // 24 hours
+  { revalidate: 86400, tags: [CACHE_TAGS.trending] } // 24 hours
 );
 
 export async function GET() {

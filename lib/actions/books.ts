@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  BOOK_CATALOG_TAGS,
+  CACHE_TAGS,
+  invalidateTags,
+} from "@/lib/cache/tags";
 import { createClient } from "@/lib/supabase/server";
 import { generateSlug } from "@/lib/utils/slug";
 import { syncUserBadges } from "@/lib/actions/badges";
@@ -238,6 +243,9 @@ export async function addToShelf(bookId: string, status: string) {
             ?.newBadges ?? [])
         : [];
 
+    // A move to "reading" writes an activity_feed row via trigger, and shelf
+    // adds are one of the two inputs to the trending score.
+    invalidateTags(CACHE_TAGS.activity, CACHE_TAGS.trending);
     // Revalidate affected pages
     revalidatePath("/dashboard");
     revalidatePath("/my-shelf");
@@ -394,6 +402,7 @@ export async function removeFromShelf(bookId: string) {
     // Un-shelving a read book must recount challenges; badges stay (one-way)
     await Promise.allSettled([syncChallengeProgress()]);
 
+    invalidateTags(CACHE_TAGS.trending);
     revalidatePath("/dashboard");
     revalidatePath("/my-shelf");
 
@@ -481,6 +490,8 @@ export async function importAndAddToShelf(
     let bookId: string;
     let bookSlug: string;
 
+    const createdCatalogEntry = !existingBook;
+
     if (existingBook) {
       // Book already exists, use it
       bookId = existingBook.id;
@@ -551,6 +562,11 @@ export async function importAndAddToShelf(
     }
     await Promise.allSettled(importSyncs);
 
+    // Only bust the catalog caches when this import actually added a book.
+    if (createdCatalogEntry) {
+      invalidateTags(...BOOK_CATALOG_TAGS);
+    }
+    invalidateTags(CACHE_TAGS.activity, CACHE_TAGS.trending);
     // Revalidate pages
     revalidatePath("/dashboard");
     revalidatePath("/my-shelf");

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createClient } from "@/lib/supabase/server";
 import {
   createBookSubmissionSchema,
@@ -571,6 +572,8 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
       },
     });
 
+    // A new book row now exists, so the catalog / genre / author caches are stale.
+    invalidateTags(...BOOK_CATALOG_TAGS);
     revalidatePath("/admin/submissions");
     revalidatePath("/books");
     if (book?.slug) {

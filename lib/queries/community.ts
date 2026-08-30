@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache/tags";
 import { createPublicClient, createClient } from "@/lib/supabase/server";
 import type { ActivityFeedItemWithRelations } from "@/types/database";
 import { getFollowingIds } from "./follows";
@@ -298,7 +299,7 @@ export const getCommunitySidebar = unstable_cache(
     const { data: popularBooks } = await supabase
       .from("books")
       .select("id, title, author, slug, cover_url, average_rating")
-      .order("ratings_count", { ascending: false })
+      .order("ratings_count", { ascending: false, nullsFirst: false })
       .limit(5);
 
     // Fetch active readers (users with most reviews) using SQL aggregation
@@ -330,7 +331,8 @@ export const getCommunitySidebar = unstable_cache(
     };
   },
   ["community-sidebar"],
-  { revalidate: 120 } // 2 minutes
+  // Popular books + top reviewers, so both a book change and a new review stale it.
+  { revalidate: 120, tags: [CACHE_TAGS.books, CACHE_TAGS.reviews] } // 2 minutes
 );
 
 // ============================================
@@ -346,7 +348,7 @@ export const getInitialCommunityFeed = unstable_cache(
     return getCommunityFeedPage({ limit: 10 });
   },
   ["community-feed-initial"],
-  { revalidate: 30 } // 30 seconds
+  { revalidate: 30, tags: [CACHE_TAGS.activity] } // 30 seconds
 );
 
 // ============================================

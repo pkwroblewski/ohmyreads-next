@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { parseBookCSV, type ParsedBookRow } from "@/lib/utils/book-csv-parser";
 import { generateSlug } from "@/lib/utils/slug";
@@ -248,6 +249,7 @@ export async function importBooksFromCSV(rows: ParsedBookRow[]): Promise<ImportR
       },
     });
 
+    invalidateTags(...BOOK_CATALOG_TAGS);
     revalidatePath("/admin/books");
     revalidatePath("/books");
 

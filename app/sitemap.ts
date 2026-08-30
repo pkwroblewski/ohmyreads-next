@@ -82,7 +82,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: books } = await supabase
     .from("books")
     .select("slug, created_at")
-    .order("ratings_count", { ascending: false })
+    .order("ratings_count", { ascending: false, nullsFirst: false })
     .limit(1000);
 
   const bookPages: MetadataRoute.Sitemap = (books || []).map((book) => ({

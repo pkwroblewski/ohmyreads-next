@@ -29,7 +29,7 @@ export async function getCuratedListWithBooks(
       .from("books")
       .select(BOOK_CARD_COLUMNS)
       .in("slug", list.bookSlugs)
-      .order("ratings_count", { ascending: false });
+      .order("ratings_count", { ascending: false, nullsFirst: false });
 
     if (error) {
       console.error("Error fetching books by slugs:", error);
@@ -43,7 +43,7 @@ export async function getCuratedListWithBooks(
       .from("books")
       .select(BOOK_CARD_COLUMNS)
       .overlaps("genres", list.genres)
-      .order("ratings_count", { ascending: false })
+      .order("ratings_count", { ascending: false, nullsFirst: false })
       .limit(24);
 
     if (error) {

@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
         query = query.order("title", { ascending: true });
         break;
       case "popular":
-        query = query.order("ratings_count", { ascending: false });
+        query = query.order("ratings_count", { ascending: false, nullsFirst: false });
         break;
     }
 

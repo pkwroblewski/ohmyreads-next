@@ -1,5 +1,6 @@
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache/tags";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import { BOOK_CARD_COLUMNS, BOOK_DETAIL_COLUMNS } from "./columns";
 import type { Book, BookSummary, ReviewWithUser, UserBook } from "@/types/database";
@@ -292,7 +293,7 @@ async function fetchPopularBooks(limit: number): Promise<BookSummary[]> {
 export const getPopularBooks = unstable_cache(
   fetchPopularBooks,
   ["popular-books"],
-  { revalidate: 3600 } // Cache for 1 hour
+  { revalidate: 3600, tags: [CACHE_TAGS.books] } // 1 hour, or until a book changes
 );
 
 /**
@@ -318,7 +319,7 @@ async function fetchRecentBooks(limit: number): Promise<BookSummary[]> {
 export const getRecentBooks = unstable_cache(
   fetchRecentBooks,
   ["recent-books"],
-  { revalidate: 1800 } // Cache for 30 minutes
+  { revalidate: 1800, tags: [CACHE_TAGS.books] } // 30 minutes, or until a book changes
 );
 
 /**
@@ -340,7 +341,7 @@ async function fetchAllGenres(): Promise<string[]> {
 export const getAllGenres = unstable_cache(
   fetchAllGenres,
   ["all-genres"],
-  { revalidate: 3600 } // Cache for 1 hour
+  { revalidate: 3600, tags: [CACHE_TAGS.books, CACHE_TAGS.genres] } // 1 hour, or until a book changes
 );
 
 /**
@@ -358,7 +359,7 @@ export async function getRelatedBooks(
     .select(BOOK_CARD_COLUMNS)
     .overlaps("genres", genres)
     .neq("id", excludeId)
-    .order("ratings_count", { ascending: false })
+    .order("ratings_count", { ascending: false, nullsFirst: false })
     .limit(limit);
 
   if (error) {

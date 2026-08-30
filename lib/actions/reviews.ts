@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createClient } from "@/lib/supabase/server";
 import {
   createReviewSchema,
@@ -12,19 +13,18 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { reportError } from "@/lib/utils/log";
 
 /**
- * Helper to revalidate book page by ID (fetches slug to build correct path)
+ * Revalidate the book detail route.
+ *
+ * This used to fetch the book purely to build `/books/<slug>`, costing an extra
+ * round-trip on every write. It bought nothing: `/books/[slug]` reads cookies,
+ * so it is a dynamic route with no full-route cache entry to bust, and the
+ * client router-cache refresh a Server Action triggers is not path-specific.
+ * Passing the route pattern with `type: "page"` covers every book page and
+ * needs no query — and still does the right thing if the route later becomes
+ * statically rendered.
  */
-async function revalidateBookPage(bookId: string) {
-  const supabase = await createClient();
-  const { data: book } = await supabase
-    .from("books")
-    .select("slug")
-    .eq("id", bookId)
-    .single();
-
-  if (book?.slug) {
-    revalidatePath(`/books/${book.slug}`);
-  }
+function revalidateBookPages() {
+  revalidatePath("/books/[slug]", "page");
 }
 
 /**
@@ -108,8 +108,15 @@ export async function createReview(input: CreateReviewInput) {
 
     // reading_stats is maintained by a trigger on reviews (migration 057)
 
-    // Revalidate pages
-    await revalidateBookPage(data.bookId);
+    // Revalidate pages. A new review changes books.average_rating (above), the
+    // review lists, the trigger-written activity feed, and trending scores.
+    invalidateTags(
+      CACHE_TAGS.books,
+      CACHE_TAGS.reviews,
+      CACHE_TAGS.activity,
+      CACHE_TAGS.trending
+    );
+    revalidateBookPages();
     revalidatePath("/dashboard");
 
     return { success: true, reviewId: review.id };
@@ -209,7 +216,9 @@ export async function updateReview(input: UpdateReviewInput) {
       await updateBookRating(review.book_id);
     }
 
-    await revalidateBookPage(review.book_id);
+    // An edit does not add a feed row, but it can move the book's average rating.
+    invalidateTags(CACHE_TAGS.books, CACHE_TAGS.reviews);
+    revalidateBookPages();
 
     return { success: true };
   } catch (error) {
@@ -260,7 +269,13 @@ export async function deleteReview(reviewId: string) {
 
     // reading_stats is maintained by a trigger on reviews (migration 057)
 
-    await revalidateBookPage(review.book_id);
+    invalidateTags(
+      CACHE_TAGS.books,
+      CACHE_TAGS.reviews,
+      CACHE_TAGS.activity,
+      CACHE_TAGS.trending
+    );
+    revalidateBookPages();
     revalidatePath("/dashboard");
 
     return { success: true };
@@ -290,10 +305,10 @@ export async function likeReview(reviewId: string) {
       return { error: "You must be logged in to like reviews" };
     }
 
-    // Get review to check existence and get book_id for revalidation
+    // Existence check only — revalidation no longer needs the book id.
     const { data: review } = await supabase
       .from("reviews")
-      .select("book_id")
+      .select("id")
       .eq("id", reviewId)
       .single();
 
@@ -327,7 +342,9 @@ export async function likeReview(reviewId: string) {
     // reviews.likes_count is updated by a trigger in the same transaction as
     // the insert above (migration 057), so it can no longer drift.
 
-    await revalidateBookPage(review.book_id);
+    // Deliberately no tag invalidation: a like is high-frequency and only moves
+    // reviews.likes_count, which no tagged cache entry sorts or filters on.
+    revalidateBookPages();
 
     return { success: true };
   } catch (error) {
@@ -352,13 +369,6 @@ export async function unlikeReview(reviewId: string) {
       return { error: "Not authenticated" };
     }
 
-    // Get review to get book_id for revalidation
-    const { data: review } = await supabase
-      .from("reviews")
-      .select("book_id")
-      .eq("id", reviewId)
-      .single();
-
     // Delete like
     const { error: deleteError } = await supabase
       .from("review_likes")
@@ -374,9 +384,7 @@ export async function unlikeReview(reviewId: string) {
     // reviews.likes_count is updated by a trigger in the same transaction as
     // the delete above (migration 057), so it can no longer drift.
 
-    if (review?.book_id) {
-      await revalidateBookPage(review.book_id);
-    }
+    revalidateBookPages();
 
     return { success: true };
   } catch (error) {

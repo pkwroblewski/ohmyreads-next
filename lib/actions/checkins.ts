@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getRateLimitStatus } from "@/lib/utils/rate-limit";
 import {
@@ -119,6 +120,8 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
     // Check for new badges (after stats are updated by trigger)
     const newBadges = await checkAndUnlockCheckinBadges(user.id);
 
+    // A trigger writes the check-in into activity_feed, staling the cached feed.
+    invalidateTags(CACHE_TAGS.activity);
     revalidatePath("/community");
     revalidatePath("/community/map");
 
@@ -355,6 +358,8 @@ export async function deleteCheckin(checkinId: string): Promise<{ success?: bool
       return { error: "Failed to delete check-in" };
     }
 
+    // A trigger writes the check-in into activity_feed, staling the cached feed.
+    invalidateTags(CACHE_TAGS.activity);
     revalidatePath("/community");
     revalidatePath("/community/map");
 

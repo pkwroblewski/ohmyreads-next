@@ -1,5 +1,6 @@
 import { createPublicClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache/tags";
 import { BOOK_CARD_COLUMNS } from "./columns";
 import type { BookSummary } from "@/types/database";
 
@@ -56,7 +57,7 @@ async function fetchAllAuthors(): Promise<AuthorSummary[]> {
 export const getAllAuthors = unstable_cache(
   fetchAllAuthors,
   ["all-authors"],
-  { revalidate: 3600 } // Cache for 1 hour
+  { revalidate: 3600, tags: [CACHE_TAGS.books, CACHE_TAGS.authors] } // 1 hour, or until a book changes
 );
 
 /**
@@ -75,7 +76,7 @@ export async function getAuthorBySlug(
     .from("books")
     .select(BOOK_CARD_COLUMNS)
     .eq("author_slug", slug)
-    .order("ratings_count", { ascending: false });
+    .order("ratings_count", { ascending: false, nullsFirst: false });
 
   if (error) {
     console.error("Error fetching books for author:", error);

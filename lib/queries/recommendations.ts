@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache/tags";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { BOOK_CARD_COLUMNS } from "./columns";
 import type { BookSummary, UserTasteProfile } from "@/types/database";
@@ -111,7 +112,7 @@ export async function getPersonalizedRecommendations(
   const { data: allBooks } = await supabase
     .from("books")
     .select(BOOK_CARD_COLUMNS)
-    .order("ratings_count", { ascending: false })
+    .order("ratings_count", { ascending: false, nullsFirst: false })
     .limit(200); // Get a pool of books to score
 
   if (!allBooks || allBooks.length === 0) {
@@ -309,7 +310,7 @@ export async function getSimilarBookRecommendations(
       .from("books")
       .select(BOOK_CARD_COLUMNS)
       .neq("id", bookId)
-      .order("ratings_count", { ascending: false })
+      .order("ratings_count", { ascending: false, nullsFirst: false })
       .limit(limit);
 
     return ((popularBooks as BookSummary[]) || []).map((book) => ({
@@ -452,7 +453,7 @@ export async function getCuratedBooks(
     .select(BOOK_CARD_COLUMNS)
     .gte("average_rating", 3.8) // Only well-rated books
     .gte("ratings_count", 5) // With enough reviews to be reliable
-    .order("ratings_count", { ascending: false })
+    .order("ratings_count", { ascending: false, nullsFirst: false })
     .limit(limit * 3); // Get more to allow for genre diversity
 
   if (error || !books || books.length === 0) {
@@ -732,7 +733,8 @@ export async function getTrulyTrending(
   const cachedFn = unstable_cache(
     fetchTrulyTrending,
     ["truly-trending", String(limit), String(daysWindow), genre || "all"],
-    { revalidate: 3600 } // 1 hour
+    // Scored from reviews + shelf adds over a rolling window.
+    { revalidate: 3600, tags: [CACHE_TAGS.books, CACHE_TAGS.reviews, CACHE_TAGS.trending] } // 1 hour
   );
   return cachedFn(limit, daysWindow, genre || "");
 }

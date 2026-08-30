@@ -200,7 +200,7 @@ export async function adminGetTopBooks(limit = 10): Promise<{ success: boolean; 
     const { data, error } = await supabase
       .from("books")
       .select("id, title, author, slug, cover_url, average_rating, ratings_count")
-      .order("ratings_count", { ascending: false })
+      .order("ratings_count", { ascending: false, nullsFirst: false })
       .limit(limit);
 
     if (error) throw error;
