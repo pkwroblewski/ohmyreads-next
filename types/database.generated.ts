@@ -463,6 +463,7 @@ export type Database = {
       books: {
         Row: {
           author: string
+          author_slug: string | null
           average_rating: number | null
           cover_source: string | null
           cover_url: string | null
@@ -484,6 +485,7 @@ export type Database = {
         }
         Insert: {
           author: string
+          author_slug?: string | null
           average_rating?: number | null
           cover_source?: string | null
           cover_url?: string | null
@@ -505,6 +507,7 @@ export type Database = {
         }
         Update: {
           author?: string
+          author_slug?: string | null
           average_rating?: number | null
           cover_source?: string | null
           cover_url?: string | null
@@ -1672,6 +1675,28 @@ export type Database = {
         Args: { p_club_id: string; p_user_id: string }
         Returns: undefined
       }
+      admin_genre_distribution: {
+        Args: { p_limit?: number }
+        Returns: {
+          genre: string
+          genre_count: number
+        }[]
+      }
+      admin_growth_daily: {
+        Args: { p_since: string }
+        Returns: {
+          day: string
+          review_count: number
+          user_count: number
+        }[]
+      }
+      admin_rating_distribution: {
+        Args: never
+        Returns: {
+          rating_count: number
+          rating_value: number
+        }[]
+      }
       approve_book_submission: {
         Args: { p_moderator_id: string; p_submission_id: string }
         Returns: string
@@ -1691,7 +1716,28 @@ export type Database = {
         Args: { list_title: string; owner_id: string }
         Returns: string
       }
+      get_author_summaries: {
+        Args: never
+        Returns: {
+          avg_rating: number
+          book_count: number
+          name: string
+          slug: string
+        }[]
+      }
       get_club_visibility: { Args: { p_club_id: string }; Returns: string }
+      get_conversations: {
+        Args: never
+        Returns: {
+          friend_avatar_url: string
+          friend_display_name: string
+          friend_id: string
+          friend_username: string
+          last_message: string
+          last_message_at: string
+          unread_count: number
+        }[]
+      }
       get_distinct_genres: {
         Args: never
         Returns: {
@@ -1706,6 +1752,14 @@ export type Database = {
           id: string
           review_count: number
           username: string
+        }[]
+      }
+      get_trending_activity: {
+        Args: { p_since: string }
+        Returns: {
+          add_count: number
+          book_id: string
+          review_count: number
         }[]
       }
       get_user_shelf_count: { Args: { p_user_id: string }; Returns: number }

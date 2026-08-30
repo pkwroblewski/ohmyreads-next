@@ -610,27 +610,20 @@ async function fetchTrulyTrending(
   windowStart.setDate(windowStart.getDate() - daysWindow);
   const windowStartISO = windowStart.toISOString();
 
-  // Count recent reviews per book
-  const { data: recentReviews } = await supabase
-    .from("reviews")
-    .select("book_id")
-    .gte("created_at", windowStartISO);
+  // Counted in SQL (migration 058). Fetching every review and shelf add in the
+  // window truncated at PostgREST's 1000-row cap on a busy window. The RPC is
+  // SECURITY INVOKER, so it still honours the discovery_visible gate on
+  // user_books from migration 056.
+  const { data: activity } = await supabase.rpc("get_trending_activity", {
+    p_since: windowStartISO,
+  });
 
-  // Count recent shelf adds per book
-  const { data: recentAdds } = await supabase
-    .from("user_books")
-    .select("book_id")
-    .gte("updated_at", windowStartISO);
-
-  // Calculate metrics per book
   const reviewCounts = new Map<string, number>();
   const addCounts = new Map<string, number>();
 
-  for (const r of recentReviews || []) {
-    reviewCounts.set(r.book_id, (reviewCounts.get(r.book_id) || 0) + 1);
-  }
-  for (const a of recentAdds || []) {
-    addCounts.set(a.book_id, (addCounts.get(a.book_id) || 0) + 1);
+  for (const row of activity || []) {
+    if (row.review_count) reviewCounts.set(row.book_id, Number(row.review_count));
+    if (row.add_count) addCounts.set(row.book_id, Number(row.add_count));
   }
 
   // Calculate trending scores (reviews worth more than adds)

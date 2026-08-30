@@ -1,5 +1,23 @@
 import { createClient } from "@/lib/supabase/server";
 
+// PostgREST caps a single response at 1000 rows and gives no signal that it
+// truncated, so any "all of a user's rows" read has to page explicitly.
+const PAGE_SIZE = 1000;
+
+async function fetchAllPages<T>(
+  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<{ rows: T[]; error: unknown }> {
+  const rows: T[] = [];
+
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await buildQuery(offset, offset + PAGE_SIZE - 1);
+    if (error) return { rows, error };
+
+    rows.push(...(data || []));
+    if (!data || data.length < PAGE_SIZE) return { rows, error: null };
+  }
+}
+
 export interface ReadingStats {
   totalBooksRead: number;
   totalPagesRead: number;
@@ -77,42 +95,61 @@ export async function getUserReadingStats(
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
 
-  // Get all user's read books with book details
-  const { data: userBooks, error } = await supabase
-    .from("user_books")
-    .select(
-      `
-      id,
-      status,
-      started_at,
-      finished_at,
-      created_at,
-      book:books(
-        id,
-        title,
-        slug,
-        author,
-        page_count,
-        published_date,
-        genres,
-        cover_url
-      )
-    `
-    )
-    .eq("user_id", userId)
-    .eq("status", "read")
-    .order("finished_at", { ascending: false });
+  // The stats page genuinely needs every read book (per-month buckets, genre
+  // mix, page totals), so this pages through instead of aggregating in SQL.
+  // A single select truncated at PostgREST's 1000-row cap, silently
+  // under-reporting every figure for a heavy reader.
+  const { rows: userBooks, error } = await fetchAllPages<UserBookWithDetails>(
+    (from, to) =>
+      supabase
+        .from("user_books")
+        .select(
+          `
+          id,
+          status,
+          started_at,
+          finished_at,
+          created_at,
+          book:books(
+            id,
+            title,
+            slug,
+            author,
+            page_count,
+            published_date,
+            genres,
+            cover_url
+          )
+        `
+        )
+        .eq("user_id", userId)
+        .eq("status", "read")
+        .order("finished_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, to) as unknown as PromiseLike<{
+          data: UserBookWithDetails[] | null;
+          error: unknown;
+        }>
+  );
 
   if (error) {
     console.error("Error fetching user books:", error);
     return getEmptyStats();
   }
 
-  // Get user's reviews
-  const { data: reviews } = await supabase
-    .from("reviews")
-    .select("rating, book_id")
-    .eq("user_id", userId);
+  // Get user's reviews (paged for the same reason as above)
+  const { rows: reviews } = await fetchAllPages<{ rating: number | null; book_id: string }>(
+    (from, to) =>
+      supabase
+        .from("reviews")
+        .select("rating, book_id")
+        .eq("user_id", userId)
+        .order("id", { ascending: true })
+        .range(from, to) as unknown as PromiseLike<{
+          data: { rating: number | null; book_id: string }[] | null;
+          error: unknown;
+        }>
+  );
 
   // Get user's reading goal
   const { data: goalData } = await supabase
@@ -122,8 +159,8 @@ export async function getUserReadingStats(
     .eq("year", currentYear)
     .single();
 
-  const books = (userBooks || []) as unknown as UserBookWithDetails[];
-  const reviewsData = reviews || [];
+  const books = userBooks;
+  const reviewsData = reviews;
 
   // Calculate core metrics
   const totalBooksRead = books.length;

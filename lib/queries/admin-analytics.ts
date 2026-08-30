@@ -97,16 +97,19 @@ export async function adminGetOverviewStats(): Promise<{ success: boolean; stats
       supabase.from("books").select("id", { count: "exact", head: true }).gte("created_at", thisMonthStart),
       supabase.from("reviews").select("id", { count: "exact", head: true }),
       supabase.from("reviews").select("id", { count: "exact", head: true }).gte("created_at", thisMonthStart),
-      supabase.from("reviews").select("rating"),
+      supabase.rpc("admin_rating_distribution"),
       supabase.from("places").select("id", { count: "exact", head: true }),
       supabase.from("places").select("id", { count: "exact", head: true }).eq("status", "approved"),
       supabase.from("places").select("id", { count: "exact", head: true }).eq("status", "pending"),
     ]);
 
-    // Calculate average rating (exclude null ratings)
-    const ratings = (avgRating.data || []).filter((r) => r.rating != null);
-    const avgRatingValue = ratings.length > 0
-      ? ratings.reduce((sum, r) => sum + r.rating!, 0) / ratings.length
+    // Derived from the SQL rating distribution (migration 058) rather than
+    // pulling every review row, which truncated at 1000 and skewed the mean.
+    // Ratings are integers, so the weighted mean is exact.
+    const dist = avgRating.data || [];
+    const totalRatings = dist.reduce((sum, r) => sum + Number(r.rating_count), 0);
+    const avgRatingValue = totalRatings > 0
+      ? dist.reduce((sum, r) => sum + r.rating_value * Number(r.rating_count), 0) / totalRatings
       : 0;
 
     return {
@@ -147,18 +150,11 @@ export async function adminGetGrowthData(): Promise<{ success: boolean; data?: G
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const [usersData, reviewsData] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("created_at")
-        .gte("created_at", thirtyDaysAgo.toISOString())
-        .order("created_at"),
-      supabase
-        .from("reviews")
-        .select("created_at")
-        .gte("created_at", thirtyDaysAgo.toISOString())
-        .order("created_at"),
-    ]);
+    // Bucketed by UTC date in SQL (migration 058); the previous version pulled
+    // every profile and review row in the window and grouped them in JS.
+    const { data: daily } = await supabase.rpc("admin_growth_daily", {
+      p_since: thirtyDaysAgo.toISOString(),
+    });
 
     // Group by date
     const dateMap = new Map<string, { users: number; reviews: number; books: number }>();
@@ -171,21 +167,13 @@ export async function adminGetGrowthData(): Promise<{ success: boolean; data?: G
       dateMap.set(dateStr, { users: 0, reviews: 0, books: 0 });
     }
 
-    // Count users
-    (usersData.data || []).forEach((u) => {
-      const dateStr = new Date(u.created_at).toISOString().split("T")[0];
-      if (dateMap.has(dateStr)) {
-        dateMap.get(dateStr)!.users++;
+    for (const row of daily || []) {
+      const bucket = dateMap.get(row.day);
+      if (bucket) {
+        bucket.users = Number(row.user_count);
+        bucket.reviews = Number(row.review_count);
       }
-    });
-
-    // Count reviews
-    (reviewsData.data || []).forEach((r) => {
-      const dateStr = new Date(r.created_at).toISOString().split("T")[0];
-      if (dateMap.has(dateStr)) {
-        dateMap.get(dateStr)!.reviews++;
-      }
-    });
+    }
 
     // Convert to array and sort
     const data: GrowthData[] = Array.from(dateMap.entries())
@@ -277,25 +265,18 @@ export async function adminGetGenreDistribution(): Promise<{ success: boolean; g
   try {
     const { supabase } = await requireAdmin();
 
-    const { data, error } = await supabase
-      .from("books")
-      .select("genres");
+    const { data, error } = await supabase.rpc("admin_genre_distribution", {
+      p_limit: 15,
+    });
 
     if (error) throw error;
 
-    // Count genres
-    const genreCount = new Map<string, number>();
-    (data || []).forEach((book) => {
-      (book.genres || []).forEach((genre: string) => {
-        genreCount.set(genre, (genreCount.get(genre) || 0) + 1);
-      });
-    });
-
-    // Convert to array and sort
-    const genres: GenreDistribution[] = Array.from(genreCount.entries())
-      .map(([genre, count]) => ({ genre, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 15); // Top 15 genres
+    // Aggregated and top-15'd in SQL (migration 058); this used to select the
+    // genres array of every book and count them in JS.
+    const genres: GenreDistribution[] = (data || []).map((row) => ({
+      genre: row.genre,
+      count: Number(row.genre_count),
+    }));
 
     return { success: true, genres };
   } catch (error) {
@@ -309,19 +290,18 @@ export async function adminGetRatingDistribution(): Promise<{ success: boolean; 
   try {
     const { supabase } = await requireAdmin();
 
-    const { data, error } = await supabase
-      .from("reviews")
-      .select("rating");
+    // Counted in SQL (migration 058); this used to select the rating of every
+    // review, truncating at 1000 and under-reporting every bucket.
+    const { data, error } = await supabase.rpc("admin_rating_distribution");
 
     if (error) throw error;
 
-    // Count ratings (skip null ratings)
     const ratingCount: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    (data || []).forEach((review) => {
-      if (review.rating != null && review.rating >= 1 && review.rating <= 5) {
-        ratingCount[review.rating]++;
+    for (const row of data || []) {
+      if (row.rating_value >= 1 && row.rating_value <= 5) {
+        ratingCount[row.rating_value] = Number(row.rating_count);
       }
-    });
+    }
 
     const ratings: RatingDistribution[] = [5, 4, 3, 2, 1].map((rating) => ({
       rating,

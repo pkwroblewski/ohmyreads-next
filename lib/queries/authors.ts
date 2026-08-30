@@ -35,51 +35,21 @@ export function createAuthorSlug(name: string): string {
 async function fetchAllAuthors(): Promise<AuthorSummary[]> {
   const supabase = createPublicClient();
 
-  const { data: books, error } = await supabase
-    .from("books")
-    .select("author, average_rating, ratings_count");
+  // Aggregated in SQL (migration 058). Selecting every book here truncated at
+  // PostgREST's 1000-row cap, so authors beyond that row silently disappeared.
+  const { data, error } = await supabase.rpc("get_author_summaries");
 
   if (error) {
     console.error("Error fetching authors:", error);
     return [];
   }
 
-  // Group by author
-  const authorMap = new Map<
-    string,
-    { count: number; totalRating: number; ratingCount: number }
-  >();
-
-  for (const book of books || []) {
-    const existing = authorMap.get(book.author) || {
-      count: 0,
-      totalRating: 0,
-      ratingCount: 0,
-    };
-
-    authorMap.set(book.author, {
-      count: existing.count + 1,
-      totalRating:
-        existing.totalRating +
-        (book.average_rating || 0) * (book.ratings_count || 0),
-      ratingCount: existing.ratingCount + (book.ratings_count || 0),
-    });
-  }
-
-  // Convert to array and sort by book count
-  const authors: AuthorSummary[] = Array.from(authorMap.entries())
-    .map(([name, data]) => ({
-      name,
-      slug: createAuthorSlug(name),
-      bookCount: data.count,
-      avgRating:
-        data.ratingCount > 0
-          ? Math.round((data.totalRating / data.ratingCount) * 10) / 10
-          : null,
-    }))
-    .sort((a, b) => b.bookCount - a.bookCount);
-
-  return authors;
+  return (data || []).map((row) => ({
+    name: row.name,
+    slug: row.slug,
+    bookCount: Number(row.book_count),
+    avgRating: row.avg_rating === null ? null : Number(row.avg_rating),
+  }));
 }
 
 export const getAllAuthors = unstable_cache(
@@ -96,10 +66,14 @@ export async function getAuthorBySlug(
 ): Promise<AuthorWithBooks | null> {
   const supabase = createPublicClient();
 
-  // Get all books to find matching author
-  const { data: allBooks, error } = await supabase
+  // books.author_slug is a generated column mirroring createAuthorSlug()
+  // (migration 058), so this is an indexed equality filter. It used to select
+  // the entire books table and match the slug in JS, which both truncated at
+  // 1000 rows and intermittently blew the 60s prerender budget on build.
+  const { data: books, error } = await supabase
     .from("books")
     .select("*")
+    .eq("author_slug", slug)
     .order("ratings_count", { ascending: false });
 
   if (error) {
@@ -107,12 +81,7 @@ export async function getAuthorBySlug(
     return null;
   }
 
-  // Find books by this author (match by slug)
-  const books = (allBooks || []).filter(
-    (book) => createAuthorSlug(book.author) === slug
-  );
-
-  if (books.length === 0) {
+  if (!books || books.length === 0) {
     return null;
   }
 

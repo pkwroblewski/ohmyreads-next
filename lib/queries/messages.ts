@@ -19,100 +19,25 @@ export async function getConversations(): Promise<ConversationPreview[]> {
 
   if (!user) return [];
 
-  // Get accepted friend IDs first (to filter conversations)
-  const { data: friendships } = await supabase
-    .from("friend_requests")
-    .select("sender_id, receiver_id")
-    .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-    .eq("status", "accepted");
+  // Grouped in SQL (migration 058). This used to fetch every message the user
+  // had ever sent or received and group them in JS, so past PostgREST's
+  // 1000-row cap older conversations vanished and unread counts were wrong.
+  const { data, error } = await supabase.rpc("get_conversations");
 
-  // Extract friend IDs (the other person in each friendship)
-  const friendIds = new Set(
-    friendships?.map((f) => (f.sender_id === user.id ? f.receiver_id : f.sender_id)) || []
-  );
-
-  // If no friends, no conversations to show
-  if (friendIds.size === 0) return [];
-
-  // Get all messages involving current user
-  const { data: messages, error } = await supabase
-    .from("direct_messages")
-    .select(`
-      id,
-      sender_id,
-      receiver_id,
-      content,
-      read_at,
-      created_at
-    `)
-    .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-    .order("created_at", { ascending: false });
-
-  if (error || !messages) {
+  if (error) {
     console.error("Error fetching conversations:", error);
     return [];
   }
 
-  // Group by conversation partner and get most recent message
-  // Only include conversations with accepted friends
-  const conversationMap = new Map<string, {
-    lastMessage: typeof messages[0];
-    unreadCount: number;
-  }>();
-
-  for (const msg of messages) {
-    const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
-
-    // Skip if not a current friend
-    if (!friendIds.has(otherUserId)) continue;
-
-    if (!conversationMap.has(otherUserId)) {
-      conversationMap.set(otherUserId, {
-        lastMessage: msg,
-        unreadCount: 0,
-      });
-    }
-
-    // Count unread messages (where I'm receiver and not read)
-    if (msg.receiver_id === user.id && !msg.read_at) {
-      const conv = conversationMap.get(otherUserId)!;
-      conv.unreadCount++;
-    }
-  }
-
-  // Get friend profiles for conversations we have messages with
-  const conversationFriendIds = Array.from(conversationMap.keys());
-  if (conversationFriendIds.length === 0) return [];
-
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .in("id", conversationFriendIds);
-
-  const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-  // Build conversation previews
-  const conversations: ConversationPreview[] = [];
-
-  for (const [friendId, data] of conversationMap) {
-    const profile = profileMap.get(friendId);
-    if (!profile) continue;
-
-    conversations.push({
-      friend_id: friendId,
-      friend_username: profile.username || "",
-      friend_display_name: profile.display_name,
-      friend_avatar_url: profile.avatar_url,
-      last_message: data.lastMessage.content,
-      last_message_at: data.lastMessage.created_at,
-      unread_count: data.unreadCount,
-    });
-  }
-
-  // Sort by most recent message
-  return conversations.sort(
-    (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
-  );
+  return (data || []).map((row) => ({
+    friend_id: row.friend_id,
+    friend_username: row.friend_username,
+    friend_display_name: row.friend_display_name,
+    friend_avatar_url: row.friend_avatar_url,
+    last_message: row.last_message,
+    last_message_at: row.last_message_at,
+    unread_count: Number(row.unread_count),
+  }));
 }
 
 // ============================================
