@@ -220,8 +220,7 @@ export async function addToShelf(bookId: string, status: string) {
       return { error: reportError("Error adding to shelf", error) };
     }
 
-    // Update reading stats
-    await updateReadingStats(supabase, user.id);
+    // reading_stats is maintained by a trigger on user_books (migration 057)
 
     // Sync challenges on any status change (moving OUT of "read" must recount
     // too); badges only when a book becomes read — they are one-way.
@@ -390,8 +389,7 @@ export async function removeFromShelf(bookId: string) {
       return { error: reportError("Error removing from shelf", error) };
     }
 
-    // Update reading stats
-    await updateReadingStats(supabase, user.id);
+    // reading_stats is maintained by a trigger on user_books (migration 057)
 
     // Un-shelving a read book must recount challenges; badges stay (one-way)
     await Promise.allSettled([syncChallengeProgress()]);
@@ -544,8 +542,7 @@ export async function importAndAddToShelf(
       return { success: false, error: "Book added to catalog but failed to add to shelf" };
     }
 
-    // Update reading stats
-    await updateReadingStats(supabase, user.id);
+    // reading_stats is maintained by a trigger on user_books (migration 057)
 
     // Same sync wiring as addToShelf; badges not surfaced on the import path
     const importSyncs: Promise<unknown>[] = [syncChallengeProgress()];

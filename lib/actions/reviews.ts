@@ -9,7 +9,6 @@ import {
   type UpdateReviewInput,
 } from "@/lib/validation/review";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { updateReadingStats } from "./books";
 import { reportError } from "@/lib/utils/log";
 
 /**
@@ -107,8 +106,7 @@ export async function createReview(input: CreateReviewInput) {
     // Update book's average rating and count
     await updateBookRating(data.bookId);
 
-    // Update reading stats
-    await updateReadingStats(supabase, user.id);
+    // reading_stats is maintained by a trigger on reviews (migration 057)
 
     // Revalidate pages
     await revalidateBookPage(data.bookId);
@@ -260,8 +258,7 @@ export async function deleteReview(reviewId: string) {
     // Update book rating
     await updateBookRating(review.book_id);
 
-    // Update reading stats
-    await updateReadingStats(supabase, user.id);
+    // reading_stats is maintained by a trigger on reviews (migration 057)
 
     await revalidateBookPage(review.book_id);
     revalidatePath("/dashboard");
@@ -327,15 +324,8 @@ export async function likeReview(reviewId: string) {
       return { error: "Failed to like review" };
     }
 
-    // Increment likes count using database function
-    const { error: rpcError } = await supabase.rpc("increment_review_likes", {
-      review_id: reviewId,
-    });
-
-    if (rpcError) {
-      console.error("Error incrementing likes:", rpcError);
-      // Like was added but count wasn't updated - still consider success
-    }
+    // reviews.likes_count is updated by a trigger in the same transaction as
+    // the insert above (migration 057), so it can no longer drift.
 
     await revalidateBookPage(review.book_id);
 
@@ -381,14 +371,8 @@ export async function unlikeReview(reviewId: string) {
       return { error: "Failed to unlike review" };
     }
 
-    // Decrement likes count using database function
-    const { error: rpcError } = await supabase.rpc("decrement_review_likes", {
-      review_id: reviewId,
-    });
-
-    if (rpcError) {
-      console.error("Error decrementing likes:", rpcError);
-    }
+    // reviews.likes_count is updated by a trigger in the same transaction as
+    // the delete above (migration 057), so it can no longer drift.
 
     if (review?.book_id) {
       await revalidateBookPage(review.book_id);

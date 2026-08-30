@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1719,12 +1719,24 @@ export type Database = {
         Args: { p_book_id: string }
         Returns: undefined
       }
+      reconcile_counters: {
+        Args: never
+        Returns: {
+          counter: string
+          rows_fixed: number
+        }[]
+      }
       reject_place_submission: {
         Args: { admin_notes?: string; submission_id: string }
         Returns: boolean
       }
+      set_book_shelves: {
+        Args: { p_shelf_ids: string[]; p_user_book_id: string }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sync_reading_stats: { Args: { p_user_ids: string[] }; Returns: undefined }
     }
     Enums: {
       challenge_status: "active" | "completed" | "failed" | "abandoned"

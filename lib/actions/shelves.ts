@@ -17,6 +17,38 @@ import {
 import type { UserShelf, UserShelfWithCount } from "@/types/database";
 import { reportError } from "@/lib/utils/log";
 
+// The two authorization failures set_book_shelves raises deliberately. Anything
+// else coming back from the RPC is an unexpected DB error and must not reach
+// the client verbatim.
+const SHELF_RPC_USER_ERRORS = new Set([
+  "Book not found in your shelf",
+  "One or more shelves not found",
+]);
+
+/**
+ * Reconcile a book's shelf assignments in a single transaction via the
+ * set_book_shelves RPC (migration 057). Returns a user-safe error string, or
+ * null on success.
+ */
+async function setBookShelves(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userBookId: string,
+  shelfIds: string[]
+): Promise<string | null> {
+  const { error } = await supabase.rpc("set_book_shelves", {
+    p_user_book_id: userBookId,
+    p_shelf_ids: shelfIds,
+  });
+
+  if (!error) return null;
+
+  if (SHELF_RPC_USER_ERRORS.has(error.message)) {
+    return error.message;
+  }
+
+  return reportError("Error updating book shelves", error, { userBookId });
+}
+
 // ============================================
 // SHELF MANAGEMENT
 // ============================================
@@ -535,74 +567,12 @@ export async function updateBookShelves(input: {
 
     const data = validationResult.data;
 
-    // Verify user_book ownership
-    const { data: userBook } = await supabase
-      .from("user_books")
-      .select("user_id")
-      .eq("id", data.userBookId)
-      .single();
-
-    if (!userBook || userBook.user_id !== user.id) {
-      return { error: "Book not found in your shelf" };
-    }
-
-    // Get user's shelves to verify they own all the target shelves
-    const { data: userShelves } = await supabase
-      .from("user_shelves")
-      .select("id")
-      .eq("user_id", user.id);
-
-    const userShelfIds = new Set((userShelves || []).map((s) => s.id));
-
-    // Verify all target shelves belong to user
-    for (const shelfId of data.shelfIds) {
-      if (!userShelfIds.has(shelfId)) {
-        return { error: "One or more shelves not found" };
-      }
-    }
-
-    // Get current shelf assignments
-    const { data: currentShelfBooks } = await supabase
-      .from("shelf_books")
-      .select("shelf_id")
-      .eq("user_book_id", data.userBookId);
-
-    const currentShelfIds = new Set(
-      (currentShelfBooks || []).map((sb) => sb.shelf_id)
-    );
-    const targetShelfIds = new Set(data.shelfIds);
-
-    // Determine adds and removes
-    const toAdd = data.shelfIds.filter((id) => !currentShelfIds.has(id));
-    const toRemove = Array.from(currentShelfIds).filter(
-      (id) => !targetShelfIds.has(id)
-    );
-
-    // Remove from shelves
-    if (toRemove.length > 0) {
-      const { error: removeError } = await supabase
-        .from("shelf_books")
-        .delete()
-        .eq("user_book_id", data.userBookId)
-        .in("shelf_id", toRemove);
-
-      if (removeError) {
-        return { error: reportError("Error removing from shelves", removeError) };
-      }
-    }
-
-    // Add to shelves
-    if (toAdd.length > 0) {
-      const { error: addError } = await supabase.from("shelf_books").insert(
-        toAdd.map((shelfId) => ({
-          shelf_id: shelfId,
-          user_book_id: data.userBookId,
-        }))
-      );
-
-      if (addError) {
-        return { error: reportError("Error adding to shelves", addError) };
-      }
+    // Ownership checks, removes and adds all happen inside set_book_shelves
+    // (migration 057). Doing this as two statements meant a failed insert left
+    // the book stripped from shelves the remove had already committed.
+    const rpcError = await setBookShelves(supabase, data.userBookId, data.shelfIds);
+    if (rpcError) {
+      return { error: rpcError };
     }
 
     revalidatePath("/my-shelf");
@@ -838,63 +808,10 @@ export async function updateBookShelvesByBookId(input: {
       return { success: true };
     }
 
-    // Get user's shelves to verify ownership
-    const { data: userShelves } = await supabase
-      .from("user_shelves")
-      .select("id")
-      .eq("user_id", user.id);
-
-    const userShelfIds = new Set((userShelves || []).map((s) => s.id));
-
-    // Verify all target shelves belong to user
-    for (const shelfId of data.shelfIds) {
-      if (!userShelfIds.has(shelfId)) {
-        return { error: "One or more shelves not found" };
-      }
-    }
-
-    // Get current shelf assignments
-    const { data: currentShelfBooks } = await supabase
-      .from("shelf_books")
-      .select("shelf_id")
-      .eq("user_book_id", userBookId);
-
-    const currentShelfIds = new Set(
-      (currentShelfBooks || []).map((sb) => sb.shelf_id)
-    );
-    const targetShelfIds = new Set(data.shelfIds);
-
-    // Determine adds and removes
-    const toAdd = data.shelfIds.filter((id) => !currentShelfIds.has(id));
-    const toRemove = Array.from(currentShelfIds).filter(
-      (id) => !targetShelfIds.has(id)
-    );
-
-    // Remove from shelves
-    if (toRemove.length > 0) {
-      const { error: removeError } = await supabase
-        .from("shelf_books")
-        .delete()
-        .eq("user_book_id", userBookId)
-        .in("shelf_id", toRemove);
-
-      if (removeError) {
-        return { error: reportError("Error removing from shelves", removeError) };
-      }
-    }
-
-    // Add to shelves
-    if (toAdd.length > 0) {
-      const { error: addError } = await supabase.from("shelf_books").insert(
-        toAdd.map((shelfId) => ({
-          shelf_id: shelfId,
-          user_book_id: userBookId,
-        }))
-      );
-
-      if (addError) {
-        return { error: reportError("Error adding to shelves", addError) };
-      }
+    // Same atomic reconciliation as updateBookShelves (migration 057)
+    const rpcError = await setBookShelves(supabase, userBookId, data.shelfIds);
+    if (rpcError) {
+      return { error: rpcError };
     }
 
     revalidatePath("/my-shelf");
