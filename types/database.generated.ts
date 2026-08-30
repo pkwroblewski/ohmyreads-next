@@ -529,6 +529,30 @@ export type Database = {
         }
         Relationships: []
       }
+      books_external_id_dedupe_backup: {
+        Row: {
+          backed_up_at: string
+          book_id: string
+          book_title: string | null
+          id_kind: string
+          id_value: string
+        }
+        Insert: {
+          backed_up_at?: string
+          book_id: string
+          book_title?: string | null
+          id_kind: string
+          id_value: string
+        }
+        Update: {
+          backed_up_at?: string
+          book_id?: string
+          book_title?: string | null
+          id_kind?: string
+          id_value?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           content: string
