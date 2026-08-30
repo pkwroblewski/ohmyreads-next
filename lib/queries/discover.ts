@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { cache } from "react";
+import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import { getFollowingIds } from "./follows";
@@ -63,12 +64,18 @@ function computeCompatibilityScore(
 // TASTE DATA QUERIES
 // ============================================
 
-/**
- * Get a user's taste data (genres, vibes, book IDs) for compatibility matching
- */
-export async function getReaderTasteData(userId: string): Promise<ReaderTasteData> {
-  const supabase = await createClient();
+type DiscoverClient =
+  | Awaited<ReturnType<typeof createClient>>
+  | ReturnType<typeof createPublicClient>;
 
+/**
+ * Shared query body. Takes the client so the caller decides whether this read
+ * is scoped to the signed-in user's session or to the anonymous role.
+ */
+async function fetchReaderTasteData(
+  supabase: DiscoverClient,
+  userId: string
+): Promise<ReaderTasteData> {
   // Fetch user's books (read or reading) with genres
   const { data: userBooks } = await supabase
     .from("user_books")
@@ -113,10 +120,28 @@ export async function getReaderTasteData(userId: string): Promise<ReaderTasteDat
 }
 
 /**
- * Cached version of getReaderTasteData
+ * A user's own taste data, read through their session so it is complete even
+ * if they have opted out of discovery (migration 056 gates user_books on
+ * profiles.discovery_visible). Not cacheable across requests: it awaits
+ * cookies(), which is forbidden inside unstable_cache.
+ */
+export async function getReaderTasteData(userId: string): Promise<ReaderTasteData> {
+  const supabase = await createClient();
+  return fetchReaderTasteData(supabase, userId);
+}
+
+/**
+ * Taste data for *other* readers, read as anon. Every caller passes the id of
+ * a discovery candidate, and those lists are already filtered to
+ * discovery_visible = true, so the anonymous role sees the same rows the
+ * session would — but without cookies, which is what makes this cacheable.
+ *
+ * This previously wrapped the cookie-based reader directly, which throws
+ * "used `cookies` inside a function cached with `unstable_cache(...)`" at
+ * runtime on the logged-in /discover path.
  */
 export const getCachedReaderTasteData = unstable_cache(
-  getReaderTasteData,
+  async (userId: string) => fetchReaderTasteData(createPublicClient(), userId),
   ["reader-taste-data"],
   { revalidate: 3600 } // Cache for 1 hour
 );
@@ -232,8 +257,9 @@ export async function getRecommendedReaders(
 
   const supabase = await createClient();
 
-  // Get current user's taste data
-  const userTaste = await getCachedReaderTasteData(userId);
+  // The signed-in user's own taste: session-scoped, so it stays complete even
+  // if they have opted out of discovery.
+  const userTaste = await getReaderTasteData(userId);
 
   // If user has no reading data, fall back to active readers
   if (userTaste.bookIds.length === 0 && userTaste.genres.length === 0) {
@@ -492,7 +518,7 @@ export async function browseReaders(options: {
   let readers: ReaderWithCompatibility[];
 
   if (currentUserId && filters.sortBy === "compatibility") {
-    const userTaste = await getCachedReaderTasteData(currentUserId);
+    const userTaste = await getReaderTasteData(currentUserId);
 
     readers = await Promise.all(
       data.map(async (profile) => {
@@ -550,10 +576,11 @@ export async function browseReaders(options: {
 /**
  * Get sidebar recommendations with compatibility (cached)
  */
-export const getSidebarRecommendations = unstable_cache(
-  async (userId: string) => {
-    return getRecommendedReaders(userId, { limit: 5, excludeFollowing: true });
-  },
-  ["sidebar-recommendations"],
-  { revalidate: 1800 } // Cache for 30 minutes
-);
+/**
+ * Per-user and cookie-dependent (own taste + following list), so it cannot go
+ * in unstable_cache — that combination throws. React cache() gives
+ * request-level deduplication instead, which is the useful part here anyway.
+ */
+export const getSidebarRecommendations = cache(async (userId: string) => {
+  return getRecommendedReaders(userId, { limit: 5, excludeFollowing: true });
+});
