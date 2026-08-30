@@ -1,6 +1,7 @@
 import { createPublicClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
-import type { Book } from "@/types/database";
+import { BOOK_CARD_COLUMNS } from "./columns";
+import type { BookSummary } from "@/types/database";
 
 export interface AuthorSummary {
   name: string;
@@ -12,7 +13,7 @@ export interface AuthorSummary {
 export interface AuthorWithBooks {
   name: string;
   slug: string;
-  books: Book[];
+  books: BookSummary[];
   avgRating: number | null;
   totalRatings: number;
 }
@@ -72,7 +73,7 @@ export async function getAuthorBySlug(
   // 1000 rows and intermittently blew the 60s prerender budget on build.
   const { data: books, error } = await supabase
     .from("books")
-    .select("*")
+    .select(BOOK_CARD_COLUMNS)
     .eq("author_slug", slug)
     .order("ratings_count", { ascending: false });
 
@@ -100,7 +101,7 @@ export async function getAuthorBySlug(
   return {
     name: authorName,
     slug,
-    books: books as Book[],
+    books: books as BookSummary[],
     avgRating,
     totalRatings,
   };

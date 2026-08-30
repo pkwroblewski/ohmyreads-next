@@ -35,10 +35,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { adminGetBooks, adminDeleteBook, adminGetGenres, type BookFilters } from "@/lib/actions/admin-books";
-import { Book } from "@/types/database";
+import type { BookSummary } from "@/types/database";
 
 export default function AdminBooksPage() {
-  const [books, setBooks] = useState<Book[]>([]);
+  const [books, setBooks] = useState<BookSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -54,7 +54,7 @@ export default function AdminBooksPage() {
 
   // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
+  const [bookToDelete, setBookToDelete] = useState<BookSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const fetchBooks = useCallback(async () => {
@@ -108,7 +108,7 @@ export default function AdminBooksPage() {
     }
   };
 
-  const openDeleteDialog = (book: Book) => {
+  const openDeleteDialog = (book: BookSummary) => {
     setBookToDelete(book);
     setDeleteDialogOpen(true);
   };

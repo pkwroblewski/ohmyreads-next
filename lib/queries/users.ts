@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { BOOK_CARD_COLUMNS } from "./columns";
 import type { Profile, ReviewWithUser, UserBookWithBook } from "@/types/database";
 
 /**
@@ -89,7 +90,7 @@ export async function getUserBooks(
     .select(
       `
       *,
-      book:books(*)
+      book:books(${BOOK_CARD_COLUMNS})
     `,
       { count: "exact" }
     )

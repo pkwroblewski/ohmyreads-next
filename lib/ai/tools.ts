@@ -1,5 +1,6 @@
 import { tool, jsonSchema } from "ai";
 import { createPublicClient } from "@/lib/supabase/server";
+import { BOOK_DETAIL_COLUMNS } from "@/lib/queries/columns";
 
 // Define schemas using jsonSchema helper
 const searchBooksSchema = jsonSchema<{
@@ -266,7 +267,7 @@ export const getBookDetailsTool = tool({
 
     const supabase = createPublicClient();
 
-    let query = supabase.from("books").select("*");
+    let query = supabase.from("books").select(BOOK_DETAIL_COLUMNS);
 
     if (slug) {
       query = query.eq("slug", slug);

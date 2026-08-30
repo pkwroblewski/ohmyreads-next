@@ -21,11 +21,11 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AddToShelfModal } from "@/components/shelves/add-to-shelf-modal";
 import { UpdateProgressDialog } from "@/components/books/update-progress-dialog";
-import type { Book, UserBook } from "@/types/database";
+import type { BookSummary, UserBook } from "@/types/database";
 
 interface ShelfBookCardProps {
   userBook: UserBook;
-  book: Book | null;
+  book: BookSummary | null;
 }
 
 type ShelfStatus = "want_to_read" | "reading" | "read";

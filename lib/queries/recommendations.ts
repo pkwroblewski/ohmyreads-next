@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
-import type { Book, UserTasteProfile } from "@/types/database";
+import { BOOK_CARD_COLUMNS } from "./columns";
+import type { BookSummary, UserTasteProfile } from "@/types/database";
 
 // Recommendation reason types
 export type RecommendationReasonType =
@@ -19,7 +20,7 @@ export interface RecommendationReason {
   relatedVibe?: string;
 }
 
-export interface RecommendedBook extends Book {
+export interface RecommendedBook extends BookSummary {
   score: number;
   reason: RecommendationReason;
 }
@@ -29,7 +30,7 @@ export interface TrendingMetrics {
   recentAdds: number;
 }
 
-export interface TrendingBook extends Book {
+export interface TrendingBook extends BookSummary {
   score: number;
   rank: number;
   metrics: TrendingMetrics;
@@ -109,7 +110,7 @@ export async function getPersonalizedRecommendations(
   // First, get all books with their aggregate vibe tags from reviews
   const { data: allBooks } = await supabase
     .from("books")
-    .select("*")
+    .select(BOOK_CARD_COLUMNS)
     .order("ratings_count", { ascending: false })
     .limit(200); // Get a pool of books to score
 
@@ -140,7 +141,7 @@ export async function getPersonalizedRecommendations(
   // 6. Score and rank books
   const scoredBooks: RecommendedBook[] = [];
 
-  for (const book of allBooks as Book[]) {
+  for (const book of allBooks as BookSummary[]) {
     // Skip books already on shelf
     if (excludedBookIds.has(book.id)) {
       continue;
@@ -258,7 +259,7 @@ export async function getSimilarBookRecommendations(
   // 1. Get the current book
   const { data: currentBook } = await supabase
     .from("books")
-    .select("*")
+    .select(BOOK_CARD_COLUMNS)
     .eq("id", bookId)
     .single();
 
@@ -306,12 +307,12 @@ export async function getSimilarBookRecommendations(
     // Fallback: just get popular books
     const { data: popularBooks } = await supabase
       .from("books")
-      .select("*")
+      .select(BOOK_CARD_COLUMNS)
       .neq("id", bookId)
       .order("ratings_count", { ascending: false })
       .limit(limit);
 
-    return ((popularBooks as Book[]) || []).map((book) => ({
+    return ((popularBooks as BookSummary[]) || []).map((book) => ({
       ...book,
       score: 1,
       reason: {
@@ -324,7 +325,7 @@ export async function getSimilarBookRecommendations(
   // Get books that share genres
   const { data: similarBooks } = await supabase
     .from("books")
-    .select("*")
+    .select(BOOK_CARD_COLUMNS)
     .neq("id", bookId)
     .overlaps("genres", currentGenres)
     .order("average_rating", { ascending: false, nullsFirst: false })
@@ -356,7 +357,7 @@ export async function getSimilarBookRecommendations(
   // 5. Score similar books
   const scoredBooks: RecommendedBook[] = [];
 
-  for (const book of similarBooks as Book[]) {
+  for (const book of similarBooks as BookSummary[]) {
     if (excludedBookIds.has(book.id)) {
       continue;
     }
@@ -448,7 +449,7 @@ export async function getCuratedBooks(
   // This provides a better "curated" experience than just newest books
   const { data: books, error } = await supabase
     .from("books")
-    .select("*")
+    .select(BOOK_CARD_COLUMNS)
     .gte("average_rating", 3.8) // Only well-rated books
     .gte("ratings_count", 5) // With enough reviews to be reliable
     .order("ratings_count", { ascending: false })
@@ -458,11 +459,11 @@ export async function getCuratedBooks(
     // Ultimate fallback: just get popular books
     const { data: fallbackBooks } = await supabase
       .from("books")
-      .select("*")
+      .select(BOOK_CARD_COLUMNS)
       .order("ratings_count", { ascending: false, nullsFirst: false })
       .limit(limit);
 
-    return ((fallbackBooks as Book[]) || []).map((book) => ({
+    return ((fallbackBooks as BookSummary[]) || []).map((book) => ({
       ...book,
       score: book.ratings_count || 0,
       reason: {
@@ -473,10 +474,10 @@ export async function getCuratedBooks(
   }
 
   // Ensure genre diversity - pick books from different genres
-  const selectedBooks: Book[] = [];
+  const selectedBooks: BookSummary[] = [];
   const usedGenres = new Set<string>();
 
-  for (const book of books as Book[]) {
+  for (const book of books as BookSummary[]) {
     if (selectedBooks.length >= limit) break;
 
     // Get primary genre
@@ -496,7 +497,7 @@ export async function getCuratedBooks(
   }
 
   // Fill remaining slots if needed
-  for (const book of books as Book[]) {
+  for (const book of books as BookSummary[]) {
     if (selectedBooks.length >= limit) break;
     if (!selectedBooks.includes(book)) {
       selectedBooks.push(book);
@@ -526,7 +527,7 @@ export async function getTrendingOnPlatform(
   // Get books that have been recently added to shelves
   const { data: recentActivity, error: activityError } = await supabase
     .from("user_books")
-    .select("book_id, book:books(*)")
+    .select(`book_id, book:books(${BOOK_CARD_COLUMNS})`)
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -535,10 +536,10 @@ export async function getTrendingOnPlatform(
   }
 
   // Count occurrences and dedupe
-  const bookCounts = new Map<string, { book: Book; count: number }>();
+  const bookCounts = new Map<string, { book: BookSummary; count: number }>();
   for (const item of recentActivity) {
-    // books(*) join returns the generated row; narrow cover_source at the boundary
-    const book = item.book as Book | null;
+    // The embedded join returns the generated row; narrow cover_source at the boundary
+    const book = item.book as BookSummary | null;
     if (!book) continue;
 
     const existing = bookCounts.get(book.id);
@@ -575,7 +576,7 @@ export async function getTrendingGlobally(
   // Get most popular books - prioritize those with ratings, then by creation date
   const { data: books, error } = await supabase
     .from("books")
-    .select("*")
+    .select(BOOK_CARD_COLUMNS)
     .order("ratings_count", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -584,7 +585,7 @@ export async function getTrendingGlobally(
     return [];
   }
 
-  return (books as Book[]).map((book) => ({
+  return (books as BookSummary[]).map((book) => ({
     ...book,
     score: book.ratings_count || 0,
     reason: {
@@ -647,7 +648,7 @@ async function fetchTrulyTrending(
   let trendingBooks: TrendingBook[] = [];
 
   if (topIds.length > 0) {
-    let query = supabase.from("books").select("*").in("id", topIds);
+    let query = supabase.from("books").select(BOOK_CARD_COLUMNS).in("id", topIds);
 
     if (genre) {
       query = query.contains("genres", [genre]);
@@ -656,7 +657,7 @@ async function fetchTrulyTrending(
     const { data: books } = await query;
 
     // Sort by score, add rank and metrics
-    trendingBooks = ((books as Book[]) || [])
+    trendingBooks = ((books as BookSummary[]) || [])
       .sort((a, b) => (scores.get(b.id) || 0) - (scores.get(a.id) || 0))
       .map((book) => ({
         ...book,
@@ -682,7 +683,7 @@ async function fetchTrulyTrending(
     // Get popular books to fill the gap
     let popularQuery = supabase
       .from("books")
-      .select("*")
+      .select(BOOK_CARD_COLUMNS)
       .order("ratings_count", { ascending: false, nullsFirst: false })
       .limit(needed + 10); // Get extra in case some are already included
 
@@ -693,7 +694,7 @@ async function fetchTrulyTrending(
     const { data: popularBooks } = await popularQuery;
 
     // Add popular books that aren't already in the list
-    const fillerBooks = ((popularBooks as Book[]) || [])
+    const fillerBooks = ((popularBooks as BookSummary[]) || [])
       .filter((b) => !existingIds.has(b.id))
       .slice(0, needed)
       .map((book) => ({

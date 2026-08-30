@@ -8,10 +8,10 @@ import { BookCard } from "@/components/books/book-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AIBookSearch } from "@/components/ai/ai-book-search";
 import { cn } from "@/lib/utils";
-import type { Book } from "@/types/database";
+import type { BookSummary } from "@/types/database";
 
 interface BookBrowserProps {
-  initialBooks: Book[];
+  initialBooks: BookSummary[];
   genres: string[];
 }
 
@@ -25,7 +25,7 @@ const sortOptions: { value: SortOption; label: string }[] = [
 ];
 
 export function BookBrowser({ initialBooks, genres }: BookBrowserProps) {
-  const [books, setBooks] = useState<Book[]>(initialBooks);
+  const [books, setBooks] = useState<BookSummary[]>(initialBooks);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("popular");

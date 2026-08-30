@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { BookListHorizontal } from "@/components/books/book-list-horizontal";
-import type { Book, UserBook } from "@/types/database";
+import { BOOK_CARD_COLUMNS } from "@/lib/queries/columns";
+import type { BookSummary, UserBook } from "@/types/database";
 
 interface UserBookWithBook extends UserBook {
-  book: Book;
+  book: BookSummary;
 }
 
 /**
@@ -24,7 +25,7 @@ export async function CurrentlyReading() {
   // Fetch currently reading books
   const { data } = await supabase
     .from("user_books")
-    .select("*, book:books(*)")
+    .select(`*, book:books(${BOOK_CARD_COLUMNS})`)
     .eq("user_id", user.id)
     .eq("status", "reading")
     .order("updated_at", { ascending: false })

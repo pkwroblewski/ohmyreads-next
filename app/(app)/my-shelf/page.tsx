@@ -9,14 +9,15 @@ import { ShelfBookCard } from "@/components/books/shelf-book-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ShelfSidebar } from "@/components/shelves/shelf-sidebar";
 import { MobileShelfDrawer } from "@/components/shelves/mobile-shelf-drawer";
-import type { Book, UserBook } from "@/types/database";
+import { BOOK_CARD_COLUMNS } from "@/lib/queries/columns";
+import type { BookSummary, UserBook } from "@/types/database";
 
 export const metadata: Metadata = {
   title: "Bookshelves",
 };
 
 interface UserBookWithBook extends UserBook {
-  book: Book | null;
+  book: BookSummary | null;
 }
 
 export default async function MyShelfPage({
@@ -64,7 +65,7 @@ export default async function MyShelfPage({
     if (shelfUserBookIds.length > 0) {
       const { data: shelfUserBooks } = await supabase
         .from("user_books")
-        .select("*, book:books(*)")
+        .select(`*, book:books(${BOOK_CARD_COLUMNS})`)
         .in("id", shelfUserBookIds);
 
       filteredBooks = (shelfUserBooks as UserBookWithBook[]) || [];
@@ -73,7 +74,7 @@ export default async function MyShelfPage({
     // Still need all books for counts
     const { data: userBooks } = await supabase
       .from("user_books")
-      .select("*, book:books(*)")
+      .select(`*, book:books(${BOOK_CARD_COLUMNS})`)
       .eq("user_id", user.id);
 
     allBooks = (userBooks as UserBookWithBook[]) || [];
@@ -83,7 +84,7 @@ export default async function MyShelfPage({
       .from("user_books")
       .select(`
         *,
-        book:books(*)
+        book:books(${BOOK_CARD_COLUMNS})
       `)
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false });

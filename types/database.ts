@@ -34,13 +34,20 @@ export type AdminRoleChange = Omit<
   source: AdminRoleSource;
 };
 
-// Book
+// Book. `fts` is the generated search vector: it is only ever a textSearch()
+// filter target, never read off a row, so no query selects it (see
+// lib/queries/columns.ts) and it is not part of the app-level shape.
 export type Book = Omit<
   Database["public"]["Tables"]["books"]["Row"],
-  "cover_source"
+  "cover_source" | "fts"
 > & {
   cover_source: CoverSource | null;
 };
+
+// A book as list/grid/rail consumers see it. `description` is ~70% of the row
+// and is only rendered on the book detail page, so everything that shows books
+// in bulk selects BOOK_CARD_COLUMNS (lib/queries/columns.ts) and gets this narrower shape.
+export type BookSummary = Omit<Book, "description">;
 
 // User's Book (shelf item)
 export type UserBook = Omit<

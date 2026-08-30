@@ -4,6 +4,7 @@ import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { parseSearchParams } from "@/lib/validation/search";
 import { logger, extractErrorInfo, extractSupabaseErrorInfo } from "@/lib/utils/log";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
+import { BOOK_CARD_COLUMNS } from "@/lib/queries/columns";
 
 export async function GET(request: NextRequest) {
   // Rate limit by IP (60 requests per minute for search)
@@ -36,7 +37,9 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
 
     // Build query
-    let query = supabase.from("books").select("*", { count: "exact" });
+    let query = supabase
+      .from("books")
+      .select(BOOK_CARD_COLUMNS, { count: "exact" });
 
     // Apply search filter (sanitize input to prevent PostgREST query manipulation)
     if (q) {

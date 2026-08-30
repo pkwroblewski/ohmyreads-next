@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Star, TrendingUp, Bookmark, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "@/components/books/cover-image";
-import type { Book } from "@/types/database";
+import type { BookSummary } from "@/types/database";
 
 interface TrendingInsight {
   bookId: string;
@@ -14,7 +14,7 @@ interface TrendingInsight {
 }
 
 interface TrendingNowListProps {
-  books: Book[];
+  books: BookSummary[];
   title?: string;
   maxItems?: number;
   variant?: "sidebar" | "panel";
@@ -107,7 +107,7 @@ function TrendingBookItem({
   rank,
   insight,
 }: {
-  book: Book;
+  book: BookSummary;
   rank: number;
   compact?: boolean;
   insight?: TrendingInsight;

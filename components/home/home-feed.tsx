@@ -3,13 +3,13 @@ import { ReadingActivityPanel } from "./reading-activity-panel";
 import { CuratedMiniGrid } from "./curated-mini-grid";
 import { TrendingNowList } from "./trending-now-list";
 import { UnifiedSearch } from "@/components/search/unified-search";
-import type { Book } from "@/types/database";
+import type { BookSummary } from "@/types/database";
 import type { HomeReadingActivity } from "@/lib/queries/home";
 
 interface HomeFeedProps {
   activity: HomeReadingActivity | null;
-  curatedBooks: Book[];
-  trendingBooks: Book[];
+  curatedBooks: BookSummary[];
+  trendingBooks: BookSummary[];
   isLoggedIn: boolean;
 }
 

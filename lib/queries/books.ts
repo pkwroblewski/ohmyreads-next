@@ -1,7 +1,8 @@
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
-import type { Book, ReviewWithUser, UserBook } from "@/types/database";
+import { BOOK_CARD_COLUMNS, BOOK_DETAIL_COLUMNS } from "./columns";
+import type { Book, BookSummary, ReviewWithUser, UserBook } from "@/types/database";
 
 /**
  * Get a single book by its slug
@@ -11,7 +12,7 @@ export async function getBookBySlug(slug: string): Promise<Book | null> {
 
   const { data, error } = await supabase
     .from("books")
-    .select("*")
+    .select(BOOK_DETAIL_COLUMNS)
     .eq("slug", slug)
     .single();
 
@@ -196,13 +197,15 @@ export async function searchBooks(
     page?: number;
     limit?: number;
   } = {}
-): Promise<{ books: Book[]; total: number }> {
+): Promise<{ books: BookSummary[]; total: number }> {
   const { genre, sort = "relevance", page = 1, limit = 20 } = options;
 
   const supabase = await createClient();
   const offset = (page - 1) * limit;
 
-  let bookQuery = supabase.from("books").select("*", { count: "exact" });
+  let bookQuery = supabase
+    .from("books")
+    .select(BOOK_CARD_COLUMNS, { count: "exact" });
 
   // Full-text search using GIN-indexed tsvector column (title + author)
   // Falls back to ilike for very short queries (1-2 chars) that FTS can't handle
@@ -263,18 +266,18 @@ export async function searchBooks(
     return { books: [], total: 0 };
   }
 
-  return { books: (data as Book[]) || [], total: count || 0 };
+  return { books: (data as BookSummary[]) || [], total: count || 0 };
 }
 
 /**
  * Get popular books (for homepage) - cached for 1 hour
  */
-async function fetchPopularBooks(limit: number): Promise<Book[]> {
+async function fetchPopularBooks(limit: number): Promise<BookSummary[]> {
   const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("books")
-    .select("*")
+    .select(BOOK_CARD_COLUMNS)
     .order("ratings_count", { ascending: false, nullsFirst: false })
     .limit(limit);
 
@@ -283,7 +286,7 @@ async function fetchPopularBooks(limit: number): Promise<Book[]> {
     return [];
   }
 
-  return (data as Book[]) || [];
+  return (data as BookSummary[]) || [];
 }
 
 export const getPopularBooks = unstable_cache(
@@ -295,12 +298,12 @@ export const getPopularBooks = unstable_cache(
 /**
  * Get recently added books - cached for 30 minutes
  */
-async function fetchRecentBooks(limit: number): Promise<Book[]> {
+async function fetchRecentBooks(limit: number): Promise<BookSummary[]> {
   const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("books")
-    .select("*")
+    .select(BOOK_CARD_COLUMNS)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -309,7 +312,7 @@ async function fetchRecentBooks(limit: number): Promise<Book[]> {
     return [];
   }
 
-  return (data as Book[]) || [];
+  return (data as BookSummary[]) || [];
 }
 
 export const getRecentBooks = unstable_cache(
@@ -347,12 +350,12 @@ export async function getRelatedBooks(
   genres: string[],
   excludeId: string,
   limit = 6
-): Promise<Book[]> {
+): Promise<BookSummary[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("books")
-    .select("*")
+    .select(BOOK_CARD_COLUMNS)
     .overlaps("genres", genres)
     .neq("id", excludeId)
     .order("ratings_count", { ascending: false })
@@ -363,7 +366,7 @@ export async function getRelatedBooks(
     return [];
   }
 
-  return (data || []) as Book[];
+  return (data || []) as BookSummary[];
 }
 
 /**

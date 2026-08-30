@@ -5,12 +5,12 @@ import Link from "next/link";
 import { Star, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "@/components/books/cover-image";
-import type { Book } from "@/types/database";
+import type { BookSummary } from "@/types/database";
 
 interface BookRecommendationRowProps {
   title: string;
   subtitle?: string;
-  books: Book[];
+  books: BookSummary[];
   viewAllHref?: string;
 }
 
@@ -164,7 +164,7 @@ export function BookRecommendationRow({
   );
 }
 
-function PremiumBookCard({ book }: { book: Book }) {
+function PremiumBookCard({ book }: { book: BookSummary }) {
   return (
     <Link
       href={`/books/${book.slug}`}

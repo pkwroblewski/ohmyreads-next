@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BookOpen, Heart, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "@/components/books/cover-image";
-import type { Book } from "@/types/database";
+import type { BookSummary } from "@/types/database";
 
 interface CuratedPick {
   bookId: string;
@@ -14,7 +14,7 @@ interface CuratedPick {
 }
 
 interface CuratedMiniGridProps {
-  books: Book[];
+  books: BookSummary[];
   title?: string;
   /** Gates the AI-reasons fetch; the endpoint is authenticated. */
   isLoggedIn?: boolean;
@@ -111,7 +111,7 @@ export function CuratedMiniGrid({
   );
 }
 
-function MiniBookCard({ book, pick }: { book: Book; pick?: CuratedPick }) {
+function MiniBookCard({ book, pick }: { book: BookSummary; pick?: CuratedPick }) {
   return (
     <div className="group flex flex-col">
       {/* Cover */}

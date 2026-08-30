@@ -11,7 +11,8 @@ import {
   adminCreateBookSchema,
   adminUpdateBookSchema,
 } from "@/lib/validation/admin";
-import type { Book } from "@/types/database";
+import { BOOK_CARD_COLUMNS, BOOK_DETAIL_COLUMNS } from "@/lib/queries/columns";
+import type { Book, BookSummary } from "@/types/database";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -75,7 +76,7 @@ export async function adminGetBooks(filters: BookFilters = {}) {
 
     let query = supabase
       .from("books")
-      .select("*", { count: "exact" });
+      .select(BOOK_CARD_COLUMNS, { count: "exact" });
 
     // Search filter (sanitize input to prevent PostgREST query manipulation)
     if (search) {
@@ -102,7 +103,7 @@ export async function adminGetBooks(filters: BookFilters = {}) {
 
     return {
       success: true,
-      books: (data as Book[]) || [],
+      books: (data as BookSummary[]) || [],
       total: count || 0,
       page,
       totalPages: Math.ceil((count || 0) / limit),
@@ -125,7 +126,7 @@ export async function adminGetBook(bookId: string) {
 
     const { data, error } = await supabase
       .from("books")
-      .select("*")
+      .select(BOOK_DETAIL_COLUMNS)
       .eq("id", bookId)
       .single();
 

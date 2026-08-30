@@ -1,9 +1,10 @@
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { getCuratedList, type CuratedList } from "@/lib/data/curated-lists";
-import type { Book, ReadingListWithDetails, ReadingListBookWithBook } from "@/types/database";
+import { BOOK_CARD_COLUMNS } from "./columns";
+import type { BookSummary, ReadingListWithDetails, ReadingListBookWithBook } from "@/types/database";
 
 export interface CuratedListWithBooks extends CuratedList {
-  books: Book[];
+  books: BookSummary[];
 }
 
 /**
@@ -20,27 +21,27 @@ export async function getCuratedListWithBooks(
 
   const supabase = createPublicClient();
 
-  let books: Book[] = [];
+  let books: BookSummary[] = [];
 
   // If explicit book slugs are provided, fetch those
   if (list.bookSlugs && list.bookSlugs.length > 0) {
     const { data, error } = await supabase
       .from("books")
-      .select("*")
+      .select(BOOK_CARD_COLUMNS)
       .in("slug", list.bookSlugs)
       .order("ratings_count", { ascending: false });
 
     if (error) {
       console.error("Error fetching books by slugs:", error);
     } else {
-      books = (data || []) as Book[];
+      books = (data || []) as BookSummary[];
     }
   }
   // Otherwise, fetch by genres
   else if (list.genres && list.genres.length > 0) {
     const { data, error } = await supabase
       .from("books")
-      .select("*")
+      .select(BOOK_CARD_COLUMNS)
       .overlaps("genres", list.genres)
       .order("ratings_count", { ascending: false })
       .limit(24);
@@ -48,7 +49,7 @@ export async function getCuratedListWithBooks(
     if (error) {
       console.error("Error fetching books by genres:", error);
     } else {
-      books = (data || []) as Book[];
+      books = (data || []) as BookSummary[];
     }
   }
 

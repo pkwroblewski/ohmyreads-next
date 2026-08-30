@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { BookCard } from "./book-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
-import type { Book } from "@/types/database";
+import type { BookSummary } from "@/types/database";
 
 interface EmptyStateAction {
   label: string;
@@ -14,7 +14,7 @@ interface EmptyStateAction {
 
 interface BookListHorizontalProps {
   title: string;
-  books: Book[];
+  books: BookSummary[];
   emptyMessage?: string;
   emptyTitle?: string;
   emptyAction?: EmptyStateAction;
