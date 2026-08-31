@@ -14,10 +14,14 @@
  * and recommendation list needs. They are string literals, not `string`, so
  * supabase-js still infers the row shape from them.
  *
+ * `local_average_rating` / `local_ratings_count` (migration 063) are in the
+ * detail projection only. Cards sort and filter on the external Open Library
+ * pair; the book page is the one place that shows both numbers side by side.
+ *
  * Keep these in sync with the `books` columns in types/database.generated.ts.
  */
 export const BOOK_DETAIL_COLUMNS =
-  "id, title, author, slug, description, cover_url, isbn, published_date, page_count, genres, google_books_id, average_rating, ratings_count, created_at, open_library_id, open_library_cover_id, cover_source, updated_at, author_slug" as const;
+  "id, title, author, slug, description, cover_url, isbn, published_date, page_count, genres, google_books_id, average_rating, ratings_count, local_average_rating, local_ratings_count, created_at, open_library_id, open_library_cover_id, cover_source, updated_at, author_slug" as const;
 
 export const BOOK_CARD_COLUMNS =
   "id, title, author, slug, cover_url, isbn, published_date, page_count, genres, google_books_id, average_rating, ratings_count, created_at, open_library_id, open_library_cover_id, cover_source, updated_at, author_slug" as const;

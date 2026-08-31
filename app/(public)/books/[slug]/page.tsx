@@ -138,15 +138,19 @@ export default async function BookPage({ params }: Props) {
     datePublished: book.published_date,
     genre: book.genres,
     url: `${baseUrl}/books/${book.slug}`,
-    aggregateRating: book.average_rating
-      ? {
-          "@type": "AggregateRating",
-          ratingValue: book.average_rating,
-          reviewCount: book.ratings_count,
-          bestRating: 5,
-          worstRating: 1,
-        }
-      : undefined,
+    // schema.org aggregateRating means ratings *this site* collected, so it is
+    // the local pair (migration 063) and not the Open Library figure. Emitting
+    // someone else's aggregate as our own would misrepresent the page.
+    aggregateRating:
+      book.local_average_rating && book.local_ratings_count > 0
+        ? {
+            "@type": "AggregateRating",
+            ratingValue: book.local_average_rating,
+            reviewCount: book.local_ratings_count,
+            bestRating: 5,
+            worstRating: 1,
+          }
+        : undefined,
     review: reviews.slice(0, 5).map((review) => ({
       "@type": "Review",
       author: {
@@ -247,15 +251,46 @@ export default async function BookPage({ params }: Props) {
               </Link>
             </p>
 
-            {/* Rating */}
-            {book.average_rating !== null && (
-              <div className="flex items-center gap-2 mb-4">
-                <RatingDisplay
-                  rating={book.average_rating}
-                  count={book.ratings_count ?? undefined}
-                  size="lg"
-                />
-                <span className="font-medium">{book.average_rating.toFixed(1)}</span>
+            {/* Ratings — two different populations, so they are shown as two
+                numbers rather than blended into one (migration 063). The
+                external figure is Open Library; the local one is this site's
+                own readers, and it is worth showing even when it is a handful
+                of people. */}
+            {(book.average_rating !== null ||
+              book.local_average_rating !== null) && (
+              <div className="flex flex-col gap-1.5 mb-4">
+                {book.average_rating !== null && (
+                  <div className="flex items-center gap-2">
+                    <RatingDisplay
+                      rating={book.average_rating}
+                      count={book.ratings_count ?? undefined}
+                      size="lg"
+                    />
+                    <span className="font-medium">
+                      {book.average_rating.toFixed(1)}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      on Open Library
+                    </span>
+                  </div>
+                )}
+
+                {book.local_average_rating !== null && (
+                  <div className="flex items-center gap-2">
+                    <RatingDisplay
+                      rating={book.local_average_rating}
+                      count={book.local_ratings_count ?? undefined}
+                      size="md"
+                    />
+                    <span className="font-medium text-sm">
+                      {book.local_average_rating.toFixed(1)}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      from {book.local_ratings_count}{" "}
+                      {book.local_ratings_count === 1 ? "reader" : "readers"} here
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

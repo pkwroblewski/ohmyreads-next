@@ -102,12 +102,10 @@ export async function createReview(input: CreateReviewInput) {
       return { error: "Failed to create review" };
     }
 
-    // Update book's average rating and count
-    await updateBookRating(data.bookId);
+    // books.local_average_rating and reading_stats are both maintained by
+    // triggers on reviews (migrations 063 and 057)
 
-    // reading_stats is maintained by a trigger on reviews (migration 057)
-
-    // Revalidate pages. A new review changes books.average_rating (above), the
+    // Revalidate pages. A new review changes the book's local rating, the
     // review lists, the trigger-written activity feed, and trending scores.
     invalidateTags(
       CACHE_TAGS.books,
@@ -210,12 +208,8 @@ export async function updateReview(input: UpdateReviewInput) {
       return { error: "Failed to update review" };
     }
 
-    // Update book rating if rating changed
-    if (data.rating !== undefined) {
-      await updateBookRating(review.book_id);
-    }
-
-    // An edit does not add a feed row, but it can move the book's average rating.
+    // An edit does not add a feed row, but it can move the book's local rating,
+    // which the trigger from migration 063 has already recalculated.
     invalidateTags(CACHE_TAGS.books, CACHE_TAGS.reviews);
     revalidateBookPages();
 
@@ -263,10 +257,8 @@ export async function deleteReview(reviewId: string) {
       return { error: reportError("Error deleting review", error, { reviewId }) };
     }
 
-    // Update book rating
-    await updateBookRating(review.book_id);
-
-    // reading_stats is maintained by a trigger on reviews (migration 057)
+    // books.local_average_rating and reading_stats are both maintained by
+    // triggers on reviews (migrations 063 and 057)
 
     invalidateTags(
       CACHE_TAGS.books,
@@ -501,16 +493,12 @@ export async function getUserLikesForReviews(reviewIds: string[]) {
 // ============================================
 
 /**
- * Recalculate book's average rating using SQL function (more efficient)
+ * Recalculating a book's local rating is no longer this file's job.
+ *
+ * Migration 063 split the column: `books.average_rating` is the Open Library
+ * figure and `books.local_average_rating` is this site's own, maintained by a
+ * statement-level trigger on `reviews`. The trigger covers every write path,
+ * including the admin deletions and cascades that never called this helper, so
+ * an explicit RPC call here would only duplicate work already done inside the
+ * same transaction.
  */
-async function updateBookRating(bookId: string) {
-  const supabase = await createClient();
-
-  const { error } = await supabase.rpc("recalculate_book_rating", {
-    p_book_id: bookId,
-  });
-
-  if (error) {
-    logError("Error recalculating book rating", error);
-  }
-}

@@ -101,7 +101,11 @@ async function searchOpenLibraryForRatings(
     const url = new URL("https://openlibrary.org/search.json");
     url.searchParams.set("title", title);
     url.searchParams.set("author", author);
-    url.searchParams.set("limit", "1");
+    // Five, not one. The top hit is often a box set, an omnibus or a
+    // translation carrying no ratings while the canonical work a couple of
+    // places down carries thousands. Taking docs[0] is why several books came
+    // back "no ratings found" when the ratings plainly exist.
+    url.searchParams.set("limit", "5");
     url.searchParams.set("fields", "key,ratings_average,ratings_count");
 
     const response = await fetch(url.toString());
@@ -114,25 +118,36 @@ async function searchOpenLibraryForRatings(
       return null;
     }
 
-    const doc = data.docs[0];
-    const workId = doc.key.replace("/works/", "");
+    interface SearchDoc {
+      key: string;
+      ratings_average?: number;
+      ratings_count?: number;
+    }
 
-    // Open Library search sometimes includes ratings directly
-    if (doc.ratings_average && doc.ratings_count) {
+    // Most-rated wins, which approximates "the edition everyone actually read".
+    const rated = (data.docs as SearchDoc[])
+      .filter((doc) => doc.key && (doc.ratings_count ?? 0) > 0)
+      .sort((a, b) => (b.ratings_count ?? 0) - (a.ratings_count ?? 0))[0];
+
+    if (rated) {
       return {
-        workId,
+        workId: rated.key.replace("/works/", ""),
         ratings: {
-          average: doc.ratings_average,
-          count: doc.ratings_count,
+          average: rated.ratings_average ?? null,
+          count: rated.ratings_count ?? 0,
         },
       };
     }
 
-    // Otherwise fetch from ratings endpoint
-    const ratings = await getOpenLibraryRatings(workId);
-
-    if (ratings) {
-      return { workId, ratings };
+    // Search returned no ratings inline; ask the ratings endpoint about each
+    // candidate in turn, since the counts above can lag the work record.
+    for (const doc of data.docs as SearchDoc[]) {
+      if (!doc.key) continue;
+      const workId = doc.key.replace("/works/", "");
+      const ratings = await getOpenLibraryRatings(workId);
+      if (ratings && ratings.count > 0) {
+        return { workId, ratings };
+      }
     }
 
     return null;
@@ -190,10 +205,18 @@ async function importRatings() {
       ratings = await getOpenLibraryRatings(workId);
     }
 
-    // Strategy 2: Search by title + author
-    if (!ratings) {
+    // Strategy 2: Search by title + author.
+    //
+    // Also runs when Strategy 1 returned a *zero-count* summary, not just when
+    // it returned nothing. Open Library serves `{average: 0, count: 0}` for a
+    // work whose ratings live under a different work id -- the stored id for
+    // Dune is one digit off the one carrying its 443 ratings -- and the old
+    // `if (!ratings)` treated that as an answer, so the search never ran and
+    // the book was reported as "no ratings found". That is why 20 books were
+    // left unrated after the task 13 incident.
+    if (!ratings || ratings.count === 0) {
       const result = await searchOpenLibraryForRatings(book.title, book.author);
-      if (result) {
+      if (result && result.ratings.count > 0) {
         ratings = result.ratings;
         workId = result.workId;
       }
@@ -201,6 +224,9 @@ async function importRatings() {
 
     // Update the book if we found ratings
     if (ratings && ratings.count > 0) {
+      // Writes only the EXTERNAL pair. `local_average_rating` /
+      // `local_ratings_count` belong to public.reviews and are maintained by
+      // the trigger from migration 063 -- an import must never touch them.
       const { error: updateError } = await supabase
         .from("books")
         .update({

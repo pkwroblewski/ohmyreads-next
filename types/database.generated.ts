@@ -474,6 +474,8 @@ export type Database = {
           google_books_id: string | null
           id: string
           isbn: string | null
+          local_average_rating: number | null
+          local_ratings_count: number
           open_library_cover_id: number | null
           open_library_id: string | null
           page_count: number | null
@@ -496,6 +498,8 @@ export type Database = {
           google_books_id?: string | null
           id?: string
           isbn?: string | null
+          local_average_rating?: number | null
+          local_ratings_count?: number
           open_library_cover_id?: number | null
           open_library_id?: string | null
           page_count?: number | null
@@ -518,6 +522,8 @@ export type Database = {
           google_books_id?: string | null
           id?: string
           isbn?: string | null
+          local_average_rating?: number | null
+          local_ratings_count?: number
           open_library_cover_id?: number | null
           open_library_id?: string | null
           page_count?: number | null
@@ -1863,6 +1869,7 @@ export type Database = {
         Args: { p_book_id: string }
         Returns: undefined
       }
+      reconcile_book_local_ratings: { Args: never; Returns: number }
       reconcile_counters: {
         Args: never
         Returns: {
@@ -1880,6 +1887,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sync_book_local_ratings: {
+        Args: { p_book_ids: string[] }
+        Returns: undefined
+      }
       sync_reading_stats: { Args: { p_user_ids: string[] }; Returns: undefined }
     }
     Enums: {
