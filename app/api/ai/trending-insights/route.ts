@@ -1,7 +1,8 @@
-import { generateText, stepCountIs } from "ai";
+import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache/tags";
+import { trendingInsightSchema } from "@/lib/ai/schemas";
 import { NextResponse } from "next/server";
 import { createPublicClient, createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
@@ -11,6 +12,9 @@ interface TrendingInsight {
   insight: string;
   keywords: string[];
 }
+
+/** Caps one insight. 15-25 words asked for, so this only bounds a runaway. */
+const MAX_INSIGHT_TOKENS = 150;
 
 function getModel() {
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -61,90 +65,69 @@ async function generateTrendingInsights(): Promise<TrendingInsight[]> {
 
   // Generate insights for each book using AI
   const model = getModel();
-  const insights: TrendingInsight[] = [];
+
+  const withoutAi = (book: (typeof trendingBooks)[number]): TrendingInsight => ({
+    bookId: book.id,
+    insight: `Popular ${book.genres?.[0] || "fiction"} by ${book.author}`,
+    keywords: book.genres?.slice(0, 3) || [],
+  });
 
   // If no AI model available, return simple insights without AI
   if (!model) {
-    for (const book of trendingBooks) {
-      insights.push({
-        bookId: book.id,
-        insight: `Popular ${book.genres?.[0] || "fiction"} by ${book.author}`,
-        keywords: book.genres?.slice(0, 3) || [],
-      });
-    }
-    return insights;
+    return trendingBooks.map(withoutAi);
   }
 
-  for (const book of trendingBooks) {
-    const bookReviews = reviewsByBook.get(book.id) || [];
+  // One request per book, in parallel: they share no state, and run serially
+  // this was seven sequential round-trips behind a single cache miss.
+  return Promise.all(
+    trendingBooks.map(async (book) => {
+      const bookReviews = reviewsByBook.get(book.id) || [];
 
-    if (bookReviews.length === 0) {
-      insights.push({
-        bookId: book.id,
-        insight: `Popular ${book.genres?.[0] || "fiction"} by ${book.author}`,
-        keywords: book.genres?.slice(0, 3) || [],
-      });
-      continue;
-    }
+      if (bookReviews.length === 0) {
+        return withoutAi(book);
+      }
 
-    // Prepare review context for AI - minimize PII by using summary and limiting content
-    const reviewContext = bookReviews
-      .slice(0, 5)
-      .map((r) => {
-        const text = (r.content || "").slice(0, 140);
-        return `${r.rating}/5 stars. ${text}${text.length >= 140 ? "..." : ""}`;
-      })
-      .join("\n");
+      // Prepare review context for AI - minimize PII by using summary and limiting content
+      const reviewContext = bookReviews
+        .slice(0, 5)
+        .map((r) => {
+          const text = (r.content || "").slice(0, 140);
+          return `${r.rating}/5 stars. ${text}${text.length >= 140 ? "..." : ""}`;
+        })
+        .join("\n");
 
-    try {
-      const result = await generateText({
-        model,
-        system: `You are a book trend analyst. Generate a very short (15-25 words max) insight about why a book is trending based on recent reader reviews. Focus on themes, emotions, or qualities readers mention. Be specific and engaging. Do not use generic phrases like "readers love" - be more creative.`,
-        prompt: `Book: "${book.title}" by ${book.author}
+      try {
+        const { object } = await generateObject({
+          model,
+          schema: trendingInsightSchema,
+          maxOutputTokens: MAX_INSIGHT_TOKENS,
+          system: `You are a book trend analyst. Generate a very short (15-25 words max) insight about why a book is trending based on recent reader reviews. Focus on themes, emotions, or qualities readers mention. Be specific and engaging. Do not use generic phrases like "readers love" - be more creative.`,
+          prompt: `Book: "${book.title}" by ${book.author}
 Genres: ${book.genres?.join(", ") || "Unknown"}
 
 Recent Reviews:
 ${reviewContext}
 
-Generate a brief trending insight and 2-3 keywords that capture why this book resonates. Format as JSON: {"insight": "...", "keywords": ["...", "..."]}`,
-        stopWhen: stepCountIs(1),
-      });
-
-      try {
-        const responseText = result.text.trim();
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          insights.push({
-            bookId: book.id,
-            insight: parsed.insight || `Trending ${book.genres?.[0] || "book"}`,
-            keywords: parsed.keywords || [],
-          });
-        } else {
-          insights.push({
-            bookId: book.id,
-            insight: responseText.slice(0, 100),
-            keywords: book.genres?.slice(0, 2) || [],
-          });
-        }
-      } catch {
-        insights.push({
-          bookId: book.id,
-          insight: `Popular choice in ${book.genres?.[0] || "fiction"}`,
-          keywords: book.genres?.slice(0, 2) || [],
+Generate a brief trending insight and 2-3 keywords that capture why this book resonates.`,
         });
-      }
-    } catch (aiError) {
-      console.error("AI error for book:", book.id, aiError);
-      insights.push({
-        bookId: book.id,
-        insight: `Trending in ${book.genres?.[0] || "fiction"}`,
-        keywords: book.genres?.slice(0, 2) || [],
-      });
-    }
-  }
 
-  return insights;
+        return {
+          bookId: book.id,
+          insight: object.insight,
+          keywords: object.keywords,
+        };
+      } catch (aiError) {
+        // Covers both a provider failure and NoObjectGeneratedError (model
+        // returned something the schema rejects).
+        console.error("AI error for book:", book.id, aiError);
+        return {
+          bookId: book.id,
+          insight: `Trending in ${book.genres?.[0] || "fiction"}`,
+          keywords: book.genres?.slice(0, 2) || [],
+        };
+      }
+    })
+  );
 }
 
 const getCachedTrendingInsights = unstable_cache(

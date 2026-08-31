@@ -10,6 +10,9 @@ import { createClient } from "@/lib/supabase/server";
 import { validateOrigin } from "@/lib/utils/csrf";
 import { reportError } from "@/lib/utils/log";
 
+/** Caps the assistant's prose reply; the book data itself comes from tools. */
+const MAX_REPLY_TOKENS = 800;
+
 // Select the AI model based on environment or preference
 // Default to Gemini Flash for cost efficiency
 function getModel() {
@@ -86,6 +89,7 @@ export async function POST(request: NextRequest) {
       tools: bookSearchTools,
       toolChoice: "auto",
       stopWhen: stepCountIs(3), // Allow tool call + follow-up response with results
+      maxOutputTokens: MAX_REPLY_TOKENS,
     });
 
     // Return as UI message stream for the DefaultChatTransport

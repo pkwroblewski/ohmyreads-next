@@ -1,4 +1,4 @@
-import { generateText, UIMessage, CoreMessage } from "ai";
+import { generateText, stepCountIs, UIMessage, CoreMessage } from "ai";
 import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
@@ -37,6 +37,9 @@ Guidelines:
 - Mention walking distance or time
 - Format place names in **bold**
 - If no places found, suggest expanding the search area or trying different types`;
+
+/** Caps the assistant's prose reply; the place data itself comes from tools. */
+const MAX_REPLY_TOKENS = 800;
 
 // Select the AI model
 function getModel() {
@@ -119,6 +122,15 @@ export async function POST(request: NextRequest) {
       messages: modelMessages,
       tools: placeSearchTools,
       toolChoice: "auto",
+      // `generateText` defaults to stepCountIs(1), so this loop was never
+      // unbounded — it was cut one step too short. The model called
+      // searchNearbyPlaces and stopped, leaving `result.text` empty, and the
+      // client's `if (data.text)` then added no assistant message at all: the
+      // place list updated while the assistant said nothing. Three steps give
+      // it the follow-up turn to describe what it found (matching
+      // book-search), and state the bound explicitly rather than by default.
+      stopWhen: stepCountIs(3),
+      maxOutputTokens: MAX_REPLY_TOKENS,
     });
 
     // Extract places from tool results if any
