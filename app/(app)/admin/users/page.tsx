@@ -1,125 +1,76 @@
-"use client";
-
-import { useState, useEffect, useCallback } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Users,
-  Search,
-  Shield,
-  ShieldOff,
-  Eye,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  BookOpen,
-  MessageSquare,
-  Crown,
-} from "lucide-react";
+import { Users, Eye, BookOpen, MessageSquare, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
+  AdminSearchInput,
+  AdminSelectFilter,
+} from "@/components/admin/admin-filters";
+import { AdminPagination } from "@/components/admin/admin-pagination";
+import { UserAdminToggle } from "@/components/admin/user-admin-toggle";
+import {
   adminGetUsers,
-  adminToggleAdmin,
   adminGetUserStats,
   type UserFilters,
-  type UserWithStats,
 } from "@/lib/actions/admin-users";
+import {
+  toAdminParams,
+  readPage,
+  readEnum,
+  type RawSearchParams,
+} from "@/lib/admin/search-params";
 
-export default function AdminUsersPage() {
-  const [users, setUsers] = useState<UserWithStats[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, admins: 0, newToday: 0 });
+export const metadata: Metadata = {
+  title: "Manage Users | Admin",
+  robots: { index: false, follow: false },
+};
 
-  // Filters
-  const [search, setSearch] = useState("");
-  const [isAdmin, setIsAdmin] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<UserFilters["sortBy"]>("created_at");
-  const [sortOrder, setSortOrder] = useState<UserFilters["sortOrder"]>("desc");
-  const [page, setPage] = useState(1);
-  const limit = 20;
+const PATHNAME = "/admin/users";
+const LIMIT = 20;
 
-  // Admin toggle dialog
-  const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
-  const [userToToggle, setUserToToggle] = useState<UserWithStats | null>(null);
-  const [toggling, setToggling] = useState(false);
+const SORT_FIELDS = [
+  "created_at",
+  "username",
+  "books_count",
+  "reviews_count",
+] as const satisfies readonly NonNullable<UserFilters["sortBy"]>[];
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    const result = await adminGetUsers({
+const SORT_ORDERS = ["desc", "asc"] as const;
+const ADMIN_FILTERS = ["all", "true", "false"] as const;
+
+interface PageProps {
+  searchParams: Promise<RawSearchParams>;
+}
+
+export default async function AdminUsersPage({ searchParams }: PageProps) {
+  const params = toAdminParams(await searchParams);
+
+  const search = params.search ?? "";
+  const isAdminFilter = readEnum(params, "isAdmin", ADMIN_FILTERS, "all");
+  const sortBy = readEnum(params, "sortBy", SORT_FIELDS, "created_at");
+  const sortOrder = readEnum(params, "sortOrder", SORT_ORDERS, "desc");
+  const page = readPage(params);
+
+  const [result, statsResult] = await Promise.all([
+    adminGetUsers({
       search: search || undefined,
-      isAdmin: isAdmin === "all" ? undefined : isAdmin === "true",
+      isAdmin: isAdminFilter === "all" ? undefined : isAdminFilter === "true",
       sortBy,
       sortOrder,
       page,
-      limit,
-    });
+      limit: LIMIT,
+    }),
+    adminGetUserStats(),
+  ]);
 
-    if (result.success) {
-      setUsers(result.users || []);
-      setTotal(result.total || 0);
-      setTotalPages(result.totalPages || 0);
-    }
-    setLoading(false);
-  }, [search, isAdmin, sortBy, sortOrder, page]);
-
-  const fetchStats = useCallback(async () => {
-    const result = await adminGetUserStats();
-    if (result.success && result.stats) {
-      setStats(result.stats);
-    }
-  }, []);
-
-  useEffect(() => {
-    queueMicrotask(() => void fetchStats());
-  }, [fetchStats]);
-
-  useEffect(() => {
-    const debounce = setTimeout(() => {
-      fetchUsers();
-    }, 300);
-    return () => clearTimeout(debounce);
-  }, [fetchUsers]);
-
-  const handleToggleAdmin = async () => {
-    if (!userToToggle) return;
-
-    setToggling(true);
-    const result = await adminToggleAdmin(userToToggle.id);
-    setToggling(false);
-
-    if (result.success) {
-      setToggleDialogOpen(false);
-      setUserToToggle(null);
-      fetchUsers();
-      fetchStats();
-    }
-  };
-
-  const openToggleDialog = (user: UserWithStats) => {
-    setUserToToggle(user);
-    setToggleDialogOpen(true);
-  };
+  const users = result.success ? result.users ?? [] : [];
+  const total = result.success ? result.total ?? 0 : 0;
+  const totalPages = result.success ? result.totalPages ?? 0 : 0;
+  const stats = statsResult.success
+    ? statsResult.stats ?? { total: 0, admins: 0, newToday: 0 }
+    : { total: 0, admins: 0, newToday: 0 };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -157,71 +108,63 @@ export default function AdminUsersPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl bg-card border">
         <div className="flex-1 min-w-[200px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by username or display name..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9"
-            />
-          </div>
+          <AdminSearchInput
+            pathname={PATHNAME}
+            params={params}
+            placeholder="Search by username or display name..."
+          />
         </div>
 
-        <Select
-          value={isAdmin}
-          onValueChange={(v) => {
-            setIsAdmin(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="User type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Users</SelectItem>
-            <SelectItem value="true">Admins Only</SelectItem>
-            <SelectItem value="false">Non-Admins</SelectItem>
-          </SelectContent>
-        </Select>
+        <AdminSelectFilter
+          pathname={PATHNAME}
+          params={params}
+          name="isAdmin"
+          value={isAdminFilter}
+          defaultValue="all"
+          placeholder="User type"
+          options={[
+            { value: "all", label: "All Users" },
+            { value: "true", label: "Admins Only" },
+            { value: "false", label: "Non-Admins" },
+          ]}
+        />
 
-        <Select
+        <AdminSelectFilter
+          pathname={PATHNAME}
+          params={params}
+          name="sortBy"
           value={sortBy}
-          onValueChange={(v) => setSortBy(v as UserFilters["sortBy"])}
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="created_at">Join Date</SelectItem>
-            <SelectItem value="username">Username</SelectItem>
-            <SelectItem value="books_count">Books</SelectItem>
-            <SelectItem value="reviews_count">Reviews</SelectItem>
-          </SelectContent>
-        </Select>
+          defaultValue="created_at"
+          placeholder="Sort by"
+          options={[
+            { value: "created_at", label: "Join Date" },
+            { value: "username", label: "Username" },
+            { value: "books_count", label: "Books" },
+            { value: "reviews_count", label: "Reviews" },
+          ]}
+        />
 
-        <Select
+        <AdminSelectFilter
+          pathname={PATHNAME}
+          params={params}
+          name="sortOrder"
           value={sortOrder}
-          onValueChange={(v) => setSortOrder(v as UserFilters["sortOrder"])}
-        >
-          <SelectTrigger className="w-[120px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="desc">Newest</SelectItem>
-            <SelectItem value="asc">Oldest</SelectItem>
-          </SelectContent>
-        </Select>
+          defaultValue="desc"
+          className="w-[120px]"
+          options={[
+            { value: "desc", label: "Newest" },
+            { value: "asc", label: "Oldest" },
+          ]}
+        />
       </div>
 
       {/* Users Table */}
       <div className="rounded-xl border bg-card overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        {!result.success ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <Users className="h-12 w-12 mb-4 opacity-50" />
+            <p className="text-lg font-medium">Could not load users</p>
+            <p className="text-sm">{result.error || "Please try again."}</p>
           </div>
         ) : users.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
@@ -297,18 +240,11 @@ export default function AdminUsersPage() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openToggleDialog(user)}
-                          title={user.is_admin ? "Remove Admin" : "Make Admin"}
-                        >
-                          {user.is_admin ? (
-                            <ShieldOff className="h-4 w-4 text-orange-500" />
-                          ) : (
-                            <Shield className="h-4 w-4" />
-                          )}
-                        </Button>
+                        <UserAdminToggle
+                          userId={user.id}
+                          username={user.username}
+                          isAdmin={user.is_admin}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -318,94 +254,15 @@ export default function AdminUsersPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between p-4 border-t bg-muted/30">
-            <p className="text-sm text-muted-foreground">
-              Page {page} of {totalPages} ({total} users)
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page - 1)}
-                disabled={page === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page + 1)}
-                disabled={page >= totalPages}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
+        <AdminPagination
+          pathname={PATHNAME}
+          params={params}
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          label="users"
+        />
       </div>
-
-      {/* Toggle Admin Dialog */}
-      <AlertDialog open={toggleDialogOpen} onOpenChange={setToggleDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              {userToToggle?.is_admin ? (
-                <>
-                  <ShieldOff className="h-5 w-5 text-orange-500" />
-                  Remove Admin Rights
-                </>
-              ) : (
-                <>
-                  <Shield className="h-5 w-5 text-primary" />
-                  Grant Admin Rights
-                </>
-              )}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {userToToggle?.is_admin ? (
-                <>
-                  Are you sure you want to remove admin rights from{" "}
-                  <strong>{userToToggle?.username}</strong>? They will lose
-                  access to the admin dashboard.
-                </>
-              ) : (
-                <>
-                  Are you sure you want to grant admin rights to{" "}
-                  <strong>{userToToggle?.username}</strong>? They will have full
-                  access to manage books, users, and site settings.
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={toggling}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleToggleAdmin}
-              disabled={toggling}
-              className={
-                userToToggle?.is_admin
-                  ? "bg-orange-500 hover:bg-orange-600"
-                  : ""
-              }
-            >
-              {toggling ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : userToToggle?.is_admin ? (
-                "Remove Admin"
-              ) : (
-                "Grant Admin"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

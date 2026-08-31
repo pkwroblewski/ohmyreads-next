@@ -1,6 +1,4 @@
-"use client";
-
-import { useState, useEffect, useCallback } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   BarChart3,
@@ -11,7 +9,6 @@ import {
   TrendingUp,
   TrendingDown,
   Star,
-  Loader2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -22,57 +19,42 @@ import {
   adminGetTopUsers,
   adminGetGenreDistribution,
   adminGetRatingDistribution,
-  type OverviewStats,
-  type GrowthData,
-  type TopBook,
-  type TopUser,
-  type GenreDistribution,
-  type RatingDistribution,
 } from "@/lib/queries/admin-analytics";
 
-export default function AdminAnalyticsPage() {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<OverviewStats | null>(null);
-  const [growthData, setGrowthData] = useState<GrowthData[]>([]);
-  const [topBooks, setTopBooks] = useState<TopBook[]>([]);
-  const [topUsers, setTopUsers] = useState<TopUser[]>([]);
-  const [genres, setGenres] = useState<GenreDistribution[]>([]);
-  const [ratings, setRatings] = useState<RatingDistribution[]>([]);
+export const metadata: Metadata = {
+  title: "Analytics | Admin",
+  robots: { index: false, follow: false },
+};
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+/**
+ * Nothing on this page is interactive — no filters, no mutations — so it is a
+ * plain server component. The six queries still run concurrently; they just run
+ * during the render instead of after it, which removes the client round-trip
+ * that used to follow hydration.
+ */
+export default async function AdminAnalyticsPage() {
+  const [
+    statsResult,
+    growthResult,
+    booksResult,
+    usersResult,
+    genresResult,
+    ratingsResult,
+  ] = await Promise.all([
+    adminGetOverviewStats(),
+    adminGetGrowthData(),
+    adminGetTopBooks(10),
+    adminGetTopUsers(10),
+    adminGetGenreDistribution(),
+    adminGetRatingDistribution(),
+  ]);
 
-    const [statsResult, growthResult, booksResult, usersResult, genresResult, ratingsResult] =
-      await Promise.all([
-        adminGetOverviewStats(),
-        adminGetGrowthData(),
-        adminGetTopBooks(10),
-        adminGetTopUsers(10),
-        adminGetGenreDistribution(),
-        adminGetRatingDistribution(),
-      ]);
-
-    if (statsResult.success) setStats(statsResult.stats || null);
-    if (growthResult.success) setGrowthData(growthResult.data || []);
-    if (booksResult.success) setTopBooks(booksResult.books || []);
-    if (usersResult.success) setTopUsers(usersResult.users || []);
-    if (genresResult.success) setGenres(genresResult.genres || []);
-    if (ratingsResult.success) setRatings(ratingsResult.ratings || []);
-
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    queueMicrotask(() => void fetchData());
-  }, [fetchData]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const stats = statsResult.success ? statsResult.stats ?? null : null;
+  const growthData = growthResult.success ? growthResult.data ?? [] : [];
+  const topBooks = booksResult.success ? booksResult.books ?? [] : [];
+  const topUsers = usersResult.success ? usersResult.users ?? [] : [];
+  const genres = genresResult.success ? genresResult.genres ?? [] : [];
+  const ratings = ratingsResult.success ? ratingsResult.ratings ?? [] : [];
 
   const userGrowth = stats
     ? stats.users.lastMonth > 0

@@ -1,117 +1,75 @@
-"use client";
-
-import { useState, useEffect, useCallback } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  BookOpen,
-  Search,
-  Plus,
-  Edit,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  AlertTriangle,
-  Star,
-} from "lucide-react";
+import { BookOpen, Plus, Edit, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { adminGetBooks, adminDeleteBook, adminGetGenres, type BookFilters } from "@/lib/actions/admin-books";
-import type { BookSummary } from "@/types/database";
+import {
+  AdminSearchInput,
+  AdminSelectFilter,
+} from "@/components/admin/admin-filters";
+import { AdminPagination } from "@/components/admin/admin-pagination";
+import { BookDeleteButton } from "@/components/admin/book-delete-button";
+import {
+  adminGetBooks,
+  adminGetGenres,
+  type BookFilters,
+} from "@/lib/actions/admin-books";
+import {
+  toAdminParams,
+  readPage,
+  readEnum,
+  type RawSearchParams,
+} from "@/lib/admin/search-params";
 
-export default function AdminBooksPage() {
-  const [books, setBooks] = useState<BookSummary[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [genres, setGenres] = useState<string[]>([]);
+export const metadata: Metadata = {
+  title: "Manage Books | Admin",
+  robots: { index: false, follow: false },
+};
 
-  // Filters
-  const [search, setSearch] = useState("");
-  const [genre, setGenre] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<BookFilters["sortBy"]>("created_at");
-  const [sortOrder, setSortOrder] = useState<BookFilters["sortOrder"]>("desc");
-  const [page, setPage] = useState(1);
-  const limit = 20;
+const PATHNAME = "/admin/books";
+const LIMIT = 20;
 
-  // Delete dialog
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [bookToDelete, setBookToDelete] = useState<BookSummary | null>(null);
-  const [deleting, setDeleting] = useState(false);
+const SORT_FIELDS = [
+  "created_at",
+  "title",
+  "author",
+  "ratings_count",
+] as const satisfies readonly NonNullable<BookFilters["sortBy"]>[];
 
-  const fetchBooks = useCallback(async () => {
-    setLoading(true);
-    const result = await adminGetBooks({
-      search: search || undefined,
-      genre: genre !== "all" ? genre : undefined,
-      sortBy,
-      sortOrder,
-      page,
-      limit,
-    });
+const SORT_ORDERS = ["desc", "asc"] as const;
 
-    if (result.success) {
-      setBooks(result.books || []);
-      setTotal(result.total || 0);
-      setTotalPages(result.totalPages || 0);
-    }
-    setLoading(false);
-  }, [search, genre, sortBy, sortOrder, page]);
+interface PageProps {
+  searchParams: Promise<RawSearchParams>;
+}
 
-  const fetchGenres = useCallback(async () => {
-    const result = await adminGetGenres();
-    if (result.success) {
-      setGenres(result.genres || []);
-    }
-  }, []);
+export default async function AdminBooksPage({ searchParams }: PageProps) {
+  const params = toAdminParams(await searchParams);
 
-  useEffect(() => {
-    queueMicrotask(() => void fetchGenres());
-  }, [fetchGenres]);
+  const search = params.search ?? "";
+  const sortBy = readEnum(params, "sortBy", SORT_FIELDS, "created_at");
+  const sortOrder = readEnum(params, "sortOrder", SORT_ORDERS, "desc");
+  const page = readPage(params);
 
-  useEffect(() => {
-    const debounce = setTimeout(() => {
-      fetchBooks();
-    }, 300);
-    return () => clearTimeout(debounce);
-  }, [fetchBooks]);
+  const genresResult = await adminGetGenres();
+  const genres = genresResult.success ? genresResult.genres ?? [] : [];
 
-  const handleDelete = async () => {
-    if (!bookToDelete) return;
+  // A genre that is not in the catalog would return an empty page with no
+  // explanation, so an unknown value falls back to "all".
+  const genre =
+    params.genre && genres.includes(params.genre) ? params.genre : "all";
 
-    setDeleting(true);
-    const result = await adminDeleteBook(bookToDelete.id);
-    setDeleting(false);
+  const result = await adminGetBooks({
+    search: search || undefined,
+    genre: genre !== "all" ? genre : undefined,
+    sortBy,
+    sortOrder,
+    page,
+    limit: LIMIT,
+  });
 
-    if (result.success) {
-      setDeleteDialogOpen(false);
-      setBookToDelete(null);
-      fetchBooks();
-    }
-  };
-
-  const openDeleteDialog = (book: BookSummary) => {
-    setBookToDelete(book);
-    setDeleteDialogOpen(true);
-  };
+  const books = result.success ? result.books ?? [] : [];
+  const total = result.success ? result.total ?? 0 : 0;
+  const totalPages = result.success ? result.totalPages ?? 0 : 0;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -139,81 +97,72 @@ export default function AdminBooksPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl bg-card border">
         <div className="flex-1 min-w-[200px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by title, author, or ISBN..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9"
-            />
-          </div>
+          <AdminSearchInput
+            pathname={PATHNAME}
+            params={params}
+            placeholder="Search by title, author, or ISBN..."
+          />
         </div>
 
-        <Select
+        <AdminSelectFilter
+          pathname={PATHNAME}
+          params={params}
+          name="genre"
           value={genre}
-          onValueChange={(v) => {
-            setGenre(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by genre" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Genres</SelectItem>
-            {genres.map((g) => (
-              <SelectItem key={g} value={g}>
-                {g}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          defaultValue="all"
+          placeholder="Filter by genre"
+          className="w-[180px]"
+          options={[
+            { value: "all", label: "All Genres" },
+            ...genres.map((g) => ({ value: g, label: g })),
+          ]}
+        />
 
-        <Select
+        <AdminSelectFilter
+          pathname={PATHNAME}
+          params={params}
+          name="sortBy"
           value={sortBy}
-          onValueChange={(v) => setSortBy(v as BookFilters["sortBy"])}
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="created_at">Date Added</SelectItem>
-            <SelectItem value="title">Title</SelectItem>
-            <SelectItem value="author">Author</SelectItem>
-            <SelectItem value="ratings_count">Popularity</SelectItem>
-          </SelectContent>
-        </Select>
+          defaultValue="created_at"
+          placeholder="Sort by"
+          options={[
+            { value: "created_at", label: "Date Added" },
+            { value: "title", label: "Title" },
+            { value: "author", label: "Author" },
+            { value: "ratings_count", label: "Popularity" },
+          ]}
+        />
 
-        <Select
+        <AdminSelectFilter
+          pathname={PATHNAME}
+          params={params}
+          name="sortOrder"
           value={sortOrder}
-          onValueChange={(v) => setSortOrder(v as BookFilters["sortOrder"])}
-        >
-          <SelectTrigger className="w-[120px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="desc">Newest</SelectItem>
-            <SelectItem value="asc">Oldest</SelectItem>
-          </SelectContent>
-        </Select>
+          defaultValue="desc"
+          className="w-[120px]"
+          options={[
+            { value: "desc", label: "Newest" },
+            { value: "asc", label: "Oldest" },
+          ]}
+        />
       </div>
 
       {/* Books Table */}
       <div className="rounded-xl border bg-card overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        {!result.success ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <BookOpen className="h-12 w-12 mb-4 opacity-50" />
+            <p className="text-lg font-medium">Could not load books</p>
+            <p className="text-sm">{result.error || "Please try again."}</p>
           </div>
         ) : books.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <BookOpen className="h-12 w-12 mb-4 opacity-50" />
             <p className="text-lg font-medium">No books found</p>
             <p className="text-sm">
-              {search ? "Try adjusting your search" : "Add your first book to get started"}
+              {search
+                ? "Try adjusting your search"
+                : "Add your first book to get started"}
             </p>
           </div>
         ) : (
@@ -291,14 +240,11 @@ export default function AdminBooksPage() {
                             <Edit className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openDeleteDialog(book)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <BookDeleteButton
+                          bookId={book.id}
+                          title={book.title}
+                          author={book.author}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -308,69 +254,15 @@ export default function AdminBooksPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between p-4 border-t bg-muted/30">
-            <p className="text-sm text-muted-foreground">
-              Page {page} of {totalPages} ({total} books)
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page - 1)}
-                disabled={page === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page + 1)}
-                disabled={page >= totalPages}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
+        <AdminPagination
+          pathname={PATHNAME}
+          params={params}
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          label="books"
+        />
       </div>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Delete Book
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete <strong>{bookToDelete?.title}</strong> by{" "}
-              {bookToDelete?.author}? This will also delete all associated reviews and user
-              shelves. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {deleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Book"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

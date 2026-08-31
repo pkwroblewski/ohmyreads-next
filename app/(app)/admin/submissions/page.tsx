@@ -1,112 +1,47 @@
-"use client";
-
-import { useState, useEffect, useTransition } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  BookOpen,
-  Check,
-  X,
-  Clock,
-  ExternalLink,
-  Loader2,
-  RefreshCw,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { BookOpen, Clock, ExternalLink } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { getAllSubmissions } from "@/lib/actions/book-submissions";
+import { SubmissionModerationActions } from "@/components/admin/submission-moderation-actions";
 import {
-  getPendingSubmissions,
-  getAllSubmissions,
-  moderateSubmission,
-} from "@/lib/actions/book-submissions";
-import type { BookSubmissionWithSubmitter } from "@/types/database";
+  toAdminParams,
+  readEnum,
+  buildAdminQuery,
+  type RawSearchParams,
+} from "@/lib/admin/search-params";
 
-type StatusFilter = "all" | "pending" | "approved" | "rejected";
+export const metadata: Metadata = {
+  title: "Book Submissions | Admin",
+  robots: { index: false, follow: false },
+};
 
-export default function AdminSubmissionsPage() {
-  const [submissions, setSubmissions] = useState<BookSubmissionWithSubmitter[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
-  const [isPending, startTransition] = useTransition();
+const PATHNAME = "/admin/submissions";
+const STATUSES = ["pending", "approved", "rejected", "all"] as const;
 
-  // Rejection modal state
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [rejectionReason, setRejectionReason] = useState("");
+interface PageProps {
+  searchParams: Promise<RawSearchParams>;
+}
 
-  const loadSubmissions = async (status: StatusFilter) => {
-    setIsLoading(true);
-    try {
-      if (status === "pending") {
-        const result = await getPendingSubmissions();
-        setSubmissions(result.submissions || []);
-      } else {
-        const result = await getAllSubmissions(
-          status === "all" ? undefined : status
-        );
-        setSubmissions(result.submissions || []);
-      }
-    } catch (error) {
-      console.error("Error loading submissions:", error);
-      toast.error("Failed to load submissions");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+export default async function AdminSubmissionsPage({ searchParams }: PageProps) {
+  const params = toAdminParams(await searchParams);
+  const status = readEnum(params, "status", STATUSES, "pending");
 
-  useEffect(() => {
-    loadSubmissions(statusFilter);
-  }, [statusFilter]);
+  // One unfiltered read serves both the list and the tab counts. The version
+  // this replaces derived its counts from whichever filtered list was loaded,
+  // so the "pending" badge read 0 whenever the admin was on any other tab.
+  const result = await getAllSubmissions();
+  const all = result.submissions ?? [];
 
-  const handleApprove = async (submissionId: string) => {
-    startTransition(async () => {
-      try {
-        const result = await moderateSubmission({
-          submissionId,
-          action: "approve",
-        });
-
-        if (result.error) {
-          toast.error(result.error);
-        } else {
-          toast.success("Book approved and added to catalog!");
-          loadSubmissions(statusFilter);
-        }
-      } catch {
-        toast.error("Failed to approve submission");
-      }
-    });
-  };
-
-  const handleReject = async (submissionId: string) => {
-    startTransition(async () => {
-      try {
-        const result = await moderateSubmission({
-          submissionId,
-          action: "reject",
-          rejectionReason: rejectionReason || undefined,
-        });
-
-        if (result.error) {
-          toast.error(result.error);
-        } else {
-          toast.success("Submission rejected");
-          setRejectingId(null);
-          setRejectionReason("");
-          loadSubmissions(statusFilter);
-        }
-      } catch {
-        toast.error("Failed to reject submission");
-      }
-    });
-  };
+  const submissions =
+    status === "all" ? all : all.filter((s) => s.status === status);
 
   const statusCounts = {
-    pending: submissions.filter((s) => s.status === "pending").length,
-    approved: submissions.filter((s) => s.status === "approved").length,
-    rejected: submissions.filter((s) => s.status === "rejected").length,
+    pending: all.filter((s) => s.status === "pending").length,
+    approved: all.filter((s) => s.status === "approved").length,
+    rejected: all.filter((s) => s.status === "rejected").length,
   };
 
   return (
@@ -119,65 +54,60 @@ export default function AdminSubmissionsPage() {
             Review and moderate user-submitted books
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => loadSubmissions(statusFilter)}
-          disabled={isLoading}
-        >
-          <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
-          Refresh
-        </Button>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs — real links, so each tab is a shareable URL */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-        {(["pending", "approved", "rejected", "all"] as const).map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
+        {STATUSES.map((s) => (
+          <Link
+            key={s}
+            href={`${PATHNAME}${buildAdminQuery(params, {
+              status: s === "pending" ? undefined : s,
+            })}`}
+            scroll={false}
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-              statusFilter === status
+              status === s
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted hover:bg-muted/80"
             )}
           >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-            {status !== "all" && (
+            {s.charAt(0).toUpperCase() + s.slice(1)}
+            {s !== "all" && (
               <span className="ml-2 px-1.5 py-0.5 rounded-full bg-background/20 text-xs">
-                {statusCounts[status as keyof typeof statusCounts] || 0}
+                {statusCounts[s]}
               </span>
             )}
-          </button>
+          </Link>
         ))}
       </div>
 
       {/* Submissions List */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      {result.error ? (
+        <div className="text-center py-16 bg-card rounded-xl border">
+          <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h2 className="text-lg font-semibold mb-2">
+            Could not load submissions
+          </h2>
+          <p className="text-muted-foreground">{result.error}</p>
         </div>
       ) : submissions.length === 0 ? (
         <div className="text-center py-16 bg-card rounded-xl border">
           <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold mb-2">No submissions found</h2>
           <p className="text-muted-foreground">
-            {statusFilter === "pending"
+            {status === "pending"
               ? "All caught up! No pending submissions to review."
-              : `No ${statusFilter} submissions.`}
+              : `No ${status} submissions.`}
           </p>
         </div>
       ) : (
         <div className="space-y-4">
           {submissions.map((submission) => {
             const submitter = submission.submitter;
-            const isRejecting = rejectingId === submission.id;
 
             return (
-              <div
-                key={submission.id}
-                className="p-6 rounded-xl border bg-card"
-              >
+              <div key={submission.id} className="p-6 rounded-xl border bg-card">
                 <div className="flex gap-6">
                   {/* Book Cover */}
                   <div className="w-24 h-36 rounded bg-muted flex items-center justify-center flex-shrink-0">
@@ -254,7 +184,8 @@ export default function AdminSubmissionsPage() {
                               <AvatarImage src={submitter.avatar_url} />
                             )}
                             <AvatarFallback className="text-[10px]">
-                              {(submitter.display_name || submitter.username)[0]?.toUpperCase()}
+                              {(submitter.display_name ||
+                                submitter.username)[0]?.toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <span>
@@ -263,90 +194,20 @@ export default function AdminSubmissionsPage() {
                         </Link>
                       )}
                       <span className="text-muted-foreground">
-                        {formatDistanceToNow(new Date(submission.created_at ?? 0), {
-                          addSuffix: true,
-                        })}
+                        {formatDistanceToNow(
+                          new Date(submission.created_at ?? 0),
+                          { addSuffix: true }
+                        )}
                       </span>
                     </div>
 
                     {/* Actions for pending */}
                     {submission.status === "pending" && (
-                      <>
-                        {isRejecting ? (
-                          <div className="space-y-3 p-4 bg-muted rounded-lg">
-                            <p className="text-sm font-medium">
-                              Rejection Reason (optional):
-                            </p>
-                            <Input
-                              value={rejectionReason}
-                              onChange={(e) => setRejectionReason(e.target.value)}
-                              placeholder="e.g., Duplicate entry, Incomplete information..."
-                              maxLength={500}
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleReject(submission.id)}
-                                disabled={isPending}
-                              >
-                                {isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  "Confirm Rejection"
-                                )}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setRejectingId(null);
-                                  setRejectionReason("");
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleApprove(submission.id)}
-                              disabled={isPending}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              {isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              ) : (
-                                <Check className="h-4 w-4 mr-2" />
-                              )}
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setRejectingId(submission.id)}
-                              className="text-red-600 border-red-200 hover:bg-red-50"
-                            >
-                              <X className="h-4 w-4 mr-2" />
-                              Reject
-                            </Button>
-                            {submission.cover_url && (
-                              <a
-                                href={submission.cover_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="ml-auto"
-                              >
-                                <Button size="sm" variant="ghost">
-                                  <ExternalLink className="h-4 w-4" />
-                                </Button>
-                              </a>
-                            )}
-                          </div>
-                        )}
-                      </>
+                      <SubmissionModerationActions
+                        submissionId={submission.id}
+                        title={submission.title}
+                        coverUrl={submission.cover_url}
+                      />
                     )}
 
                     {/* Rejection reason for rejected */}
@@ -380,4 +241,3 @@ export default function AdminSubmissionsPage() {
     </div>
   );
 }
-
