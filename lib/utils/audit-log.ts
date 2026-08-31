@@ -27,6 +27,9 @@ export type AuditAction =
   // Content moderation
   | "moderation.review.delete"
   | "moderation.comment.delete"
+  // User reports (migration 062)
+  | "moderation.report.resolve"
+  | "moderation.report.dismiss"
   // Admin book management
   | "admin.book.create"
   | "admin.book.update"
@@ -52,7 +55,8 @@ export type AuditTargetType =
   | "review"
   | "comment"
   | "book"
-  | "place";
+  | "place"
+  | "report";
 
 interface AuditLogEntry {
   action: AuditAction;

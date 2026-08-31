@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Reply, Trash2 } from "lucide-react";
+import { ReportButton } from "@/components/reports/report-dialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatRelativeTime } from "@/lib/utils";
@@ -123,9 +124,18 @@ export function CommentCard({
             onClick={onDelete}
             className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
           >
-            <Trash2 className="h-3 w-3 mr-1" />
+            <Trash2 className="h-3 w-3 mr-1" aria-hidden="true" />
             Delete
           </Button>
+        )}
+
+        {/* Report - for signed-in readers who did not write it */}
+        {!isOwner && currentUserId && (
+          <ReportButton
+            targetType="comment"
+            targetId={comment.id}
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          />
         )}
       </div>
     </div>

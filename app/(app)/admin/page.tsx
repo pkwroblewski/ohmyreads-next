@@ -16,6 +16,7 @@ import {
   Upload,
   Eye,
   Sparkles,
+  Flag,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
@@ -166,6 +167,7 @@ export default async function AdminDashboardPage() {
     pendingPlaces,
     recentReviews,
     todayStats,
+    openReports,
   ] = await Promise.all([
     // Total users
     supabase.from("profiles").select("id", { count: "exact", head: true }),
@@ -196,10 +198,17 @@ export default async function AdminDashboardPage() {
       .from("reviews")
       .select("id", { count: "exact", head: true })
       .gte("created_at", new Date().toISOString().split("T")[0]),
+    // Open user reports (migration 062)
+    supabase
+      .from("reports")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open"),
   ]);
 
   const totalPending =
-    (pendingBookSubmissions.count || 0) + (pendingPlaces.count || 0);
+    (pendingBookSubmissions.count || 0) +
+    (pendingPlaces.count || 0) +
+    (openReports.count || 0);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -234,10 +243,17 @@ export default async function AdminDashboardPage() {
             </p>
             <p className="text-sm text-yellow-700 dark:text-yellow-300">
               {pendingBookSubmissions.count || 0} book submissions,{" "}
-              {pendingPlaces.count || 0} places waiting for approval
+              {pendingPlaces.count || 0} places waiting for approval,{" "}
+              {openReports.count || 0} reported items
             </p>
           </div>
-          <Link href="/admin/moderation/books">
+          <Link
+            href={
+              (openReports.count || 0) > 0
+                ? "/admin/reports"
+                : "/admin/moderation/books"
+            }
+          >
             <Button size="sm" variant="outline" className="border-yellow-500/50">
               Review Now
             </Button>
@@ -277,7 +293,14 @@ export default async function AdminDashboardPage() {
       {/* Moderation Stats */}
       <section>
         <h2 className="text-lg font-semibold mb-4">Moderation Queue</h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard
+            title="Open Reports"
+            value={openReports.count || 0}
+            icon={Flag}
+            href="/admin/reports"
+            variant={(openReports.count || 0) > 0 ? "danger" : "success"}
+          />
           <StatCard
             title="Pending Book Submissions"
             value={pendingBookSubmissions.count || 0}
@@ -313,6 +336,14 @@ export default async function AdminDashboardPage() {
             icon={FileText}
             href="/admin/moderation/books"
             badge={pendingBookSubmissions.count || undefined}
+            variant="primary"
+          />
+          <QuickActionCard
+            title="Review Reports"
+            description="Content readers have flagged for moderation"
+            icon={Flag}
+            href="/admin/reports"
+            badge={openReports.count || undefined}
             variant="primary"
           />
           <QuickActionCard
@@ -410,6 +441,7 @@ export default async function AdminDashboardPage() {
             { label: "Manage Books", href: "/admin/books", icon: BookOpen },
             { label: "Manage Reviews", href: "/admin/reviews", icon: Star },
             { label: "Manage Places", href: "/admin/moderation/places", icon: MapPin },
+            { label: "Reports", href: "/admin/reports", icon: Flag },
             { label: "Email Settings", href: "/admin/email", icon: MessageSquare },
             { label: "Site Settings", href: "/admin/settings", icon: Settings },
             { label: "Audit Logs", href: "/admin/logs", icon: FileText },

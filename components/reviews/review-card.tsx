@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   Edit,
   Trash2,
+  Flag,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -20,6 +21,7 @@ import { RelativeTime } from "@/components/ui/relative-time";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { toggleReviewLike } from "@/lib/actions/reviews";
+import { ReportDialog } from "@/components/reports/report-dialog";
 import type { Review } from "@/types/database";
 
 interface ReviewUser {
@@ -55,6 +57,7 @@ export function ReviewCard({
   onEdit,
   onDelete,
 }: ReviewCardProps) {
+  const [reportOpen, setReportOpen] = useState(false);
   const [likesCount, setLikesCount] = useState(review.likes_count ?? 0);
   const [hasLiked, setHasLiked] = useState(review.hasLiked || false);
   const [isLiking, setIsLiking] = useState(false);
@@ -66,6 +69,8 @@ export function ReviewCard({
   const displayName = profile?.display_name || profile?.username || "Anonymous";
 
   const isOwner = currentUserId && review.user_id === currentUserId;
+  // Reporting needs a session: the row records who filed it.
+  const canReport = Boolean(isAuthenticated || currentUserId);
 
   // Check if review has structured content
   const hasStructuredContent =
@@ -183,40 +188,51 @@ export function ReviewCard({
             </div>
           )}
 
-          {/* Owner menu */}
-          {isOwner && (onEdit || onDelete) && (
+          {/* Overflow menu: edit/delete for the author, report for everyone
+              else who is signed in. */}
+          {((isOwner && (onEdit || onDelete)) || (!isOwner && canReport)) && (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0"
+                  aria-label="Review options"
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content
                   align="end"
                   sideOffset={4}
-                  className="w-32 py-1 bg-popover border rounded-md shadow-md z-50"
+                  className="w-36 py-1 bg-popover border rounded-md shadow-md z-50"
                 >
-                  {onEdit && (
+                  {isOwner && onEdit && (
                     <DropdownMenu.Item
                       onSelect={onEdit}
                       className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted outline-none cursor-pointer"
                     >
-                      <Edit className="h-3.5 w-3.5" />
+                      <Edit className="h-3.5 w-3.5" aria-hidden="true" />
                       Edit
                     </DropdownMenu.Item>
                   )}
-                  {onDelete && (
+                  {isOwner && onDelete && (
                     <DropdownMenu.Item
                       onSelect={onDelete}
                       className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-destructive hover:bg-muted outline-none cursor-pointer"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       Delete
+                    </DropdownMenu.Item>
+                  )}
+                  {!isOwner && canReport && (
+                    <DropdownMenu.Item
+                      onSelect={() => setReportOpen(true)}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-destructive hover:bg-muted outline-none cursor-pointer"
+                    >
+                      <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+                      Report
                     </DropdownMenu.Item>
                   )}
                 </DropdownMenu.Content>
@@ -225,6 +241,15 @@ export function ReviewCard({
           )}
         </div>
       </div>
+
+      {!isOwner && canReport && (
+        <ReportDialog
+          targetType="review"
+          targetId={review.id}
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+        />
+      )}
 
       {/* Book info if provided */}
       {showBookInfo && (

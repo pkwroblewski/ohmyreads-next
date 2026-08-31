@@ -6,6 +6,7 @@ import { Camera, Loader2, Trash2, X, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { PlacePhotoUpload } from "./place-photo-upload";
+import { ReportButton } from "@/components/reports/report-dialog";
 
 interface Photo {
   id: string;
@@ -192,20 +193,29 @@ export function PlacePhotosList({ placeId, currentUserId }: PlacePhotosListProps
                   </div>
                 </div>
 
-                {currentUserId === selectedPhoto.user.id && (
+                {currentUserId === selectedPhoto.user.id ? (
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-destructive hover:text-destructive"
                     onClick={() => handleDeletePhoto(selectedPhoto.id)}
                     disabled={isDeleting}
+                    aria-label="Delete this photo"
                   >
                     {isDeleting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                     ) : (
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
                     )}
                   </Button>
+                ) : (
+                  currentUserId && (
+                    <ReportButton
+                      targetType="place_photo"
+                      targetId={selectedPhoto.id}
+                      className="text-muted-foreground hover:text-destructive"
+                    />
+                  )
                 )}
               </div>
 
