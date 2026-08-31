@@ -170,6 +170,7 @@ export function AddToShelfModal({
           <button
             onClick={() => onOpenChange(false)}
             className="p-2 rounded-lg hover:bg-muted transition-colors"
+            aria-label="Close dialog"
           >
             <X className="h-5 w-5" />
           </button>

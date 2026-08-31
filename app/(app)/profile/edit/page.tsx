@@ -149,7 +149,7 @@ export default function EditProfilePage() {
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <Link href="/profile">
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" aria-label="Back to profile">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>

@@ -181,6 +181,7 @@ export function MapDetailPanel({ item, onClose, currentUserId, onMarkSpotAtPlace
             size="icon"
             className="h-7 w-7 shrink-0 -mt-0.5 -mr-1"
             onClick={onClose}
+            aria-label="Close place details"
           >
             <X className="h-4 w-4" />
           </Button>

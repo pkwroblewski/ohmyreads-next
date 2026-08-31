@@ -120,6 +120,7 @@ export function MapPageClient({ currentUserId, userName, userPresence }: MapPage
                 variant="secondary"
                 size="icon"
                 className="h-10 w-10 rounded-full shadow-lg bg-white/90 dark:bg-card/90 backdrop-blur-xl border border-white/50 dark:border-border/50"
+                aria-label="Back to community"
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>

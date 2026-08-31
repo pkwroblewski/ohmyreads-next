@@ -215,6 +215,8 @@ export default function ChallengeCard({ challenge }: ChallengeCardProps) {
               className="h-8 w-8"
               onClick={() => setShowMenu(!showMenu)}
               disabled={isPending}
+              aria-label="Challenge options"
+              aria-expanded={showMenu}
             >
               <MoreVertical className="h-4 w-4" />
             </Button>

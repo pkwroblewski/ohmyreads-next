@@ -148,6 +148,7 @@ export function IsochroneControls({
               size="icon"
               className="h-6 w-6"
               onClick={clearIsochrone}
+              aria-label="Clear travel time filter"
             >
               <X className="h-3.5 w-3.5" />
             </Button>
@@ -157,6 +158,7 @@ export function IsochroneControls({
             size="icon"
             className="h-6 w-6"
             onClick={() => setIsExpanded(false)}
+            aria-label="Collapse travel time filter"
           >
             <X className="h-3.5 w-3.5" />
           </Button>

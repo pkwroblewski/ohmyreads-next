@@ -247,6 +247,7 @@ export function BookSubmissionForm() {
                     type="button"
                     onClick={() => handleRemoveGenre(genre)}
                     className="hover:text-destructive"
+                    aria-label={`Remove ${genre}`}
                   >
                     <X className="h-3 w-3" />
                   </button>

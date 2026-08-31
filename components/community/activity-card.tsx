@@ -85,7 +85,12 @@ function StartedReadingCard({
             <RelativeTime date={createdAt} className="text-xs text-muted-foreground" />
           </div>
 
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground"
+            aria-label="More options"
+          >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </div>
@@ -169,7 +174,12 @@ function CheckinCard({
             <RelativeTime date={createdAt} className="text-xs text-muted-foreground" />
           </div>
 
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground"
+            aria-label="More options"
+          >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </div>
@@ -332,7 +342,12 @@ function ReviewCard({
             <RelativeTime date={createdAt} className="text-xs text-muted-foreground" />
           </div>
 
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground"
+            aria-label="More options"
+          >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </div>

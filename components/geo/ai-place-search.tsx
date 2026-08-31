@@ -172,6 +172,7 @@ export function AIPlaceSearch({
           size="icon"
           className="h-6 w-6"
           onClick={() => setIsOpen(false)}
+          aria-label="Close place search"
         >
           <X className="h-4 w-4" />
         </Button>
@@ -280,6 +281,7 @@ export function AIPlaceSearch({
             size="icon"
             className="h-8 w-8"
             disabled={!input.trim() || isLoading}
+            aria-label="Send message"
           >
             <Send className="h-4 w-4" />
           </Button>

@@ -144,6 +144,7 @@ export function PlacePhotoUpload({
             size="icon"
             className="absolute top-2 right-2 h-8 w-8 rounded-full"
             onClick={handleClear}
+            aria-label="Remove selected photo"
           >
             <X className="w-4 h-4" />
           </Button>

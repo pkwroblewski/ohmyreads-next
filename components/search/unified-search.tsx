@@ -239,6 +239,7 @@ export function UnifiedSearch({
             <button
               onClick={handleClear}
               className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+              aria-label="Clear search"
             >
               <X className="w-4 h-4 text-muted-foreground" />
             </button>

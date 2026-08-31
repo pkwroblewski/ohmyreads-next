@@ -81,6 +81,7 @@ export default function StatsGoal({ goal, progress }: StatsGoalProps) {
                     className="h-8 w-8"
                     onClick={handleSave}
                     disabled={isPending}
+                    aria-label="Save reading goal"
                   >
                     <Check className="h-4 w-4 text-emerald-600" />
                   </Button>
@@ -89,6 +90,7 @@ export default function StatsGoal({ goal, progress }: StatsGoalProps) {
                     variant="ghost"
                     className="h-8 w-8"
                     onClick={() => setIsEditing(false)}
+                    aria-label="Cancel editing goal"
                   >
                     <X className="h-4 w-4" />
                   </Button>

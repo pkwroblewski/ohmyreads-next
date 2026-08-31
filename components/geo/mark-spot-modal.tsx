@@ -114,6 +114,7 @@ export function MarkSpotModal({
           <button
             onClick={onClose}
             className="p-1 rounded hover:bg-muted transition-colors"
+            aria-label="Close dialog"
           >
             <X className="h-5 w-5" />
           </button>

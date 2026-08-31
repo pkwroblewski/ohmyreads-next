@@ -74,6 +74,7 @@ export function CommentForm({
           size="icon"
           disabled={!content.trim() || isSubmitting}
           className="h-9 w-9"
+          aria-label="Post comment"
         >
           {isSubmitting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -88,6 +89,7 @@ export function CommentForm({
             size="icon"
             onClick={onCancel}
             className="h-9 w-9"
+            aria-label="Cancel comment"
           >
             <X className="h-4 w-4" />
           </Button>

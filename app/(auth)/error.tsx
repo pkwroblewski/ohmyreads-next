@@ -2,11 +2,20 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { AlertTriangle, Book } from "lucide-react";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as Sentry from "@sentry/nextjs";
 
-export default function BookDetailError({
+/**
+ * Boundary for sign-in, sign-up and password recovery.
+ *
+ * These routes had none, so any failure fell through to the root boundary,
+ * which replaces the whole document — including the header that gets a stuck
+ * visitor back out — with copy that says nothing about signing in. This one
+ * renders inside the auth layout and points at the two places a person in the
+ * middle of authenticating actually wants to go.
+ */
+export default function AuthError({
   error,
   reset,
 }: {
@@ -18,7 +27,7 @@ export default function BookDetailError({
   }, [error]);
 
   return (
-    <div className="container max-w-4xl py-12">
+    <div className="w-full max-w-md px-4">
       <div className="text-center space-y-6">
         <div className="flex justify-center">
           <div className="p-4 rounded-full bg-destructive/10">
@@ -28,10 +37,11 @@ export default function BookDetailError({
 
         <div className="space-y-2">
           <h1 className="text-2xl font-bold font-serif">
-            Couldn&apos;t load book details
+            Couldn&apos;t load this page
           </h1>
           <p className="text-muted-foreground">
-            We had trouble fetching this book&apos;s information. Please try again.
+            Something went wrong on our side. Your account is fine — please try
+            again.
           </p>
           {error.digest && (
             <p className="text-xs text-muted-foreground font-mono">
@@ -42,11 +52,11 @@ export default function BookDetailError({
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button onClick={reset}>
-            <Book className="mr-2 h-4 w-4" />
-            Reload Page
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Try Again
           </Button>
-          <Link href="/discover">
-            <Button variant="outline">Browse Books</Button>
+          <Link href="/login">
+            <Button variant="outline">Back to Sign In</Button>
           </Link>
         </div>
       </div>

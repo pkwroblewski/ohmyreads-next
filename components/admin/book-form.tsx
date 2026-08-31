@@ -228,6 +228,7 @@ export function BookForm({ book, genres = [] }: BookFormProps) {
                   type="button"
                   onClick={() => handleRemoveGenre(genre)}
                   className="ml-1 hover:text-destructive"
+                  aria-label={`Remove ${genre}`}
                 >
                   <X className="h-3 w-3" />
                 </button>

@@ -28,7 +28,7 @@ export default async function SubmitPlacePage() {
         <div className="container max-w-2xl py-6">
           <div className="flex items-center gap-4">
             <Link href="/community/map">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label="Back to the map">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>

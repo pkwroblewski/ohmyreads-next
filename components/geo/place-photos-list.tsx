@@ -151,6 +151,7 @@ export function PlacePhotosList({ placeId, currentUserId }: PlacePhotosListProps
               size="icon"
               className="absolute -top-12 right-0 text-white hover:bg-white/20"
               onClick={() => setSelectedPhoto(null)}
+              aria-label="Close photo"
             >
               <X className="w-6 h-6" />
             </Button>

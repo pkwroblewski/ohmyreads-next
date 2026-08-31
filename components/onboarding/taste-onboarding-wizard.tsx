@@ -228,6 +228,7 @@ export function TasteOnboardingWizard({
                     <button
                       onClick={() => toggleVibe(vibe)}
                       className="hover:opacity-70"
+                      aria-label={`Remove ${vibe.replace("-", " ")}`}
                     >
                       <X className="h-3 w-3" />
                     </button>

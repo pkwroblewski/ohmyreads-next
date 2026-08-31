@@ -148,6 +148,7 @@ export function CheckinFormDialog({
           <button
             onClick={() => onOpenChange(false)}
             className="p-1 rounded hover:bg-muted transition-colors"
+            aria-label="Close check-in dialog"
           >
             <X className="h-5 w-5" />
           </button>

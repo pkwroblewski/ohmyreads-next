@@ -1042,6 +1042,7 @@ export function ReaderMapImmersive({
                   setSearchResults([]);
                   setHighlightedPlace(null); // Clear highlighted marker
                 }}
+                aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
               </Button>

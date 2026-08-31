@@ -125,6 +125,7 @@ export function SocialLinksEditor({ links, onChange }: SocialLinksEditorProps) {
             size="icon"
             onClick={() => handleRemove(index)}
             className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            aria-label="Remove link"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
