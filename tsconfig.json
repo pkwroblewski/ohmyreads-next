@@ -30,5 +30,8 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "scripts"]
+  // `scripts/` used to be excluded, so CI typechecked everything except the
+  // six CLI tools that talk to production with the service-role key. It costs
+  // nothing to include: they compile clean.
+  "exclude": ["node_modules"]
 }
