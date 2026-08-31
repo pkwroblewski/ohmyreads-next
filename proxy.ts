@@ -167,8 +167,10 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public files (svg, png, jpg, etc.)
      * - callback route (OAuth callback needs to run without proxy)
+     * - api/health (uptime probe: it has no session to read, and must not
+     *   depend on the auth service to answer)
      */
-    "/((?!_next/static|_next/image|favicon.ico|callback|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|callback|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
 

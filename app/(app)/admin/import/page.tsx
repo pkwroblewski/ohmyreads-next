@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -46,20 +47,29 @@ export default function AdminImportPage() {
 
   const handleParse = async (content: string) => {
     setLoading(true);
-    const result = await parseCSVForPreview(content);
-    setLoading(false);
 
-    if (result.success) {
-      setParsedRows(result.rows);
-      setParseStats({
-        total: result.totalRows,
-        valid: result.validRows,
-        errors: result.errorRows,
-      });
-      setParseErrors(result.errors);
-      setStep("preview");
-    } else {
-      setParseErrors(result.errors);
+    try {
+      const result = await parseCSVForPreview(content);
+
+      if (result.success) {
+        setParsedRows(result.rows);
+        setParseStats({
+          total: result.totalRows,
+          valid: result.validRows,
+          errors: result.errorRows,
+        });
+        setParseErrors(result.errors);
+        setStep("preview");
+      } else {
+        setParseErrors(result.errors);
+        toast.error("Could not read that CSV");
+      }
+    } catch {
+      // A rejected server action (network drop, unhandled server error) used to
+      // leave the spinner running with nothing on screen to explain it.
+      toast.error("Could not read that CSV. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,11 +80,20 @@ export default function AdminImportPage() {
     setStep("importing");
     setLoading(true);
 
-    const result = await importBooksFromCSV(validRows);
-
-    setLoading(false);
-    setImportResult(result);
-    setStep("results");
+    try {
+      const result = await importBooksFromCSV(validRows);
+      setImportResult(result);
+      setStep("results");
+    } catch {
+      // Same as above: without this the page sat on the "Import" step forever,
+      // and the admin had no way to tell a failed import from a slow one.
+      toast.error(
+        "Import failed. Check the book list before retrying — some rows may already be in."
+      );
+      setStep("preview");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDownloadTemplate = () => {
