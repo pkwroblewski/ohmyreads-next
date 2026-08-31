@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
@@ -11,28 +11,6 @@ import {
   adminUserIdSchema,
   adminUserActionSchema,
 } from "@/lib/validation/admin";
-
-// Check if current user is admin
-async function requireAdmin() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Not authenticated");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile?.is_admin) {
-    throw new Error("Not authorized");
-  }
-
-  return { supabase, user };
-}
 
 // User filters
 export interface UserFilters {

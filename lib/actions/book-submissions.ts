@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createClient } from "@/lib/supabase/server";
+import { checkAdmin } from "@/lib/auth/require-admin";
 import {
   createBookSubmissionSchema,
   updateBookSubmissionSchema,
@@ -384,41 +385,17 @@ export async function getUserSubmissions() {
 // ============================================
 
 /**
- * Check if current user is an admin
- */
-async function isAdmin(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string
-): Promise<boolean> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", userId)
-    .single();
-
-  return profile?.is_admin === true;
-}
-
-/**
  * Get pending submissions (admin only)
  */
 export async function getPendingSubmissions() {
   try {
-    const supabase = await createClient();
+    const admin = await checkAdmin();
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated", submissions: [] };
+    if (!admin.ok) {
+      return { error: admin.error, submissions: [] };
     }
 
-    // Check admin status
-    if (!(await isAdmin(supabase, user.id))) {
-      return { error: "Not authorized", submissions: [] };
-    }
+    const { supabase } = admin;
 
     const { data: submissions, error } = await supabase
       .from("book_submissions")
@@ -454,21 +431,19 @@ export async function getPendingSubmissions() {
  */
 export async function moderateSubmission(input: ModerateBookSubmissionInput) {
   try {
-    const supabase = await createClient();
+    const admin = await checkAdmin();
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    if (!admin.ok) {
+      // This one keeps its own wording for the authorization case.
+      return {
+        error:
+          admin.reason === "unauthorized"
+            ? "Not authorized to moderate submissions"
+            : admin.error,
+      };
     }
 
-    // Check admin status
-    if (!(await isAdmin(supabase, user.id))) {
-      return { error: "Not authorized to moderate submissions" };
-    }
+    const { supabase, user } = admin;
 
     // Rate limit: 30 admin mutations per minute per admin
     const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
@@ -619,21 +594,13 @@ export async function getAllSubmissions(
   status?: "pending" | "approved" | "rejected"
 ) {
   try {
-    const supabase = await createClient();
+    const admin = await checkAdmin();
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated", submissions: [] };
+    if (!admin.ok) {
+      return { error: admin.error, submissions: [] };
     }
 
-    // Check admin status
-    if (!(await isAdmin(supabase, user.id))) {
-      return { error: "Not authorized", submissions: [] };
-    }
+    const { supabase } = admin;
 
     let query = supabase
       .from("book_submissions")

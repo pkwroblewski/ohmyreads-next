@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
 import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createAuditLog } from "@/lib/utils/audit-log";
@@ -15,28 +15,6 @@ import {
 import { BOOK_CARD_COLUMNS, BOOK_DETAIL_COLUMNS } from "@/lib/queries/columns";
 import type { Book, BookSummary } from "@/types/database";
 import { logError } from "@/lib/utils/log";
-
-// Check if current user is admin
-async function requireAdmin() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Not authenticated");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile?.is_admin) {
-    throw new Error("Not authorized");
-  }
-
-  return { supabase, user };
-}
 
 // Input types
 export interface AdminBookInput {

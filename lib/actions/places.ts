@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkAdmin } from "@/lib/auth/require-admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { encodeGeohash } from "@/lib/utils/geohash";
 import { createAuditLog } from "@/lib/utils/audit-log";
@@ -145,26 +146,13 @@ export async function getMyPlaceSubmissions() {
  */
 export async function getPendingPlaceSubmissions() {
   try {
-    const supabase = await createClient();
+    const admin = await checkAdmin();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { submissions: [], error: "Not authenticated" };
+    if (!admin.ok) {
+      return { submissions: [], error: admin.error };
     }
 
-    // Check if admin
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      return { submissions: [], error: "Not authorized" };
-    }
+    const { supabase } = admin;
 
     const { data, error } = await supabase
       .from("place_submissions")
@@ -196,26 +184,13 @@ export async function getPendingPlaceSubmissions() {
  */
 export async function approvePlaceSubmission(submissionId: string, notes?: string) {
   try {
-    const supabase = await createClient();
+    const admin = await checkAdmin();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { error: "Not authenticated" };
+    if (!admin.ok) {
+      return { error: admin.error };
     }
 
-    // Check if admin
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      return { error: "Not authorized" };
-    }
+    const { supabase, user } = admin;
 
     // Validate input with Zod
     const validationResult = placeModerationSchema.safeParse({
@@ -282,26 +257,13 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
  */
 export async function rejectPlaceSubmission(submissionId: string, notes?: string) {
   try {
-    const supabase = await createClient();
+    const admin = await checkAdmin();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { error: "Not authenticated" };
+    if (!admin.ok) {
+      return { error: admin.error };
     }
 
-    // Check if admin
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      return { error: "Not authorized" };
-    }
+    const { supabase, user } = admin;
 
     // Validate input with Zod
     const validationResult = placeModerationSchema.safeParse({

@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient, getUser } from "@/lib/supabase/server";
-import { logError } from "@/lib/utils/log";
+import { checkAdmin } from "@/lib/auth/require-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -9,28 +8,12 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const {
-    data: { user },
-  } = await getUser();
+  const admin = await checkAdmin();
 
-  if (!user) {
-    redirect("/login?redirect=/admin");
-  }
-
-  // Check if user is admin - use maybeSingle() to avoid error when no row exists
-  const supabase = await createClient();
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profileError) {
-    logError("Admin profile fetch error", profileError);
-  }
-
-  if (!profile?.is_admin) {
-    redirect("/dashboard");
+  if (!admin.ok) {
+    redirect(
+      admin.reason === "unauthenticated" ? "/login?redirect=/admin" : "/dashboard"
+    );
   }
 
   return <>{children}</>;

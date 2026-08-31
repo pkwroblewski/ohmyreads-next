@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { enrichBookEntry } from "@/lib/utils/external-book-search";
 import { logger, reportError } from "@/lib/utils/log";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
@@ -93,27 +94,6 @@ function normalizeDate(dateStr: string | null): string | null {
 // ADMIN CHECK
 // ============================================
 
-async function requireAdmin(): Promise<{ userId: string }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!profile?.is_admin) {
-    throw new Error("Admin access required");
-  }
-
-  return { userId: user.id };
-}
-
 async function requireAdminRateLimit(userId: string): Promise<void> {
   // Rate limit: 30 admin mutations per minute per admin
   const { allowed } = await checkRateLimit(`admin:${userId}`, 30, 60000);
@@ -200,8 +180,8 @@ export async function getBooksNeedingEnrichment(
 export async function enrichSingleBook(
   book: BookToEnrich
 ): Promise<EnrichmentResultItem> {
-  const { userId } = await requireAdmin();
-  await requireAdminRateLimit(userId);
+  const { user } = await requireAdmin();
+  await requireAdminRateLimit(user.id);
 
   // Validate input with Zod
   const validationResult = bookToEnrichSchema.safeParse(book);
@@ -337,8 +317,8 @@ async function enrichSingleBookCore(
 export async function enrichBooks(
   bookIds: string[]
 ): Promise<EnrichmentResult> {
-  const { userId } = await requireAdmin();
-  await requireAdminRateLimit(userId);
+  const { user } = await requireAdmin();
+  await requireAdminRateLimit(user.id);
 
   // Validate input with Zod
   const validationResult = enrichBookIdsSchema.safeParse(bookIds);

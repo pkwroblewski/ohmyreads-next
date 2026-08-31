@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { checkAdmin } from "@/lib/auth/require-admin";
 import {
   getPendingSubmissions,
   getSubmissionHistory,
@@ -14,24 +14,10 @@ export const metadata: Metadata = {
 };
 
 export default async function BookModerationPage() {
-  const {
-    data: { user },
-  } = await getUser();
+  const admin = await checkAdmin();
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  // Check if user is admin
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile?.is_admin) {
-    redirect("/dashboard");
+  if (!admin.ok) {
+    redirect(admin.reason === "unauthenticated" ? "/login" : "/dashboard");
   }
 
   const [pending, history] = await Promise.all([

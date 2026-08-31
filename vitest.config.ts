@@ -18,6 +18,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./"),
+      // Vitest does not set the "react-server" export condition, so the real
+      // entry point throws on import. The package ships the no-op the RSC
+      // condition would have resolved to; point at it directly.
+      "server-only": path.resolve(__dirname, "./node_modules/server-only/empty.js"),
     },
   },
 });

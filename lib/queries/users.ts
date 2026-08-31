@@ -242,22 +242,3 @@ export async function getSocialLinks(userId: string) {
   return data || [];
 }
 
-/**
- * Check if a user is admin
- */
-export async function isUserAdmin(userId: string): Promise<boolean> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", userId)
-    .single();
-
-  if (error) {
-    logError("Error checking admin status", error);
-    return false;
-  }
-
-  return data?.is_admin || false;
-}
