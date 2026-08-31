@@ -1,7 +1,7 @@
 import { createPublicClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getNeighbors, isValidGeohash } from "@/lib/utils/geohash";
-
+import { logError, logger } from "@/lib/utils/log";
 // ============================================
 // TYPES
 // ============================================
@@ -89,7 +89,7 @@ export async function getNearbyReaders(
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching nearby readers:", error);
+    logError("Error fetching nearby readers", error);
     return [];
   }
 
@@ -186,7 +186,7 @@ export async function getNearbyPlaces(
   const { data, error } = await query.limit(limit);
 
   if (error) {
-    console.error("Error fetching nearby places:", error);
+    logError("Error fetching nearby places", error);
     return [];
   }
 
@@ -236,7 +236,11 @@ export async function savePlacesCache(
 ): Promise<boolean> {
   // This function will be called from API routes with admin client
   // The actual implementation is in the API route
-  console.log(`Would cache ${places.length} ${placeType} places for ${geohashPrefix}`);
+  logger.debug("Place caching is handled by the API route, not here", {
+    placeCount: places.length,
+    placeType,
+    geohashPrefix,
+  });
   return true;
 }
 

@@ -3,6 +3,7 @@ import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import { getFollowingIds } from "./follows";
+import { logError } from "@/lib/utils/log";
 import type {
   CompatibilityLevel,
   ReaderWithCompatibility,
@@ -89,7 +90,7 @@ async function fetchReaderTasteBatch(
   });
 
   if (error) {
-    console.error("Error fetching reader taste data:", error);
+    logError("Error fetching reader taste data", error);
     return {};
   }
 
@@ -179,7 +180,7 @@ export async function searchReaders(options: {
   const { data, error, count } = await queryBuilder;
 
   if (error) {
-    console.error("Error searching readers:", error);
+    logError("Error searching readers", error);
     return { readers: [], total: 0 };
   }
 
@@ -477,7 +478,7 @@ export async function browseReaders(options: {
   const { data, error, count } = await queryBuilder;
 
   if (error) {
-    console.error("Error browsing readers:", error);
+    logError("Error browsing readers", error);
     return { readers: [], total: 0 };
   }
 

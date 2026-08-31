@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateOrigin } from "@/lib/utils/csrf";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { logError } from "@/lib/utils/log";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -102,7 +103,7 @@ export async function GET(
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching photos:", error);
+      logError("Error fetching photos", error);
       return NextResponse.json(
         { error: "Failed to fetch photos" },
         { status: 500 }
@@ -117,7 +118,7 @@ export async function GET(
 
     return NextResponse.json({ photos: photosWithUrls });
   } catch (error) {
-    console.error("Error in photos GET:", error);
+    logError("Error in photos GET", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -228,7 +229,7 @@ export async function POST(
       });
 
     if (uploadError) {
-      console.error("Error uploading file:", uploadError);
+      logError("Error uploading file", uploadError);
       return NextResponse.json(
         { error: "Failed to upload photo" },
         { status: 500 }
@@ -248,7 +249,7 @@ export async function POST(
       .single();
 
     if (dbError) {
-      console.error("Error saving photo record:", dbError);
+      logError("Error saving photo record", dbError);
       // Try to clean up uploaded file
       await adminSupabase.storage.from("place-photos").remove([filename]);
       return NextResponse.json(
@@ -267,7 +268,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error in photos POST:", error);
+    logError("Error in photos POST", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -340,7 +341,7 @@ export async function DELETE(
       .remove([photo.storage_path]);
 
     if (storageError) {
-      console.error("Error deleting from storage:", storageError);
+      logError("Error deleting from storage", storageError);
       // Continue anyway to delete the database record
     }
 
@@ -351,7 +352,7 @@ export async function DELETE(
       .eq("id", photoId);
 
     if (deleteError) {
-      console.error("Error deleting photo record:", deleteError);
+      logError("Error deleting photo record", deleteError);
       return NextResponse.json(
         { error: "Failed to delete photo" },
         { status: 500 }
@@ -360,7 +361,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error in photos DELETE:", error);
+    logError("Error in photos DELETE", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

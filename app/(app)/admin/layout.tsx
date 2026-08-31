@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient, getUser } from "@/lib/supabase/server";
+import { logError } from "@/lib/utils/log";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function AdminLayout({
     .maybeSingle();
 
   if (profileError) {
-    console.error("Admin profile fetch error:", profileError);
+    logError("Admin profile fetch error", profileError);
   }
 
   if (!profile?.is_admin) {

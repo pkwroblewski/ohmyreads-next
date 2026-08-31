@@ -1,5 +1,6 @@
 import { createPublicClient } from "@/lib/supabase/server";
 import { getNeighbors, isValidGeohash } from "@/lib/utils/geohash";
+import { logError } from "@/lib/utils/log";
 
 export interface BookEvent {
   id: string;
@@ -59,7 +60,7 @@ export async function getEventsNearby(
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching events:", error);
+    logError("Error fetching events", error);
     return [];
   }
 
@@ -126,7 +127,7 @@ export async function getEventsByCity(
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching events by city:", error);
+    logError("Error fetching events by city", error);
     return [];
   }
 
@@ -150,7 +151,7 @@ export async function getFeaturedEvents(limit: number = 10): Promise<BookEvent[]
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching featured events:", error);
+    logError("Error fetching featured events", error);
     return [];
   }
 

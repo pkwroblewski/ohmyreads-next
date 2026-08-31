@@ -8,6 +8,7 @@ import {
   isMcpConfigured,
 } from "@/lib/services/mapbox-mcp";
 import { isOpenNow } from "@/lib/utils/opening-hours";
+import { logError } from "@/lib/utils/log";
 
 interface NearbyPlace {
   id: string;
@@ -261,7 +262,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Error fetching nearby places:", error);
+    logError("Error fetching nearby places", error);
     return NextResponse.json(
       { error: "Failed to fetch nearby places" },
       { status: 500 }

@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { BOOK_CARD_COLUMNS } from "./columns";
 import type { BookSummary } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 export interface AuthorSummary {
   name: string;
@@ -42,7 +43,7 @@ async function fetchAllAuthors(): Promise<AuthorSummary[]> {
   const { data, error } = await supabase.rpc("get_author_summaries");
 
   if (error) {
-    console.error("Error fetching authors:", error);
+    logError("Error fetching authors", error);
     return [];
   }
 
@@ -79,7 +80,7 @@ export async function getAuthorBySlug(
     .order("ratings_count", { ascending: false, nullsFirst: false });
 
   if (error) {
-    console.error("Error fetching books for author:", error);
+    logError("Error fetching books for author", error);
     return null;
   }
 

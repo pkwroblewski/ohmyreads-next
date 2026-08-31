@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { getConversations, getUnreadCount } from "@/lib/queries/messages";
 import type { Profile } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function AppLayout({
     const { data: authData, error: authError } = await getUser();
 
     if (authError) {
-      console.error("Auth error in layout:", authError.message);
+      logError("Auth error in layout", authError.message);
       redirect("/login?error=auth_error");
     }
 
@@ -42,7 +43,7 @@ export default async function AppLayout({
       .maybeSingle();
 
     if (profileError) {
-      console.error("Profile fetch error:", profileError);
+      logError("Profile fetch error", profileError);
     }
 
     // If no profile exists, create one
@@ -51,7 +52,7 @@ export default async function AppLayout({
       const result = await ensureUserProfile();
 
       if (result.error || !result.profile) {
-        console.error("Failed to ensure profile:", result.error);
+        logError("Failed to ensure profile", result.error);
         redirect("/login?error=profile_creation_failed");
       }
 
@@ -70,11 +71,11 @@ export default async function AppLayout({
         getUnreadCount(),
       ]);
     } catch (chatError) {
-      console.error("Chat data fetch error:", chatError);
+      logError("Chat data fetch error", chatError);
       // Continue with empty defaults
     }
   } catch (error) {
-    console.error("Layout error:", error);
+    logError("Layout error", error);
     redirect("/login?error=layout_error");
   }
 

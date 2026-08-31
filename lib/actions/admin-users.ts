@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { logError } from "@/lib/utils/log";
 import {
   adminUserIdSchema,
   adminUserActionSchema,
@@ -149,7 +150,7 @@ export async function adminGetUsers(filters: UserFilters = {}) {
       totalPages: Math.ceil((count || 0) / limit),
     };
   } catch (error) {
-    console.error("Error fetching users:", error);
+    logError("Error fetching users", error);
     return { success: false, error: "Failed to fetch users" };
   }
 }
@@ -209,7 +210,7 @@ export async function adminGetUser(userId: string) {
       },
     };
   } catch (error) {
-    console.error("Error fetching user:", error);
+    logError("Error fetching user", error);
     return { success: false, error: "Failed to fetch user" };
   }
 }
@@ -290,7 +291,7 @@ export async function adminToggleAdmin(userId: string, reason?: string) {
         reason: reason || (newStatus ? "Admin role granted via admin panel" : "Admin role revoked via admin panel"),
       });
     } catch (auditError) {
-      console.error("Admin role audit log error:", auditError);
+      logError("Admin role audit log error", auditError);
       // Non-fatal, continue
     }
 
@@ -318,7 +319,7 @@ export async function adminToggleAdmin(userId: string, reason?: string) {
         : `${profile.username} is no longer an admin`,
     };
   } catch (error) {
-    console.error("Error toggling admin status:", error);
+    logError("Error toggling admin status", error);
     return { success: false, error: "Failed to update admin status" };
   }
 }
@@ -388,7 +389,7 @@ export async function adminDisableUser(userId: string, reason?: string) {
       message: `${profile.username} has been disabled`,
     };
   } catch (error) {
-    console.error("Error disabling user:", error);
+    logError("Error disabling user", error);
     return { success: false, error: "Failed to disable user" };
   }
 }
@@ -441,7 +442,7 @@ export async function adminEnableUser(userId: string) {
       message: `${profile.username} has been enabled`,
     };
   } catch (error) {
-    console.error("Error enabling user:", error);
+    logError("Error enabling user", error);
     return { success: false, error: "Failed to enable user" };
   }
 }
@@ -469,7 +470,7 @@ export async function adminGetUserStats() {
       },
     };
   } catch (error) {
-    console.error("Error fetching user stats:", error);
+    logError("Error fetching user stats", error);
     return { success: false, error: "Failed to fetch stats" };
   }
 }

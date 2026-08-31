@@ -2,8 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sampleBooks } from "@/lib/data/sample-books";
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 /**
  * Timing-safe comparison of two strings to prevent timing attacks
  */
@@ -82,7 +81,7 @@ export async function GET(request: Request) {
       books: data,
     });
   } catch (error) {
-    console.error("Seed error:", error);
+    logError("Seed error", error);
     return NextResponse.json(
       { error: "Failed to seed database" },
       { status: 500 }

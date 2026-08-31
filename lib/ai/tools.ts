@@ -1,6 +1,7 @@
 import { tool, jsonSchema } from "ai";
 import { createPublicClient } from "@/lib/supabase/server";
 import { BOOK_DETAIL_COLUMNS } from "@/lib/queries/columns";
+import { logError } from "@/lib/utils/log";
 
 // Define schemas using jsonSchema helper
 const searchBooksSchema = jsonSchema<{
@@ -130,7 +131,7 @@ export const searchBooksTool = tool({
     const { data: books, error } = await bookQuery;
 
     if (error) {
-      console.error("Error searching books:", error);
+      logError("Error searching books", error);
       return { success: false, error: "Failed to search books", books: [] };
     }
 
@@ -242,7 +243,7 @@ export const searchExternalBooksTool = tool({
         note: "These are external results not yet in our catalog.",
       };
     } catch (error) {
-      console.error("Error searching external books:", error);
+      logError("Error searching external books", error);
       return {
         success: false,
         error: "Failed to search external books",

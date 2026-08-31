@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { isForeignOrigin } from "@/lib/utils/csrf";
-
+import { logError, logger } from "@/lib/utils/log";
 /**
  * GET /api/geo/places/enrich?name=BookStore&lat=51.5&lng=-0.1
  *
@@ -89,7 +89,10 @@ export async function GET(request: NextRequest) {
     });
 
     if (!searchRes.ok) {
-      console.error("Google Places API error:", await searchRes.text());
+      logger.error("Google Places API error", {
+        status: searchRes.status,
+        body: (await searchRes.text()).slice(0, 500),
+      });
       return NextResponse.json({ found: false, reason: "API error" });
     }
 
@@ -129,7 +132,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error enriching place:", error);
+    logError("Error enriching place", error);
     return NextResponse.json({ found: false, reason: "Error fetching data" });
   }
 }

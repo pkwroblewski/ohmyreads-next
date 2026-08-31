@@ -16,6 +16,7 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { generateSlug } from "@/lib/utils/slug";
 import type { BookSubmissionWithSubmitter } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 // Helper function to ensure unique slug
 async function ensureUniqueSlug(
@@ -145,7 +146,7 @@ export async function submitBook(input: CreateBookSubmissionInput) {
       .single();
 
     if (error) {
-      console.error("Error submitting book:", error);
+      logError("Error submitting book", error);
       return { error: "Failed to submit book. Please try again." };
     }
 
@@ -159,7 +160,7 @@ export async function submitBook(input: CreateBookSubmissionInput) {
       message: "Book submitted successfully! It will be reviewed by our team.",
     };
   } catch (error) {
-    console.error("Error in submitBook:", error);
+    logError("Error in submitBook", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -257,7 +258,7 @@ export async function updateBookSubmission(
       .eq("id", submissionId);
 
     if (error) {
-      console.error("Error updating submission:", error);
+      logError("Error updating submission", error);
       return { error: "Failed to update submission" };
     }
 
@@ -266,7 +267,7 @@ export async function updateBookSubmission(
 
     return { success: true };
   } catch (error) {
-    console.error("Error in updateBookSubmission:", error);
+    logError("Error in updateBookSubmission", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -330,7 +331,7 @@ export async function deleteBookSubmission(submissionId: string) {
       .eq("id", submissionId);
 
     if (error) {
-      console.error("Error deleting submission:", error);
+      logError("Error deleting submission", error);
       return { error: "Failed to delete submission" };
     }
 
@@ -339,7 +340,7 @@ export async function deleteBookSubmission(submissionId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in deleteBookSubmission:", error);
+    logError("Error in deleteBookSubmission", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -367,13 +368,13 @@ export async function getUserSubmissions() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching submissions:", error);
+      logError("Error fetching submissions", error);
       return { error: "Failed to fetch submissions", submissions: [] };
     }
 
     return { submissions: submissions || [] };
   } catch (error) {
-    console.error("Error in getUserSubmissions:", error);
+    logError("Error in getUserSubmissions", error);
     return { error: "An unexpected error occurred", submissions: [] };
   }
 }
@@ -436,14 +437,14 @@ export async function getPendingSubmissions() {
       .order("created_at", { ascending: true });
 
     if (error) {
-      console.error("Error fetching pending submissions:", error);
+      logError("Error fetching pending submissions", error);
       return { error: "Failed to fetch submissions", submissions: [] };
     }
 
     // DB stores status/cover_source as plain text; narrow to the app unions at the boundary
     return { submissions: (submissions as BookSubmissionWithSubmitter[]) || [] };
   } catch (error) {
-    console.error("Error in getPendingSubmissions:", error);
+    logError("Error in getPendingSubmissions", error);
     return { error: "An unexpected error occurred", submissions: [] };
   }
 }
@@ -513,7 +514,7 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
         .eq("id", submissionId);
 
       if (error) {
-        console.error("Error rejecting submission:", error);
+        logError("Error rejecting submission", error);
         return { error: "Failed to reject submission" };
       }
 
@@ -546,7 +547,7 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
     );
 
     if (approveError) {
-      console.error("Error approving submission:", approveError);
+      logError("Error approving submission", approveError);
       return { error: "Failed to approve submission" };
     }
 
@@ -582,7 +583,7 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
 
     return { success: true, action: "approved", bookId: bookId };
   } catch (error) {
-    console.error("Error in moderateSubmission:", error);
+    logError("Error in moderateSubmission", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -656,14 +657,14 @@ export async function getAllSubmissions(
     const { data: submissions, error } = await query;
 
     if (error) {
-      console.error("Error fetching submissions:", error);
+      logError("Error fetching submissions", error);
       return { error: "Failed to fetch submissions", submissions: [] };
     }
 
     // DB stores status/cover_source as plain text; narrow to the app unions at the boundary
     return { submissions: (submissions as BookSubmissionWithSubmitter[]) || [] };
   } catch (error) {
-    console.error("Error in getAllSubmissions:", error);
+    logError("Error in getAllSubmissions", error);
     return { error: "An unexpected error occurred", submissions: [] };
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { isForeignOrigin } from "@/lib/utils/csrf";
 import { encodeGeohash } from "@/lib/utils/geohash";
+import { logError } from "@/lib/utils/log";
 
 // In-memory cache for geocoding results (simple, server-local)
 const geocodeCache = new Map<string, { data: GeocodingResult[]; expires: number }>();
@@ -155,7 +156,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Geocoding error:", error);
+    logError("Geocoding error", error);
     return NextResponse.json(
       { error: "Geocoding failed. Please try again." },
       { status: 500 }

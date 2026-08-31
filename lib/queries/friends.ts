@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { FriendshipStatus, FriendRequestWithSender, FriendRequestWithReceiver } from "@/types/database";
-
+import { logError } from "@/lib/utils/log";
 export interface FriendProfile {
   id: string;
   username: string;
@@ -128,7 +128,7 @@ export async function getPendingRequests(): Promise<FriendRequestWithSender[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching pending requests:", error.message, error.code, error.details);
+    logError("Error fetching pending requests", error);
     return [];
   }
 
@@ -178,7 +178,7 @@ export async function getSentRequests(): Promise<FriendRequestWithReceiver[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching sent requests:", error);
+    logError("Error fetching sent requests", error);
     return [];
   }
 
@@ -281,7 +281,7 @@ export async function getPendingRequestsCount(): Promise<number> {
     .eq("status", "pending");
 
   if (error) {
-    console.error("Error fetching pending count:", error);
+    logError("Error fetching pending count", error);
     return 0;
   }
 

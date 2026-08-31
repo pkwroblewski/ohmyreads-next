@@ -5,7 +5,7 @@ import { isValidGeohash, decodeGeohash } from "@/lib/utils/geohash";
 import { getNearbyPlaces, getCachedPlaces, type CachedPlaceData } from "@/lib/queries/geo";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database";
-
+import { logError, logger } from "@/lib/utils/log";
 // Valid place types for filtering
 const VALID_TYPES = ["bookstore", "library", "cafe", "restaurant", "bookclub", "popup", "other"];
 const OSM_TYPES = ["bookstore", "library", "cafe", "restaurant"];
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error fetching places:", error);
+    logError("Error fetching places", error);
     return NextResponse.json(
       { error: "Failed to fetch places" },
       { status: 500 }
@@ -216,14 +216,17 @@ async function fetchFromOverpass(
         data = await response.json();
         break; // Success, exit loop
       }
-      console.error(`Overpass API error from ${serverUrl}: ${response.status}`);
+      logger.error("Overpass API error", {
+        serverUrl,
+        status: response.status,
+      });
     } catch (error) {
-      console.error(`Overpass fetch error from ${serverUrl}:`, error);
+      logError("Overpass fetch error", error, { serverUrl });
     }
   }
 
   if (!data) {
-    console.error("All Overpass servers failed");
+    logger.error("All Overpass servers failed");
     return [];
   }
 
@@ -333,7 +336,7 @@ async function cacheOsmPlaces(
         onConflict: "geohash_prefix,place_type",
       });
   } catch (error) {
-    console.error("Error caching OSM places:", error);
+    logError("Error caching OSM places", error);
   }
 }
 

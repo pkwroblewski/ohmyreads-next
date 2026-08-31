@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuditLogs, type AuditAction, type AuditTargetType } from "@/lib/utils/audit-log";
+import { logError } from "@/lib/utils/log";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -99,7 +100,7 @@ export async function adminGetAuditLogs(filters: LogFilters = {}) {
       totalPages: Math.ceil(result.total / limit),
     };
   } catch (error) {
-    console.error("Error fetching audit logs:", error);
+    logError("Error fetching audit logs", error);
     return { success: false, error: "Failed to fetch audit logs" };
   }
 }
@@ -134,7 +135,7 @@ export async function adminGetLogActionTypes() {
 
     return { success: true, actionTypes };
   } catch (error) {
-    console.error("Error fetching action types:", error);
+    logError("Error fetching action types", error);
     return { success: false, error: "Failed to fetch action types" };
   }
 }

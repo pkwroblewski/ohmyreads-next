@@ -1,5 +1,6 @@
 import { ImageResponse } from "@vercel/og";
 import { createPublicClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/utils/log";
 
 export const runtime = "edge";
 
@@ -219,7 +220,7 @@ export async function GET(request: Request) {
       }
     );
   } catch (error) {
-    console.error("Error generating OG image:", error);
+    logError("Error generating OG image", error);
     return new Response("Failed to generate image", { status: 500 });
   }
 }

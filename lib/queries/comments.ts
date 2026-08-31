@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { CommentWithUser } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 /**
  * Get comments for a specific review
@@ -24,7 +25,7 @@ export async function getReviewComments(
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("Error fetching comments:", error);
+    logError("Error fetching comments", error);
     return [];
   }
 
@@ -74,7 +75,7 @@ export async function getCommentsForReviews(
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("Error fetching comments:", error);
+    logError("Error fetching comments", error);
     return new Map();
   }
 
@@ -122,7 +123,7 @@ export async function getCommentCount(reviewId: string): Promise<number> {
     .eq("review_id", reviewId);
 
   if (error) {
-    console.error("Error fetching comment count:", error);
+    logError("Error fetching comment count", error);
     return 0;
   }
 
@@ -146,7 +147,7 @@ export async function getCommentCounts(
     .in("review_id", reviewIds);
 
   if (error) {
-    console.error("Error fetching comment counts:", error);
+    logError("Error fetching comment counts", error);
     return new Map();
   }
 

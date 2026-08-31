@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { isValidGeohash } from "@/lib/utils/geohash";
 import { getNearbyReaders } from "@/lib/queries/geo";
+import { logError } from "@/lib/utils/log";
 
 // Force dynamic rendering to prevent caching of presence data
 export const dynamic = "force-dynamic";
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Error fetching nearby readers:", error);
+    logError("Error fetching nearby readers", error);
     return NextResponse.json(
       { error: "Failed to fetch readers" },
       { status: 500 }

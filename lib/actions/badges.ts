@@ -6,8 +6,7 @@ import { checkAndUnlockBadges } from "@/lib/queries/badges";
 import { getBadgeById } from "@/lib/data/badges";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { badgeIdSchema } from "@/lib/validation/badge";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 // Sync badges for the current user (check and unlock any new badges)
 export async function syncUserBadges(): Promise<{
   newBadges: Array<{ id: string; name: string; icon: string }>;
@@ -50,7 +49,7 @@ export async function syncUserBadges(): Promise<{
 
     return { newBadges, error: null };
   } catch (error) {
-    console.error("Error syncing badges:", error);
+    logError("Error syncing badges", error);
     return { newBadges: [], error: "An unexpected error occurred" };
   }
 }
@@ -101,7 +100,7 @@ export async function removeBadge(badgeId: string): Promise<{
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Error removing badge:", error);
+    logError("Error removing badge", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }

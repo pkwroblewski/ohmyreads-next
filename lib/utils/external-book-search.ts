@@ -4,7 +4,7 @@
  */
 
 import { getGoogleBooksCoverUrl, getOpenLibraryCoverById } from "./covers";
-
+import { logError } from "@/lib/utils/log";
 // ============================================
 // TYPES
 // ============================================
@@ -64,7 +64,7 @@ export async function searchOpenLibrary(
     });
 
     if (!response.ok) {
-      console.error("Open Library search failed:", response.status);
+      logError("Open Library search failed", response.status);
       return [];
     }
 
@@ -93,7 +93,7 @@ export async function searchOpenLibrary(
       };
     });
   } catch (error) {
-    console.error("Open Library search error:", error);
+    logError("Open Library search error", error);
     return [];
   }
 }
@@ -169,7 +169,7 @@ export async function getOpenLibraryRatings(
 
     return null;
   } catch (error) {
-    console.error(`Error fetching Open Library ratings for ${workId}:`, error);
+    logError("Error fetching Open Library ratings", error, { workId });
     return null;
   }
 }
@@ -280,7 +280,7 @@ export async function searchGoogleBooks(
     });
 
     if (!response.ok) {
-      console.error("Google Books search failed:", response.status);
+      logError("Google Books search failed", response.status);
       return [];
     }
 
@@ -322,7 +322,7 @@ export async function searchGoogleBooks(
         };
       });
   } catch (error) {
-    console.error("Google Books search error:", error);
+    logError("Google Books search error", error);
     return [];
   }
 }

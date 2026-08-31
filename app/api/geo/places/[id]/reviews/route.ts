@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { validateOrigin } from "@/lib/utils/csrf";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { placeReviewSchema } from "@/lib/validation/place";
+import { logError } from "@/lib/utils/log";
 
 /**
  * GET /api/geo/places/[id]/reviews
@@ -44,7 +45,7 @@ export async function GET(
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching reviews:", error);
+      logError("Error fetching reviews", error);
       return NextResponse.json(
         { error: "Failed to fetch reviews" },
         { status: 500 }
@@ -66,7 +67,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error in reviews GET:", error);
+    logError("Error in reviews GET", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -167,7 +168,7 @@ export async function POST(
       .single();
 
     if (error) {
-      console.error("Error saving review:", error);
+      logError("Error saving review", error);
       return NextResponse.json(
         { error: "Failed to save review" },
         { status: 500 }
@@ -176,7 +177,7 @@ export async function POST(
 
     return NextResponse.json({ review }, { status: 201 });
   } catch (error) {
-    console.error("Error in reviews POST:", error);
+    logError("Error in reviews POST", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -223,7 +224,7 @@ export async function DELETE(
       .eq("user_id", user.id);
 
     if (error) {
-      console.error("Error deleting review:", error);
+      logError("Error deleting review", error);
       return NextResponse.json(
         { error: "Failed to delete review" },
         { status: 500 }
@@ -232,7 +233,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error in reviews DELETE:", error);
+    logError("Error in reviews DELETE", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

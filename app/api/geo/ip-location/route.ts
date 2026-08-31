@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { isForeignOrigin } from "@/lib/utils/csrf";
+import { logError } from "@/lib/utils/log";
 
 /**
  * GET /api/geo/ip-location
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
       country: data.country_name,
     });
   } catch (error) {
-    console.error("IP location error:", error);
+    logError("IP location error", error);
     // Return Luxembourg as default fallback
     return NextResponse.json({
       latitude: 49.6116,

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { encodeGeohash } from "@/lib/utils/geohash";
 import { createAuditLog } from "@/lib/utils/audit-log";
+import { logError } from "@/lib/utils/log";
 import {
   submitPlaceSchema,
   placeModerationSchema,
@@ -87,13 +88,13 @@ export async function submitPlace(input: SubmitPlaceInput) {
       .single();
 
     if (error) {
-      console.error("Error submitting place:", error);
+      logError("Error submitting place", error);
       return { error: "Failed to submit place" };
     }
 
     return { success: true, submissionId: data.id };
   } catch (error) {
-    console.error("Error in submitPlace:", error);
+    logError("Error in submitPlace", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -124,13 +125,13 @@ export async function getMyPlaceSubmissions() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching submissions:", error);
+      logError("Error fetching submissions", error);
       return { submissions: [] };
     }
 
     return { submissions: data || [] };
   } catch (error) {
-    console.error("Error in getMyPlaceSubmissions:", error);
+    logError("Error in getMyPlaceSubmissions", error);
     return { submissions: [] };
   }
 }
@@ -175,13 +176,13 @@ export async function getPendingPlaceSubmissions() {
       .order("created_at", { ascending: true });
 
     if (error) {
-      console.error("Error fetching pending submissions:", error);
+      logError("Error fetching pending submissions", error);
       return { submissions: [], error: "Failed to fetch submissions" };
     }
 
     return { submissions: data || [] };
   } catch (error) {
-    console.error("Error in getPendingPlaceSubmissions:", error);
+    logError("Error in getPendingPlaceSubmissions", error);
     return { submissions: [], error: "An unexpected error occurred" };
   }
 }
@@ -241,7 +242,7 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
     });
 
     if (error) {
-      console.error("Error approving submission:", error);
+      logError("Error approving submission", error);
       return { error: "Failed to approve submission" };
     }
 
@@ -267,7 +268,7 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
 
     return { success: true, placeId: data };
   } catch (error) {
-    console.error("Error in approvePlaceSubmission:", error);
+    logError("Error in approvePlaceSubmission", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -327,7 +328,7 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
     });
 
     if (error) {
-      console.error("Error rejecting submission:", error);
+      logError("Error rejecting submission", error);
       return { error: "Failed to reject submission" };
     }
 
@@ -351,7 +352,7 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
 
     return { success: true };
   } catch (error) {
-    console.error("Error in rejectPlaceSubmission:", error);
+    logError("Error in rejectPlaceSubmission", error);
     return { error: "An unexpected error occurred" };
   }
 }

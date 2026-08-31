@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/utils/log";
 
 // PostgREST caps a single response at 1000 rows and gives no signal that it
 // truncated, so any "all of a user's rows" read has to page explicitly.
@@ -133,7 +134,7 @@ export async function getUserReadingStats(
   );
 
   if (error) {
-    console.error("Error fetching user books:", error);
+    logError("Error fetching user books", error);
     return getEmptyStats();
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { isForeignOrigin } from "@/lib/utils/csrf";
+import { logError } from "@/lib/utils/log";
 import {
   getDirections,
   isMcpConfigured,
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Error fetching directions:", error);
+    logError("Error fetching directions", error);
     return NextResponse.json(
       { error: "Failed to fetch directions" },
       { status: 500 }

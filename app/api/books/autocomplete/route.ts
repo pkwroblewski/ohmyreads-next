@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
+import { logError } from "@/lib/utils/log";
 
 export interface AuthorSuggestion {
   name: string;
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Autocomplete API error:", error);
+    logError("Autocomplete API error", error);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

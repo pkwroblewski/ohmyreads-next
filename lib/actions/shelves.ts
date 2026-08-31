@@ -15,8 +15,7 @@ import {
   userBookIdSchema,
 } from "@/lib/validation/shelf";
 import type { UserShelf, UserShelfWithCount } from "@/types/database";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 // The two authorization failures set_book_shelves raises deliberately. Anything
 // else coming back from the RPC is an unexpected DB error and must not reach
 // the client verbatim.
@@ -95,7 +94,7 @@ export async function getUserShelves(): Promise<{
 
     return { shelves: shelvesWithCount };
   } catch (error) {
-    console.error("Error in getUserShelves:", error);
+    logError("Error in getUserShelves", error);
     return { shelves: [], error: "An unexpected error occurred" };
   }
 }
@@ -183,7 +182,7 @@ export async function createShelf(input: {
 
     return { shelf };
   } catch (error) {
-    console.error("Error in createShelf:", error);
+    logError("Error in createShelf", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -277,7 +276,7 @@ export async function updateShelf(input: {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in updateShelf:", error);
+    logError("Error in updateShelf", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -338,7 +337,7 @@ export async function deleteShelf(
 
     return { success: true };
   } catch (error) {
-    console.error("Error in deleteShelf:", error);
+    logError("Error in deleteShelf", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -423,7 +422,7 @@ export async function addBookToShelf(input: {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in addBookToShelf:", error);
+    logError("Error in addBookToShelf", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -488,7 +487,7 @@ export async function removeBookFromShelf(input: {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in removeBookFromShelf:", error);
+    logError("Error in removeBookFromShelf", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -528,7 +527,7 @@ export async function getBookShelves(
       shelfIds: (shelfBooks || []).map((sb) => sb.shelf_id),
     };
   } catch (error) {
-    console.error("Error in getBookShelves:", error);
+    logError("Error in getBookShelves", error);
     return { shelfIds: [], error: "An unexpected error occurred" };
   }
 }
@@ -579,7 +578,7 @@ export async function updateBookShelves(input: {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in updateBookShelves:", error);
+    logError("Error in updateBookShelves", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -654,7 +653,7 @@ export async function addBookToShelfByBookId(input: {
         .single();
 
       if (createError) {
-        console.error("Error creating user_book:", createError);
+        logError("Error creating user_book", createError);
         return { error: "Failed to add book to your library" };
       }
 
@@ -679,7 +678,7 @@ export async function addBookToShelfByBookId(input: {
 
     return { success: true, userBookId };
   } catch (error) {
-    console.error("Error in addBookToShelfByBookId:", error);
+    logError("Error in addBookToShelfByBookId", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -734,7 +733,7 @@ export async function getBookShelvesByBookId(
       userBookId: userBook.id,
     };
   } catch (error) {
-    console.error("Error in getBookShelvesByBookId:", error);
+    logError("Error in getBookShelvesByBookId", error);
     return { shelfIds: [], error: "An unexpected error occurred" };
   }
 }
@@ -798,7 +797,7 @@ export async function updateBookShelvesByBookId(input: {
         .single();
 
       if (createError) {
-        console.error("Error creating user_book:", createError);
+        logError("Error creating user_book", createError);
         return { error: "Failed to add book to your library" };
       }
 
@@ -818,7 +817,7 @@ export async function updateBookShelvesByBookId(input: {
 
     return { success: true, userBookId };
   } catch (error) {
-    console.error("Error in updateBookShelvesByBookId:", error);
+    logError("Error in updateBookShelvesByBookId", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -899,7 +898,7 @@ export async function getShelfBooks(shelfId: string): Promise<{
 
     return { books };
   } catch (error) {
-    console.error("Error in getShelfBooks:", error);
+    logError("Error in getShelfBooks", error);
     return { books: [], error: "An unexpected error occurred" };
   }
 }

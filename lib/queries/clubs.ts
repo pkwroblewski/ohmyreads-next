@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/utils/log";
 import type {
   BookClubWithDetails,
   BookClubMemberWithProfile,
@@ -51,7 +52,7 @@ export async function getClubs(options: GetClubsOptions = {}): Promise<{
   const { data: clubs, count, error } = await query;
 
   if (error) {
-    console.error("Error fetching clubs:", error);
+    logError("Error fetching clubs", error);
     return { clubs: [], total: 0 };
   }
 
@@ -226,7 +227,7 @@ export async function getClubMembers(
     .range(offset, offset + limit - 1);
 
   if (error) {
-    console.error("Error fetching members:", error);
+    logError("Error fetching members", error);
     return { members: [], total: 0 };
   }
 

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { CompatibilityLevel } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 export interface FollowerProfile {
   id: string;
@@ -56,7 +57,7 @@ export async function getFollowers(
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching followers:", error);
+    logError("Error fetching followers", error);
     return [];
   }
 
@@ -101,7 +102,7 @@ export async function getFollowing(
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching following:", error);
+    logError("Error fetching following", error);
     return [];
   }
 
@@ -148,7 +149,7 @@ export async function getFollowingIds(userId: string): Promise<string[]> {
     .eq("follower_id", userId);
 
   if (error) {
-    console.error("Error fetching following IDs:", error);
+    logError("Error fetching following IDs", error);
     return [];
   }
 
@@ -201,7 +202,7 @@ export async function getSuggestedFollows(
     .neq("user_id", userId);
 
   if (error || !sharedBooksData) {
-    console.error("Error finding shared books:", error);
+    logError("Error finding shared books", error);
     return [];
   }
 
@@ -300,7 +301,7 @@ export async function getFriendsActivity(
     .limit(limit);
 
   if (bookError) {
-    console.error("Error fetching friends book activity:", bookError);
+    logError("Error fetching friends book activity", bookError);
     return [];
   }
 

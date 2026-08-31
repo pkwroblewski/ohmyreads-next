@@ -8,8 +8,7 @@ import { parseBookCSV, type ParsedBookRow } from "@/lib/utils/book-csv-parser";
 import { generateSlug } from "@/lib/utils/slug";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { importBookRowsSchema } from "@/lib/validation/admin";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 // Check if current user is admin
 async function requireAdmin() {
   const supabase = await createClient();
@@ -39,7 +38,7 @@ export async function parseCSVForPreview(csvContent: string) {
     const result = parseBookCSV(csvContent);
     return result;
   } catch (error) {
-    console.error("Error parsing CSV:", error);
+    logError("Error parsing CSV", error);
     return {
       success: false,
       rows: [],
@@ -262,7 +261,7 @@ export async function importBooksFromCSV(rows: ParsedBookRow[]): Promise<ImportR
       results,
     };
   } catch (error) {
-    console.error("Error importing books:", error);
+    logError("Error importing books", error);
     return {
       success: false,
       totalRows: rows.length,

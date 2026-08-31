@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { discoveryVisibilitySchema } from "@/lib/validation/privacy";
+import { logError } from "@/lib/utils/log";
 
 export async function updateDiscoveryVisibility(visible: boolean): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
@@ -37,7 +38,7 @@ export async function updateDiscoveryVisibility(visible: boolean): Promise<{ suc
     .eq("id", user.id);
 
   if (error) {
-    console.error("Error updating discovery visibility:", error);
+    logError("Error updating discovery visibility", error);
     return { success: false, error: "Failed to update privacy settings" };
   }
 

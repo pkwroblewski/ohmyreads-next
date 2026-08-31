@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchExternalBooks } from "@/lib/utils/external-book-search";
 import { createPublicClient } from "@/lib/supabase/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { logError } from "@/lib/utils/log";
 
 export async function GET(request: NextRequest) {
   // Rate limit by IP (30 requests per minute for external search - more expensive)
@@ -111,7 +112,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("External book search error:", error);
+    logError("External book search error", error);
     return NextResponse.json(
       { error: "Search failed" },
       { status: 500 }

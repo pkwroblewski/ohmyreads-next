@@ -14,6 +14,7 @@ import {
 } from "@/lib/validation/admin";
 import { BOOK_CARD_COLUMNS, BOOK_DETAIL_COLUMNS } from "@/lib/queries/columns";
 import type { Book, BookSummary } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -110,7 +111,7 @@ export async function adminGetBooks(filters: BookFilters = {}) {
       totalPages: Math.ceil((count || 0) / limit),
     };
   } catch (error) {
-    console.error("Error fetching books:", error);
+    logError("Error fetching books", error);
     return { success: false, error: "Failed to fetch books" };
   }
 }
@@ -135,7 +136,7 @@ export async function adminGetBook(bookId: string) {
 
     return { success: true, book: data as Book };
   } catch (error) {
-    console.error("Error fetching book:", error);
+    logError("Error fetching book", error);
     return { success: false, error: "Failed to fetch book" };
   }
 }
@@ -215,7 +216,7 @@ export async function adminCreateBook(input: AdminBookInput) {
 
     return { success: true, book: data };
   } catch (error) {
-    console.error("Error creating book:", error);
+    logError("Error creating book", error);
     return { success: false, error: "Failed to create book" };
   }
 }
@@ -299,7 +300,7 @@ export async function adminUpdateBook(bookId: string, input: Partial<AdminBookIn
 
     return { success: true, book: data };
   } catch (error) {
-    console.error("Error updating book:", error);
+    logError("Error updating book", error);
     return { success: false, error: "Failed to update book" };
   }
 }
@@ -354,7 +355,7 @@ export async function adminDeleteBook(bookId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error deleting book:", error);
+    logError("Error deleting book", error);
     return { success: false, error: "Failed to delete book" };
   }
 }
@@ -376,7 +377,7 @@ export async function adminGetGenres() {
 
     return { success: true, genres: uniqueGenres };
   } catch (error) {
-    console.error("Error fetching genres:", error);
+    logError("Error fetching genres", error);
     return { success: false, error: "Failed to fetch genres" };
   }
 }

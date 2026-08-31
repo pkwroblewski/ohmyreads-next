@@ -209,7 +209,10 @@ export async function getTasteProfile() {
           String(error.code || "").includes("PGRST");
         
         if (!isExpectedError) {
-          console.log("[getTasteProfile] Non-critical error:", error.code, error.message);
+          logger.debug("Non-critical error in getTasteProfile", {
+            errorCode: error.code,
+            errorMessage: error.message,
+          });
         }
       }
       return { profile: null };

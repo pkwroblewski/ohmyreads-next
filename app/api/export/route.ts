@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { logger, extractSupabaseErrorInfo } from "@/lib/utils/log";
-
+import { extractSupabaseErrorInfo, logError, logger } from "@/lib/utils/log";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -295,7 +294,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error exporting data:", error);
+    logError("Error exporting data", error);
     return NextResponse.json(
       { error: "Failed to export data" },
       { status: 500 }

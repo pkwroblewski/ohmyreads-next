@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { BADGES, type BadgeDefinition } from "@/lib/data/badges";
 import type { UserBadge } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 // Extended badge with unlock info
 export interface UserBadgeWithDefinition {
@@ -35,7 +36,7 @@ export async function getUserBadges(userId: string): Promise<UserBadge[]> {
     .order("unlocked_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching user badges:", error);
+    logError("Error fetching user badges", error);
     return [];
   }
 
@@ -281,7 +282,7 @@ export async function checkAndUnlockBadges(userId: string): Promise<string[]> {
     .select("badge_id");
 
   if (error) {
-    console.error("Error unlocking badges:", error);
+    logError("Error unlocking badges", error);
     return [];
   }
 

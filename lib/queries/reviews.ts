@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ReviewWithUser } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 export interface ReviewWithUserAndLikeStatus extends ReviewWithUser {
   hasLiked?: boolean;
@@ -55,7 +56,7 @@ export async function getBookReviewsWithDetails(
     const { data, error, count } = await query.range(offset, offset + limit - 1);
 
     if (error) {
-      console.error("Error fetching reviews:", error);
+      logError("Error fetching reviews", error);
       return { reviews: [], total: 0 };
     }
 
@@ -79,7 +80,7 @@ export async function getBookReviewsWithDetails(
 
     return { reviews, total: count || 0 };
   } catch (error) {
-    console.error("Error in getBookReviewsWithDetails:", error);
+    logError("Error in getBookReviewsWithDetails", error);
     return { reviews: [], total: 0 };
   }
 }
@@ -106,7 +107,7 @@ export async function getReviewById(
       .single();
 
     if (error) {
-      console.error("Error fetching review:", error);
+      logError("Error fetching review", error);
       return null;
     }
 
@@ -126,7 +127,7 @@ export async function getReviewById(
 
     return review;
   } catch (error) {
-    console.error("Error in getReviewById:", error);
+    logError("Error in getReviewById", error);
     return null;
   }
 }
@@ -155,14 +156,14 @@ export async function getRecentReviews(
       .limit(limit);
 
     if (error) {
-      console.error("Error fetching recent reviews:", error);
+      logError("Error fetching recent reviews", error);
       return [];
     }
 
     // Cast: profile is a 4-field subset of Profile (declared type predates the select)
     return (data as unknown as (ReviewWithUser & { book: { id: string; title: string; slug: string; cover_url: string | null } | null })[]) || [];
   } catch (error) {
-    console.error("Error in getRecentReviews:", error);
+    logError("Error in getRecentReviews", error);
     return [];
   }
 }
@@ -192,14 +193,14 @@ export async function getMostHelpfulReviews(
       .limit(limit);
 
     if (error) {
-      console.error("Error fetching helpful reviews:", error);
+      logError("Error fetching helpful reviews", error);
       return [];
     }
 
     // Cast: profile is a 4-field subset of Profile (declared type predates the select)
     return (data as unknown as (ReviewWithUser & { book: { id: string; title: string; slug: string; cover_url: string | null } | null })[]) || [];
   } catch (error) {
-    console.error("Error in getMostHelpfulReviews:", error);
+    logError("Error in getMostHelpfulReviews", error);
     return [];
   }
 }
@@ -225,7 +226,7 @@ export async function hasUserReviewedBook(
       .single();
 
     if (error && error.code !== "PGRST116") {
-      console.error("Error checking review:", error);
+      logError("Error checking review", error);
     }
 
     if (!data) {
@@ -243,7 +244,7 @@ export async function hasUserReviewedBook(
       review: reviewWithProfile as unknown as ReviewWithUser,
     };
   } catch (error) {
-    console.error("Error in hasUserReviewedBook:", error);
+    logError("Error in hasUserReviewedBook", error);
     return { hasReviewed: false, review: null };
   }
 }
@@ -265,7 +266,7 @@ export async function getBookReviewStats(bookId: string): Promise<{
       .eq("book_id", bookId);
 
     if (error) {
-      console.error("Error fetching review stats:", error);
+      logError("Error fetching review stats", error);
       return { totalReviews: 0, averageRating: null, ratingDistribution: {} };
     }
 
@@ -297,7 +298,7 @@ export async function getBookReviewStats(bookId: string): Promise<{
 
     return { totalReviews, averageRating, ratingDistribution };
   } catch (error) {
-    console.error("Error in getBookReviewStats:", error);
+    logError("Error in getBookReviewStats", error);
     return { totalReviews: 0, averageRating: null, ratingDistribution: {} };
   }
 }

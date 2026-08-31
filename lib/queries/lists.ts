@@ -2,6 +2,7 @@ import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { getCuratedList, type CuratedList } from "@/lib/data/curated-lists";
 import { BOOK_CARD_COLUMNS } from "./columns";
 import type { BookSummary, ReadingListWithDetails, ReadingListBookWithBook } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 export interface CuratedListWithBooks extends CuratedList {
   books: BookSummary[];
@@ -32,7 +33,7 @@ export async function getCuratedListWithBooks(
       .order("ratings_count", { ascending: false, nullsFirst: false });
 
     if (error) {
-      console.error("Error fetching books by slugs:", error);
+      logError("Error fetching books by slugs", error);
     } else {
       books = (data || []) as BookSummary[];
     }
@@ -47,7 +48,7 @@ export async function getCuratedListWithBooks(
       .limit(24);
 
     if (error) {
-      console.error("Error fetching books by genres:", error);
+      logError("Error fetching books by genres", error);
     } else {
       books = (data || []) as BookSummary[];
     }
@@ -114,7 +115,7 @@ export async function getUserLists(options: GetListsOptions = {}): Promise<{
   const { data: lists, count, error } = await query;
 
   if (error) {
-    console.error("Error fetching lists:", error);
+    logError("Error fetching lists", error);
     return { lists: [], total: 0 };
   }
 

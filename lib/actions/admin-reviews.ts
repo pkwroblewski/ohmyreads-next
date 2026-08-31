@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { logError } from "@/lib/utils/log";
 import {
   adminReviewIdSchema,
   adminDeleteReviewSchema,
@@ -159,7 +160,7 @@ export async function adminGetReviews(filters: ReviewFilters = {}) {
       totalPages: Math.ceil((count || 0) / limit),
     };
   } catch (error) {
-    console.error("Error fetching reviews:", error);
+    logError("Error fetching reviews", error);
     return { success: false, error: "Failed to fetch reviews" };
   }
 }
@@ -202,7 +203,7 @@ export async function adminGetReview(reviewId: string) {
       },
     };
   } catch (error) {
-    console.error("Error fetching review:", error);
+    logError("Error fetching review", error);
     return { success: false, error: "Failed to fetch review" };
   }
 }
@@ -282,7 +283,7 @@ export async function adminDeleteReview(reviewId: string, reason?: string) {
       message: "Review deleted successfully",
     };
   } catch (error) {
-    console.error("Error deleting review:", error);
+    logError("Error deleting review", error);
     return { success: false, error: "Failed to delete review" };
   }
 }
@@ -323,7 +324,7 @@ export async function adminGetReviewStats() {
       },
     };
   } catch (error) {
-    console.error("Error fetching review stats:", error);
+    logError("Error fetching review stats", error);
     return { success: false, error: "Failed to fetch stats" };
   }
 }

@@ -10,8 +10,7 @@ import {
   clubIdSchema,
 } from "@/lib/validation/club";
 import type { ClubVisibility } from "@/types/database";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 interface CreateClubInput {
   name: string;
   description?: string;
@@ -55,7 +54,7 @@ export async function createClub(
   );
 
   if (slugError) {
-    console.error("[createClub] Slug error:", slugError);
+    logError("[createClub] Slug error", slugError);
     return { success: false, error: "Failed to generate slug" };
   }
 
@@ -86,7 +85,7 @@ export async function createClub(
   });
 
   if (memberError) {
-    console.error("[createClub] Member insert error:", memberError);
+    logError("[createClub] Member insert error", memberError);
     // Rollback: delete the club since we couldn't add the creator as admin
     await supabase.from("book_clubs").delete().eq("id", club.id);
     return { success: false, error: "Failed to add you as club admin. Please try again." };
@@ -144,7 +143,7 @@ export async function joinClub(
   });
 
   if (error) {
-    console.error("Error joining club:", error);
+    logError("Error joining club", error);
     return { success: false, error: "Failed to join club" };
   }
 
@@ -217,7 +216,7 @@ export async function leaveClub(
     .eq("user_id", user.id);
 
   if (error) {
-    console.error("Error leaving club:", error);
+    logError("Error leaving club", error);
     return { success: false, error: "Failed to leave club" };
   }
 
@@ -293,7 +292,7 @@ export async function setCurrentBook(
     );
 
   if (error) {
-    console.error("Error setting current book:", error);
+    logError("Error setting current book", error);
     return { success: false, error: "Failed to set current book" };
   }
 
@@ -358,7 +357,7 @@ export async function updateClub(
     .eq("id", clubId);
 
   if (error) {
-    console.error("Error updating club:", error);
+    logError("Error updating club", error);
     return { success: false, error: "Failed to update club" };
   }
 
@@ -409,7 +408,7 @@ export async function deleteClub(
   const { error } = await supabase.from("book_clubs").delete().eq("id", clubId);
 
   if (error) {
-    console.error("Error deleting club:", error);
+    logError("Error deleting club", error);
     return { success: false, error: "Failed to delete club" };
   }
 

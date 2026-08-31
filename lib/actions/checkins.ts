@@ -11,6 +11,7 @@ import {
   checkinUserIdSchema,
 } from "@/lib/validation/checkin";
 import type { CheckinWithRelations, UserCheckinStats } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 // ============================================
 // CONSTANTS
@@ -113,7 +114,7 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
       .single();
 
     if (error) {
-      console.error("Error creating check-in:", error);
+      logError("Error creating check-in", error);
       return { error: "Failed to create check-in" };
     }
 
@@ -131,7 +132,7 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
       newBadges,
     };
   } catch (error) {
-    console.error("Error in createCheckin:", error);
+    logError("Error in createCheckin", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -190,7 +191,7 @@ export async function getPlaceCheckins(
       .limit(limit);
 
     if (error) {
-      console.error("Error fetching check-ins:", error);
+      logError("Error fetching check-ins", error);
       return { checkins: [] };
     }
 
@@ -216,7 +217,7 @@ export async function getPlaceCheckins(
 
     return { checkins };
   } catch (error) {
-    console.error("Error in getPlaceCheckins:", error);
+    logError("Error in getPlaceCheckins", error);
     return { checkins: [] };
   }
 }
@@ -245,7 +246,7 @@ export async function getUserCheckinStats(userId: string): Promise<{ stats: User
 
     if (error && error.code !== "PGRST116") {
       // PGRST116 = not found, which is OK
-      console.error("Error fetching check-in stats:", error);
+      logError("Error fetching check-in stats", error);
     }
 
     if (!data) {
@@ -263,7 +264,7 @@ export async function getUserCheckinStats(userId: string): Promise<{ stats: User
 
     return { stats: data };
   } catch (error) {
-    console.error("Error in getUserCheckinStats:", error);
+    logError("Error in getUserCheckinStats", error);
     return { stats: null };
   }
 }
@@ -303,7 +304,7 @@ export async function canCheckinAtPlace(
 
     return { canCheckin: true };
   } catch (error) {
-    console.error("Error in canCheckinAtPlace:", error);
+    logError("Error in canCheckinAtPlace", error);
     return { canCheckin: false, reason: "error" };
   }
 }
@@ -354,7 +355,7 @@ export async function deleteCheckin(checkinId: string): Promise<{ success?: bool
     const { error } = await supabase.from("place_checkins").delete().eq("id", checkinId);
 
     if (error) {
-      console.error("Error deleting check-in:", error);
+      logError("Error deleting check-in", error);
       return { error: "Failed to delete check-in" };
     }
 
@@ -365,7 +366,7 @@ export async function deleteCheckin(checkinId: string): Promise<{ success?: bool
 
     return { success: true };
   } catch (error) {
-    console.error("Error in deleteCheckin:", error);
+    logError("Error in deleteCheckin", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -439,7 +440,7 @@ async function checkAndUnlockCheckinBadges(
 
     return newlyUnlocked;
   } catch (error) {
-    console.error("Error checking badges:", error);
+    logError("Error checking badges", error);
     return [];
   }
 }

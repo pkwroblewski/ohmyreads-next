@@ -11,6 +11,7 @@ import {
   listIdSchema,
 } from "@/lib/validation/list";
 import type { ListVisibility } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 interface CreateListInput {
   title: string;
@@ -55,7 +56,7 @@ export async function createList(
   );
 
   if (slugError) {
-    console.error("Error generating slug:", slugError);
+    logError("Error generating slug", slugError);
     return { success: false, error: "Failed to create list" };
   }
 
@@ -75,7 +76,7 @@ export async function createList(
     .single();
 
   if (listError) {
-    console.error("Error creating list:", listError);
+    logError("Error creating list", listError);
     return { success: false, error: "Failed to create list" };
   }
 
@@ -136,7 +137,7 @@ export async function updateList(
     .eq("id", data.listId);
 
   if (error) {
-    console.error("Error updating list:", error);
+    logError("Error updating list", error);
     return { success: false, error: "Failed to update list" };
   }
 
@@ -179,7 +180,7 @@ export async function deleteList(
     .eq("user_id", user.id);
 
   if (error) {
-    console.error("Error deleting list:", error);
+    logError("Error deleting list", error);
     return { success: false, error: "Failed to delete list" };
   }
 
@@ -262,7 +263,7 @@ export async function addBookToList(
   });
 
   if (error) {
-    console.error("Error adding book to list:", error);
+    logError("Error adding book to list", error);
     return { success: false, error: "Failed to add book" };
   }
 
@@ -318,7 +319,7 @@ export async function removeBookFromList(
     .eq("book_id", bookId);
 
   if (error) {
-    console.error("Error removing book from list:", error);
+    logError("Error removing book from list", error);
     return { success: false, error: "Failed to remove book" };
   }
 
@@ -372,7 +373,7 @@ export async function likeList(
       .eq("user_id", user.id);
 
     if (error) {
-      console.error("Error unliking list:", error);
+      logError("Error unliking list", error);
       return { success: false, error: "Failed to unlike list" };
     }
   } else {
@@ -383,7 +384,7 @@ export async function likeList(
     });
 
     if (error) {
-      console.error("Error liking list:", error);
+      logError("Error liking list", error);
       return { success: false, error: "Failed to like list" };
     }
   }

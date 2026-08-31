@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { safeJsonLd } from "@/lib/utils/jsonld";
+import { logError } from "@/lib/utils/log";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -90,7 +91,7 @@ export async function generateStaticParams() {
     
     return (books || []).map((book) => ({ slug: book.slug }));
   } catch (error) {
-    console.error("Error in generateStaticParams:", error);
+    logError("Error in generateStaticParams", error);
     return [];
   }
 }

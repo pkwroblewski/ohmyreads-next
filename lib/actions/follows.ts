@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { targetUserIdSchema } from "@/lib/validation/social";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 export async function followUser(targetUserId: string): Promise<{
   success: boolean;
   error: string | null;
@@ -68,7 +67,7 @@ export async function followUser(targetUserId: string): Promise<{
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Unexpected error in followUser:", error);
+    logError("Unexpected error in followUser", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
@@ -119,7 +118,7 @@ export async function unfollowUser(targetUserId: string): Promise<{
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Unexpected error in unfollowUser:", error);
+    logError("Unexpected error in unfollowUser", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
@@ -174,7 +173,7 @@ export async function toggleFollow(targetUserId: string): Promise<{
       return { ...result, isFollowing: result.success };
     }
   } catch (error) {
-    console.error("Unexpected error in toggleFollow:", error);
+    logError("Unexpected error in toggleFollow", error);
     return { success: false, isFollowing: false, error: "An unexpected error occurred" };
   }
 }

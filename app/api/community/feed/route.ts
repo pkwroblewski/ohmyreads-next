@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCommunityFeedPage } from "@/lib/queries/community";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { logError } from "@/lib/utils/log";
 
 export async function GET(request: NextRequest) {
   // Rate limit by IP (100 requests per minute for feed pagination)
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error fetching community feed:", error);
+    logError("Error fetching community feed", error);
     return NextResponse.json(
       { error: "Failed to fetch feed" },
       { status: 500 }

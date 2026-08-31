@@ -6,7 +6,7 @@ import { trendingInsightSchema } from "@/lib/ai/schemas";
 import { NextResponse } from "next/server";
 import { createPublicClient, createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-
+import { logError } from "@/lib/utils/log";
 interface TrendingInsight {
   bookId: string;
   insight: string;
@@ -119,7 +119,7 @@ Generate a brief trending insight and 2-3 keywords that capture why this book re
       } catch (aiError) {
         // Covers both a provider failure and NoObjectGeneratedError (model
         // returned something the schema rejects).
-        console.error("AI error for book:", book.id, aiError);
+        logError("AI generation failed for book", aiError, { bookId: book.id });
         return {
           bookId: book.id,
           insight: `Trending in ${book.genres?.[0] || "fiction"}`,
@@ -166,7 +166,7 @@ export async function GET() {
 
     return NextResponse.json({ insights, cached: false });
   } catch (error) {
-    console.error("Trending insights error:", error);
+    logError("Trending insights error", error);
     return NextResponse.json(
       { error: "Failed to generate insights", insights: [] },
       { status: 500 }

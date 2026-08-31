@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/utils/log";
 
 export interface HomeReadingActivity {
   goal: {
@@ -134,7 +135,7 @@ export async function getCommunityFeed(
     .limit(limit);
 
   if (reviewsError) {
-    console.error("Error fetching community feed:", reviewsError);
+    logError("Error fetching community feed", reviewsError);
     return [];
   }
 

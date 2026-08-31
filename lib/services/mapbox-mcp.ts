@@ -5,7 +5,7 @@
  */
 
 import { unstable_cache } from "next/cache";
-
+import { logError, logger } from "@/lib/utils/log";
 const MCP_ENDPOINT = "https://mcp.mapbox.com/mcp";
 
 // Transport profile types
@@ -79,7 +79,7 @@ async function callMcp<T>(
   const token = process.env.MAPBOX_ACCESS_TOKEN;
 
   if (!token) {
-    console.error("MAPBOX_ACCESS_TOKEN is not configured");
+    logger.error("MAPBOX_ACCESS_TOKEN is not configured");
     return { success: false, error: "Mapbox token not configured" };
   }
 
@@ -100,20 +100,23 @@ async function callMcp<T>(
 
     if (!response.ok) {
       const text = await response.text();
-      console.error(`MCP request failed: ${response.status}`, text);
+      logger.error("MCP request failed", {
+        status: response.status,
+        body: text.slice(0, 500),
+      });
       return { success: false, error: `Request failed: ${response.status}` };
     }
 
     const result = await response.json();
 
     if (result.error) {
-      console.error("MCP tool error:", result.error);
+      logError("MCP tool error", result.error);
       return { success: false, error: result.error.message || "Tool error" };
     }
 
     return { success: true, data: result.result as T };
   } catch (error) {
-    console.error("MCP request error:", error);
+    logError("MCP request error", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

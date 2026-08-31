@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/utils/log";
 
 // Check if current user is admin
 async function requireAdmin() {
@@ -137,7 +138,7 @@ export async function adminGetOverviewStats(): Promise<{ success: boolean; stats
       },
     };
   } catch (error) {
-    console.error("Error fetching overview stats:", error);
+    logError("Error fetching overview stats", error);
     return { success: false, error: "Failed to fetch stats" };
   }
 }
@@ -187,7 +188,7 @@ export async function adminGetGrowthData(): Promise<{ success: boolean; data?: G
 
     return { success: true, data };
   } catch (error) {
-    console.error("Error fetching growth data:", error);
+    logError("Error fetching growth data", error);
     return { success: false, error: "Failed to fetch growth data" };
   }
 }
@@ -217,7 +218,7 @@ export async function adminGetTopBooks(limit = 10): Promise<{ success: boolean; 
 
     return { success: true, books };
   } catch (error) {
-    console.error("Error fetching top books:", error);
+    logError("Error fetching top books", error);
     return { success: false, error: "Failed to fetch top books" };
   }
 }
@@ -255,7 +256,7 @@ export async function adminGetTopUsers(limit = 10): Promise<{ success: boolean; 
 
     return { success: true, users };
   } catch (error) {
-    console.error("Error fetching top users:", error);
+    logError("Error fetching top users", error);
     return { success: false, error: "Failed to fetch top users" };
   }
 }
@@ -280,7 +281,7 @@ export async function adminGetGenreDistribution(): Promise<{ success: boolean; g
 
     return { success: true, genres };
   } catch (error) {
-    console.error("Error fetching genre distribution:", error);
+    logError("Error fetching genre distribution", error);
     return { success: false, error: "Failed to fetch genre distribution" };
   }
 }
@@ -310,7 +311,7 @@ export async function adminGetRatingDistribution(): Promise<{ success: boolean; 
 
     return { success: true, ratings };
   } catch (error) {
-    console.error("Error fetching rating distribution:", error);
+    logError("Error fetching rating distribution", error);
     return { success: false, error: "Failed to fetch rating distribution" };
   }
 }

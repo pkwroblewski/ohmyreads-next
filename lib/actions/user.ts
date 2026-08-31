@@ -12,8 +12,7 @@ import {
 import { sendWelcomeEmail } from "@/lib/actions/email";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import type { Database, Profile } from "@/types/database";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 /**
  * Update user profile
  */
@@ -91,7 +90,7 @@ export async function updateProfile(input: UpdateProfileInput) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in updateProfile:", error);
+    logError("Error in updateProfile", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -154,7 +153,7 @@ export async function updateSocialLinks(links: SocialLinkInput[]) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in updateSocialLinks:", error);
+    logError("Error in updateSocialLinks", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -181,13 +180,13 @@ export async function getCurrentUserProfile() {
       .single();
 
     if (error) {
-      console.error("Error fetching profile:", error);
+      logError("Error fetching profile", error);
       return { profile: null };
     }
 
     return { profile };
   } catch (error) {
-    console.error("Error in getCurrentUserProfile:", error);
+    logError("Error in getCurrentUserProfile", error);
     return { profile: null };
   }
 }
@@ -218,7 +217,7 @@ export async function checkUsernameAvailable(username: string) {
 
     return { available: !data || data.length === 0 };
   } catch (error) {
-    console.error("Error in checkUsernameAvailable:", error);
+    logError("Error in checkUsernameAvailable", error);
     return { available: false };
   }
 }
@@ -319,11 +318,11 @@ export async function ensureUserProfile(): Promise<{
       profileData.username = username;
       const { error: retryError } = await supabase.from("profiles").insert(profileData);
       if (retryError) {
-        console.error("Profile insert retry error:", retryError);
+        logError("Profile insert retry error", retryError);
         return { profile: null, error: "Failed to create profile" };
       }
     } else if (insertError) {
-      console.error("Profile insert error:", insertError);
+      logError("Profile insert error", insertError);
       return { profile: null, error: "Failed to create profile" };
     }
 
@@ -341,7 +340,7 @@ export async function ensureUserProfile(): Promise<{
         })
         .eq("id", user.id);
       if (promoteError) {
-        console.error("Admin provisioning error:", promoteError);
+        logError("Admin provisioning error", promoteError);
       }
 
       // Log admin role grant in audit table
@@ -354,7 +353,7 @@ export async function ensureUserProfile(): Promise<{
           reason: "Initial admin provisioning from ADMIN_EMAILS environment variable",
         });
       } catch (auditError) {
-        console.error("Admin audit log error:", auditError);
+        logError("Admin audit log error", auditError);
         // Non-fatal, continue
       }
     }
@@ -377,12 +376,14 @@ export async function ensureUserProfile(): Promise<{
         email: user.email,
         username: username,
         displayName: displayName || undefined,
-      }).catch(console.error);
+      }).catch((error) =>
+        logError("Failed to send welcome email", error, { userId: user.id })
+      );
     }
 
     return { profile: newProfile as Profile };
   } catch (error) {
-    console.error("Error in ensureUserProfile:", error);
+    logError("Error in ensureUserProfile", error);
     return { profile: null, error: "An unexpected error occurred" };
   }
 }

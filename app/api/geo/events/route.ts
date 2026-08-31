@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getEventsNearby, getEventsByCity } from "@/lib/queries/events";
 import { isValidGeohash } from "@/lib/utils/geohash";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import { logError } from "@/lib/utils/log";
 
 /**
  * GET /api/geo/events
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Error fetching events:", error);
+    logError("Error fetching events", error);
     return NextResponse.json(
       { error: "Failed to fetch events" },
       { status: 500 }

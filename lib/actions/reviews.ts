@@ -10,8 +10,7 @@ import {
   type UpdateReviewInput,
 } from "@/lib/validation/review";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 /**
  * Revalidate the book detail route.
  *
@@ -99,7 +98,7 @@ export async function createReview(input: CreateReviewInput) {
       .single();
 
     if (error) {
-      console.error("Error creating review:", error);
+      logError("Error creating review", error);
       return { error: "Failed to create review" };
     }
 
@@ -121,7 +120,7 @@ export async function createReview(input: CreateReviewInput) {
 
     return { success: true, reviewId: review.id };
   } catch (error) {
-    console.error("Error in createReview:", error);
+    logError("Error in createReview", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -207,7 +206,7 @@ export async function updateReview(input: UpdateReviewInput) {
       .eq("id", data.reviewId);
 
     if (error) {
-      console.error("Error updating review:", error);
+      logError("Error updating review", error);
       return { error: "Failed to update review" };
     }
 
@@ -222,7 +221,7 @@ export async function updateReview(input: UpdateReviewInput) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in updateReview:", error);
+    logError("Error in updateReview", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -280,7 +279,7 @@ export async function deleteReview(reviewId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in deleteReview:", error);
+    logError("Error in deleteReview", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -335,7 +334,7 @@ export async function likeReview(reviewId: string) {
     });
 
     if (likeError) {
-      console.error("Error liking review:", likeError);
+      logError("Error liking review", likeError);
       return { error: "Failed to like review" };
     }
 
@@ -348,7 +347,7 @@ export async function likeReview(reviewId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in likeReview:", error);
+    logError("Error in likeReview", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -377,7 +376,7 @@ export async function unlikeReview(reviewId: string) {
       .eq("user_id", user.id);
 
     if (deleteError) {
-      console.error("Error unliking review:", deleteError);
+      logError("Error unliking review", deleteError);
       return { error: "Failed to unlike review" };
     }
 
@@ -388,7 +387,7 @@ export async function unlikeReview(reviewId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in unlikeReview:", error);
+    logError("Error in unlikeReview", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -427,7 +426,7 @@ export async function toggleReviewLike(reviewId: string) {
       return { ...result, liked: true };
     }
   } catch (error) {
-    console.error("Error in toggleReviewLike:", error);
+    logError("Error in toggleReviewLike", error);
     return { error: "An unexpected error occurred", liked: false };
   }
 }
@@ -456,7 +455,7 @@ export async function hasLikedReview(reviewId: string) {
 
     return { liked: !!like };
   } catch (error) {
-    console.error("Error in hasLikedReview:", error);
+    logError("Error in hasLikedReview", error);
     return { liked: false };
   }
 }
@@ -492,7 +491,7 @@ export async function getUserLikesForReviews(reviewIds: string[]) {
 
     return { likes: likesMap };
   } catch (error) {
-    console.error("Error in getUserLikesForReviews:", error);
+    logError("Error in getUserLikesForReviews", error);
     return { likes: {} };
   }
 }
@@ -512,6 +511,6 @@ async function updateBookRating(bookId: string) {
   });
 
   if (error) {
-    console.error("Error recalculating book rating:", error);
+    logError("Error recalculating book rating", error);
   }
 }

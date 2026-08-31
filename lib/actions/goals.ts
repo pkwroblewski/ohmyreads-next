@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { updateReadingGoalSchema } from "@/lib/validation/goal";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 export async function updateReadingGoal(targetBooks: number) {
   try {
     const supabase = await createClient();
@@ -56,7 +55,7 @@ export async function updateReadingGoal(targetBooks: number) {
 
     return { success: true };
   } catch (error) {
-    console.error("Unexpected error in updateReadingGoal:", error);
+    logError("Unexpected error in updateReadingGoal", error);
     return { error: "An unexpected error occurred" };
   }
 }

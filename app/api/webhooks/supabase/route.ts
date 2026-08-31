@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWelcomeEmail } from "@/lib/actions/email";
 import { timingSafeEqual } from "crypto";
-
+import { logError, logger } from "@/lib/utils/log";
 /**
  * Timing-safe comparison of two strings to prevent timing attacks
  */
@@ -20,10 +20,12 @@ function verifyWebhookSecret(request: NextRequest): boolean {
   // Fail closed in production - require secret
   if (!expectedSecret) {
     if (process.env.NODE_ENV === "production") {
-      console.error("SUPABASE_WEBHOOK_SECRET not configured in production - rejecting request");
+      logger.error(
+        "SUPABASE_WEBHOOK_SECRET not configured in production - rejecting request"
+      );
       return false;
     }
-    console.warn("SUPABASE_WEBHOOK_SECRET not configured (dev mode - allowing)");
+    logger.warn("SUPABASE_WEBHOOK_SECRET not configured (dev mode - allowing)");
     return true;
   }
 
@@ -70,14 +72,14 @@ export async function POST(request: NextRequest) {
         });
 
         if (!result.success) {
-          console.error("Failed to send welcome email:", result.error);
+          logError("Failed to send welcome email", result.error);
         }
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Webhook error:", error);
+    logError("Webhook error", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { BOOK_CARD_COLUMNS } from "./columns";
 import type { Profile, ReviewWithUser, UserBookWithBook } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 /**
  * Get profile by username
@@ -17,7 +18,7 @@ export async function getProfileByUsername(
     .single();
 
   if (error) {
-    console.error("Error fetching profile:", error);
+    logError("Error fetching profile", error);
     return null;
   }
 
@@ -37,7 +38,7 @@ export async function getProfileById(userId: string): Promise<Profile | null> {
     .single();
 
   if (error) {
-    console.error("Error fetching profile:", error);
+    logError("Error fetching profile", error);
     return null;
   }
 
@@ -106,7 +107,7 @@ export async function getUserBooks(
   const { data, error, count } = await query;
 
   if (error) {
-    console.error("Error fetching user books:", error);
+    logError("Error fetching user books", error);
     return { userBooks: [], total: 0 };
   }
 
@@ -173,7 +174,7 @@ export async function getUserReviewsPaginated(
   const { data, error, count } = await query;
 
   if (error) {
-    console.error("Error fetching user reviews:", error);
+    logError("Error fetching user reviews", error);
     return { reviews: [], total: 0 };
   }
 
@@ -214,7 +215,7 @@ export async function getUserReviews(
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching user reviews:", error);
+    logError("Error fetching user reviews", error);
     return [];
   }
 
@@ -234,7 +235,7 @@ export async function getSocialLinks(userId: string) {
     .order("display_order", { ascending: true });
 
   if (error) {
-    console.error("Error fetching social links:", error);
+    logError("Error fetching social links", error);
     return [];
   }
 
@@ -254,7 +255,7 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
     .single();
 
   if (error) {
-    console.error("Error checking admin status:", error);
+    logError("Error checking admin status", error);
     return false;
   }
 

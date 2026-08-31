@@ -3,7 +3,7 @@ import { CACHE_TAGS } from "@/lib/cache/tags";
 import { createPublicClient, createClient } from "@/lib/supabase/server";
 import type { ActivityFeedItemWithRelations } from "@/types/database";
 import { getFollowingIds } from "./follows";
-
+import { logError } from "@/lib/utils/log";
 // ============================================
 // TYPES
 // ============================================
@@ -112,7 +112,7 @@ export async function getCommunityFeedPage(options: {
     const { data, error } = await query;
 
     if (error) {
-      console.error("Error fetching community feed:", JSON.stringify(error, null, 2));
+      logError("Error fetching community feed", error);
       return { items: [], nextCursor: null, hasMore: false };
     }
 
@@ -168,7 +168,7 @@ export async function getCommunityFeedPage(options: {
 
     return { items, nextCursor, hasMore };
   } catch (err) {
-    console.error("Unexpected error in getCommunityFeedPage:", err);
+    logError("Unexpected error in getCommunityFeedPage", err);
     return { items: [], nextCursor: null, hasMore: false };
   }
 }
@@ -233,7 +233,7 @@ export async function getFollowingFeedPage(options: {
   const { data, error } = await query;
 
   if (error) {
-    console.error("Error fetching following feed:", error);
+    logError("Error fetching following feed", error);
     return { items: [], nextCursor: null, hasMore: false };
   }
 

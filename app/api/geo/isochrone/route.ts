@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { isForeignOrigin } from "@/lib/utils/csrf";
+import { logError } from "@/lib/utils/log";
 import {
   getIsochrone,
   isMcpConfigured,
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Error fetching isochrone:", error);
+    logError("Error fetching isochrone", error);
     return NextResponse.json(
       { error: "Failed to fetch reachable area" },
       { status: 500 }

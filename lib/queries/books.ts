@@ -4,6 +4,7 @@ import { CACHE_TAGS } from "@/lib/cache/tags";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import { BOOK_CARD_COLUMNS, BOOK_DETAIL_COLUMNS } from "./columns";
 import type { Book, BookSummary, ReviewWithUser, UserBook } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 /**
  * Get a single book by its slug
@@ -18,7 +19,7 @@ export async function getBookBySlug(slug: string): Promise<Book | null> {
     .single();
 
   if (error) {
-    console.error("Error fetching book:", error);
+    logError("Error fetching book", error);
     return null;
   }
 
@@ -103,8 +104,8 @@ export async function getBookReviews(
   const { data: reviews, error } = await query;
 
   if (error) {
-    console.error("Error fetching reviews:", error);
-    console.error("getBookReviews failed for bookId:", bookId);
+    logError("Error fetching reviews", error);
+    logError("getBookReviews failed for bookId", bookId);
     return [];
   }
 
@@ -155,7 +156,7 @@ export async function getUserReviewForBook(
   if (error) {
     // Not found is expected if user hasn't reviewed
     if (error.code === "PGRST116") return null;
-    console.error("Error fetching user review:", error);
+    logError("Error fetching user review", error);
     return null;
   }
 
@@ -180,7 +181,7 @@ export async function getUserReviewLikes(
     .in("review_id", reviewIds);
 
   if (error) {
-    console.error("Error fetching user likes:", error);
+    logError("Error fetching user likes", error);
     return new Set();
   }
 
@@ -263,7 +264,7 @@ export async function searchBooks(
   const { data, error, count } = await bookQuery;
 
   if (error) {
-    console.error("Error searching books:", error);
+    logError("Error searching books", error);
     return { books: [], total: 0 };
   }
 
@@ -283,7 +284,7 @@ async function fetchPopularBooks(limit: number): Promise<BookSummary[]> {
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching popular books:", error);
+    logError("Error fetching popular books", error);
     return [];
   }
 
@@ -309,7 +310,7 @@ async function fetchRecentBooks(limit: number): Promise<BookSummary[]> {
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching recent books:", error);
+    logError("Error fetching recent books", error);
     return [];
   }
 
@@ -331,7 +332,7 @@ async function fetchAllGenres(): Promise<string[]> {
   const { data, error } = await supabase.rpc("get_distinct_genres");
 
   if (error) {
-    console.error("Error fetching genres:", error);
+    logError("Error fetching genres", error);
     return [];
   }
 
@@ -363,7 +364,7 @@ export async function getRelatedBooks(
     .limit(limit);
 
   if (error) {
-    console.error("Error fetching related books:", error);
+    logError("Error fetching related books", error);
     return [];
   }
 
@@ -379,7 +380,7 @@ export async function getAllBookSlugs(): Promise<{ slug: string }[]> {
   const { data, error } = await supabase.from("books").select("slug");
 
   if (error) {
-    console.error("Error fetching book slugs:", error);
+    logError("Error fetching book slugs", error);
     return [];
   }
 
@@ -405,7 +406,7 @@ export async function getUserBookStatus(
   if (error) {
     // Not found is expected for books not in user's shelf
     if (error.code !== "PGRST116") {
-      console.error("Error fetching user book status:", error);
+      logError("Error fetching user book status", error);
     }
     return null;
   }

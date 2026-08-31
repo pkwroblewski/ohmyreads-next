@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getMessages, getConversationFriend } from "@/lib/queries/messages";
 import { friendIdSchema } from "@/lib/validation/message";
+import { logError } from "@/lib/utils/log";
 
 export async function GET(
   request: Request,
@@ -46,7 +47,7 @@ export async function GET(
       messages,
     });
   } catch (error) {
-    console.error("Error fetching messages:", error);
+    logError("Error fetching messages", error);
     return NextResponse.json(
       { error: "Failed to fetch messages" },
       { status: 500 }

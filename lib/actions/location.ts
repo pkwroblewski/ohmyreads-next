@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { encodeGeohash, isValidGeohash } from "@/lib/utils/geohash";
+import { logError } from "@/lib/utils/log";
 import {
   updateLocationSchema,
   updateLocationFromGeohashSchema,
@@ -70,7 +71,7 @@ export async function updateLocation(input: UpdateLocationInput) {
       .eq("id", user.id);
 
     if (error) {
-      console.error("Error updating location:", error);
+      logError("Error updating location", error);
       return { error: "Failed to update location" };
     }
 
@@ -79,7 +80,7 @@ export async function updateLocation(input: UpdateLocationInput) {
 
     return { success: true, geohash, label: input.label };
   } catch (error) {
-    console.error("Error in updateLocation:", error);
+    logError("Error in updateLocation", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -140,7 +141,7 @@ export async function updateLocationFromGeohash(input: {
       .eq("id", user.id);
 
     if (error) {
-      console.error("Error updating location:", error);
+      logError("Error updating location", error);
       return { error: "Failed to update location" };
     }
 
@@ -149,7 +150,7 @@ export async function updateLocationFromGeohash(input: {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in updateLocationFromGeohash:", error);
+    logError("Error in updateLocationFromGeohash", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -206,7 +207,7 @@ export async function toggleLocationSharing(enabled: boolean) {
       .eq("id", user.id);
 
     if (error) {
-      console.error("Error toggling location:", error);
+      logError("Error toggling location", error);
       return { error: "Failed to update setting" };
     }
 
@@ -215,7 +216,7 @@ export async function toggleLocationSharing(enabled: boolean) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in toggleLocationSharing:", error);
+    logError("Error in toggleLocationSharing", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -275,7 +276,7 @@ export async function updateLocationPrecision(precision: number) {
       .eq("id", user.id);
 
     if (error) {
-      console.error("Error updating precision:", error);
+      logError("Error updating precision", error);
       return { error: "Failed to update precision" };
     }
 
@@ -283,7 +284,7 @@ export async function updateLocationPrecision(precision: number) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in updateLocationPrecision:", error);
+    logError("Error in updateLocationPrecision", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -375,7 +376,7 @@ export async function setPresence(input: SetPresenceInput) {
       .eq("id", user.id);
 
     if (error) {
-      console.error("Error setting presence:", error);
+      logError("Error setting presence", error);
       return { error: "Failed to set presence" };
     }
 
@@ -385,7 +386,7 @@ export async function setPresence(input: SetPresenceInput) {
 
     return { success: true, expiresAt, placeName: input.placeName };
   } catch (error) {
-    console.error("Error in setPresence:", error);
+    logError("Error in setPresence", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -419,7 +420,7 @@ export async function clearPresence() {
       .eq("id", user.id);
 
     if (error) {
-      console.error("Error clearing presence:", error);
+      logError("Error clearing presence", error);
       return { error: "Failed to clear presence" };
     }
 
@@ -429,7 +430,7 @@ export async function clearPresence() {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in clearPresence:", error);
+    logError("Error in clearPresence", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -467,7 +468,7 @@ export async function clearLocation() {
       .eq("id", user.id);
 
     if (error) {
-      console.error("Error clearing location:", error);
+      logError("Error clearing location", error);
       return { error: "Failed to clear location" };
     }
 
@@ -476,7 +477,7 @@ export async function clearLocation() {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in clearLocation:", error);
+    logError("Error in clearLocation", error);
     return { error: "An unexpected error occurred" };
   }
 }

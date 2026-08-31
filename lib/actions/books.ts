@@ -19,8 +19,7 @@ import {
 } from "@/lib/validation/book-action";
 import crypto from "crypto";
 import type { Database } from "@/types/database";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 type UserBookInsert = Database["public"]["Tables"]["user_books"]["Insert"];
 
 // Types for external book data
@@ -52,7 +51,7 @@ export async function updateReadingStats(
     .eq("status", "read");
 
   if (readBooksError) {
-    console.error("Error fetching read books:", readBooksError);
+    logError("Error fetching read books", readBooksError);
   }
 
   // Count reviews
@@ -62,7 +61,7 @@ export async function updateReadingStats(
     .eq("user_id", userId);
 
   if (reviewsError) {
-    console.error("Error fetching reviews count:", reviewsError);
+    logError("Error fetching reviews count", reviewsError);
   }
 
   const booksRead = readBooks?.length || 0;
@@ -83,7 +82,7 @@ export async function updateReadingStats(
   );
 
   if (error) {
-    console.error("Error updating reading_stats:", error);
+    logError("Error updating reading_stats", error);
   }
 }
 
@@ -252,7 +251,7 @@ export async function addToShelf(bookId: string, status: string) {
 
     return { success: true, newBadges };
   } catch (error) {
-    console.error("Error in addToShelf:", error);
+    logError("Error in addToShelf", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -338,7 +337,7 @@ export async function updateReadingProgress(
       .select("book_id");
 
     if (error) {
-      console.error("Error updating reading progress:", error);
+      logError("Error updating reading progress", error);
       return { error: "Failed to update progress" };
     }
     if (!updated || updated.length === 0) {
@@ -355,7 +354,7 @@ export async function updateReadingProgress(
       progressPercentage,
     };
   } catch (error) {
-    console.error("Error in updateReadingProgress:", error);
+    logError("Error in updateReadingProgress", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -408,7 +407,7 @@ export async function removeFromShelf(bookId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in removeFromShelf:", error);
+    logError("Error in removeFromShelf", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -549,7 +548,7 @@ export async function importAndAddToShelf(
     });
 
     if (shelfError) {
-      console.error("Error adding to shelf:", shelfError);
+      logError("Error adding to shelf", shelfError);
       return { success: false, error: "Book added to catalog but failed to add to shelf" };
     }
 
@@ -575,7 +574,7 @@ export async function importAndAddToShelf(
 
     return { success: true, bookId, slug: bookSlug };
   } catch (error) {
-    console.error("Error in importAndAddToShelf:", error);
+    logError("Error in importAndAddToShelf", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }

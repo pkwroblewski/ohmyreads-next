@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { logError } from "@/lib/utils/log";
 import {
   sendMessageSchema,
   friendIdSchema,
@@ -82,13 +83,13 @@ export async function sendMessage(
       .single();
 
     if (error) {
-      console.error("Error sending message:", error);
+      logError("Error sending message", error);
       return { success: false, messageId: null, error: "Failed to send message" };
     }
 
     return { success: true, messageId: message.id, error: null };
   } catch (error) {
-    console.error("Unexpected error in sendMessage:", error);
+    logError("Unexpected error in sendMessage", error);
     return { success: false, messageId: null, error: "An unexpected error occurred" };
   }
 }
@@ -131,7 +132,7 @@ export async function markMessagesAsRead(friendId: string): Promise<{
       .is("read_at", null);
 
     if (error) {
-      console.error("Error marking messages as read:", error);
+      logError("Error marking messages as read", error);
       return { success: false, error: "Failed to mark messages as read" };
     }
 
@@ -152,7 +153,7 @@ export async function markMessagesAsRead(friendId: string): Promise<{
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Unexpected error in markMessagesAsRead:", error);
+    logError("Unexpected error in markMessagesAsRead", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
@@ -194,13 +195,13 @@ export async function deleteMessage(messageId: string): Promise<{
       .eq("sender_id", user.id);
 
     if (error) {
-      console.error("Error deleting message:", error);
+      logError("Error deleting message", error);
       return { success: false, error: "Failed to delete message" };
     }
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Unexpected error in deleteMessage:", error);
+    logError("Unexpected error in deleteMessage", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }

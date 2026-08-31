@@ -13,8 +13,7 @@ import type {
   ReadingChallenge,
   ChallengeWithProgress,
 } from "@/types/database";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 interface CreateChallengeInput {
   name: string;
   description?: string;
@@ -86,7 +85,7 @@ export async function createChallenge(input: CreateChallengeInput) {
 
     return { success: true, data };
   } catch (error) {
-    console.error("Unexpected error in createChallenge:", error);
+    logError("Unexpected error in createChallenge", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -141,7 +140,7 @@ export async function updateChallenge(
 
     return { success: true };
   } catch (error) {
-    console.error("Unexpected error in updateChallenge:", error);
+    logError("Unexpected error in updateChallenge", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -187,7 +186,7 @@ export async function deleteChallenge(challengeId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Unexpected error in deleteChallenge:", error);
+    logError("Unexpected error in deleteChallenge", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -329,7 +328,7 @@ export async function getChallenges(): Promise<{
 
     return { data: challengesWithProgress, error: null };
   } catch (error) {
-    console.error("Unexpected error in getChallenges:", error);
+    logError("Unexpected error in getChallenges", error);
     return { data: null, error: "An unexpected error occurred" };
   }
 }
@@ -389,7 +388,7 @@ export async function syncChallengeProgress() {
 
     return { success: true };
   } catch (error) {
-    console.error("Unexpected error in syncChallengeProgress:", error);
+    logError("Unexpected error in syncChallengeProgress", error);
     return { error: "An unexpected error occurred" };
   }
 }

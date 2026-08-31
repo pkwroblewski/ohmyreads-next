@@ -168,6 +168,45 @@ export function extractSupabaseErrorInfo(
 
 
 /**
+ * Picks the right extractor for a thrown value.
+ *
+ * Supabase/PostgREST errors are plain objects, not `Error` instances, and carry
+ * the fields `extractSupabaseErrorInfo` knows how to strip.
+ */
+function describeError(error: unknown): LogContext {
+  return error !== null &&
+    typeof error === "object" &&
+    !(error instanceof Error)
+    ? extractSupabaseErrorInfo(error as SupabaseError)
+    : extractErrorInfo(error);
+}
+
+/**
+ * Log an error with structured, scrubbed context. Use this in place of
+ * `console.error("Something failed:", error)`.
+ *
+ * This is the log-only counterpart to {@link reportError}: reach for that one
+ * when the call site also needs a client-safe string to return, and this one
+ * when it already has its own copy or returns nothing.
+ *
+ * @example
+ * ```ts
+ * } catch (error) {
+ *   logError("Error in getUserShelves", error, { userId });
+ *   return { shelves: [], error: "An unexpected error occurred" };
+ * }
+ * ```
+ */
+export function logError(
+  message: string,
+  error: unknown,
+  context?: LogContext
+): void {
+  const info = describeError(error);
+  logger.error(message, context ? { ...info, ...context } : info);
+}
+
+/**
  * Stable, client-safe error copy.
  *
  * Raw Postgres/PostgREST messages must never reach the browser — they leak
@@ -194,14 +233,7 @@ export function reportError(
   error: unknown,
   context?: LogContext
 ): string {
-  // Supabase/PostgREST errors are plain objects, not Error instances, and carry
-  // the fields extractSupabaseErrorInfo knows how to strip.
-  const info =
-    error !== null && typeof error === "object" && !(error instanceof Error)
-      ? extractSupabaseErrorInfo(error as SupabaseError)
-      : extractErrorInfo(error);
-
-  logger.error(message, context ? { ...info, ...context } : info);
+  logError(message, error, context);
 
   return GENERIC_ERROR_MESSAGE;
 }

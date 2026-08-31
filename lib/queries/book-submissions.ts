@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { BookSubmission, BookSubmissionWithSubmitter } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 /**
  * Get a submission by ID
@@ -27,13 +28,13 @@ export async function getSubmissionById(
       .single();
 
     if (error) {
-      console.error("Error fetching submission:", error);
+      logError("Error fetching submission", error);
       return null;
     }
 
     return data as BookSubmissionWithSubmitter;
   } catch (error) {
-    console.error("Error in getSubmissionById:", error);
+    logError("Error in getSubmissionById", error);
     return null;
   }
 }
@@ -61,14 +62,14 @@ export async function getUserSubmissions(
     const { data, error } = await query;
 
     if (error) {
-      console.error("Error fetching user submissions:", error);
+      logError("Error fetching user submissions", error);
       return [];
     }
 
     // DB stores status/cover_source as plain text; narrow to the app unions at the boundary
     return (data as BookSubmission[]) || [];
   } catch (error) {
-    console.error("Error in getUserSubmissions:", error);
+    logError("Error in getUserSubmissions", error);
     return [];
   }
 }
@@ -100,13 +101,13 @@ export async function getPendingSubmissions(
       .limit(limit);
 
     if (error) {
-      console.error("Error fetching pending submissions:", error);
+      logError("Error fetching pending submissions", error);
       return [];
     }
 
     return data as BookSubmissionWithSubmitter[];
   } catch (error) {
-    console.error("Error in getPendingSubmissions:", error);
+    logError("Error in getPendingSubmissions", error);
     return [];
   }
 }
@@ -138,13 +139,13 @@ export async function getSubmissionHistory(
       .limit(limit);
 
     if (error) {
-      console.error("Error fetching submission history:", error);
+      logError("Error fetching submission history", error);
       return [];
     }
 
     return data as BookSubmissionWithSubmitter[];
   } catch (error) {
-    console.error("Error in getSubmissionHistory:", error);
+    logError("Error in getSubmissionHistory", error);
     return [];
   }
 }
@@ -186,7 +187,7 @@ export async function getAllSubmissions(options?: {
     const { data, error, count } = await query.range(offset, offset + limit - 1);
 
     if (error) {
-      console.error("Error fetching submissions:", error);
+      logError("Error fetching submissions", error);
       return { submissions: [], total: 0 };
     }
 
@@ -195,7 +196,7 @@ export async function getAllSubmissions(options?: {
       total: count || 0,
     };
   } catch (error) {
-    console.error("Error in getAllSubmissions:", error);
+    logError("Error in getAllSubmissions", error);
     return { submissions: [], total: 0 };
   }
 }
@@ -237,7 +238,7 @@ export async function getSubmissionStats(): Promise<{
         (rejectedResult.count || 0),
     };
   } catch (error) {
-    console.error("Error in getSubmissionStats:", error);
+    logError("Error in getSubmissionStats", error);
     return { pending: 0, approved: 0, rejected: 0, total: 0 };
   }
 }
@@ -287,7 +288,7 @@ export async function checkDuplicateBook(
 
     return { exists: false };
   } catch (error) {
-    console.error("Error in checkDuplicateBook:", error);
+    logError("Error in checkDuplicateBook", error);
     return { exists: false };
   }
 }
@@ -319,13 +320,13 @@ export async function getRecentlyApprovedSubmissions(
       .limit(limit);
 
     if (error) {
-      console.error("Error fetching approved submissions:", error);
+      logError("Error fetching approved submissions", error);
       return [];
     }
 
     return data as BookSubmissionWithSubmitter[];
   } catch (error) {
-    console.error("Error in getRecentlyApprovedSubmissions:", error);
+    logError("Error in getRecentlyApprovedSubmissions", error);
     return [];
   }
 }

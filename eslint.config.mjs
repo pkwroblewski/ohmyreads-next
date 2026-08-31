@@ -13,6 +13,33 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+
+  // Server code must log through `lib/utils/log.ts`, not `console`.
+  //
+  // In production the logger emits structured JSON that a log aggregator can
+  // search and that scrubs Postgres error internals; a raw `console.error`
+  // emits unsearchable text and can leak constraint, column and policy names
+  // into the log stream. This rule is what stops the 300+ call sites migrated
+  // in task 24 from creeping back.
+  //
+  // Scoped to code that runs on the server. Browser components and the CLI
+  // scripts under `scripts/` are deliberately not covered — see the plan's
+  // Out of Scope table.
+  {
+    files: ["lib/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
+    rules: {
+      "no-console": "error",
+    },
+  },
+
+  // The logger itself is the one place console is the correct output: it is
+  // the sink every other call site now routes through.
+  {
+    files: ["lib/utils/log.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

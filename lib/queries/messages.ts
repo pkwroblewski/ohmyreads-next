@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { DirectMessage, ConversationPreview } from "@/types/database";
+import { logError } from "@/lib/utils/log";
 
 // ============================================
 // GET CONVERSATIONS
@@ -25,7 +26,7 @@ export async function getConversations(): Promise<ConversationPreview[]> {
   const { data, error } = await supabase.rpc("get_conversations");
 
   if (error) {
-    console.error("Error fetching conversations:", error);
+    logError("Error fetching conversations", error);
     return [];
   }
 
@@ -89,7 +90,7 @@ export async function getMessages(
   const { data: messages, error } = await query;
 
   if (error) {
-    console.error("Error fetching messages:", error);
+    logError("Error fetching messages", error);
     return { messages: [], hasMore: false };
   }
 
@@ -126,7 +127,7 @@ export async function getUnreadCount(): Promise<number> {
     .is("read_at", null);
 
   if (error) {
-    console.error("Error fetching unread count:", error);
+    logError("Error fetching unread count", error);
     return 0;
   }
 

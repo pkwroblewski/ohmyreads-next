@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getConversations, getUnreadCount } from "@/lib/queries/messages";
+import { logError } from "@/lib/utils/log";
 
 export async function GET() {
   try {
@@ -24,7 +25,7 @@ export async function GET() {
       unreadCount,
     });
   } catch (error) {
-    console.error("Error fetching conversations:", error);
+    logError("Error fetching conversations", error);
     return NextResponse.json(
       { error: "Failed to fetch conversations" },
       { status: 500 }

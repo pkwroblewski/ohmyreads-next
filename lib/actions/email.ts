@@ -12,8 +12,7 @@ import {
 } from "@/lib/email/templates/welcome";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { sendWelcomeEmailSchema } from "@/lib/validation/email";
-import { reportError } from "@/lib/utils/log";
-
+import { logger, reportError } from "@/lib/utils/log";
 interface SendWelcomeEmailParams {
   email: string;
   username: string;
@@ -29,7 +28,7 @@ export async function sendWelcomeEmail({
 
   // Skip if no API key configured
   if (!resend) {
-    console.warn("RESEND_API_KEY not configured, skipping welcome email");
+    logger.warn("RESEND_API_KEY not configured, skipping welcome email");
     return { success: true };
   }
 

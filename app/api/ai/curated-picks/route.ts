@@ -8,7 +8,7 @@ import { CACHE_TAGS } from "@/lib/cache/tags";
 import { curatedPickSchema } from "@/lib/ai/schemas";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { isForeignOrigin } from "@/lib/utils/csrf";
-
+import { logError } from "@/lib/utils/log";
 interface CuratedPick {
   bookId: string;
   reason: string;
@@ -143,7 +143,7 @@ Description: ${book.description?.slice(0, 200) || "No description"}`,
       } catch (aiError) {
         // Covers both a provider failure and NoObjectGeneratedError (model
         // returned something the schema rejects).
-        console.error("AI error for book:", book.id, aiError);
+        logError("AI generation failed for book", aiError, { bookId: book.id });
         return fallbackPick(book);
       }
     })
@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ picks });
   } catch (error) {
-    console.error("Curated picks error:", error);
+    logError("Curated picks error", error);
     return NextResponse.json(
       { error: "Failed to generate picks", picks: [] },
       { status: 500 }

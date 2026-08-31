@@ -3,6 +3,7 @@ import { createPublicClient } from "@/lib/supabase/server";
 import { encodeGeohash, getNeighbors } from "@/lib/utils/geohash";
 import { getDirections, getIsochrone, isMcpConfigured } from "@/lib/services/mapbox-mcp";
 import { isOpenNow } from "@/lib/utils/opening-hours";
+import { logError } from "@/lib/utils/log";
 
 // Define schemas
 const searchNearbyPlacesSchema = jsonSchema<{
@@ -237,7 +238,7 @@ export const searchNearbyPlacesTool = tool({
         },
       };
     } catch (error) {
-      console.error("Error searching places:", error);
+      logError("Error searching places", error);
       return { success: false, error: "Failed to search places", places: [] };
     }
   },
@@ -280,7 +281,7 @@ export const getDirectionsToPlaceTool = tool({
         distance_text: directions.distance_text,
       };
     } catch (error) {
-      console.error("Error getting directions:", error);
+      logError("Error getting directions", error);
       return { success: false, error: "Failed to get directions" };
     }
   },

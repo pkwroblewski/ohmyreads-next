@@ -7,8 +7,7 @@ import {
   targetUserIdSchema,
   friendRequestIdSchema,
 } from "@/lib/validation/social";
-import { reportError } from "@/lib/utils/log";
-
+import { logError, reportError } from "@/lib/utils/log";
 // ============================================
 // SEND FRIEND REQUEST
 // ============================================
@@ -85,7 +84,7 @@ export async function sendFriendRequest(targetUserId: string): Promise<{
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Unexpected error in sendFriendRequest:", error);
+    logError("Unexpected error in sendFriendRequest", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
@@ -162,7 +161,7 @@ export async function acceptFriendRequest(requestId: string): Promise<{
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Unexpected error in acceptFriendRequest:", error);
+    logError("Unexpected error in acceptFriendRequest", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
@@ -238,7 +237,7 @@ export async function rejectFriendRequest(requestId: string): Promise<{
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Unexpected error in rejectFriendRequest:", error);
+    logError("Unexpected error in rejectFriendRequest", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
@@ -311,7 +310,7 @@ export async function cancelFriendRequest(requestId: string): Promise<{
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Unexpected error in cancelFriendRequest:", error);
+    logError("Unexpected error in cancelFriendRequest", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
@@ -378,7 +377,7 @@ export async function removeFriend(targetUserId: string): Promise<{
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Unexpected error in removeFriend:", error);
+    logError("Unexpected error in removeFriend", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
