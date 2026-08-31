@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getUser, createClient } from "@/lib/supabase/server";
 import { getUserReadingStats } from "@/lib/queries/stats";
 import StatsHero from "@/components/stats/stats-hero";
-import StatsCharts from "@/components/stats/stats-charts";
+import StatsCharts from "@/components/stats/stats-charts-lazy";
 import StatsHighlights from "@/components/stats/stats-highlights";
 import StatsGoal from "@/components/stats/stats-goal";
 import EmptyStats from "@/components/stats/empty-stats";
