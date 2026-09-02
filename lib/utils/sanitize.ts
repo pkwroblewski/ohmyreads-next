@@ -52,3 +52,27 @@ export function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+/**
+ * Return a user-supplied URL only when it is safe to use as an `href`.
+ *
+ * Anything that is not an absolute `http:` / `https:` URL — `javascript:`,
+ * `data:`, `vbscript:`, scheme-less strings, garbage — comes back as
+ * `undefined` so the caller can drop the link entirely. Validation rejects
+ * these on the way in (`httpUrl` in `lib/validation/shared.ts`); this is the
+ * render-time guard for rows that predate that check.
+ *
+ * @example
+ * safeHref("https://example.com") // "https://example.com"
+ * safeHref("javascript:alert(1)") // undefined
+ * safeHref(null) // undefined
+ */
+export function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:" ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}

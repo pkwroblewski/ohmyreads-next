@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { moderateSubmission } from "@/lib/actions/book-submissions";
+import { safeHref } from "@/lib/utils/sanitize";
 
 interface SubmissionModerationActionsProps {
   submissionId: string;
@@ -27,6 +28,7 @@ export function SubmissionModerationActions({
   const [isRejecting, setIsRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [isPending, startTransition] = useTransition();
+  const coverHref = safeHref(coverUrl);
 
   const handleApprove = () => {
     startTransition(async () => {
@@ -135,9 +137,9 @@ export function SubmissionModerationActions({
         <X className="h-4 w-4 mr-2" />
         Reject
       </Button>
-      {coverUrl && (
+      {coverHref && (
         <a
-          href={coverUrl}
+          href={coverHref}
           target="_blank"
           rel="noopener noreferrer"
           className="ml-auto"

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logError } from "@/lib/utils/log";
 import {
@@ -143,8 +144,9 @@ export async function markMessagesAsRead(friendId: string): Promise<{
       .eq("receiver_id", user.id)
       .is("read_at", null);
 
-    // Update profile's unread count
-    await supabase
+    // profiles.unread_messages_count is trigger-owned: migration 064 reverts
+    // direct API writes to it, so this reconcile goes through the service role.
+    await createAdminClient()
       .from("profiles")
       .update({ unread_messages_count: count || 0 })
       .eq("id", user.id);

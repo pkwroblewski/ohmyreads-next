@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { BADGES, type BadgeDefinition } from "@/lib/data/badges";
 import type { UserBadge } from "@/types/database";
 import { logError } from "@/lib/utils/log";
@@ -251,8 +252,6 @@ function checkBadgeCriteria(
 
 // Check and unlock any new badges for a user
 export async function checkAndUnlockBadges(userId: string): Promise<string[]> {
-  const supabase = await createClient();
-
   // Get current badges and stats
   const [existingBadges, stats] = await Promise.all([
     getUserBadges(userId),
@@ -273,7 +272,9 @@ export async function checkAndUnlockBadges(userId: string): Promise<string[]> {
   // inserted by a concurrent call is skipped rather than failing the batch on
   // the user_badges(user_id, badge_id) unique constraint, and the returned
   // rows are exactly the ones this call actually unlocked.
-  const { data, error } = await supabase
+  // Awarded through the service role: migration 064 removed the owner INSERT
+  // policy on user_badges so a user cannot self-grant a badge via the API.
+  const { data, error } = await createAdminClient()
     .from("user_badges")
     .upsert(
       toUnlock.map((badge) => ({ user_id: userId, badge_id: badge.id })),

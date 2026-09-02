@@ -10,6 +10,7 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { safeHref } from "@/lib/utils/sanitize";
 import type { SocialLink } from "@/types/database";
 
 interface SocialLinksDisplayProps {
@@ -62,11 +63,13 @@ export function SocialLinksDisplay({
     <div className="flex items-center gap-2">
       {links.map((link) => {
         const { icon: Icon, name, color } = getPlatformInfo(link.url);
+        const href = safeHref(link.url);
+        if (!href) return null;
 
         return (
           <a
             key={link.id}
-            href={link.url}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
             title={link.platform || name}

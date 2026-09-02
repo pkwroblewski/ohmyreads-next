@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn, formatTimeRemaining } from "@/lib/utils";
+import { safeHref } from "@/lib/utils/sanitize";
 import type { ReaderPin, PlacePin, MapItem } from "./reader-map-immersive";
 
 export interface UserPresenceData {
@@ -523,6 +524,7 @@ function PlaceView({
   const directionsUrl = place.lat && place.lng
     ? `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`
     : null;
+  const websiteUrl = safeHref(place.website);
 
   // Share functionality
   const handleShare = async () => {
@@ -613,9 +615,9 @@ function PlaceView({
             </div>
           )}
 
-          {place.website ? (
+          {websiteUrl ? (
             <a
-              href={place.website}
+              href={websiteUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/60 hover:bg-muted text-foreground transition-colors"

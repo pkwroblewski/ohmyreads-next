@@ -22,6 +22,7 @@ import {
 } from "@/lib/queries/users";
 import { getUserBadgesWithDefinitions } from "@/lib/queries/badges";
 import { isFollowing, getFollowCounts } from "@/lib/queries/follows";
+import { safeHref } from "@/lib/utils/sanitize";
 import { getFriendshipStatus } from "@/lib/queries/friends";
 import { SocialLinksDisplay } from "@/components/social/social-links-display";
 import FollowButton from "@/components/social/follow-button";
@@ -117,6 +118,7 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
 
   const displayName = profile.display_name || profile.username;
   const memberSince = format(new Date(profile.created_at), "MMMM yyyy");
+  const websiteHref = safeHref(profile.website);
 
   return (
     <>
@@ -200,9 +202,9 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
 
               {/* Links & Meta */}
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm text-muted-foreground">
-                {profile.website && (
+                {websiteHref && (
                   <a
-                    href={profile.website}
+                    href={websiteHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-primary transition-colors"

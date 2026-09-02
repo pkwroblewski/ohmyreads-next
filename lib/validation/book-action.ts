@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { httpUrl } from "./shared";
 
 const shelfStatusSchema = z.enum(["want_to_read", "reading", "read"]);
 
@@ -40,10 +41,7 @@ export const importAndAddToShelfSchema = z.object({
       .string()
       .max(5000, "Description must be less than 5000 characters")
       .optional(),
-    coverUrl: z
-      .string()
-      .url("Invalid cover URL")
-      .max(2000, "Invalid cover URL")
+    coverUrl: httpUrl("Invalid cover URL")
       .or(z.literal(""))
       .nullable()
       .optional(),

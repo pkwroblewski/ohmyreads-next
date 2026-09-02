@@ -187,24 +187,24 @@ export type Database = {
       }
       book_club_reads: {
         Row: {
-          book_id: string | null
-          club_id: string | null
+          book_id: string
+          club_id: string
           completed_at: string | null
           id: string
           started_at: string | null
           status: string | null
         }
         Insert: {
-          book_id?: string | null
-          club_id?: string | null
+          book_id: string
+          club_id: string
           completed_at?: string | null
           id?: string
           started_at?: string | null
           status?: string | null
         }
         Update: {
-          book_id?: string | null
-          club_id?: string | null
+          book_id?: string
+          club_id?: string
           completed_at?: string | null
           id?: string
           started_at?: string | null
@@ -1031,6 +1031,7 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          disabled_at: string | null
           discovery_visible: boolean | null
           display_name: string | null
           email_digest_enabled: boolean | null
@@ -1062,6 +1063,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          disabled_at?: string | null
           discovery_visible?: boolean | null
           display_name?: string | null
           email_digest_enabled?: boolean | null
@@ -1093,6 +1095,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          disabled_at?: string | null
           discovery_visible?: boolean | null
           display_name?: string | null
           email_digest_enabled?: boolean | null
@@ -1863,6 +1866,7 @@ export type Database = {
         Args: { review_id: string }
         Returns: undefined
       }
+      is_api_role: { Args: never; Returns: boolean }
       is_club_admin: { Args: { p_club_id: string }; Returns: boolean }
       is_club_member: { Args: { p_club_id: string }; Returns: boolean }
       recalculate_book_rating: {

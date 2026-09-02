@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { httpUrl } from "./shared";
 
 // ---- Shared ----
 export const adminBookIdSchema = z.string().uuid("Invalid book ID");
@@ -10,11 +11,7 @@ const adminReasonSchema = z
   .max(1000, "Reason must be less than 1000 characters")
   .optional();
 
-const bookUrlSchema = z
-  .string()
-  .url("Invalid cover URL")
-  .max(2000, "Invalid cover URL")
-  .or(z.literal(""));
+const bookUrlSchema = httpUrl("Invalid cover URL").or(z.literal(""));
 
 // ---- Book edits ----
 const adminBookFieldsSchema = z.object({

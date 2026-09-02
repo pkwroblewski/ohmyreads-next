@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { escapeHtml, sanitizePostgrestValue } from "@/lib/utils/sanitize";
+import { escapeHtml, safeHref, sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import { getWelcomeEmailHtml } from "@/lib/email/templates/welcome";
 
 describe("escapeHtml", () => {
@@ -105,5 +105,39 @@ describe("sanitizePostgrestValue", () => {
 
   it("leaves ordinary search terms intact", () => {
     expect(sanitizePostgrestValue("Olga Tokarczuk")).toBe("Olga Tokarczuk");
+  });
+});
+
+describe("safeHref", () => {
+  it("passes through absolute http(s) URLs unchanged", () => {
+    expect(safeHref("https://example.com")).toBe("https://example.com");
+    expect(safeHref("http://example.com/a?b=c#d")).toBe("http://example.com/a?b=c#d");
+    // Scheme matching is case-insensitive, like browsers.
+    expect(safeHref("HTTPS://x")).toBe("HTTPS://x");
+  });
+
+  it.each([
+    "javascript:alert(1)",
+    "JAVASCRIPT:alert(1)",
+    " javascript:alert(1)",
+    "\tjavascript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "vbscript:msgbox(1)",
+    "ftp://example.com/file",
+    "blob:https://example.com/uuid",
+  ])("drops %j", (url) => {
+    expect(safeHref(url)).toBeUndefined();
+  });
+
+  it("drops scheme-less and unparseable values instead of rendering a relative link", () => {
+    expect(safeHref("example.com")).toBeUndefined();
+    expect(safeHref("//example.com")).toBeUndefined();
+    expect(safeHref("not a url")).toBeUndefined();
+  });
+
+  it("treats null, undefined and empty as no link", () => {
+    expect(safeHref(null)).toBeUndefined();
+    expect(safeHref(undefined)).toBeUndefined();
+    expect(safeHref("")).toBeUndefined();
   });
 });

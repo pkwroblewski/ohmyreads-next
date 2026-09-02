@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { httpUrl } from "./shared";
 
 export const submitPlaceSchema = z.object({
   name: z
@@ -27,7 +28,7 @@ export const submitPlaceSchema = z.object({
     .min(-180, "Invalid coordinates")
     .max(180, "Invalid coordinates")
     .optional(),
-  website: z.string().trim().max(500, "Invalid website").optional(),
+  website: httpUrl("Invalid website URL").optional().or(z.literal("")),
   description: z
     .string()
     .trim()

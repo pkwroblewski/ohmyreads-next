@@ -38,54 +38,6 @@ export interface ExternalBookData {
 
 type ShelfStatus = "want_to_read" | "reading" | "read";
 
-// Helper function to update reading stats when shelf changes
-export async function updateReadingStats(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string
-) {
-  // Count read books and sum pages
-  const { data: readBooks, error: readBooksError } = await supabase
-    .from("user_books")
-    .select("book:books(page_count)")
-    .eq("user_id", userId)
-    .eq("status", "read");
-
-  if (readBooksError) {
-    logError("Error fetching read books", readBooksError);
-  }
-
-  // Count reviews
-  const { count: reviewsCount, error: reviewsError } = await supabase
-    .from("reviews")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", userId);
-
-  if (reviewsError) {
-    logError("Error fetching reviews count", reviewsError);
-  }
-
-  const booksRead = readBooks?.length || 0;
-  const pagesRead = readBooks?.reduce(
-    (sum, ub) => sum + ((ub.book as { page_count?: number })?.page_count || 0),
-    0
-  );
-
-  const { error } = await supabase.from("reading_stats").upsert(
-    {
-      user_id: userId,
-      books_read: booksRead,
-      pages_read: pagesRead,
-      reviews_count: reviewsCount || 0,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" }
-  );
-
-  if (error) {
-    logError("Error updating reading_stats", error);
-  }
-}
-
 // PostgreSQL unique violation error code
 const UNIQUE_VIOLATION = "23505";
 const MAX_SLUG_RETRIES = 10;

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PlaceModerationActions } from "@/components/admin/place-moderation-actions";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate } from "@/lib/utils";
+import { safeHref } from "@/lib/utils/sanitize";
 
 export const metadata: Metadata = {
   title: "Place Moderation | Admin",
@@ -100,11 +101,11 @@ export default async function PlaceModerationPage() {
                       </a>
                     </p>
                   )}
-                  {submission.website && (
+                  {safeHref(submission.website) && (
                     <p>
                       <span className="text-muted-foreground">Website:</span>{" "}
                       <a
-                        href={submission.website}
+                        href={safeHref(submission.website)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline inline-flex items-center gap-1"

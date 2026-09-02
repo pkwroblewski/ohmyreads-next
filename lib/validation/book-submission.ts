@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { httpUrl } from "./shared";
 
 // ISBN validation regex (supports ISBN-10 and ISBN-13)
 const isbnRegex =
@@ -24,7 +25,7 @@ export const createBookSubmissionSchema = z.object({
     .string()
     .max(5000, "Description must be less than 5000 characters")
     .optional(),
-  coverUrl: z.string().url("Invalid cover URL").optional().or(z.literal("")),
+  coverUrl: httpUrl("Invalid cover URL").optional().or(z.literal("")),
   genres: z
     .array(z.string())
     .max(10, "Maximum 10 genres allowed")

@@ -1,7 +1,6 @@
 import { BookOpen, FileText, MessageSquare, Flame } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
-import { updateReadingStats } from "@/lib/actions/books";
 import type { ReadingStats } from "@/types/database";
 
 /**
@@ -26,9 +25,12 @@ export async function DashboardStats() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  // Initialize reading stats if they don't exist
+  // Initialize reading stats if they don't exist. The counters themselves are
+  // trigger-owned (migrations 057/064), so only the row is created here.
   if (!stats) {
-    await updateReadingStats(supabase, user.id);
+    await supabase
+      .from("reading_stats")
+      .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
     const { data: newStats } = await supabase
       .from("reading_stats")
       .select("*")

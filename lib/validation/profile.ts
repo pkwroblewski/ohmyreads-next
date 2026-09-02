@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { httpUrl } from "./shared";
 
 export const updateProfileSchema = z.object({
   displayName: z.string().max(100, "Display name too long").optional(),
@@ -12,13 +13,13 @@ export const updateProfileSchema = z.object({
     )
     .optional(),
   bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
-  website: z.string().url("Invalid website URL").optional().or(z.literal("")),
-  avatarUrl: z.string().url("Invalid avatar URL").optional().or(z.literal("")),
+  website: httpUrl("Invalid website URL").optional().or(z.literal("")),
+  avatarUrl: httpUrl("Invalid avatar URL").optional().or(z.literal("")),
 });
 
 export const socialLinkSchema = z.object({
   platform: z.string().min(1),
-  url: z.string().url("Invalid URL"),
+  url: httpUrl("Invalid URL"),
   displayOrder: z.number().int().min(0),
 });
 

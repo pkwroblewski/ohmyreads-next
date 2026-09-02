@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { adminGetUser } from "@/lib/actions/admin-users";
+import { safeHref } from "@/lib/utils/sanitize";
 
 export const metadata: Metadata = {
   title: "User Details | Admin",
@@ -37,6 +38,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
   const readingStats = Array.isArray(user.reading_stats)
     ? user.reading_stats[0]
     : user.reading_stats;
+  const websiteHref = safeHref(user.website);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -91,9 +93,9 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
                 <Calendar className="h-4 w-4" />
                 Joined {new Date(user.created_at).toLocaleDateString()}
               </div>
-              {user.website && (
+              {websiteHref && (
                 <a
-                  href={user.website}
+                  href={websiteHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 hover:text-primary"

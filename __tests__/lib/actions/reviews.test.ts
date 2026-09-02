@@ -15,11 +15,6 @@ vi.mock("@/lib/utils/rate-limit", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 9, resetIn: 60000 }),
 }));
 
-// Mock the books action dependency
-vi.mock("@/lib/actions/books", () => ({
-  updateReadingStats: vi.fn().mockResolvedValue(undefined),
-}));
-
 // Supabase mock builder
 function createMockSupabase(user: { id: string } | null) {
   const mockChain = {

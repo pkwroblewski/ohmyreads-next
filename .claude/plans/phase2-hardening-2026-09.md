@@ -1,0 +1,945 @@
+# OhMyReads - Phase 2 Hardening & Quality (Sep 2026)
+
+> **Workflow:**
+> 1. Read this file
+> 2. Find first PENDING task
+> 3. Execute all steps (check off as you go)
+> 4. Complete all verify checks
+> 5. Fill in "Completed Notes" section
+> 6. Change status from `[ ] PENDING` to `[x] COMPLETE`
+> 7. Update progress counter in Status table
+> 8. User runs `/clear` to reset context
+> 9. Repeat from step 1
+
+---
+
+## ▶ RESUME HERE (last updated 2026-09-02)
+
+Plan created from `.claude/plans/phase2-audit-findings-2026-09-01.md` (the 7-agent audit run after the Aug 2026 hardening plan). **Tasks 1–2 are COMPLETE** (migration 064 applied live 2026-09-01; Task 2 URL hardening done 2026-09-02; working tree NOT yet committed). **Next: Task 3.**
+
+**Facts every task must respect:**
+- Migration **064 is applied**. Next free migration number is **`065`** (Task 24). Apply with `npx supabase db query --linked -f <file>` (no Docker; `db diff/dump` do not work). Regenerate types with `npm run types:gen` and commit `types/database.generated.ts`.
+- Baseline gates on `a51eab6`: `tsc` clean, lint **0 errors / 25 warnings**, **245 tests / 18 files**, build exit 0. After Task 2: **312 tests / 19 files**. Every task must end at or above this.
+- `no-console` is an **error** in `lib/**` and `app/**`; log through `logError` / `logger` from `lib/utils/log.ts`.
+- **Never run `npm run build` while `next dev` is up** (poisons `.next`; fix is `rm -rf .next`).
+- `requireAdmin()` returns the **session** client. Any admin write needs either a matching `is_admin` RLS policy (Task 1 added them for books/reviews/comments/place_photos/book_submissions) or `createAdminClient()`.
+- Since 064, trigger-owned counters (`profiles.*_count`, `reviews.likes_count`, `reading_lists.likes_count`, `reading_stats.*`) are **silently reverted** when written through the session client (`is_api_role()` = `current_user IN ('anon','authenticated')`). Write them only via `createAdminClient()` or leave them to the triggers. Re-run `supabase/checks/064_phase2_security.check.sql` after any RLS/trigger change.
+- Cache tags: import `CACHE_TAGS` / `BOOK_CATALOG_TAGS` from `lib/cache/tags.ts`; Server Actions invalidate with `invalidateTags()` (wraps `updateTag`); route handlers use `revalidateTag(tag, "max")`.
+- Ratings: `average_rating` / `ratings_count` = Open Library; `local_average_rating` / `local_ratings_count` = this site. Never let one write the other.
+- Zod 4.1.13: `z.string().url()` accepts `javascript:`; `z.string().uuid()` accepts the nil UUID.
+- Chrome MCP works but its tab is signed out and Claude may not type passwords. Logged-in checks need the user to sign in inside the MCP tab, or the throwaway-public-route trick (`app/<name>/page.tsx`, delete afterwards).
+- No AI provider key and no Sentry DSN in `.env.local`.
+
+---
+
+## Status
+
+| # | Task | Priority | Effort | Status | Files |
+|---|------|----------|--------|--------|-------|
+| 1 | Migration 064: RPC guards, RLS freezes, admin policies, constraints, indexes | 🔴 Critical | High | [x] COMPLETE | `supabase/migrations/064_phase2_security.sql`, `supabase/checks/064_phase2_security.check.sql`, `types/database.generated.ts`, `lib/actions/messages.ts`, `lib/queries/badges.ts`, `lib/actions/books.ts`, `components/dashboard/dashboard-stats.tsx` |
+| 2 | Reject `javascript:` / `data:` URLs in profile, social, cover fields | 🔴 Critical | Low | [x] COMPLETE | `lib/validation/shared.ts` (new), `lib/validation/{profile,admin,book-action,book-submission,place}.ts`, `lib/utils/sanitize.ts`, `app/(public)/users/[username]/page.tsx`, `app/(app)/profile/page.tsx`, `app/(app)/admin/users/[id]/page.tsx`, `app/(app)/admin/moderation/places/page.tsx`, `components/social/social-links-display.tsx`, `components/admin/submission-moderation-actions.tsx`, `components/geo/{map-context-panel,map-detail-panel}.tsx`, `__tests__/lib/validation/profile.test.ts` (new), `__tests__/lib/utils/sanitize.test.ts` |
+| 3 | Stop world-readable location / presence / admin columns on `profiles` | 🔴 Critical | Medium | [ ] PENDING | `supabase/migrations/064_*` (part 2 or `064b`), `lib/queries/geo.ts`, `app/api/geo/readers/route.ts`, profile selects |
+| 4 | Let non-admin users add catalog books (service-role insert path) | 🔴 Critical | Medium | [ ] PENDING | `lib/actions/books.ts`, `lib/actions/import.ts`, `lib/supabase/admin.ts` |
+| 5 | Small security fixes: KV fail-closed, OG SSRF allow-list, CSRF Sec-Fetch-Site, cron compare, comment parent, CSV formulas, geohash, browse page coerce | 🟠 High | Medium | [ ] PENDING | `lib/utils/rate-limit.ts`, `app/api/og/{review,stats}/route.tsx`, `lib/utils/csrf.ts`, `app/api/cron/weekly-digest/route.ts`, `lib/actions/comments.ts`, `app/api/export/route.ts`, `lib/actions/location.ts`, `app/api/discover/browse/route.ts` |
+| 6 | Make admin book/review/comment/submission actions actually work and fail loudly | 🟠 High | Low | [ ] PENDING | `lib/actions/admin-books.ts`, `lib/actions/admin-reviews.ts`, `lib/actions/admin-enrichment.ts`, `lib/actions/book-submissions.ts` |
+| 7 | Real "disable user": column, enforcement, admin UI | 🟠 High | Medium | [ ] PENDING | `lib/actions/admin-users.ts`, `proxy.ts`, `app/(app)/layout.tsx`, `app/(app)/admin/users/[id]/page.tsx`, RLS in `064` |
+| 8 | Login error banner + admin dashboard fabricated trends and dead links | 🟡 Medium | Low | [ ] PENDING | `app/(auth)/login/page.tsx`, `app/(app)/admin/page.tsx` |
+| 9 | Email preferences: digest opt-out in settings + unsubscribe link | 🟠 High | Medium | [ ] PENDING | `app/(app)/settings/page.tsx`, `components/settings/*`, `lib/actions/privacy.ts` or `user.ts`, `app/api/cron/weekly-digest/route.ts`, `lib/email/templates/*` |
+| 10 | Activity card "More options" menu: wire Report/Share, strip debug logs | 🟢 Low | Low | [ ] PENDING | `components/community/activity-card.tsx`, `components/reports/*` |
+| 11 | Account deletion + password change in settings | 🔴 Critical | High | [ ] PENDING | `app/(app)/settings/page.tsx`, `components/settings/account-section.tsx` (new), `lib/actions/user.ts`, `lib/supabase/admin.ts`, `lib/utils/audit-log.ts` |
+| 12 | Privacy policy + terms match actual data practices | 🟠 High | Low | [ ] PENDING | `app/(public)/privacy/page.tsx`, `app/(public)/terms/page.tsx` |
+| 13 | Server-rendered book covers (LCP + crawlers) | 🟠 High | Medium | [ ] PENDING | `components/books/cover-image.tsx`, `components/books/book-card.tsx`, `lib/utils/covers.ts`, `app/(public)/books/[slug]/page.tsx` |
+| 14 | Memoised auth everywhere + `useSignOut` | 🟡 Medium | Medium | [ ] PENDING | ~60 files calling `supabase.auth.getUser()`, `hooks/use-auth.ts`, `components/layout/{app-top-bar,sidebar,navbar-user-menu,navbar-mobile-menu}.tsx` |
+| 15 | Asset hygiene: hero image, font weight, image TTL, Sentry Replay lazy, component annotation | 🟡 Medium | Low | [ ] PENDING | `public/images/*`, `components/home/home-hero.tsx`, `app/layout.tsx`, `next.config.ts`, `sentry.client.config.ts` |
+| 16 | Book page + profile page: dedupe queries, parallelise, cache public reads, paginate reviews | 🟡 Medium | Medium | [ ] PENDING | `app/(public)/books/[slug]/page.tsx`, `app/(public)/users/[username]/page.tsx`, `lib/queries/books.ts`, `lib/queries/reviews.ts`, `lib/queries/users.ts` |
+| 17 | Homepage: cache anon reads, parallelise signed-in path, gate trending-insights fetch | 🟡 Medium | Medium | [ ] PENDING | `app/(public)/page.tsx`, `lib/queries/home.ts`, `lib/queries/recommendations.ts`, `components/home/trending-now-list.tsx` |
+| 18 | my-shelf counts via `head:true`, paginate grid, scope the service worker | 🟡 Medium | Medium | [ ] PENDING | `app/(app)/my-shelf/page.tsx`, `lib/queries/users.ts`, `public/sw.js`, `components/pwa/service-worker-registration.tsx` |
+| 19 | SEO: canonicals, sitemap/robots, noindex hidden profiles, titles, OG rating source, logo | 🟡 Medium | Medium | [ ] PENDING | `app/(public)/{books,authors,lists,clubs}/[slug]/page.tsx`, `app/sitemap.ts`, `app/robots.ts`, `app/(public)/users/[username]/page.tsx`, `app/api/og/book/route.tsx`, `app/(public)/page.tsx`, `app/(public)/{trending,recommendations,about,discover}/page.tsx` |
+| 20 | Accessibility + UX: contrast, dialog focus, skip link, reduced motion, ARIA, touch menus, chat button, rating label | 🟡 Medium | High | [ ] PENDING | `components/books/{book-card,shelf-book-card}.tsx`, `components/ui/{rating-display,input}.tsx`, `components/search/{global-search-modal,unified-search}.tsx`, `components/layout/mobile-bottom-nav.tsx`, `components/messages/chat-trigger.tsx`, `app/globals.css`, `app/layout.tsx`, `app/(auth)/{login,signup}/page.tsx` |
+| 21 | Tests: eight untested modules + cache-invalidation assertions + fix weak tests | 🟠 High | High | [ ] PENDING | `__tests__/lib/actions/{books,shelves,messages,user,location,import}.test.ts`, `__tests__/app/api/{export,webhook,cron}.test.ts`, `__tests__/lib/utils/csv-parser.test.ts`, `__tests__/lib/actions/{reviews,comments}.test.ts` |
+| 22 | `requireUser` helper, one `ActionResult` type, reads out of `"use server"`, dead code, `noUnusedLocals` | 🟡 Medium | High | [ ] PENDING | `lib/auth/require-user.ts` (new), `types/app.ts`, `lib/actions/*.ts`, `lib/queries/*.ts`, 6 dead components, `tsconfig.json` |
+| 23 | Repo hygiene: README, CLAUDE.md commands, scripts archive, lint scoping, index keys, duplicate hook | 🟢 Low | Low | [ ] PENDING | `README.md`, `CLAUDE.md`, `scripts/`, `package.json`, `eslint.config.mjs`, `hooks/use-realtime-messages.ts`, 5 index-key components |
+| 24 | Migration 065: RLS initplan rewrite, merge permissive policies, drop redundant indexes/table, search_path on 4 functions | 🟡 Medium | Medium | [ ] PENDING | `supabase/migrations/065_rls_performance.sql` |
+| 25 | Final QA incl. signed-in admin + user smoke test | - | Medium | [ ] PENDING | - |
+
+**Progress: 1/25 complete**
+
+**Status Options:**
+- `[ ] PENDING` - not started
+- `[x] COMPLETE` - all steps and verify checks done
+- `[x] CODE COMPLETE - Verification blocked` - code done, verify requires deployment/action
+- `[-] BLOCKED` - cannot proceed, waiting on external dependency
+
+---
+
+## Summary
+
+The Aug 2026 hardening plan closed 32 findings but tested admin paths only through their refusal branches. A follow-up audit (security, database, performance, UX, SEO, product, code quality) found that admin edits and deletes silently no-op because `books`, `reviews`, `comments` and `book_submissions` have no admin RLS policies; that normal users cannot add uncatalogued books at all; that three moderation RPCs are callable by anyone with the anon key; that a friend-request receiver can forge a friendship and DM anyone; that `javascript:` URLs render as live links; that precise reader locations are readable through the REST API; and that the app promises account deletion and a digest opt-out it does not provide. This plan fixes those in priority order (one migration first, then app-side security, then the broken-in-production defects, then the two legal items), then takes the performance, SEO, accessibility, test-coverage and code-quality findings, and ends with the signed-in smoke test the previous plan never got to run. Expected outcome: no known exploitable path, every admin control working and verified as an admin, the legal pages true, and measurable LCP and auth-latency wins on the homepage and book page.
+
+---
+
+## Task 1: Migration 064 — RPC guards, RLS freezes, admin policies, constraints, indexes
+
+**Source:** Audit Findings > S1, S2, S5, S6, S7, B1, B2, D1, D2, D3, D4, D5, D6 (`phase2-audit-findings-2026-09-01.md`)  
+**Priority:** 🔴 Critical  
+**Effort:** High  
+**File(s):** `supabase/migrations/064_phase2_security.sql`, `types/database.generated.ts`
+
+**Context:** Verified live on 2026-09-01 via `pg_policies` and the Supabase security advisor. `approve_book_submission` (019:79), `approve_place_submission` and `reject_place_submission` (007:166, 224) are SECURITY DEFINER with no admin check and EXECUTE granted to `anon`; a user can publish their own submission. `friend_requests` UPDATE `WITH CHECK` (029:35-38) pins only `status`, so a receiver can rewrite `sender_id` and satisfy `are_friends()`, the sole gate on `direct_messages` INSERT. `books` has no UPDATE/DELETE policy at all; `reviews`/`comments`/`place_photos` have owner-only DELETE; `book_submissions` has no admin SELECT/UPDATE and its owner UPDATE pins `status = 'pending'` in WITH CHECK, so nothing can ever become `approved`. Owner-writable counters: `profiles` UPDATE has no WITH CHECK (followers/following/friends/unread counts), `reviews.likes_count`, `reading_lists.likes_count`, `reading_stats` (INSERT/UPDATE/DELETE), `user_badges` self-grant with free-text `badge_id`. `direct_messages` UPDATE lets the recipient rewrite `content`/`sender_id`. `handle_new_user` (044:14-17) copies signup metadata unchecked and there is no CHECK on `profiles.username`. Friendship uniqueness is directional (022:15). `update_place_photos_count` (012:69) is not SECURITY DEFINER so `photos_count` never increments. `user_checkin_stats` has no reconcile path. `on_review_created` (005:46) ignores `is_public_activity`. `book_club_reads.club_id/book_id` nullable and the member-count decrement lacks `GREATEST(0, …)`. Nine FKs lack indexes and the book review list has no `(book_id, created_at DESC)` / `(book_id, likes_count DESC)` index. Task 7 also needs `profiles.disabled_at` — add it here so there is one migration.
+
+**Steps:**
+1. [x] Write `064_phase2_security.sql` with these sections, each idempotent (`CREATE OR REPLACE`, `DROP POLICY IF EXISTS`, `IF NOT EXISTS`):
+   - **RPC guards:** re-create `approve_book_submission`, `approve_place_submission`, `reject_place_submission` with `SET search_path = public` and an in-body guard: `IF COALESCE(auth.jwt()->>'role','') <> 'service_role' AND NOT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin) THEN RAISE EXCEPTION 'Admin privileges required' USING ERRCODE='42501'`. For `approve_book_submission` also refuse `p_moderator_id <> auth.uid()` when `auth.uid()` is not null. `REVOKE ALL … FROM PUBLIC, anon; GRANT EXECUTE … TO authenticated, service_role`.
+   - **Revoke direct execution** (from `PUBLIC, anon, authenticated`) on every trigger function and on `cleanup_expired_presence`, `are_friends`, `get_user_shelf_count`, `recalculate_book_rating`. Use a catalog-driven `DO` block like migration 054: every function in `public` whose return type is `trigger`, plus the named list. Keep `are_friends` callable from RLS by granting to `authenticated` only if the policy evaluation fails without it — test in step 5.
+   - **friend_requests:** replace "Receivers can respond to friend requests" with `WITH CHECK (auth.uid() = receiver_id AND status IN ('accepted','rejected'))`; add BEFORE UPDATE trigger `freeze_friend_request_parties()` that sets `NEW.sender_id := OLD.sender_id; NEW.receiver_id := OLD.receiver_id` unless service_role. Add `CREATE UNIQUE INDEX friend_requests_pair_uniq ON friend_requests (LEAST(sender_id,receiver_id), GREATEST(sender_id,receiver_id))` — first `SELECT` for existing duplicate pairs and resolve them (keep the earliest accepted row) inside the migration.
+   - **direct_messages:** add `WITH CHECK (auth.uid() = receiver_id)` to "Users can mark messages read"; BEFORE UPDATE trigger freezing `content`, `sender_id`, `receiver_id`, `created_at` unless service_role.
+   - **Counter freeze triggers:** `profiles` (`followers_count`, `following_count`, `friends_count`, `unread_messages_count`), `reviews.likes_count`, `reading_lists.likes_count`, `reading_stats` trigger-owned columns — BEFORE UPDATE, revert to OLD unless `auth.jwt()->>'role' = 'service_role'`. **Check `lib/actions/messages.ts:148` first:** it writes `unread_messages_count` through the user client; either exclude that column or move that write to `createAdminClient()` in the same task. Drop "Users can delete their own stats" on `reading_stats`. Drop "Users can receive badges" INSERT on `user_badges` (badges are awarded by `lib/queries/badges.ts` — confirm which client it uses; if session client, switch it to service role in this task).
+   - **Admin policies:** `books` UPDATE + DELETE for admins; `reviews`, `comments`, `place_photos` DELETE for admins; `book_submissions` SELECT + UPDATE for admins (mirror 007:129/144). Use `(SELECT auth.uid())` and the `EXISTS (SELECT 1 FROM profiles p WHERE p.id = (SELECT auth.uid()) AND p.is_admin)` form from 062.
+   - **profiles:** `ALTER TABLE profiles ADD CONSTRAINT profiles_username_format CHECK (username IS NULL OR username ~ '^[a-z0-9_]{3,30}$') NOT VALID` then `VALIDATE` after checking live rows (query first; if any existing username violates it, lowercase/strip in the migration and record which ones in Completed Notes). Length caps on `display_name` (≤ 80) and `avatar_url`/`website` (≤ 2048). Normalise username in `handle_new_user` (lowercase, strip non `[a-z0-9_]`, fall back to `user_<8 hex>`). Add `disabled_at TIMESTAMPTZ NULL` (Task 7).
+   - **Integrity:** `ALTER FUNCTION update_place_photos_count() SECURITY DEFINER SET search_path = public`; add `user_checkin_stats` block to `reconcile_counters()`; add the `is_public_activity` check to `on_review_created`; `book_club_reads.club_id/book_id SET NOT NULL` (after checking for nulls); `GREATEST(0, …)` in `update_club_member_count`.
+   - **Indexes:** `reviews (book_id, created_at DESC)`, `reviews (book_id, likes_count DESC)`, and the nine unindexed FKs: `reports(resolved_by)`, `profiles(admin_granted_by)`, `book_submissions(book_id)`, `book_submissions(moderated_by)`, `place_checkins(book_id)`, `places(submitted_by)`, `place_submissions(moderator_id)`, `reading_list_books(book_id)`, `book_club_reads(book_id)`.
+2. [x] Dry-run the whole file inside `BEGIN; … ROLLBACK;` with `npx supabase db query --linked` and fix any error.
+3. [x] Apply for real. Run `npm run types:gen`; diff — only `disabled_at` and any new function signatures should change.
+4. [x] Add tests in `__tests__/` for the friend-request forge (RLS matrix via the existing SQL-matrix pattern from task 31 of the previous plan, or a documented manual SQL check in Completed Notes) — at minimum record the `SET LOCAL ROLE authenticated` checks you ran.
+5. [x] Re-run the Supabase security advisor (`get_advisors` type `security`) and confirm `anon_security_definer_function_executable` no longer lists the three approve/reject RPCs or any trigger function.
+
+**Verify:**
+- [x] In a rolled-back transaction as `authenticated` with a non-admin JWT: `SELECT approve_book_submission(<id>, <uid>)` raises 42501; UPDATE on `friend_requests` changing `sender_id` leaves `sender_id` unchanged; UPDATE `profiles SET followers_count = 999` leaves it unchanged; UPDATE `reviews SET likes_count = 999` unchanged. (checks C4, C6, C7, C8)
+- [x] As an admin JWT: `UPDATE books SET title = title WHERE id = <any>` returns 1 row; `DELETE FROM reviews WHERE id = <test row>` returns 1 row; `SELECT count(*) FROM book_submissions WHERE status='pending'` equals the unfiltered count. (checks C19, C20, C21)
+- [x] Security advisor: 0 anon-callable SECURITY DEFINER functions except those deliberately public (`get_top_reviewers`, `get_reader_taste_batch`, admin analytics for authenticated). — Satisfied for everything this task named (the three moderation RPCs, every trigger function, `are_friends`, `cleanup_expired_presence`, `get_user_shelf_count`, `recalculate_book_rating` are gone from the advisor). Pre-existing anon-callable SECURITY DEFINER functions outside this task's list remain and are recorded under Issues for Task 24.
+- [x] `npm run typecheck`, `npm run test:run`, `npm run lint` at baseline or better. (tsc clean; 245 tests / 18 files; lint 0 errors / 25 warnings)
+
+**Completed Notes:**
+- Files modified: `supabase/migrations/064_phase2_security.sql` (new, 9 sections), `supabase/checks/064_phase2_security.check.sql` (new, reusable 28-check role matrix that always rolls back), `types/database.generated.ts` (only `book_club_reads.club_id/book_id` NOT NULL, `profiles.disabled_at`, `is_api_role`), `lib/actions/messages.ts` (`markMessagesAsRead` writes `unread_messages_count` via `createAdminClient()`), `lib/queries/badges.ts` (`checkAndUnlockBadges` upserts via `createAdminClient()`), `lib/actions/books.ts` (removed `updateReadingStats`), `components/dashboard/dashboard-stats.tsx` (init creates the `reading_stats` row only), `__tests__/lib/actions/reviews.test.ts` (dropped the stale `updateReadingStats` mock).
+- Approach taken: Live inventory first (`pg_policies`, `pg_proc` grants/owners, `pg_trigger`, `pg_indexes`, offending rows). Migration is idempotent throughout. Dry run = `BEGIN;` + migration + check script in one `db query` call; the check script raises at the end so the transaction always rolls back and the report travels in the exception message (the CLI only returns the last statement's result). Applied live 2026-09-01, then re-ran the check script against the applied schema: `ALL CHECKS PASSED: C1-C3 anon; C4-C17 user A; C18 user B; C19-C23 admin; C26 handle_new_user; C24-C28 schema`. The check script simulates PostgREST with `set_config('request.jwt.claims', …)` + `SET LOCAL ROLE`, picks fixtures dynamically (an admin, non-admin A, A's non-admin friend B, unrelated non-admin C) and covers: anon cannot call the RPCs / `are_friends` / `cleanup_expired_presence` / a trigger function; non-admin cannot approve, cannot rewrite `sender_id` while accepting (and `friends_count` still increments through the trigger), cannot forge `followers_count`, `likes_count`, `books_read`, cannot self-grant a badge, delete stats, see foreign submissions, update books or delete foreign reviews, cannot set a bad username; liking still bumps `likes_count`; DM to a friend still inserts; recipient can mark read but not rewrite content (and `unread_messages_count` still decrements); admin can update books, delete reviews, see all pending, approve only as self, reject via plain update; `reconcile_counters()` reports `user_checkin_stats`; every username matches the format; `handle_new_user` turned `"Dry-Run Üser!"` into `dryrunser` (via a rolled-back `auth.users` insert); 12 indexes, `disabled_at`, NOT NULLs and the photos trigger's SECURITY DEFINER are present.
+- Deviations from plan: (1) **Freeze predicate is `current_user IN ('anon','authenticated')` (`public.is_api_role()`), not `auth.jwt()->>'role' = 'service_role'`** — every counter is maintained by SECURITY DEFINER triggers/RPCs that run inside the user's request, where the JWT role is still `authenticated`; the plan's rule would have reverted every legitimate trigger update (proved by C6c/C9/C18b). The freeze trigger functions are SECURITY INVOKER on purpose. (2) Freezes also run BEFORE INSERT (counters forced to 0) so a first-time self-insert cannot seed forged values. (3) `display_name` cap is 100, not 80, to match `updateProfileSchema`. (4) `profiles` UPDATE policy also gained `WITH CHECK (auth.uid() = id)`. (5) The username CHECK was added directly (5 rows) rather than NOT VALID + VALIDATE. (6) Tests are the SQL check script, not vitest — vitest has no DB credentials and mocking RLS proves nothing. (7) `updateReadingStats` (session-client recompute called from the dashboard) was removed rather than left as a silent no-op; the 057 sync triggers own those columns. (8) `direct_messages` "Users can mark messages read" already had the WITH CHECK live; it was re-created with `(SELECT auth.uid())` anyway. (9) `are_friends` keeps EXECUTE for `authenticated` (the DM INSERT policy evaluates it as the caller — C10 fails without it); only PUBLIC/anon revoked.
+- Issues encountered: Live username `fabfashion-bianca` (profile `5ea44a01-72a1-43b5-86f5-238b65160a55`) was normalised to `fabfashionbianca` — that user's profile URL changed. 0 duplicate friend-request pairs, 0 null `book_club_reads`, 0 over-long display names/URLs. `supabase_migrations.schema_migrations` still only records up to 048 (unchanged practice since 049). **Residual for Task 24 (not in this task's list):** the advisor still reports anon-callable SECURITY DEFINER `add_club_creator_as_admin` (self-checked), `increment_review_likes` / `decrement_review_likes` (recompute-only since 054), `generate_club_slug`, `get_club_visibility` / `is_club_admin` / `is_club_member` (used by RLS for anonymous club reads, so revoking anon needs a policy rewrite), `reconcile_book_local_ratings`; and `reviews` / `reading_lists` UPDATE policies have no WITH CHECK, so an owner could reassign `user_id` — add `WITH CHECK (auth.uid() = user_id)` in 065. Also for a later pass: `lib/actions/messages.ts` and `lib/queries/badges.ts` now import `createAdminClient`, so `SUPABASE_SERVICE_ROLE_KEY` must exist wherever they run (it already does for the callback route).
+
+**Status:** [x] COMPLETE
+
+---
+
+## Task 2: Reject `javascript:` / `data:` URLs in profile, social, cover fields
+
+**Source:** Audit Findings > S3  
+**Priority:** 🔴 Critical  
+**Effort:** Low  
+**File(s):** `lib/validation/profile.ts`, every other `lib/validation/*.ts` schema with a `.url()` field, `app/(public)/users/[username]/page.tsx`, `components/social/social-links-display.tsx`, `app/(app)/admin/users/[id]/page.tsx`
+
+**Context:** Verified with zod 4.1.13: `z.string().url()` accepts `javascript:alert(1)`, `data:text/html,…` and `vbscript:`. `website` and social `url` are rendered as raw `href` on the public profile (line 205), the social links component (line 69) and the admin user page (line 96). CSP `script-src` includes `'unsafe-inline'`, so the payload runs on the app origin for any visitor who clicks, including an admin reviewing a reported user.
+
+**Steps:**
+1. [x] Add `httpUrl = z.string().url().regex(/^https?:\/\//i, "Only http(s) URLs are allowed").max(2048)` to `lib/validation/shared.ts` (or the existing shared module — grep for one).
+2. [x] Replace `.url()` on `website`, `avatarUrl`, social `url`, and any `coverUrl`/`imageUrl`/`website` in `lib/validation/{place,book-submission,list,club,*}.ts` (grep `\.url\(` across `lib/validation`).
+3. [x] Add `safeHref(url: string | null): string | undefined` in `lib/utils/sanitize.ts` returning the URL only when it parses with protocol `http:`/`https:`; use it at the three render sites and any other `href={…user value…}` (grep `href={profile.` / `href={link.` / `href={place.`).
+4. [x] Tests: `__tests__/lib/utils/sanitize.test.ts` — `javascript:`, `data:`, `vbscript:`, ` javascript:` (leading space), `HTTPS://x` all handled; `__tests__/lib/validation/profile.test.ts` (new) — schema rejects the same set.
+5. [x] Live data: `SELECT id, website FROM profiles WHERE website !~* '^https?://' AND website <> ''` plus the same on `social_links.url`; null out offenders in a small SQL run and record the count.
+
+**Verify:**
+- [x] New tests pass; suite ≥ 245.
+- [x] `grep -rn "href={" app components | grep -v "href={\`\|href=\"/"` shows no raw user URL without `safeHref`.
+- [x] Typecheck + lint clean.
+
+**Completed Notes:**
+- Files modified: `lib/validation/shared.ts` (new — `httpUrl(message)` factory: `.url()` + `^https?://` regex + max 2048); `lib/validation/profile.ts` (website, avatarUrl, social `url`), `lib/validation/admin.ts` (`bookUrlSchema`), `lib/validation/book-action.ts` (import `coverUrl`), `lib/validation/book-submission.ts` (`coverUrl`), `lib/validation/place.ts` (`website` — was a bare 500-char string with **no** URL check at all); `lib/utils/sanitize.ts` (`safeHref()`); render sites: `app/(public)/users/[username]/page.tsx`, `app/(app)/profile/page.tsx`, `app/(app)/admin/users/[id]/page.tsx`, `app/(app)/admin/moderation/places/page.tsx`, `components/social/social-links-display.tsx` (skips a link entirely when unsafe), `components/admin/submission-moderation-actions.tsx` (cover "open" link), `components/geo/map-context-panel.tsx` + `components/geo/map-detail-panel.tsx` (`place.website` / OSM `enrichment.website`); tests: `__tests__/lib/validation/profile.test.ts` (new, 56 cases across profile/social/place/book-submission schemas + `httpUrl`), `__tests__/lib/utils/sanitize.test.ts` (+24 `safeHref` cases).
+- Approach taken: two layers — schema rejects on the way in (`httpUrl`), `safeHref()` at render drops anything whose `new URL()` protocol is not `http:`/`https:` (so leading whitespace, `JAVASCRIPT:`, `data:`, `vbscript:`, `blob:`, scheme-less `example.com` and `//host` all vanish instead of rendering). `safeHref` returns the original string unchanged when safe, so existing display code (e.g. the host-only label in `map-detail-panel`) keeps working.
+- Deviations from plan: (1) `httpUrl` is a factory, not a constant, so every schema keeps its existing user-facing message ("Invalid cover URL", "Invalid website URL"). (2) Scope grew from the plan's three render sites to eight — the admin place-moderation page, the submission cover link and both geo panels also rendered user/OSM URLs as raw `href`. (3) `place.ts#website` gained real URL validation (it previously accepted any string), so a place submitted as `example.com` without a scheme is now rejected with "Invalid website URL" instead of being stored as a broken relative link. (4) `components/geo/event-card.tsx#event.url` was left alone: `book_events` has no app write path (seeded by SQL only), so it is not user-controlled. (5) `.max()` is 2048 everywhere (plan) — the two cover schemas previously allowed 2000; no live row exceeds either.
+- Issues encountered: live-data scan (step 5) across `profiles.website`, `profiles.avatar_url`, `social_links.url`, `place_submissions.website`, `places.website`, `book_submissions.cover_url`, `books.cover_url` found **0** rows failing `^https?://` — no SQL write was needed. The plan's `href={` grep now shows only `admin/page.tsx:251` (a ternary between two internal routes) and `event-card.tsx` (see deviation 4). Gates: tsc clean, lint 0 errors / 25 warnings, **312 tests / 19 files** (from 245 / 18). Not committed (Task 1 work is also still uncommitted).
+
+**Status:** [x] COMPLETE
+
+---
+
+## Task 3: Stop world-readable location / presence / admin columns on `profiles`
+
+**Source:** Audit Findings > S4  
+**Priority:** 🔴 Critical  
+**Effort:** Medium  
+**File(s):** `supabase/migrations/064_phase2_security.sql` (append a section, or `064b_profiles_columns.sql` if 064 is already applied), `lib/queries/geo.ts`, `app/api/geo/readers/route.ts`, `lib/queries/users.ts`, `lib/queries/profiles*.ts`, any `select("*")` on `profiles`
+
+**Context:** `profiles` SELECT policy is `USING (true)` (001:27) and no later migration narrowed it. With the public anon key: `GET /rest/v1/profiles?select=username,location_geohash,location_label,location_updated_at&location_enabled=eq.true` returns every user who ever enabled location at geohash precision up to 8 (≈19×38 m), expired presence included, `discovery_visible=false` included. `is_admin=eq.true` enumerates admins. The "active presence only, truncated" rules live only in JS (`lib/queries/geo.ts:100-113`, `app/api/geo/readers/route.ts:187`). Migration 056 protected `user_books`/`reading_stats` but not this table.
+
+**Steps:**
+1. [ ] Inventory: grep every `from("profiles")` select and list which of `location_geohash`, `location_label`, `location_updated_at`, `presence_type`, `presence_note`, `presence_expires_at`, `unread_messages_count`, `email_*`, `is_admin` each reads, and with which client.
+2. [ ] Migration: `REVOKE SELECT (location_geohash, location_label, location_updated_at, presence_note, presence_expires_at, unread_messages_count, email_digest_enabled, email_digest_frequency, email_notifications_enabled) ON profiles FROM anon, authenticated;` Keep `is_admin` readable only if the UI needs it for other users (it does not — `getIsAdmin` reads the caller's own row; use an RPC `is_current_user_admin()` or the JWT claim instead). Owner reads of their own row go through a SECURITY DEFINER `get_my_profile()` RPC or `createAdminClient()` on the server.
+3. [ ] Create `get_nearby_readers(p_geohash_prefix text, p_limit int)` SECURITY DEFINER `SET search_path = public` that applies the presence-expiry rule, `discovery_visible`, `location_enabled`, and truncates the returned geohash to the coarse precision the map uses; `REVOKE FROM anon` unless the public map needs it (check `app/(public)/community/map`).
+4. [ ] Rewrite `lib/queries/geo.ts` and `app/api/geo/readers/route.ts` to call the RPC; remove the JS-side filtering that is now enforced in SQL.
+5. [ ] Fix every select from step 1 that read a revoked column with the session/anon client (settings page reads the owner's own presence — route it through the owner RPC or the server admin client after `getUser()`).
+6. [ ] Regenerate types; add tests for the RPC visibility matrix (SQL, documented) and a route test that `/api/geo/readers` no longer returns precision > the coarse level.
+
+**Verify:**
+- [ ] `curl "$SUPABASE_URL/rest/v1/profiles?select=location_geohash" -H "apikey: $ANON"` returns a 401/42501 permission error.
+- [ ] Settings page still shows the owner's own location/presence; community map still renders readers; admin users page still shows `is_admin`.
+- [ ] Typecheck, lint, tests, build at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 4: Let non-admin users add catalog books
+
+**Source:** Audit Findings > B3  
+**Priority:** 🔴 Critical  
+**Effort:** Medium  
+**File(s):** `lib/actions/books.ts` (`importAndAddToShelf`, `insertBookWithUniqueSlug`), `lib/actions/import.ts`, `lib/supabase/admin.ts`
+
+**Context:** Live policy on `books` is INSERT for admins only (019:28). `importAndAddToShelf` (books.ts:419-471, called from `components/ai/ai-book-search.tsx:372`) and the Goodreads import (import.ts:199, 319) insert into `books` with the session client, so any reader who is not an admin gets "Error inserting book" when the title is not already catalogued. The owner tests as admin and never saw it. Decide: (a) insert through `createAdminClient()` after Zod validation and after `getUser()` succeeds, stamping `created_by = user.id` and null ratings, or (b) an RLS policy `authenticated may INSERT with created_by = auth.uid() AND average_rating IS NULL AND ratings_count = 0 AND local_* = 0`. Prefer (a): it keeps the catalog write behind server validation and does not widen RLS.
+
+**Steps:**
+1. [ ] In `insertBookWithUniqueSlug`, accept the client as a parameter as today, but have both callers pass `createAdminClient()` only for the `books` insert; every other query in those actions stays on the session client.
+2. [ ] Ensure the inserted row sets `created_by: user.id`, `average_rating: null`, `ratings_count: 0`, `local_average_rating: null`, `local_ratings_count: 0`, `cover_source` where known.
+3. [ ] Keep rate limits: `importAndAddToShelf` and `importFromGoodreads` already call `checkRateLimit` — confirm and tighten (10 catalog inserts / hour / user for AI import).
+4. [ ] Tests (`__tests__/lib/actions/books.test.ts`, new — also Task 21's T1): non-admin path calls the admin client for the insert, refuses unauthenticated, retries slug on 23505 up to 10 times.
+5. [ ] Throwaway-route or signed-in check: add a book that is not in the catalog as a non-admin user (create one with `supabase.auth.admin.createUser` in a script if needed) and confirm it lands on the shelf.
+
+**Verify:**
+- [ ] A non-admin user can import an uncatalogued book via AI search and via Goodreads CSV.
+- [ ] `books` INSERT policy unchanged (still admin-only for direct REST writes).
+- [ ] Tests + gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 5: Small security fixes bundle
+
+**Source:** Audit Findings > S8, S9, S10  
+**Priority:** 🟠 High  
+**Effort:** Medium  
+**File(s):** `lib/utils/rate-limit.ts`, `app/api/og/review/route.tsx`, `app/api/og/stats/route.tsx`, `lib/utils/csrf.ts`, `app/api/cron/weekly-digest/route.ts`, `lib/actions/comments.ts`, `app/api/export/route.ts`, `lib/actions/location.ts`, `app/api/discover/browse/route.ts`
+
+**Context:** Eight independent low-to-medium findings, each a few lines: (1) rate limiter uses the in-memory map in production when `KV_REST_API_URL/TOKEN` are unset — fail-closed at line 181 only covers KV *errors*; (2) OG routes fetch `avatar_url`/`cover_url` server-side inside `ImageResponse` (SSRF to internal addresses); (3) `isForeignOrigin` (csrf.ts:379) allows requests with neither Origin nor Referer, so cross-site `<img src=/api/geo/…>` farms the paid geo proxies on victims' budgets; (4) cron secret compared with `!==` (line 30) while webhook/seed use `timingSafeEqual`; (5) comment reply parent not checked against `review_id` (comments.ts:559-573); (6) `escapeCsv` (export/route.ts:305-312) does not neutralise leading `= + - @ \t`; (7) `placeGeohash` written with only a max-12 check (location.ts:366, validation/location.ts:666); (8) `discover/browse` returns 500 on NaN/negative `page` (route.ts:536).
+
+**Steps:**
+1. [ ] rate-limit: if `isProduction && !kvConfigured` → `logger.error` once and return `{ allowed: false }` (fail closed); add test.
+2. [ ] OG routes: `isAllowedImageHost(url)` against the `remotePatterns` hosts in `next.config.ts` (export the list from one module); render a placeholder when not allowed. Test both.
+3. [ ] csrf: when both headers are absent, allow only if `Sec-Fetch-Site` is `same-origin` or `none`; otherwise reject. Test the three cases.
+4. [ ] cron: reuse the existing `safeCompare` helper (move it to `lib/utils/secrets.ts` if it lives in the webhook file).
+5. [ ] comments: add `.eq("review_id", data.reviewId)` to the parent lookup; test.
+6. [ ] export: prefix cells starting with `= + - @ \t \r` with `'`; test with a title `=HYPERLINK(...)`.
+7. [ ] location: validate with `isValidGeohash` as `updateLocationFromGeohash:123` does.
+8. [ ] browse: `z.coerce.number().int().min(1).max(500)` on `page`/`limit`; test NaN → 400.
+9. [ ] Ask the user to confirm `KV_REST_API_URL` / `KV_REST_API_TOKEN` exist in the Vercel project (Vercel CLI is not installed; `vercel env ls` after `npm i -g vercel`, or the dashboard). Record the answer.
+
+**Verify:**
+- [ ] Each of the 8 items has a passing test or a documented manual check.
+- [ ] Gates at baseline.
+- [ ] KV presence in Vercel confirmed (or the task is marked CODE COMPLETE - Verification blocked for that item only).
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 6: Make admin book/review/comment/submission actions actually work and fail loudly
+
+**Source:** Audit Findings > B1, B2  
+**Priority:** 🟠 High  
+**Effort:** Low  
+**File(s):** `lib/actions/admin-books.ts`, `lib/actions/admin-reviews.ts`, `lib/actions/admin-enrichment.ts`, `lib/actions/book-submissions.ts`
+
+**Context:** Task 1 adds the missing admin policies, so these actions will start working. But `adminDeleteBook` (admin-books.ts:315) and `adminDeleteReview` (admin-reviews.ts:236) currently treat `error: null` with zero affected rows as success and write an audit row claiming the deletion — that must never be possible again. `moderateSubmission` should stop inserting into `books` by hand if it duplicates `approve_book_submission` logic — pick one path (the RPC, now guarded) and delete the other.
+
+**Steps:**
+1. [ ] Every admin `.delete()` / `.update()` on `books`, `reviews`, `comments`, `book_submissions`, `place_photos`: add `.select("id")` and treat `data.length === 0` as `{ success: false, error: "Nothing was changed" }` with `logError`; write the audit row only after a non-empty result.
+2. [ ] `book-submissions.ts`: `getPendingSubmissions` / `getAllSubmissions` — confirm they now return other users' rows for an admin; `moderateSubmission` → call `approve_book_submission` RPC (guarded in Task 1) or keep the manual insert but through the same helper; remove the duplicate.
+3. [ ] `admin-enrichment.ts:122` uses `createClient()` after `requireAdmin()` — switch to the client `requireAdmin()` returns.
+4. [ ] Tests: `__tests__/lib/actions/admin-books.test.ts` and `admin-reviews.test.ts` — zero-row delete returns failure and does **not** call `createAuditLog`.
+5. [ ] Signed-in admin check (Chrome MCP tab signed in by the user, or defer to Task 25): edit a book title, delete a test review, approve a test submission; each visibly changes.
+
+**Verify:**
+- [ ] Tests pass; no admin action can report success on 0 rows.
+- [ ] Admin submissions queue lists pending rows from other users.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 7: Real "disable user"
+
+**Source:** Audit Findings > B4  
+**Priority:** 🟠 High  
+**Effort:** Medium  
+**File(s):** `lib/actions/admin-users.ts`, `proxy.ts`, `app/(app)/layout.tsx`, `app/(app)/admin/users/[id]/page.tsx`, `components/admin/*` (per-row island), `supabase/migrations/064_*` (column added in Task 1)
+
+**Context:** `adminDisableUser` (admin-users.ts:346-349) only writes an audit row; there is no column, no gate, and no UI caller. The reports queue from the previous plan therefore has no enforcement action. Task 1 adds `profiles.disabled_at`.
+
+**Steps:**
+1. [ ] `adminDisableUser` / `adminEnableUser`: write `disabled_at` via `createAdminClient()` (like `adminToggleAdmin`), keep the self/admin guards, audit as today. Also call `supabase.auth.admin.updateUserById(id, { ban_duration: "876000h" })` on disable and `ban_duration: "none"` on enable so Supabase Auth refuses new sessions.
+2. [ ] Enforcement: `app/(app)/layout.tsx` — after profile load, if `disabled_at` is set, sign out and redirect to `/login?error=account_disabled`; `proxy.ts` cannot read the column cheaply, so rely on the layout plus the auth ban.
+3. [ ] Content: add `AND disabled_at IS NULL` to the public SELECT policies on `reviews`, `comments`, `reading_lists` (join to profiles) **or** filter in the public queries — choose RLS if the initplan cost is acceptable (measure with `EXPLAIN`), otherwise queries. Hide disabled users from discover, search and public profile (`notFound()`).
+4. [ ] UI: Disable/Enable button with reason dialog on `admin/users/[id]`, and a "Disable author" action in the reports queue row (`app/(app)/admin/reports/*`).
+5. [ ] Tests: action tests for both paths (admin client called, audit row), layout redirect test if the pattern exists in `__tests__`.
+
+**Verify:**
+- [ ] Disabling a test user: they are redirected on next navigation, cannot log in again, their reviews vanish from the book page, their profile 404s.
+- [ ] Enabling restores all of the above.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 8: Login error banner + admin dashboard fabricated trends and dead links
+
+**Source:** Audit Findings > B5, B6  
+**Priority:** 🟡 Medium  
+**Effort:** Low  
+**File(s):** `app/(auth)/login/page.tsx`, `app/(app)/admin/page.tsx`
+
+**Context:** `app/(app)/layout.tsx` redirects to `/login?error=auth_error|profile_creation_failed|layout_error` (lines 27, 56, 79) and Task 7 adds `account_disabled`, but the login page reads only `redirect` (line 73) — users see "Welcome back" after being thrown out. The admin dashboard passes hard-coded `trend={{ value: 12 }}` and `{{ value: 8 }}` (lines 272, 283) next to real counts, and links to `/admin/email` and `/admin/settings` (445-446), which do not exist.
+
+**Steps:**
+1. [ ] Login: map `error` → user-facing copy (`auth_error` "Your session expired, please sign in again"; `profile_creation_failed` "We could not finish setting up your profile…"; `layout_error` "Something went wrong loading your account"; `account_disabled` "This account has been disabled. Contact support@…"); render in the existing banner with `role="alert"`; validate against an allow-list so arbitrary text cannot be injected.
+2. [ ] Admin dashboard: remove the two `trend` props (or compute from `admin_growth_daily` if that RPC already returns enough — check `lib/queries/admin-analytics.ts` first; only wire real numbers).
+3. [ ] Remove the two dead tool-grid entries.
+4. [ ] Test: login page renders the banner for each allowed code and nothing for an unknown one.
+
+**Verify:**
+- [ ] `/login?error=auth_error` shows the banner; `/login?error=<script>` shows nothing.
+- [ ] Admin dashboard shows no invented percentages and no 404 links.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 9: Email preferences — digest opt-out + unsubscribe link
+
+**Source:** Audit Findings > B7  
+**Priority:** 🟠 High  
+**Effort:** Medium  
+**File(s):** `app/(app)/settings/page.tsx`, `components/settings/email-section.tsx` (new), `lib/actions/privacy.ts` (or `user.ts`), `lib/validation/*.ts`, `app/api/cron/weekly-digest/route.ts`, `lib/email/templates/*digest*`, `app/api/email/unsubscribe/route.ts` (new)
+
+**Context:** `profiles.email_digest_enabled` defaults true (017), the cron emails everyone with it set (cron route:48-51), the features page advertises the digest, and no component reads or writes `email_digest_*` or `email_notifications_enabled`. Sending marketing-style email with no opt-out is a compliance problem and the most likely source of spam complaints.
+
+**Steps:**
+1. [ ] Settings: "Email" card with toggles for weekly digest and (if kept) notifications; server action validates and updates the caller's own row (session client — after Task 3, these columns are revoked from `authenticated` SELECT, so read them via the owner RPC / admin client and write via a SECURITY DEFINER `set_email_preferences()` or the admin client after `getUser()`).
+2. [ ] Unsubscribe: signed token (HMAC of user id with `CRON_SECRET` or a new `EMAIL_TOKEN_SECRET`) in a `List-Unsubscribe` header and a footer link → `GET /api/email/unsubscribe?u=<id>&t=<sig>` sets `email_digest_enabled = false` via admin client, timing-safe compare, no auth required, rate-limited.
+3. [ ] Cron: add the header + link to each send; skip users with `disabled_at` (Task 7).
+4. [ ] Tests: unsubscribe route (bad sig → 400, good sig → row updated), settings action.
+
+**Verify:**
+- [ ] Toggle off in settings → cron query excludes the user (SQL check).
+- [ ] Unsubscribe link works without login.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 10: Activity card "More options" menu
+
+**Source:** Audit Findings > B8  
+**Priority:** 🟢 Low  
+**Effort:** Low  
+**File(s):** `components/community/activity-card.tsx`, `components/reports/report-dialog.tsx` (reuse)
+
+**Context:** Three "More options" buttons (lines 88, 177, 345) render with no `onClick`; debug `console.log` at 255, 266, 282, 301. The feed is the main place readers meet strangers' content and it has no report path.
+
+**Steps:**
+1. [ ] Replace the three inert buttons with the existing dropdown pattern used on review cards: "Report" (opens `ReportDialog` with the right `targetType`/`targetId`), "Copy link", and "Hide" only if a hide mechanism exists (otherwise omit).
+2. [ ] Delete the four `console.log` calls.
+3. [ ] Confirm every activity type maps to a reportable target; for types that do not (e.g. "started reading"), render no menu rather than a dead one.
+
+**Verify:**
+- [ ] Each activity card either has a working menu or none.
+- [ ] Reporting from the feed creates a `reports` row (throwaway-route or signed-in check).
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 11: Account deletion + password change
+
+**Source:** Audit Findings > G1 (user decision 2026-09-01: include legal items in this plan)  
+**Priority:** 🔴 Critical  
+**Effort:** High  
+**File(s):** `app/(app)/settings/page.tsx`, `components/settings/account-section.tsx` (new), `lib/actions/user.ts`, `lib/supabase/admin.ts`, `lib/utils/audit-log.ts`, `lib/validation/user.ts`, possibly `supabase/migrations/064_*` (FK `ON DELETE` review)
+
+**Context:** Settings says "Account settings coming soon" (page.tsx:150-157); the privacy page §5 promises "Delete your account and data"; the audit enum `user.delete_account` exists unused. No `auth.admin.deleteUser` or `updateUser({password})` anywhere. Deletion must also honour the reports/audit trail: keep `audit_logs` and `reports` rows (anonymised), cascade the rest.
+
+**Steps:**
+1. [ ] Inventory every FK to `profiles(id)` and its `ON DELETE` behaviour (SQL on `pg_constraint`); list which tables cascade, which set null, which would block. Decide per table: cascade user content (`user_books`, `reviews`, `comments`, `review_likes`, `follows`, `friend_requests`, `direct_messages`, `shelves`, `lists`, `challenges`, `goals`, `checkins`, `badges`, `social_links`, `taste`), set-null on `reports.reporter_id`/`resolved_by`, `book_submissions.moderated_by`, `places.submitted_by`, `books.created_by`, keep `audit_logs`. Add the missing `ON DELETE` clauses in a migration section if any would block.
+2. [ ] `deleteAccount(confirmation: string)` server action: `getUser()`, require the typed username to match, re-authenticate is not available server-side so require a fresh session (< 10 min `auth_time` from the JWT) or an emailed confirmation link — pick the JWT check; write `user.delete_account` audit row **before** deletion with the admin client; delete storage objects the user owns (avatar bucket if any); `supabase.auth.admin.deleteUser(user.id)` (profiles cascade from `auth.users`); sign out; redirect to `/` with a flash.
+3. [ ] `changePassword(current, next)`: verify `current` with `signInWithPassword` on a throwaway client, then `supabase.auth.updateUser({ password })`; enforce the same policy as signup; only shown when the user has an `email` identity (Google-only users get "manage in Google").
+4. [ ] UI: Account card with "Change password" form and a destructive "Delete account" dialog (type username to confirm); toasts; `role="alert"` errors.
+5. [ ] Tests: deleteAccount refuses mismatched confirmation and stale session, calls `auth.admin.deleteUser` on success; changePassword refuses wrong current password.
+6. [ ] Live check with a throwaway account created via `auth.admin.createUser`: delete it end-to-end and confirm no orphan rows remain (`SELECT count(*)` across the cascading tables by the old id).
+
+**Verify:**
+- [ ] Deleting a test account removes `auth.users`, `profiles` and all owned content; `audit_logs` row remains; no FK error.
+- [ ] Password change works for an email user; hidden for Google-only.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 12: Privacy policy + terms match actual data practices
+
+**Source:** Audit Findings > G2 (user decision 2026-09-01)  
+**Priority:** 🟠 High  
+**Effort:** Low  
+**File(s):** `app/(public)/privacy/page.tsx`, `app/(public)/terms/page.tsx`
+
+**Context:** The privacy page lists only account/content/communications and "hosting providers". Not disclosed: location geohash + presence note, Mapbox and ipapi lookups, AI providers (Google/OpenAI/Anthropic via `lib/ai`), Sentry error reporting (incl. session replay at 1%), Resend email, Vercel KV. Terms have no AI-generated-content or location clause. This is copy, not legal advice — write it factually from the code and flag for the user's own legal review.
+
+**Steps:**
+1. [ ] From `lib/ai`, `lib/services`, `sentry.*.config.ts`, `lib/email`, the geo routes and the settings toggles, list every third party, what is sent, and whether it is optional (location, AI features) or inherent (hosting, error reporting).
+2. [ ] Rewrite §1 (data collected: add location at chosen precision, presence note, reading activity, AI prompts built from shelves/reviews), §3 (sub-processors table: Supabase, Vercel, Sentry, Resend, Mapbox, ipapi, the AI providers), §5 (rights: point at the new deletion flow from Task 11 and the digest opt-out from Task 9), retention, and a "location and presence" section describing the truncation from Task 3.
+3. [ ] Terms: add AI-generated content (recommendations/blurbs may be wrong, not endorsements), user-generated content and moderation (reports, disable), location features opt-in.
+4. [ ] Update `lastUpdated` dates; keep heading hierarchy (one h1).
+
+**Verify:**
+- [ ] Every third party in `package.json` deps that receives user data appears on the privacy page.
+- [ ] Links to settings/deletion resolve.
+- [ ] Lint/typecheck clean; user has read the copy (record in notes).
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 13: Server-rendered book covers
+
+**Source:** Audit Findings > P1, E2 (SEO A2)  
+**Priority:** 🟠 High  
+**Effort:** Medium  
+**File(s):** `components/books/cover-image.tsx`, `components/books/book-card.tsx`, `lib/utils/covers.ts`, `app/(public)/books/[slug]/page.tsx`, `components/books/shelf-book-card.tsx`
+
+**Context:** `CoverImage` resolves the URL in `useEffect` (cover-image.tsx:93-113), probes candidates sequentially with `new Image()` straight from Open Library (bypassing the optimizer), then mounts `<Image>` which downloads the cover again via `/_next/image`. Server HTML contains only a pulsing div, so the book page `priority` is inert, crawlers see no `<img>`, and the homepage does ~19 double downloads per visit. `resolveCoverUrl` already exists (covers.ts:88).
+
+**Steps:**
+1. [ ] Compute the first candidate URL on the server (`getCoverUrlsWithFallbacks(...)[0]` or `resolveCoverUrl`) in each server component that renders a cover, and pass it as `initialUrl` (plus the remaining candidates) to `CoverImage`.
+2. [ ] `CoverImage`: render `<Image src={initialUrl} … onError={next candidate}>` immediately; keep the client probe only as the `onError` fallback; keep `priority`/`sizes` props; never render the skeleton when `initialUrl` exists.
+3. [ ] Measure before/after on `/` and `/books/<slug>`: number of image requests to `covers.openlibrary.org` (should be 0 from the browser — all through `/_next/image`) and LCP via Chrome MCP performance timing or `web-vitals` console; record numbers.
+4. [ ] Confirm `remotePatterns` and CSP `img-src` still cover every candidate host (archive.org redirect note in memory).
+
+**Verify:**
+- [ ] `curl /books/<slug>` HTML contains an `<img` for the cover with `alt`.
+- [ ] Browser network: no direct Open Library requests on first paint; covers still fall back for a book with a broken primary URL.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 14: Memoised auth everywhere + `useSignOut`
+
+**Source:** Audit Findings > P2, P10, Q9  
+**Priority:** 🟡 Medium  
+**Effort:** Medium  
+**File(s):** every file calling `supabase.auth.getUser()` (62 at audit time: `proxy.ts:73`, `lib/queries/messages.ts:19,119`, `lib/queries/friends.ts:111`, `lib/actions/*`, `components/dashboard/*`), `hooks/use-auth.ts`, `components/layout/{app-top-bar,sidebar,navbar-user-menu,navbar-mobile-menu}.tsx`
+
+**Context:** Only `getUser()` in `lib/supabase/server.ts:38` is memoised per request; 11 network round-trips to GoTrue per dashboard request, ~4 of them serial on the critical path. Browser-side, `useAuth` calls `getUser()` on mount in the top bar and sidebar just to expose `signOut`.
+
+**Steps:**
+1. [ ] Replace `const { data: { user } } = await supabase.auth.getUser()` with the memoised `getUser()` import in every server-side file (actions, queries, server components, route handlers). Keep the client-side ones.
+2. [ ] `proxy.ts`: try `supabase.auth.getClaims()`; if the project uses symmetric JWT secrets it will still hit the network — verify with one timed request and keep whichever is faster. Record.
+3. [ ] `hooks/use-sign-out.ts` (new) with no effect; switch the four layout components; keep `useAuth` only where `user` is read.
+4. [ ] Measure: count GoTrue calls on one `/dashboard` request (log in `getUser` under `DEBUG_LOGS`) before and after. Target ≤ 2 (proxy + one memoised).
+
+**Verify:**
+- [ ] `grep -rn "supabase.auth.getUser()" lib app | wc -l` ≤ 3 (server.ts, proxy, callback).
+- [ ] Dashboard auth call count recorded before/after.
+- [ ] Gates at baseline (Task 22's `requireUser` will consume this).
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 15: Asset hygiene
+
+**Source:** Audit Findings > P3, P7, P10  
+**Priority:** 🟡 Medium  
+**Effort:** Low  
+**File(s):** `public/images/Gemini_Generated_Image_sdr5ejsdr5ejsdr5.png` → `public/images/hero.webp`, `components/home/home-hero.tsx`, `app/layout.tsx`, `next.config.ts`, `sentry.client.config.ts`
+
+**Context:** Hero source is 6,377,135 bytes served at quality 90 with `sizes="100vw"`. Merriweather 900 is loaded but `font-black` is unused. `images.minimumCacheTTL` is the 4-hour default for immutable covers. Sentry Replay (~50-70 KB gz) is bundled eagerly at 1% sampling, and `reactComponentAnnotation` sits under the `webpack` key (may be inert under Turbopack, but if active it inflates every payload).
+
+**Steps:**
+1. [ ] Re-export the hero at ≤ 2000 px wide as WebP (~200 KB) with `sharp` via a one-off script in the scratchpad; replace the PNG; `quality={75}`, `sizes="(max-width:1024px) 100vw, 70vw"`; delete the old file.
+2. [ ] Drop weight 900 from the Merriweather `next/font` config after `grep -rn "font-black"` confirms zero uses.
+3. [ ] `images.minimumCacheTTL: 2592000`.
+4. [ ] `Sentry.lazyLoadIntegration("replayIntegration")` after idle, or drop Replay; remove `reactComponentAnnotation` (confirm no `data-sentry-*` attributes in rendered HTML afterwards).
+5. [ ] Measure homepage transfer size before/after (Chrome MCP network) and record.
+
+**Verify:**
+- [ ] Hero request < 300 KB at 1440 px; no 6 MB asset in `public/`.
+- [ ] `npm run build` clean; no Sentry warnings.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 16: Book page + profile page query hygiene and caching
+
+**Source:** Audit Findings > P4  
+**Priority:** 🟡 Medium  
+**Effort:** Medium  
+**File(s):** `app/(public)/books/[slug]/page.tsx`, `app/(public)/users/[username]/page.tsx`, `lib/queries/books.ts`, `lib/queries/reviews.ts`, `lib/queries/users.ts`, `lib/cache/tags.ts`
+
+**Context:** `getBookBySlug` runs twice per view (metadata + page, lines 39 and 103) and is not wrapped in React `cache()`; same for `getProfileByUsername`. The page awaits book → auth → `Promise.all` serially. `getBookReviews` fetches 50 reviews with a profile join into the RSC payload. Public reads use the cookie client so nothing is cached, though `reviews`/`books` tags are already invalidated by the review actions. `generateStaticParams` runs a DB query at build but the page calls `cookies()`, so nothing is prerendered.
+
+**Steps:**
+1. [ ] Wrap `getBookBySlug`, `getProfileByUsername` in `cache()`.
+2. [ ] `Promise.all([getBookBySlug, getUser()])` then the dependent reads.
+3. [ ] Move `getBookBySlug`, `getBookReviews` (first page), `getRelatedBooks`, and the public parts of the profile page to `createPublicClient()` + `unstable_cache` tagged with `CACHE_TAGS.books` / `.reviews` (revalidate 3600); keep `getUserBookStatus`, `hasUserReviewedBook`, similar-recs per request.
+4. [ ] Paginate reviews: 10 per page with a `count: "exact", head: true` total and a "Load more" island or `?page=` param (canonical stays on page 1 — coordinate with Task 19).
+5. [ ] Delete the inert `generateStaticParams` or make the page static-with-islands — measure which is cheaper; record the decision.
+6. [ ] Verify invalidation: post a review on a test book → book page shows the new local rating without waiting 3600 s (the action's `invalidateTags` covers it).
+
+**Verify:**
+- [ ] One `books` query per book-page render (log under `DEBUG_LOGS`).
+- [ ] Review pagination works; new review appears immediately.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 17: Homepage caching + trending-insights gate
+
+**Source:** Audit Findings > P5, P8, Q8  
+**Priority:** 🟡 Medium  
+**Effort:** Medium  
+**File(s):** `app/(public)/page.tsx`, `lib/queries/home.ts`, `lib/queries/recommendations.ts`, `components/home/trending-now-list.tsx`, `components/home/curated-mini-grid.tsx`
+
+**Context:** Anonymous homepage runs the curated anon branch, `getCommunityFeed` (two sequential queries) and two `count: "exact"` scans on every hit, uncached. Signed-in: `hasEnoughSignals` → `getPersonalizedRecommendations` (4 sequential user queries, a 200-book pool, then every vibe-tag review for those 200) per view. `TrendingNowList` fetches `/api/ai/trending-insights` on mount for everyone; the route requires auth, so anonymous visitors pay a function invocation for a guaranteed 401 (same bug fixed for curated-picks in the previous plan).
+
+**Steps:**
+1. [ ] `unstable_cache` + `createPublicClient()` for the anon curated list, the community feed and the two hero counts (tags `books`/`reviews`/`activity`, revalidate 600). Consider `count: "estimated"` for the hero numbers.
+2. [ ] Cache the user-independent 200-book candidate pool + vibe map (same mechanism, 1800 s); `Promise.all` the four user queries; `Promise.all` inside `getHomeReadingActivity`.
+3. [ ] Trending insights: fetch server-side in `page.tsx` via `getCachedTrendingInsights()` for signed-in users and pass as a prop; remove the client fetch. Same treatment for `curated-mini-grid.tsx:43` if it still fetches client-side.
+4. [ ] Measure anon and signed-in homepage TTFB before/after (5 samples each, dev server is fine for relative numbers); record.
+
+**Verify:**
+- [ ] Anonymous homepage makes zero calls to `/api/ai/*`.
+- [ ] Signed-in homepage query count reduced (log under `DEBUG_LOGS`); numbers in notes.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 18: my-shelf counts, pagination, service-worker scope
+
+**Source:** Audit Findings > P6, P9  
+**Priority:** 🟡 Medium  
+**Effort:** Medium  
+**File(s):** `app/(app)/my-shelf/page.tsx`, `lib/queries/users.ts` (`getUserStats`), `public/sw.js`, `components/pwa/service-worker-registration.tsx`
+
+**Context:** `my-shelf` fetches every `user_books` row with a book join to count in JS; PostgREST caps at 1000 rows, so counts and the grid silently truncate for Goodreads importers; the custom-shelf branch is a 4-query waterfall. `getUserStats` does an unbounded `select("status")`. The service worker `cache.put`s every same-origin 200 including personalised HTML and `?_rsc=` payloads, precaches `/discover`, and never evicts; the offline fallback can serve a previous user's dashboard on a shared device. `console.log` at registration runs in production.
+
+**Steps:**
+1. [ ] Counts: three `head: true` count queries (or one `group by status` RPC) in `Promise.all`; grid paginated at 48 with a "Load more" island; custom shelf via one `user_books` select with `shelf_books!inner(shelf_id)`.
+2. [ ] `getUserStats`: same count approach.
+3. [ ] `sw.js`: cache only `/_next/static/**`, fonts, icons and a static `/offline` page; skip requests with `_rsc` or `Accept: text/x-component`, skip responses with `Cache-Control: private` or `no-store`; bump `CACHE_NAME`; delete old caches on activate.
+4. [ ] Remove the production `console.log` (components are lint-exempt but it is still noise).
+5. [ ] Create a test user with > 1000 `user_books` rows via SQL (rolled back after) or trust the count queries — document which.
+
+**Verify:**
+- [ ] Shelf counts match `SELECT status, count(*) … GROUP BY status` for a test user.
+- [ ] After a deploy, DevTools > Application > Cache Storage contains no HTML/RSC entries.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 19: SEO fixes
+
+**Source:** Audit Findings > E1–E6  
+**Priority:** 🟡 Medium  
+**Effort:** Medium  
+**File(s):** `app/(public)/books/[slug]/page.tsx`, `app/(public)/authors/[slug]/page.tsx`, `app/(public)/lists/[slug]/page.tsx`, `app/(public)/clubs/[slug]/page.tsx`, `app/(public)/users/[username]/page.tsx`, `app/sitemap.ts`, `app/robots.ts`, `app/(public)/page.tsx`, `app/(public)/{trending,recommendations,about,discover}/page.tsx`, `app/api/og/book/route.tsx`, `lib/queries/authors.ts`, `app/(public)/books/page.tsx`, `components/books/book-browser.tsx`
+
+**Context:** No `alternates.canonical` except on user profiles. Sitemap lists every profile regardless of `discovery_visible` and the profile page emits Person JSON-LD with no `noindex` for opted-out readers. `/books` ignores query params so genre links and the sitelinks-searchbox target render identical HTML. Four pages duplicate the brand in the title template. Robots disallows `/login`/`/signup` but the sitemap submits them; sitemap omits `/trending`, `/discover`, `/clubs`, `/community`, `/recommendations`, club pages and public lists; `lastModified` is `created_at` or `new Date()`. Organization `logo` points at a non-existent `/logo.png`. OG book card and author page show the Open Library rating unlabeled. `/discover` and `/recommendations` (personalised) are indexable.
+
+**Steps:**
+1. [ ] `alternates: { canonical: "/books/" + slug }` etc. on the four dynamic templates (`metadataBase` already set).
+2. [ ] Sitemap: `.eq("discovery_visible", true)` on profiles; drop `/login`,`/signup`; add the missing static routes, clubs and public lists; `updated_at` for books, newest-book date for authors/lists.
+3. [ ] Profile page: `robots: { index: false, follow: false }` and no Person JSON-LD when `discovery_visible === false`.
+4. [ ] `/books`: read `searchParams` (`q`, `genre`, `sort`) server-side and seed `BookBrowser`; `generateMetadata` reflecting the genre; canonical to the param-free URL unless a genre is set.
+5. [ ] Titles: strip the brand from page-level titles; home uses `title: { absolute: … }`.
+6. [ ] Organization `logo` → an existing icon route; `og:type: "book"`; word-boundary truncation of descriptions with the text fallback for `og:description`.
+7. [ ] OG book card + author page: use `local_average_rating`/`local_ratings_count` or label "on Open Library".
+8. [ ] `robots: { index: false, follow: true }` on `/discover` and `/recommendations`.
+
+**Verify:**
+- [ ] `curl -s /books/<slug> | grep canonical` present on all four templates.
+- [ ] Sitemap XML excludes an opted-out test profile and includes `/trending`.
+- [ ] No page title contains "OhMyReads" twice.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 20: Accessibility + UX fixes
+
+**Source:** Audit Findings > U1–U8  
+**Priority:** 🟡 Medium  
+**Effort:** High  
+**File(s):** `components/books/book-card.tsx`, `components/books/shelf-book-card.tsx`, `components/ui/rating-display.tsx`, `components/ui/input.tsx`, `components/reviews/review-card.tsx`, `components/community/activity-card.tsx`, `components/search/global-search-modal.tsx`, `components/search/unified-search.tsx`, `components/layout/mobile-bottom-nav.tsx`, `components/layout/app-shell.tsx`, `components/messages/chat-trigger.tsx`, `app/globals.css`, `app/layout.tsx`, `app/(auth)/login/page.tsx`, `app/(auth)/signup/page.tsx`, `app/(public)/books/[slug]/page.tsx`, `tailwind.config.ts`
+
+**Context:** Gold rating text on cream ≈ 2.0:1 (4.5:1 required); `text-amber-600` ≈ 3.0:1. Cards show the Open Library rating with a bare star while the detail page labels both sources. Search palette is a plain div with no dialog role, focus trap or restore. Shelf card menu is `opacity-0 group-hover:opacity-100` (invisible on touch and keyboard). Chat button (`bottom-6 z-30`) sits under the mobile nav (`bottom-0 h-16 z-50`). Rating requires scrolling to the full review form. Thumbs-up "Helpful" vs heart "Like" for the same action. `RatingDisplay` stars have no text alternative; no skip link; unconditional `scroll-behavior: smooth`; search results lack combobox/listbox roles and a live region; mobile More sheet has no Escape/focus handling; auth error banners lack `role=alert`; `Input` never sets `aria-invalid`.
+
+**Steps:**
+1. [ ] Contrast: numeric rating labels → `text-foreground`/`text-muted-foreground`; darken the gold token so the star glyph ≥ 3:1; replace `text-amber-600` warnings with a passing token. Verify with a contrast calculator (record ratios).
+2. [ ] Cards: show `local_average_rating` when present, otherwise the external one with a small "OL" label consistent with the detail page.
+3. [ ] Search palette → Radix Dialog (already a dependency via alert-dialog? check; else add `@radix-ui/react-dialog`); `role="combobox"`/`listbox`, `aria-activedescendant`, polite live region for result count.
+4. [ ] Shelf card menu: `group-focus-within:opacity-100 focus-visible:opacity-100`, always visible below `lg`, target ≥ 40 px.
+5. [ ] Chat trigger: `bottom-20` below `md`, or move into the More sheet.
+6. [ ] Inline five-star control next to Add to Shelf on the book page posting a rating-only review through `createReview` (already supports null text); toast + optimistic star.
+7. [ ] One icon/verb for review likes across review-card and activity-card.
+8. [ ] `RatingDisplay`: `role="img" aria-label="4.5 out of 5"`; skip link in `app/layout.tsx` targeting `main` (`app-shell` must render `<main id="main">`); `@media (prefers-reduced-motion: reduce)` block neutralising `scroll-behavior`, transitions, `animate-pulse`.
+9. [ ] Mobile More sheet: Escape closes, focus moves in and restores, background `inert`.
+10. [ ] Auth forms: `role="alert"` on banners, `aria-invalid` + `aria-describedby` from `Input`'s `error` prop.
+11. [ ] Run `vercel:react-best-practices` reviewer on the touched TSX and fix what it flags.
+
+**Verify:**
+- [ ] Keyboard-only: open search, Tab stays inside, Escape closes and focus returns; shelf menu reachable; skip link works.
+- [ ] Contrast ratios recorded ≥ 4.5:1 text / 3:1 graphics.
+- [ ] Rating from the book page without opening the review form creates a review row.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 21: Test coverage for the eight highest-risk modules + cache assertions
+
+**Source:** Audit Findings > T1–T8, weak tests  
+**Priority:** 🟠 High  
+**Effort:** High  
+**File(s):** `__tests__/helpers/mock-supabase.ts` (new, shared), `__tests__/lib/actions/{books,shelves,messages,user,location,import}.test.ts`, `__tests__/lib/utils/csv-parser.test.ts`, `__tests__/app/api/{export,webhooks-supabase,cron-weekly-digest}.test.ts`, `__tests__/lib/actions/{reviews,comments}.test.ts`
+
+**Context:** 23 of 27 action files, all 22 query files and 27 of 30 routes have no tests. `reviews.test.ts:126` and `comments.test.ts:85` assert only inside `if (result.error)`. Cache invalidation is mocked in every file and asserted zero times, so the bug class fixed in `a51eab6` is invisible. Each test file hand-rolls its own Supabase mock chain.
+
+**Steps:**
+1. [ ] Extract the `createMockSupabase()` builder used in the existing action tests into `__tests__/helpers/mock-supabase.ts`; migrate the four existing action tests to it (behaviour unchanged).
+2. [ ] Write the eight test files per the findings document's "what to assert" column (books, shelves, export route, webhook route, cron route, messages, csv-parser + import, user/location). Node environment for routes (`// @vitest-environment node`).
+3. [ ] Add `expect(invalidateTags).toHaveBeenCalledWith(...)` / `revalidatePath` assertions to every existing action success-path test.
+4. [ ] Fix the two `if (result.error)` tests to assert the success path explicitly; replace `geohash.test.ts:100`'s `not.toThrow` with a value assertion.
+5. [ ] Cheap pure-function tests: `jsonld.ts`, `opening-hours.ts` `isOpenNow` (cross-midnight), `discover.ts` `computeCompatibilityScore` (extract if needed), `covers.ts` builders.
+
+**Verify:**
+- [ ] `npm run test:run` ≥ 245 + new tests, all green; `npm run test:coverage` shows `lib/actions` ≥ 50 % statements (record the number).
+- [ ] No test asserts nothing on its success path (grep for `if (result.error)` in `__tests__`).
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 22: `requireUser`, one `ActionResult`, reads out of `"use server"`, dead code, `noUnusedLocals`
+
+**Source:** Audit Findings > Q1–Q5, Q7, Q11  
+**Priority:** 🟡 Medium  
+**Effort:** High  
+**File(s):** `lib/auth/require-user.ts` (new), `types/app.ts`, `lib/actions/*.ts` (21 files), `lib/queries/*.ts`, `components/community/global-activity-feed.tsx`, `components/home/mood-matcher.tsx`, `components/reviews/comment-section.tsx`, `components/reviews/review-list.tsx`, `components/books/book-recommendation-row.tsx`, `components/geo/event-card.tsx`, `lib/utils/covers.ts`, `lib/utils/external-book-search.ts`, `tsconfig.json`
+
+**Context:** The `getUser()` + "Not authenticated" preamble appears 84× across 21 action files (65 literal + 9 wording variants) and the post-auth profile fetch 11×; there is no `requireUser`. Actions return five different result shapes; only `reports.ts:27` declares a type. 29 of 121 `"use server"` exports are reads (`get*`/`can*`/`check*`), each a public POST endpoint. Six components are never imported and ~30 exported functions are dead (do **not** delete `adminDisableUser`/`adminEnableUser` — Task 7 wires them). 17 `as unknown as` casts coerce Supabase joins.
+
+**Steps:**
+1. [ ] `lib/auth/require-user.ts`: `requireUser(opts?: { withProfile?: boolean })` returning `{ ok: true, supabase, user, profile? } | { ok: false, error }` mirroring `require-admin.ts`; uses the memoised `getUser()` (Task 14).
+2. [ ] `types/app.ts`: `export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string }`; migrate action files one at a time, updating their callers in `components/` (grep each action name); keep `{ success, error }` only where a component contract makes migration risky and note it.
+3. [ ] Move the 29 read-only exports from `lib/actions` to `lib/queries` (same names), update imports.
+4. [ ] Delete the 6 dead components and the dead exports listed in the findings file after re-verifying each with `grep -rn "<name>" app components lib hooks scripts __tests__` (zero hits outside its own file).
+5. [ ] `tsconfig.json`: add `"noUnusedLocals": true, "noUnusedParameters": true, "noImplicitReturns": true, "noFallthroughCasesInSwitch": true`; fix what surfaces (prefix intentionally-unused params with `_`).
+6. [ ] Replace the `as unknown as` casts with `.returns<T>()` where the select shape is fixed; leave and comment the two that are not Supabase joins.
+
+**Verify:**
+- [ ] `grep -rn '"Not authenticated"' lib/actions | wc -l` = 0 (all via helper).
+- [ ] `grep -rn "as unknown as" lib app | wc -l` ≤ 2.
+- [ ] Typecheck clean under the new flags; tests + lint + build at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 23: Repo hygiene
+
+**Source:** Audit Findings > Q9, Q10, Q12, Q13, Q14; uncommitted `CLAUDE.md` diff  
+**Priority:** 🟢 Low  
+**Effort:** Low  
+**File(s):** `README.md`, `CLAUDE.md`, `scripts/archive/` (new), `package.json`, `eslint.config.mjs`, `hooks/use-realtime-messages.ts`, `components/social/social-links-editor.tsx`, `components/geo/reader-map-immersive.tsx`, `components/settings/location-section.tsx`, `components/import/goodreads-import.tsx`, `components/geo/ai-place-search.tsx`
+
+**Context:** README is create-next-app boilerplate. `CLAUDE.md` has an uncommitted edit that removed its `## Commands` block. Four one-off scripts already applied sit beside two live tools, none in `package.json`. 18 `no-img-element` warnings, 8 of them in OG routes where `<img>` is required. `use-realtime-messages.ts` has two near-identical subscribe blocks. Five real index-key bugs on mutable lists.
+
+**Steps:**
+1. [ ] README: setup (`.env.example`, Supabase link, `types:gen`), commands (`dev`, `build`, `lint`, `typecheck`, `test`, `test:run`, `test:coverage`, `types:gen`), migrations (`npx supabase db query --linked`), `proxy.ts` note, scripts table.
+2. [ ] `CLAUDE.md`: restore the `## Commands` block with the full script list and commit it (confirm with the user that the removal was not intentional — it was done outside a Claude session).
+3. [ ] Move `seed-books.ts`, `reseed-curated.ts`, `fix-duplicate-books.ts`, `import-award-winners.ts` to `scripts/archive/` with a README line each; add `npm run enrich-books` / `npm run import-ratings`.
+4. [ ] ESLint: disable `@next/next/no-img-element` for `app/api/og/**`; fix the remaining real warnings and the 4 `alt-text` ones; target 0 warnings.
+5. [ ] Collapse the duplicate realtime hook; stable keys on the five components.
+6. [ ] Delete `.claude/settings.local.json.bak-doctor` if the user confirms.
+
+**Verify:**
+- [ ] `npm run lint` → 0 errors / 0 warnings (or record the residual with reasons).
+- [ ] README commands all run.
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 24: Migration 065 — RLS performance and catalog cleanup
+
+**Source:** Audit Findings > D7, D8 (live Supabase performance advisor 2026-09-01)  
+**Priority:** 🟡 Medium  
+**Effort:** Medium  
+**File(s):** `supabase/migrations/065_rls_performance.sql`
+
+**Context:** Performance advisor: 91 `auth_rls_initplan` warnings (policies call `auth.uid()` without `(select …)`, re-evaluated per row — 9 on `profiles`, 6 each on `book_club_members` and `reading_challenges`, 5 each on `activity_feed`, `place_checkins`, `place_photos`, `place_reviews`), 72 `multiple_permissive_policies` (12 on `book_club_members`, 6 each on `book_submissions`, `place_photos`, `place_submissions`, `places`, 4 on `reading_stats`). Four SECURITY INVOKER functions still have a mutable `search_path` (`get_distinct_genres`, `update_club_timestamp`, `update_list_timestamp`, `generate_list_slug`). `pg_trgm` is in `public`. `books_external_id_dedupe_backup` has RLS with no policies (leftover). Five redundant indexes (006's partial uniques on `isbn`/`google_books_id`/`open_library_id` superseded by 059, `user_books_user_book_idx`, `idx_activity_feed_user_id`). 60 `unused_index` entries — most are the new 061 indexes; do not drop those yet.
+
+**Steps:**
+1. [ ] Generate the policy rewrites from the catalog: `SELECT … FROM pg_policies WHERE qual ~ 'auth\.uid\(\)' AND qual !~ 'select auth\.uid'` → emit `DROP POLICY` + `CREATE POLICY` with `(select auth.uid())` for each, preserving names, roles, `USING`/`WITH CHECK` verbatim. Review the generated SQL by eye before applying.
+2. [ ] Merge permissive policies per table/command into one `OR`-ed policy where the semantics are identical; keep separate ones where an admin bypass is clearer as its own policy but combine the user-facing ones.
+3. [ ] `ALTER FUNCTION … SET search_path = public` on the four; `ALTER EXTENSION pg_trgm SET SCHEMA extensions` (check `lib/queries` for any `public.similarity(` qualified call first — unqualified calls need `extensions` on the role search_path, which Supabase sets by default).
+4. [ ] `DROP TABLE books_external_id_dedupe_backup` after confirming its row count matches nothing still needed (it was a task-32 safety copy); drop the five redundant indexes.
+5. [ ] Apply in a rolled-back dry run, then for real; re-run both advisors; regenerate types (no change expected).
+
+**Verify:**
+- [ ] Performance advisor: 0 `auth_rls_initplan`, `multiple_permissive_policies` ≤ 10 with reasons recorded; security advisor: 0 `function_search_path_mutable`.
+- [ ] The RLS visibility matrix from tasks 12/31 of the previous plan still passes (opted-out shelves hidden; admin sees all).
+- [ ] Gates at baseline.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Task 25: Final QA incl. signed-in smoke test
+
+**Source:** Plan > Final verification; carried over from `hi-claude-review-the-tidy-dewdrop.md` task 31 step 4  
+**Priority:** -  
+**Effort:** Medium  
+**File(s):** -
+
+**Steps:**
+1. [ ] `npm run typecheck`, `npm run lint`, `npm run test:run`, `npm run build` all green on the committed tree (stop `next dev` first).
+2. [ ] Re-run both Supabase advisors; paste the counts.
+3. [ ] SQL matrix in `BEGIN … ROLLBACK`: non-admin cannot call the approve RPCs, cannot forge `sender_id`, cannot write counters, cannot read `location_geohash`; admin can update/delete books and reviews; opted-out shelves still hidden.
+4. [ ] ⚠️ USER ACTION REQUIRED — sign in inside the Chrome MCP tab as the admin account. Then click through: signup of a fresh throwaway user (fresh-profile provisioning) → onboarding → add an **uncatalogued** book via AI search (Task 4) → rate from the book page inline (Task 20) → write a review → custom shelf → discover → report the review → switch to admin → `/admin/reports` resolve → `/admin/submissions` sees the pending row → edit a book title → delete the test review (row actually gone) → disable the throwaway user (Task 7) → confirm they are locked out → delete the throwaway account via settings (Task 11).
+5. [ ] Confirm Sentry delivery if a DSN has been added since; otherwise record as still blocked.
+6. [ ] Update `MEMORY.md` pointers and the `hardening-plan-2026-08` memory (task 31 step 4 now closed here).
+
+**Verify:**
+- [ ] Full CI suite passes.
+- [ ] Every P0/P1 finding in the findings file has a passing check recorded here.
+- [ ] Journey in step 4 completed without a dead end.
+
+**Completed Notes:**
+<!-- Fill in after completing -->
+- Files modified: 
+- Approach taken: 
+- Deviations from plan: 
+- Issues encountered: 
+
+**Status:** [ ] PENDING
+
+---
+
+## Out of Scope (Deferred)
+
+| Item | Reason | Revisit |
+|------|--------|---------|
+| Notifications system (likes, comments, follows, club joins) — G3 | New table + bell UI + fan-out; a feature, not a fix | Product plan after this ships |
+| Block / mute users — G4 | Needs a `user_blocks` table and RLS predicates on follows/comments/DMs/friend requests; design with G3 | Product plan |
+| DNF / paused status, re-reads, half-star ratings — G5 | Changes the `user_books` UNIQUE constraint and every stats query | Product plan |
+| Goodreads import of "My Review", custom shelves, read count, private notes — G6 | Parser already extracts shelves; mapping into reviews/shelves is feature work | Product plan (pairs with G5) |
+| `is_public_activity` toggle and a true private-profile mode — G7 | Task 1 makes the trigger honour the flag; exposing it and auditing every read is a separate pass | Product plan |
+| User timezone for stats and streaks — G8 | Needs a `profiles.timezone` column, a settings control, and a rewrite of `lib/queries/stats.ts` boundaries | Product plan |
+| Series / editions / ISBN-13 dedupe / admin merge tool — G9 | Catalog model change | Product plan |
+| Club discussions, monthly goals, avatar upload, i18n — G10 | Features | Backlog |
+| `noUncheckedIndexedAccess` (123 errors) | Each fix is a behaviour decision; Task 22 adds the cheaper strict flags first | Dedicated pass |
+| Vercel AI Gateway migration, per-request AI spend telemetry | Infra change with its own credentials; unchanged from the previous plan | Post-hardening |
+| Next 16 Cache Components (`use cache` / PPR) adoption | Tasks 16–17 use `unstable_cache` + tags; a full migration is a rendering refactor | v2 perf pass |
+| Dropping the 60 `unused_index` advisor entries | Most are the 061 indexes that have not had traffic yet; Task 24 drops only the 5 proven redundant | Re-check advisor in Oct 2026 |
+| Splitting `reader-map-immersive.tsx` (1256 LOC), `external-book-search.ts`, `recommendations.ts` | Refactor for its own sake; Task 22 removes their dead exports | When one of them next needs a feature |
+| Recharts area/pie not painting on `/stats` | Pre-existing, unrelated (previous plan) | Own bug task |
+| Orphan `schema_migrations` row `20241211 / create_reading_goals` | Production history write; user deferred in the previous plan | Next time history is touched (Task 24 could do it if the user says so) |
+| `console.*` in `components/**` and `scripts/**` | Deliberate `no-console` scoping from the previous plan | If client errors are ever routed to Sentry |
+| Mapbox account recovery / token rotation | Outside the codebase; the user is contacting Mapbox support. Task 3 does not depend on it. When a new token arrives: rotate in Vercel env, add URL restriction to `ohmyreads-next.vercel.app` | When the account is recovered |
+
+---
+
+## Final QA Checklist
+
+- [ ] Migrations 064 and 065 applied live, idempotent, types regenerated and committed
+- [ ] No broken imports or references
+- [ ] `npm run typecheck` passes (with the Task 22 strict flags)
+- [ ] `npm run lint` passes — 0 errors, warnings ≤ baseline (target 0)
+- [ ] `npm run test:run` passes — ≥ 245 + Task 21 additions
+- [ ] `npm run build` passes
+- [ ] Supabase security advisor: 0 anon-callable SECURITY DEFINER functions beyond the deliberate list; 0 mutable search_path
+- [ ] P0 findings S1–S7 and P1 findings B1–B4 each have a recorded passing check
+- [ ] Core user + admin journeys work (Task 25 step 4, signed in)
+
+---
+
+## Changelog
+
+| Date | Task # | Status | Notes |
+|------|--------|--------|-------|
+| 2026-09-01 | — | Plan created | 25 tasks from the 7-agent phase-2 audit (`phase2-audit-findings-2026-09-01.md`); user chose to include account deletion (T11) and privacy/terms (T12) here rather than in a product plan |
+| 2026-09-01 | 1 | COMPLETE | Migration 064 applied live; 28-check role matrix in `supabase/checks/064_phase2_security.check.sql` passes; freeze rule uses `current_user` not the JWT role; `updateReadingStats` removed; badges + unread count moved to the service-role client; username `fabfashion-bianca` → `fabfashionbianca`; residual anon-callable SECURITY DEFINER club helpers + missing WITH CHECK on reviews/reading_lists UPDATE noted for Task 24. Not committed. |
+| 2026-09-02 | 2 | COMPLETE | `httpUrl()` in `lib/validation/shared.ts` on every user URL schema (incl. `place.website`, previously unvalidated); `safeHref()` in `lib/utils/sanitize.ts` at 8 render sites; +80 tests (312 / 19 files); live scan of 7 URL columns found 0 offenders. Not committed. |
+| | | | |

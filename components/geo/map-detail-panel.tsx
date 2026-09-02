@@ -14,6 +14,7 @@ import { PlaceCheckinsList } from "./place-checkins-list";
 import { CheckinButton } from "./checkin-button";
 import { DirectionsDisplay } from "./directions-display";
 import { isOpenNow, formatHoursForDisplay } from "@/lib/utils/opening-hours";
+import { safeHref } from "@/lib/utils/sanitize";
 
 interface MapDetailPanelProps {
   item: MapItem | null;
@@ -390,7 +391,7 @@ function PlaceContent({ place, currentUserId, onMarkSpotAtPlace }: {
   }, [place, isOsmPlace]);
 
   // Use OSM data first, fallback to enrichment
-  const websiteUrl = place.website || enrichment?.website;
+  const websiteUrl = safeHref(place.website || enrichment?.website);
   const phoneNumber = place.phone;
   const emailAddress = place.email;
   const googleMapsUrl = enrichment?.googleMapsUrl || (place.lat && place.lng ? `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}` : null);
