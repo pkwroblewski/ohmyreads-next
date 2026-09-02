@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { ALLOWED_IMAGE_HOSTS } from "./lib/config/image-hosts";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
@@ -6,32 +7,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   images: {
     qualities: [75, 85, 90],
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "covers.openlibrary.org",
-        pathname: "/b/**",
-      },
-      {
-        protocol: "https",
-        hostname: "books.google.com",
-        pathname: "/books/**",
-      },
-      {
-        protocol: "https",
-        hostname: "*.googleusercontent.com",
-      },
-      {
-        protocol: "https",
-        hostname: "archive.org",
-        pathname: "/download/**",
-      },
-      {
-        protocol: "https",
-        hostname: "*.us.archive.org",
-        pathname: "/**",
-      },
-    ],
+    remotePatterns: ALLOWED_IMAGE_HOSTS,
   },
 
   // Security headers

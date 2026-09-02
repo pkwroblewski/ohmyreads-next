@@ -155,3 +155,48 @@ describe("Comment actions - input validation", () => {
     expect(result.error).toMatch(/1000|too long|characters/i);
   });
 });
+
+describe("Comment actions - reply parent scoping (Phase 2, Task 5)", () => {
+  const userId = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
+  const reviewId = "550e8400-e29b-41d4-a716-446655440000";
+  const parentId = "6ba7b810-9dad-41d1-80b4-00c04fd430c8";
+
+  beforeEach(() => {
+    mockSupabase = createMockSupabase({ id: userId });
+  });
+
+  it("looks the parent up on the SAME review, not just by id", async () => {
+    // The parent lookup is the only thing that stops a reply from being
+    // threaded under a comment that belongs to another review. Scoping it by
+    // review_id makes a foreign parent look like "not found".
+    mockSupabase.single.mockResolvedValueOnce({ data: null, error: null });
+
+    const result = await createComment({
+      reviewId,
+      content: "Replying here",
+      parentId,
+    });
+
+    expect(mockSupabase.from).toHaveBeenCalledWith("comments");
+    expect(mockSupabase.eq).toHaveBeenCalledWith("id", parentId);
+    expect(mockSupabase.eq).toHaveBeenCalledWith("review_id", reviewId);
+    expect(result.error).toBe("Parent comment not found");
+    expect(mockSupabase.insert).not.toHaveBeenCalled();
+  });
+
+  it("still refuses a reply to a reply", async () => {
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: parentId, parent_id: "some-other-id" },
+      error: null,
+    });
+
+    const result = await createComment({
+      reviewId,
+      content: "Replying here",
+      parentId,
+    });
+
+    expect(result.error).toMatch(/cannot reply to a reply/i);
+    expect(mockSupabase.insert).not.toHaveBeenCalled();
+  });
+});

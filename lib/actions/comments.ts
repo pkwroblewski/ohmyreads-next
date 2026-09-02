@@ -50,12 +50,15 @@ export async function createComment(input: {
       return { error: "Too many comments. Please wait a moment." };
     }
 
-    // If replying, verify parent exists and check nesting level
+    // If replying, verify the parent exists ON THIS REVIEW and check nesting.
+    // Scoping by review_id stops a reply from being threaded under a comment
+    // that belongs to a different review.
     if (data.parentId) {
       const { data: parent, error: parentError } = await supabase
         .from("comments")
         .select("id, parent_id")
         .eq("id", data.parentId)
+        .eq("review_id", data.reviewId)
         .single();
 
       if (parentError || !parent) {

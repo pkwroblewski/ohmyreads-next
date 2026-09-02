@@ -14,8 +14,12 @@ export function getClientIp(request: Request): string {
 /**
  * Distributed rate limiter using Vercel KV
  * Falls back to in-memory storage for local development only.
- * In production, fails closed (returns 429) when KV is unavailable to prevent
- * distributed denial attacks from bypassing limits across server instances.
+ * In production, fails closed (returns 429) when KV errors at request time, to
+ * prevent distributed callers from multiplying their allowance across server
+ * instances. When KV was never configured, production logs an error once per
+ * instance and uses the in-memory map — a tracked to-do in the phase-2 plan
+ * (Out of Scope: "Provision Upstash Redis") switches that to fail-closed once
+ * a store exists.
  */
 
 import { kv } from "@vercel/kv";
@@ -40,6 +44,9 @@ const isKVConfigured = !!(
 
 // Check if we're in production
 const isProduction = process.env.NODE_ENV === "production";
+
+// Log the missing-KV condition once per instance, not once per request
+let warnedMissingKv = false;
 
 // Clean up old entries periodically (for in-memory fallback)
 const CLEANUP_INTERVAL = 60000;
@@ -212,6 +219,16 @@ export async function checkRateLimit(
 ): Promise<{ allowed: boolean; remaining: number; resetIn: number }> {
   if (isKVConfigured) {
     return checkRateLimitKV(key, limit, windowMs);
+  }
+  if (isProduction && !warnedMissingKv) {
+    // The in-memory map is per instance, so on serverless it is barely a
+    // limit. Failing closed here is deferred until a Redis store exists in
+    // Vercel (phase-2 plan, Out of Scope: "Provision Upstash Redis"); until
+    // then say so once per instance so the gap is visible in Sentry.
+    warnedMissingKv = true;
+    logger.error(
+      "Rate limiting is per-instance only: KV_REST_API_URL / KV_REST_API_TOKEN are not set in production"
+    );
   }
   return checkRateLimitMemory(key, limit, windowMs);
 }

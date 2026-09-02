@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { extractSupabaseErrorInfo, logError, logger } from "@/lib/utils/log";
+import { escapeCsv } from "@/lib/utils/csv-escape";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -300,13 +301,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function escapeCsv(value: string | null | undefined): string {
-  if (!value) return "";
-  const str = String(value);
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
 }

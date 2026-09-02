@@ -1,6 +1,7 @@
 import { ImageResponse } from "@vercel/og";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
+import { isAllowedImageHost } from "@/lib/config/image-hosts";
 
 export const runtime = "edge";
 
@@ -134,7 +135,7 @@ export async function GET(request: Request) {
                 gap: "10px",
               }}
             >
-              {profile?.avatar_url ? (
+              {isAllowedImageHost(profile?.avatar_url) ? (
                 <img
                   src={profile.avatar_url}
                   width={80}

@@ -3,6 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { browseReaders, searchReaders } from "@/lib/queries/discover";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { logError } from "@/lib/utils/log";
+import { z } from "zod";
+
+// `parseInt` yields NaN for junk and lets negatives through; both used to reach
+// the query as an offset and surface as a 500.
+const pagingSchema = z.object({
+  page: z.coerce.number().int().min(1).max(500).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
 
 export async function GET(request: NextRequest) {
   // Rate limit: 60 requests per minute. This route is unauthenticated and scans
@@ -19,8 +27,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q") || "";
     const sortBy = searchParams.get("sort") || "followers";
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 50);
+    const paging = pagingSchema.safeParse({
+      page: searchParams.get("page") ?? undefined,
+      limit: searchParams.get("limit") ?? undefined,
+    });
+    if (!paging.success) {
+      return NextResponse.json(
+        { error: "Invalid page or limit" },
+        { status: 400 }
+      );
+    }
+    const { page, limit } = paging.data;
 
     // Get current user if authenticated
     const supabase = await createClient();

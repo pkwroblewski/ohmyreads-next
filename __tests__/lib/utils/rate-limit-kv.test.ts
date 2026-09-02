@@ -20,6 +20,16 @@ const pipelineExec = vi.fn();
 const incr = vi.fn();
 const ttl = vi.fn();
 const expire = vi.fn();
+const loggerError = vi.fn();
+
+vi.mock("@/lib/utils/log", () => ({
+  logger: {
+    error: (...args: unknown[]) => loggerError(...args),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
 
 vi.mock("@vercel/kv", () => ({
   kv: {
@@ -147,10 +157,49 @@ describe("checkRateLimit when KV fails", () => {
 });
 
 describe("checkRateLimit without KV configured", () => {
-  it("counts in memory rather than refusing everything", async () => {
+  it("counts in memory in production and reports the missing KV once", async () => {
     const { checkRateLimit } = await loadRateLimit({
       kv: false,
       nodeEnv: "production",
+    });
+
+    // Production Vercel has no Redis store yet (phase-2 plan, Out of Scope:
+    // "Provision Upstash Redis"), so refusing here would 429 every
+    // rate-limited call. Until the store exists the per-instance map stays,
+    // but the gap must be logged once per instance, not silently.
+    const key = `no-kv-prod-${Date.now()}`;
+    expect((await checkRateLimit(key, 2, 60000)).allowed).toBe(true);
+    expect((await checkRateLimit(key, 2, 60000)).allowed).toBe(true);
+    expect((await checkRateLimit(key, 2, 60000)).allowed).toBe(false);
+
+    expect(incr).not.toHaveBeenCalled();
+    expect(loggerError).toHaveBeenCalledTimes(1);
+    expect(loggerError.mock.calls[0][0]).toMatch(/KV_REST_API_URL/);
+  });
+
+  // Un-skip once KV_REST_API_URL / KV_REST_API_TOKEN exist in Vercel
+  // production and `checkRateLimit()` returns `{ allowed: false }` for the
+  // unconfigured-in-production case (see the deferred item in the plan).
+  it.skip("FAILS CLOSED in production and says why once", async () => {
+    const { checkRateLimit } = await loadRateLimit({
+      kv: false,
+      nodeEnv: "production",
+    });
+
+    const first = await checkRateLimit(`no-kv-prod-${Date.now()}`, 100, 60000);
+    const second = await checkRateLimit(`no-kv-prod-2-${Date.now()}`, 100, 60000);
+
+    expect(first).toEqual({ allowed: false, remaining: 0, resetIn: 60000 });
+    expect(second.allowed).toBe(false);
+    expect(incr).not.toHaveBeenCalled();
+    expect(loggerError).toHaveBeenCalledTimes(1);
+    expect(loggerError.mock.calls[0][0]).toMatch(/KV_REST_API_URL/);
+  });
+
+  it("counts in memory outside production", async () => {
+    const { checkRateLimit } = await loadRateLimit({
+      kv: false,
+      nodeEnv: "development",
     });
 
     const key = `no-kv-${Date.now()}`;

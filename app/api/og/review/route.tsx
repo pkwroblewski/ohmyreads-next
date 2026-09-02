@@ -1,6 +1,7 @@
 import { ImageResponse } from "@vercel/og";
 import { createPublicClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
+import { isAllowedImageHost } from "@/lib/config/image-hosts";
 
 export const runtime = "edge";
 
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
               padding: "40px",
             }}
           >
-            {book.cover_url ? (
+            {isAllowedImageHost(book.cover_url) ? (
               <img
                 src={book.cover_url}
                 width={220}
@@ -183,7 +184,7 @@ export async function GET(request: Request) {
                 gap: "12px",
               }}
             >
-              {user?.avatar_url ? (
+              {isAllowedImageHost(user?.avatar_url) ? (
                 <img
                   src={user.avatar_url}
                   width={40}

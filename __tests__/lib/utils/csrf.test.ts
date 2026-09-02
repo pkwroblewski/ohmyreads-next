@@ -123,12 +123,44 @@ describe("isForeignOrigin", () => {
     vi.unstubAllEnvs();
   });
 
-  it("treats a header-less request as same-origin", async () => {
+  it("lets a header-less request through only when Sec-Fetch-Site says same-origin or none", async () => {
     const { isForeignOrigin } = await loadCsrf("production");
 
-    // Server-to-server, curl and some same-origin GETs send neither header.
-    // This guard exists to stop browser-driven cross-site farming, not access.
-    expect(isForeignOrigin(req(`${SITE}/api/geo/x`))).toBe(false);
+    // Same-origin fetches under a strict referrer policy, and typed URLs /
+    // bookmarks, carry no Origin or Referer but do carry fetch metadata.
+    expect(
+      isForeignOrigin(
+        req(`${SITE}/api/geo/x`, { "sec-fetch-site": "same-origin" })
+      )
+    ).toBe(false);
+    expect(
+      isForeignOrigin(req(`${SITE}/api/geo/x`, { "sec-fetch-site": "none" }))
+    ).toBe(false);
+  });
+
+  it("flags a header-less request whose fetch metadata says cross-site", async () => {
+    const { isForeignOrigin } = await loadCsrf("production");
+
+    // `<img src=/api/geo/...>` on a foreign page with `no-referrer` sends
+    // neither Origin nor Referer — but the browser still sets this header.
+    expect(
+      isForeignOrigin(
+        req(`${SITE}/api/geo/x`, { "sec-fetch-site": "cross-site" })
+      )
+    ).toBe(true);
+    expect(
+      isForeignOrigin(
+        req(`${SITE}/api/geo/x`, { "sec-fetch-site": "same-site" })
+      )
+    ).toBe(true);
+  });
+
+  it("flags a request with no origin information at all", async () => {
+    const { isForeignOrigin } = await loadCsrf("production");
+
+    // curl, server-to-server, old bots. These endpoints spend paid API
+    // budget; only the site's own pages should be able to drive them.
+    expect(isForeignOrigin(req(`${SITE}/api/geo/x`))).toBe(true);
   });
 
   it("accepts a request whose Origin host matches the request host", async () => {

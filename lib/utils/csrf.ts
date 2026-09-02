@@ -33,16 +33,25 @@ export function validateOrigin(request: Request): boolean {
 
 /**
  * Detect cross-site requests to public GET endpoints.
- * Returns true only when an Origin (or, failing that, Referer) header is
- * present AND its host differs from the request's own host and all allowed
- * origins. Requests without either header (same-origin GETs, server-to-server,
- * curl) are allowed — this blocks browser-based cross-site farming, not
- * direct access.
+ * Returns true when an Origin (or, failing that, Referer) header is present
+ * AND its host differs from the request's own host and all allowed origins.
+ *
+ * When neither header is present the browser-set `Sec-Fetch-Site` header
+ * decides: `same-origin` and `none` (typed URL, bookmark) are allowed, anything
+ * else is foreign. A cross-site `<img src=/api/geo/...>` or a `no-referrer`
+ * page sends no Origin/Referer but still sends `Sec-Fetch-Site: cross-site`,
+ * so this closes the gap the header check alone left open. Requests with no
+ * fetch metadata at all (curl, server-to-server, old bots) are refused too —
+ * these endpoints spend paid API budget and only the site's own pages should
+ * drive them.
  */
 export function isForeignOrigin(request: Request): boolean {
   const source =
     request.headers.get("origin") ?? request.headers.get("referer");
-  if (!source) return false;
+  if (!source) {
+    const site = request.headers.get("sec-fetch-site");
+    return site !== "same-origin" && site !== "none";
+  }
 
   let sourceHost: string;
   try {

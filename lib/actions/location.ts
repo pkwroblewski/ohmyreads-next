@@ -334,6 +334,12 @@ export async function setPresence(input: SetPresenceInput) {
       };
     }
 
+    // Validate geohash alphabet/format (domain check beyond shape), as
+    // updateLocationFromGeohash does — this value lands in location_geohash.
+    if (input.placeGeohash && !isValidGeohash(input.placeGeohash)) {
+      return { error: "Invalid geohash" };
+    }
+
     // Validate duration for temporary presence
     if (input.type === "temporary") {
       const validDurations = [1, 2, 4];

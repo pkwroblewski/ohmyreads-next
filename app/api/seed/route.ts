@@ -1,16 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sampleBooks } from "@/lib/data/sample-books";
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "crypto";
 import { logError, reportError } from "@/lib/utils/log";
-/**
- * Timing-safe comparison of two strings to prevent timing attacks
- */
-function safeCompare(a: string | null, b: string | null): boolean {
-  if (!a || !b) return false;
-  if (Buffer.byteLength(a) !== Buffer.byteLength(b)) return false;
-  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
-}
+import { safeCompare } from "@/lib/utils/secrets";
 
 export async function GET(request: Request) {
   // Only allow in development

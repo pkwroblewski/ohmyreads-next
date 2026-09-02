@@ -8,6 +8,7 @@ import {
   type WeeklyDigestProps,
 } from "@/lib/email/templates/weekly-digest";
 import { logger } from "@/lib/utils/log";
+import { safeCompare } from "@/lib/utils/secrets";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutes for batch processing
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
         { status: 503 }
       );
     }
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
+    if (!safeCompare(authHeader, `Bearer ${CRON_SECRET}`)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

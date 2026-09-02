@@ -65,8 +65,13 @@ import { GET as messagesGET } from "@/app/api/messages/[friendId]/route";
 import { GET as curatedPicksGET } from "@/app/api/ai/curated-picks/route";
 import { GET as nearbyPlacesGET } from "@/app/api/geo/nearby-places/route";
 
+// A same-origin fetch from one of our own pages. `isForeignOrigin` refuses
+// requests with no origin information at all, so the default carries the
+// browser's fetch metadata; the cross-site cases override it.
 function req(path: string, headers: Record<string, string> = {}): NextRequest {
-  return new NextRequest(new URL(path, SITE), { headers });
+  return new NextRequest(new URL(path, SITE), {
+    headers: { "sec-fetch-site": "same-origin", ...headers },
+  });
 }
 
 function signedIn(id = "user-1") {
