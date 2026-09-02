@@ -23,6 +23,8 @@ export interface WeeklyDigestProps {
     target: number;
     daysRemaining: number;
   };
+  /** Signed one-click link (lib/email/unsubscribe-token.ts); works without a session. */
+  unsubscribeUrl?: string;
 }
 
 export function getWeeklyDigestSubject(stats: { booksRead: number }): string {
@@ -36,6 +38,7 @@ export function getWeeklyDigestHtml(props: WeeklyDigestProps): string {
   const { username, displayName, stats, recentBooks, friendActivity, challengeProgress } = props;
   const name = displayName || username;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
+  const unsubscribeUrl = props.unsubscribeUrl || `${siteUrl}/settings`;
 
   const recentBooksHtml = recentBooks.length > 0
     ? recentBooks.map(book => `
@@ -185,7 +188,7 @@ export function getWeeklyDigestHtml(props: WeeklyDigestProps): string {
         <!-- Unsubscribe -->
         <p style="margin: 20px 0 0; color: #999; font-size: 12px; text-align: center;">
           <a href="${siteUrl}/settings" style="color: #8B5A2B;">Manage email preferences</a> •
-          <a href="${siteUrl}/settings?unsubscribe=digest" style="color: #888;">Unsubscribe from digests</a>
+          <a href="${escapeHtml(unsubscribeUrl)}" style="color: #888;">Unsubscribe from digests</a>
         </p>
       </td>
     </tr>
@@ -199,6 +202,7 @@ export function getWeeklyDigestText(props: WeeklyDigestProps): string {
   const { username, displayName, stats, recentBooks, friendActivity, challengeProgress } = props;
   const name = displayName || username;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
+  const unsubscribeUrl = props.unsubscribeUrl || `${siteUrl}/settings`;
 
   const recentBooksText = recentBooks.length > 0
     ? recentBooks.map(book => `  - ${book.title} by ${book.author}`).join("\n")
@@ -241,7 +245,7 @@ The OhMyReads Team
 
 ---
 Manage email preferences: ${siteUrl}/settings
-Unsubscribe from digests: ${siteUrl}/settings?unsubscribe=digest
+Unsubscribe from digests: ${unsubscribeUrl}
   `.trim();
 }
 

@@ -9,6 +9,10 @@ import {
 } from "@/lib/email/templates/weekly-digest";
 import { logger } from "@/lib/utils/log";
 import { safeCompare } from "@/lib/utils/secrets";
+import {
+  buildUnsubscribeUrl,
+  getEmailTokenSecret,
+} from "@/lib/email/unsubscribe-token";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutes for batch processing
@@ -38,6 +42,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Email service not configured" });
     }
 
+    // Falls back to CRON_SECRET, which is set by the time we get here.
+    const tokenSecret = getEmailTokenSecret();
+    if (!tokenSecret) {
+      logger.error("Digest: no secret to sign unsubscribe links with");
+      return NextResponse.json({ error: "Service not configured" }, { status: 503 });
+    }
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
+
     const supabase = createAdminClient();
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -50,6 +62,8 @@ export async function GET(request: NextRequest) {
       .select("id, username, display_name")
       .eq("email_digest_enabled", true)
       .eq("email_digest_frequency", "weekly")
+      // Disabled accounts (Task 7) get no mail either.
+      .is("disabled_at", null)
       .or(`last_digest_sent_at.is.null,last_digest_sent_at.lt.${sixDaysAgo.toISOString()}`);
 
     if (usersError) {
@@ -170,9 +184,12 @@ export async function GET(request: NextRequest) {
                 }
               : undefined;
 
+            const unsubscribeUrl = buildUnsubscribeUrl(user.id, tokenSecret, siteUrl);
+
             const emailProps: WeeklyDigestProps = {
               username: user.username,
               displayName: user.display_name || undefined,
+              unsubscribeUrl,
               stats: {
                 booksRead: stats.books_read ?? 0,
                 pagesRead: stats.pages_read ?? 0,
@@ -184,13 +201,18 @@ export async function GET(request: NextRequest) {
               challengeProgress,
             };
 
-            // Send email
+            // Send email. The List-Unsubscribe headers let mail clients show
+            // their own unsubscribe control (RFC 2369 / one-click RFC 8058).
             const { error: sendError } = await resend.emails.send({
               from: FROM_EMAIL,
               to: authUser.user.email,
               subject: getWeeklyDigestSubject(emailProps.stats),
               html: getWeeklyDigestHtml(emailProps),
               text: getWeeklyDigestText(emailProps),
+              headers: {
+                "List-Unsubscribe": `<${unsubscribeUrl}>`,
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+              },
             });
 
             if (sendError) {

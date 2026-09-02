@@ -4,13 +4,14 @@ import { getUser } from "@/lib/supabase/server";
 import { getAllGenres } from "@/lib/queries/books";
 import { getTasteProfile } from "@/lib/actions/taste";
 import { getUserLocation } from "@/lib/queries/geo";
-import { getDiscoveryVisibility } from "@/lib/actions/privacy";
+import { getDiscoveryVisibility, getEmailPreferences } from "@/lib/actions/privacy";
 import { TasteProfileSection } from "@/components/settings/taste-profile-section";
 import { LocationSection } from "@/components/settings/location-section";
 import { PrivacySection } from "@/components/settings/privacy-section";
+import { EmailSection } from "@/components/settings/email-section";
 import { ExportSection } from "@/components/settings/export-section";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Sparkles, MapPin, Download, Shield } from "lucide-react";
+import { Settings, Sparkles, MapPin, Download, Shield, Mail } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -50,12 +51,14 @@ export default async function SettingsPage() {
   }
 
   // Fetch genres, taste profile, location, and privacy settings in parallel
-  const [genres, { profile: tasteProfile }, userLocation, discoveryVisible] = await Promise.all([
-    getAllGenres(),
-    getTasteProfile(),
-    getUserLocation(user.id),
-    getDiscoveryVisibility(),
-  ]);
+  const [genres, { profile: tasteProfile }, userLocation, discoveryVisible, emailPreferences] =
+    await Promise.all([
+      getAllGenres(),
+      getTasteProfile(),
+      getUserLocation(user.id),
+      getDiscoveryVisibility(),
+      getEmailPreferences(),
+    ]);
 
   const availableGenres = genres.length > 0 ? genres : FALLBACK_GENRES;
 
@@ -124,6 +127,22 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <PrivacySection initialDiscoveryVisible={discoveryVisible} />
+        </CardContent>
+      </Card>
+
+      {/* Email Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            <CardTitle>Email</CardTitle>
+          </div>
+          <CardDescription>
+            Choose which emails OhMyReads sends you.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EmailSection initialDigestEnabled={emailPreferences.digestEnabled} />
         </CardContent>
       </Card>
 
