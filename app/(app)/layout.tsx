@@ -37,9 +37,7 @@ export default async function AppLayout({
     // Get user profile - use maybeSingle() to avoid error when no row exists
     const supabase = await createClient();
     const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
+      .rpc("get_my_profile")
       .maybeSingle();
 
     if (profileError) {

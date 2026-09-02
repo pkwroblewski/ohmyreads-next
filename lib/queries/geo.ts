@@ -1,4 +1,4 @@
-import { createPublicClient } from "@/lib/supabase/server";
+import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getNeighbors, isValidGeohash } from "@/lib/utils/geohash";
 import { logError, logger } from "@/lib/utils/log";
@@ -60,8 +60,12 @@ export interface CachedPlaceData {
 /**
  * Get readers near a geohash location
  * Returns users with active check-ins (temporary or recommended presence).
- * Filters out expired presence and users without active check-ins.
  * Includes currently reading book if available.
+ *
+ * The visibility rules — location sharing on, unexpired check-in,
+ * discoverable, not disabled — live in the `get_nearby_readers()` RPC
+ * (migration 065). The location / presence columns are not readable any
+ * other way, so there is nothing to re-filter here.
  */
 export async function getNearbyReaders(
   geohashPrefix: string,
@@ -73,45 +77,21 @@ export async function getNearbyReaders(
 
   const supabase = createPublicClient();
 
-  // Get all neighboring geohash cells to cover the area
+  // The searched cell plus its surrounding cells, so a reader just across a
+  // cell boundary is still found
   const searchHashes = getNeighbors(geohashPrefix);
 
-  // Build LIKE patterns for each hash prefix
-  const patterns = searchHashes.map(h => `${h}%`);
-
-  // Query for users in any of the nearby cells
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url, location_label, location_geohash, presence_type, presence_expires_at, presence_note")
-    .eq("location_enabled", true)
-    .not("location_geohash", "is", null)
-    .or(patterns.map(p => `location_geohash.like.${p}`).join(","))
-    .limit(limit);
+  const { data, error } = await supabase.rpc("get_nearby_readers", {
+    p_prefixes: searchHashes,
+    p_limit: limit,
+  });
 
   if (error) {
     logError("Error fetching nearby readers", error);
     return [];
   }
 
-  if (!data || data.length === 0) {
-    return [];
-  }
-
-  // Only include active temporary/recommended presence (filter out null/disabled presence)
-  const now = new Date();
-  const validReaders = data.filter((reader) => {
-    // Must have a presence type (temporary or recommended)
-    if (!reader.presence_type) {
-      return false;
-    }
-    // Must have a valid future expiry
-    if (reader.presence_expires_at) {
-      return new Date(reader.presence_expires_at) > now;
-    }
-    // If no expiry set, treat as expired
-    return false;
-  });
-
+  const validReaders = data ?? [];
   if (validReaders.length === 0) {
     return [];
   }
@@ -250,6 +230,10 @@ export async function savePlacesCache(
 
 /**
  * Get a user's location settings (for their own profile)
+ *
+ * Reads the caller's own row through `get_my_profile()`: since migration 065
+ * the location columns cannot be selected directly. `userId` must be the
+ * signed-in user; anyone else's settings come back as null.
  */
 export async function getUserLocation(userId: string): Promise<{
   enabled: boolean;
@@ -257,15 +241,11 @@ export async function getUserLocation(userId: string): Promise<{
   label: string | null;
   precision: number;
 } | null> {
-  const supabase = createPublicClient();
-  
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("location_enabled, location_geohash, location_label, location_precision")
-    .eq("id", userId)
-    .single();
+  const supabase = await createClient();
 
-  if (error || !data) {
+  const { data, error } = await supabase.rpc("get_my_profile").maybeSingle();
+
+  if (error || !data || data.id !== userId) {
     return null;
   }
 

@@ -94,7 +94,7 @@ export default async function HomePage() {
     getTrulyTrending(7, 7), // 7 books, 7-day window for real trending
     user ? getHomeReadingActivity(user.id) : Promise.resolve(null),
     getCommunityFeed(6), // 6 recent reviews
-    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase.from("reviews").select("*", { count: "exact", head: true }),
   ]);
 

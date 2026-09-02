@@ -1834,6 +1834,61 @@ export type Database = {
           genre: string
         }[]
       }
+      get_my_profile: {
+        Args: never
+        Returns: {
+          admin_granted_at: string | null
+          admin_granted_by: string | null
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          disabled_at: string | null
+          discovery_visible: boolean | null
+          display_name: string | null
+          email_digest_enabled: boolean | null
+          email_digest_frequency: string | null
+          email_notifications_enabled: boolean | null
+          followers_count: number | null
+          following_count: number | null
+          friends_count: number | null
+          id: string
+          is_admin: boolean | null
+          is_public_activity: boolean | null
+          last_digest_sent_at: string | null
+          location_enabled: boolean | null
+          location_geohash: string | null
+          location_label: string | null
+          location_precision: number | null
+          location_updated_at: string | null
+          presence_expires_at: string | null
+          presence_note: string | null
+          presence_type: string | null
+          unread_messages_count: number | null
+          updated_at: string
+          username: string
+          website: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_nearby_readers: {
+        Args: { p_limit?: number; p_prefixes: string[] }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+          location_geohash: string
+          location_label: string
+          presence_expires_at: string
+          presence_note: string
+          presence_type: string
+          username: string
+        }[]
+      }
       get_reader_taste_batch: {
         Args: { p_user_ids: string[] }
         Returns: {

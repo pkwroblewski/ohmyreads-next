@@ -52,9 +52,7 @@ export default function EditProfilePage() {
 
       // Fetch profile
       const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
+        .rpc("get_my_profile")
         .single();
 
       if (profileData) {

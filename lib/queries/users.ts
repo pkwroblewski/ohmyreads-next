@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { BOOK_CARD_COLUMNS } from "./columns";
+import { BOOK_CARD_COLUMNS, PROFILE_PUBLIC_COLUMNS } from "./columns";
 import type { Profile, ReviewWithUser, UserBookWithBook } from "@/types/database";
 import { logError } from "@/lib/utils/log";
 
@@ -13,7 +13,7 @@ export async function getProfileByUsername(
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select(PROFILE_PUBLIC_COLUMNS)
     .eq("username", username)
     .single();
 
@@ -22,7 +22,8 @@ export async function getProfileByUsername(
     return null;
   }
 
-  return data;
+  // Public projection only: the private columns are absent, not null (065).
+  return data as Profile;
 }
 
 /**
@@ -33,7 +34,7 @@ export async function getProfileById(userId: string): Promise<Profile | null> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select(PROFILE_PUBLIC_COLUMNS)
     .eq("id", userId)
     .single();
 
@@ -42,7 +43,8 @@ export async function getProfileById(userId: string): Promise<Profile | null> {
     return null;
   }
 
-  return data;
+  // Public projection only: the private columns are absent, not null (065).
+  return data as Profile;
 }
 
 /**

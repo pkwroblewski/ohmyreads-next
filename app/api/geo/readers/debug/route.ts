@@ -33,12 +33,9 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Get the current user's profile data
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("id, username, location_enabled, location_geohash, location_label, presence_type, presence_expires_at, presence_note")
-    .eq("id", user.id)
-    .single();
+  // Get the current user's profile data (own row via RPC — the location and
+  // presence columns are not directly selectable since migration 065)
+  const { data: profile, error } = await supabase.rpc("get_my_profile").single();
 
   if (error) {
     return NextResponse.json(

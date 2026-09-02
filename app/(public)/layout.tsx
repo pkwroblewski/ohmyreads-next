@@ -24,7 +24,7 @@ export default async function PublicLayout({
       Promise.all([getConversations(), getUnreadCount()]),
       // No ensureUserProfile here — a public page must not hard-fail on
       // profile creation; the rare profile-less user gets the Navbar branch
-      supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+      supabase.rpc("get_my_profile").maybeSingle(),
     ]);
     [conversations, unreadCount] = chatData;
     profile = (profileResult.data as Profile | null) ?? null;

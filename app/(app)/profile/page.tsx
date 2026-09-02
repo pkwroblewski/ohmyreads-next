@@ -47,9 +47,7 @@ export default async function ProfilePage() {
   // Fetch profile
   const supabase = await createClient();
   const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
+    .rpc("get_my_profile")
     .single();
 
   if (!profile) {

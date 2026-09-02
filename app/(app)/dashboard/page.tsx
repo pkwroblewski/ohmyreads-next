@@ -52,7 +52,7 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const [profileResult, challengesResult, pendingFriendRequests] =
     await Promise.all([
-      supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+      supabase.rpc("get_my_profile").maybeSingle(),
       getChallenges(),
       getPendingRequests(),
     ]);

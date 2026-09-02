@@ -25,3 +25,15 @@ export const BOOK_DETAIL_COLUMNS =
 
 export const BOOK_CARD_COLUMNS =
   "id, title, author, slug, cover_url, isbn, published_date, page_count, genres, google_books_id, average_rating, ratings_count, created_at, open_library_id, open_library_cover_id, cover_source, updated_at, author_slug" as const;
+
+/**
+ * The `profiles` columns that migration 065 leaves readable through the anon
+ * and authenticated roles. `select("*")` on profiles now fails with a
+ * permission error for those roles; a user's own full row (location,
+ * presence, inbox, email preferences) comes from the `get_my_profile()` RPC.
+ *
+ * Keep in sync with the GRANT list in
+ * supabase/migrations/065_profiles_column_privacy.sql.
+ */
+export const PROFILE_PUBLIC_COLUMNS =
+  "id, username, display_name, avatar_url, bio, website, created_at, updated_at, followers_count, following_count, friends_count, is_admin, discovery_visible, is_public_activity, disabled_at" as const;

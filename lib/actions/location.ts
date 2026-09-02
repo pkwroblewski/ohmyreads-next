@@ -252,12 +252,9 @@ export async function updateLocationPrecision(precision: number) {
     // Clamp precision (4-8)
     const validPrecision = Math.min(Math.max(precision, 4), 8);
 
-    // Get current location
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("location_geohash")
-      .eq("id", user.id)
-      .single();
+    // Get current location (own row via RPC: location columns are not
+    // directly selectable since migration 065)
+    const { data: profile } = await supabase.rpc("get_my_profile").maybeSingle();
 
     // Truncate geohash if we have one
     const updates: Record<string, unknown> = {

@@ -24,11 +24,8 @@ export default async function ReaderMapPage() {
   let userPresence: UserPresenceData | null = null;
 
   if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("display_name, username, presence_type, presence_expires_at, presence_note, location_label")
-      .eq("id", user.id)
-      .single();
+    // Own row incl. presence columns, which are not directly selectable (065)
+    const { data: profile } = await supabase.rpc("get_my_profile").maybeSingle();
 
     userName = profile?.display_name || profile?.username || undefined;
 

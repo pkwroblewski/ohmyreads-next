@@ -174,9 +174,7 @@ export async function getCurrentUserProfile() {
     }
 
     const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
+      .rpc("get_my_profile")
       .single();
 
     if (error) {
@@ -244,9 +242,7 @@ export async function ensureUserProfile(): Promise<{
 
     // Check if profile already exists
     const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
+      .rpc("get_my_profile")
       .maybeSingle();
 
     if (existingProfile) {
@@ -365,9 +361,7 @@ export async function ensureUserProfile(): Promise<{
 
     // Fetch the created profile
     const { data: newProfile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
+      .rpc("get_my_profile")
       .single();
 
     // Send welcome email (non-blocking)

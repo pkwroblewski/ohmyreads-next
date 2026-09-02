@@ -45,10 +45,10 @@ export async function GET(request: NextRequest) {
   try {
     const readers = await getNearbyReaders(searchPrefix, limit);
 
-    // Sanitize reader data for API response
+    // Shape the reader data for the API response. Visibility (active,
+    // unexpired check-in; discoverable; not disabled) is enforced inside the
+    // get_nearby_readers() RPC, so every row here is publishable.
     const sanitizedReaders = readers.map((reader) => {
-      // At this point, all readers have active temporary or recommended presence
-      // (expired and null presence already filtered by getNearbyReaders)
       const presenceType = reader.presence_type as "temporary" | "recommended";
 
       // For temporary/recommended presence, return full geohash (user consented to precise location)
