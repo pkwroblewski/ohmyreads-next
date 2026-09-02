@@ -240,7 +240,8 @@ BEGIN
   IF v_content <> 'dry run' OR v_read IS NULL THEN
     RAISE EXCEPTION 'C18 FAILED: content=% read_at=%', v_content, v_read;
   END IF;
-  SELECT unread_messages_count INTO v_int FROM public.profiles WHERE id = b;
+  -- unread_messages_count is a private column since 065: read own row via the RPC
+  SELECT unread_messages_count INTO v_int FROM public.get_my_profile();
   IF v_int <> current_setting('chk.b_unread')::int THEN
     RAISE EXCEPTION 'C18b FAILED: unread_messages_count=% expected % (unread trigger blocked?)', v_int, current_setting('chk.b_unread');
   END IF;
