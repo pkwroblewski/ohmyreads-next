@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Heart, MessageCircle, Share2, Star, MoreHorizontal, MapPin } from "lucide-react";
+import { Heart, MessageCircle, Share2, Star, MoreHorizontal, MapPin, Link2, Flag } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,15 +12,23 @@ import { CoverImage } from "@/components/books/cover-image";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { cn } from "@/lib/utils";
 import { toggleReviewLike } from "@/lib/actions/reviews";
+import { ReportDialog } from "@/components/reports/report-dialog";
 import type { ActivityFeedItemWithRelations } from "@/types/database";
 
 interface ActivityCardProps {
   item: ActivityFeedItemWithRelations;
   isAuthenticated?: boolean;
   initialHasLiked?: boolean;
+  /** Signed-in reader, so their own review does not offer "Report". */
+  currentUserId?: string;
 }
 
-export function ActivityCard({ item, isAuthenticated = false, initialHasLiked = false }: ActivityCardProps) {
+export function ActivityCard({
+  item,
+  isAuthenticated = false,
+  initialHasLiked = false,
+  currentUserId,
+}: ActivityCardProps) {
   const displayName = item.user.display_name || item.user.username || "Reader";
   const createdAt = item.created_at;
 
@@ -38,6 +47,7 @@ export function ActivityCard({ item, isAuthenticated = false, initialHasLiked = 
       createdAt={createdAt}
       isAuthenticated={isAuthenticated}
       initialHasLiked={initialHasLiked}
+      currentUserId={currentUserId}
     />
   );
 }
@@ -85,14 +95,6 @@ function StartedReadingCard({
             <RelativeTime date={createdAt} className="text-xs text-muted-foreground" />
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground"
-            aria-label="More options"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
         </div>
 
         {/* Book Card */}
@@ -174,14 +176,6 @@ function CheckinCard({
             <RelativeTime date={createdAt} className="text-xs text-muted-foreground" />
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground"
-            aria-label="More options"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
         </div>
 
         {/* Place Card */}
@@ -235,39 +229,45 @@ function ReviewCard({
   createdAt,
   isAuthenticated = false,
   initialHasLiked = false,
+  currentUserId,
 }: {
   item: ActivityFeedItemWithRelations;
   displayName: string;
   createdAt: string;
   isAuthenticated?: boolean;
   initialHasLiked?: boolean;
+  currentUserId?: string;
 }) {
   const review = item.review;
   const book = item.book;
 
   const [hasLiked, setHasLiked] = useState(initialHasLiked);
   const [likesCount, setLikesCount] = useState(review?.likes_count || 0);
+  const [reportOpen, setReportOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   if (!book) return null;
 
+  // Only a review has a reportable target. The server refuses self-reports
+  // too; hiding the item just saves the reader a pointless dialog.
+  const reviewId = review?.id;
+  const isOwn = Boolean(currentUserId && item.user_id === currentUserId);
+  const canReport = Boolean(reviewId && (isAuthenticated || currentUserId) && !isOwn);
+
+  const reviewUrl = () => `${window.location.origin}/books/${book.slug}#reviews`;
+
   const handleLike = () => {
-    console.log("handleLike called", { isAuthenticated, reviewId: review?.id });
     if (!isAuthenticated) {
-      console.log("Not authenticated, showing toast");
       toast.error("Please sign in to like reviews");
       return;
     }
     if (!review?.id) {
-      console.log("No review.id, showing error toast");
       toast.error("Unable to like this review");
       return;
     }
-    console.log("Calling toggleReviewLike with id:", review.id);
 
     startTransition(async () => {
       const result = await toggleReviewLike(review.id);
-      console.log("toggleReviewLike result:", result);
       if (result.error) {
         toast.error(result.error);
         return;
@@ -279,7 +279,6 @@ function ReviewCard({
   };
 
   const handleShare = async () => {
-    console.log("handleShare called", { bookSlug: book.slug });
     const shareUrl = `${window.location.origin}/books/${book.slug}`;
     const shareData = {
       title: `Review of ${book.title}`,
@@ -288,7 +287,6 @@ function ReviewCard({
     };
 
     if (navigator.share && navigator.canShare?.(shareData)) {
-      console.log("Using native share API");
       try {
         await navigator.share(shareData);
       } catch (err) {
@@ -298,7 +296,6 @@ function ReviewCard({
         }
       }
     } else {
-      console.log("Falling back to clipboard copy");
       copyToClipboard(shareUrl);
     }
   };
@@ -342,15 +339,55 @@ function ReviewCard({
             <RelativeTime date={createdAt} className="text-xs text-muted-foreground" />
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground"
-            aria-label="More options"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
+          {/* Overflow menu: copy link for everyone, report for signed-in
+              readers looking at someone else's review. Started-reading and
+              check-in cards have no reportable target, so they carry no menu. */}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground"
+                aria-label="More options"
+              >
+                <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="end"
+                sideOffset={4}
+                className="w-36 py-1 bg-popover border rounded-md shadow-md z-50"
+              >
+                <DropdownMenu.Item
+                  onSelect={() => copyToClipboard(reviewUrl())}
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted outline-none cursor-pointer"
+                >
+                  <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Copy link
+                </DropdownMenu.Item>
+                {canReport && (
+                  <DropdownMenu.Item
+                    onSelect={() => setReportOpen(true)}
+                    className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-destructive hover:bg-muted outline-none cursor-pointer"
+                  >
+                    <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+                    Report
+                  </DropdownMenu.Item>
+                )}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </div>
+
+        {canReport && reviewId && (
+          <ReportDialog
+            targetType="review"
+            targetId={reviewId}
+            open={reportOpen}
+            onOpenChange={setReportOpen}
+          />
+        )}
 
         {/* Review Content */}
         <div className="mt-3 flex gap-3">

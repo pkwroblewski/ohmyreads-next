@@ -92,6 +92,7 @@ export default async function CommunityPage() {
               initialGlobalData={initialFeed}
               isLoggedIn={!!user}
               likedReviewIds={likedReviewIds}
+              currentUserId={user?.id}
             />
           </main>
 
@@ -114,6 +115,7 @@ export default async function CommunityPage() {
                 initialGlobalData={initialFeed}
                 isLoggedIn={!!user}
                 likedReviewIds={likedReviewIds}
+                currentUserId={user?.id}
               />
             }
             myShelf={<MyShelfPanel activity={activity} user={userProfile} />}
