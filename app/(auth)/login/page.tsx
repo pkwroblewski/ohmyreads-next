@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { loginErrorMessage } from "@/lib/auth/login-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
 
 // Google icon SVG component
 function GoogleIcon({ className }: { className?: string }) {
@@ -77,7 +77,12 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Seeded from `?error=` so someone the app signed out (session expired,
+  // account disabled, profile setup failed) is told why instead of just seeing
+  // "Welcome back". Unknown codes render nothing; a submit clears it.
+  const [error, setError] = useState<string | null>(() =>
+    loginErrorMessage(searchParams.get("error"))
+  );
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,7 +145,10 @@ function LoginForm() {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+        <div
+          role="alert"
+          className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"
+        >
           {error}
         </div>
       )}

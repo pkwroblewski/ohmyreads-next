@@ -269,7 +269,6 @@ export default async function AdminDashboardPage() {
             title="Total Users"
             value={usersCount.count?.toLocaleString() || 0}
             icon={Users}
-            trend={{ value: 12, label: "this month" }}
           />
           <StatCard
             title="Total Books"
@@ -280,7 +279,6 @@ export default async function AdminDashboardPage() {
             title="Total Reviews"
             value={reviewsCount.count?.toLocaleString() || 0}
             icon={MessageSquare}
-            trend={{ value: 8, label: "this week" }}
           />
           <StatCard
             title="Places"
@@ -442,8 +440,6 @@ export default async function AdminDashboardPage() {
             { label: "Manage Reviews", href: "/admin/reviews", icon: Star },
             { label: "Manage Places", href: "/admin/moderation/places", icon: MapPin },
             { label: "Reports", href: "/admin/reports", icon: Flag },
-            { label: "Email Settings", href: "/admin/email", icon: MessageSquare },
-            { label: "Site Settings", href: "/admin/settings", icon: Settings },
             { label: "Audit Logs", href: "/admin/logs", icon: FileText },
             { label: "Import Data", href: "/admin/import", icon: Upload },
             { label: "Enrich Books", href: "/admin/enrichment", icon: Sparkles },
