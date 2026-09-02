@@ -46,6 +46,14 @@ interface TargetSummary {
   excerpt: string;
   href?: string;
   hrefLabel?: string;
+  /** Who posted it, so the row can offer "Disable author" (Task 7). */
+  author?: ReportAuthor;
+}
+
+interface ReportAuthor {
+  id: string;
+  username: string | null;
+  isDisabled: boolean;
 }
 
 export default async function AdminReportsPage({ searchParams }: PageProps) {
@@ -116,22 +124,48 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
     idsByType.get("review")?.length
       ? supabase
           .from("reviews")
-          .select("id, summary, content, book:books(title, slug)")
+          .select("id, user_id, summary, content, book:books(title, slug)")
           .in("id", idsByType.get("review")!)
       : Promise.resolve({ data: [] as never[] }),
     idsByType.get("comment")?.length
       ? supabase
           .from("comments")
-          .select("id, content, review:reviews(id, book:books(title, slug))")
+          .select("id, user_id, content, review:reviews(id, book:books(title, slug))")
           .in("id", idsByType.get("comment")!)
       : Promise.resolve({ data: [] as never[] }),
     idsByType.get("place_photo")?.length
       ? supabase
           .from("place_photos")
-          .select("id, caption, place:places(name, city)")
+          .select("id, user_id, caption, place:places(name, city)")
           .in("id", idsByType.get("place_photo")!)
       : Promise.resolve({ data: [] as never[] }),
   ]);
+
+  // One profiles read for every author (comments has no FK to profiles, so
+  // this cannot be embedded above).
+  const authorIds = [
+    ...new Set(
+      [...(reviewRows.data ?? []), ...(commentRows.data ?? []), ...(photoRows.data ?? [])]
+        .map((row) => row.user_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const { data: authorRows } = authorIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, username, disabled_at")
+        .in("id", authorIds)
+    : { data: [] as { id: string; username: string | null; disabled_at: string | null }[] };
+  const authors = new Map<string, ReportAuthor>();
+  for (const row of authorRows ?? []) {
+    authors.set(row.id, {
+      id: row.id,
+      username: row.username,
+      isDisabled: row.disabled_at !== null,
+    });
+  }
+  const authorOf = (userId: string | null) =>
+    userId ? authors.get(userId) : undefined;
 
   for (const row of reviewRows.data ?? []) {
     const book = Array.isArray(row.book) ? row.book[0] : row.book;
@@ -139,6 +173,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
       excerpt: row.summary || row.content || "(empty review)",
       href: book?.slug ? `/books/${book.slug}` : undefined,
       hrefLabel: book?.title ? `Open “${book.title}”` : undefined,
+      author: authorOf(row.user_id),
     });
   }
 
@@ -153,6 +188,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
       excerpt: row.content || "(empty comment)",
       href: book?.slug ? `/books/${book.slug}` : undefined,
       hrefLabel: book?.title ? `Open “${book.title}”` : undefined,
+      author: authorOf(row.user_id),
     });
   }
 
@@ -166,6 +202,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         : row.caption || "(photo with no caption)",
       href: "/community/map",
       hrefLabel: "Open the map",
+      author: authorOf(row.user_id),
     });
   }
 
@@ -330,7 +367,11 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
                 </div>
 
                 {report.status === "open" ? (
-                  <ReportRowActions reportId={report.id} />
+                  <ReportRowActions
+                    reportId={report.id}
+                    author={target?.author}
+                    reasonLabel={REPORT_REASON_LABELS[report.reason as ReportReason]}
+                  />
                 ) : (
                   <div className="p-3 rounded-lg bg-muted/30 text-sm text-muted-foreground">
                     {report.status === "resolved" ? "Resolved" : "Dismissed"}

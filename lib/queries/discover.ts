@@ -169,6 +169,7 @@ export async function searchReaders(options: {
       count: "exact",
     })
     .eq("discovery_visible", true)
+    .is("disabled_at", null)
     .or(`username.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%`)
     .order("followers_count", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -296,7 +297,8 @@ export async function getRecommendedReaders(
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url, bio, followers_count, following_count")
-    .in("id", candidateIds);
+    .in("id", candidateIds)
+    .is("disabled_at", null);
 
   if (!profiles) return [];
 
@@ -372,6 +374,7 @@ async function getActiveReaders(
     .from("profiles")
     .select("id, username, display_name, avatar_url, bio, followers_count, following_count")
     .eq("discovery_visible", true)
+    .is("disabled_at", null)
     .neq("id", excludeUserId)
     .order("followers_count", { ascending: false })
     .limit(limit);
@@ -444,7 +447,8 @@ export async function browseReaders(options: {
     .select("id, username, display_name, avatar_url, bio, followers_count, following_count", {
       count: "exact",
     })
-    .eq("discovery_visible", true);
+    .eq("discovery_visible", true)
+    .is("disabled_at", null);
 
   // Apply search filter (sanitized — see searchReaders above)
   if (filters.query && filters.query.length >= 2) {

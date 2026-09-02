@@ -209,6 +209,9 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                                 Admin
                               </Badge>
                             )}
+                            {user.disabled_at && (
+                              <Badge variant="destructive">Disabled</Badge>
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground">
                             @{user.username}

@@ -21,7 +21,9 @@ const revalidatePath = vi.fn();
 /** The service-role write. Captured so tests can see what it was given. */
 const adminUpdate = vi.fn();
 const adminEq = vi.fn();
+const adminSelect = vi.fn();
 const adminFrom = vi.fn();
+const updateUserById = vi.fn();
 
 /** The caller's session client — must never be the one writing `is_admin`. */
 const sessionUpdate = vi.fn();
@@ -34,7 +36,10 @@ vi.mock("@/lib/auth/require-admin", () => ({
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({ from: adminFrom }),
+  createAdminClient: () => ({
+    from: adminFrom,
+    auth: { admin: { updateUserById } },
+  }),
 }));
 
 vi.mock("@/lib/utils/rate-limit", () => ({
@@ -49,7 +54,11 @@ vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => revalidatePath(...args),
 }));
 
-import { adminToggleAdmin } from "@/lib/actions/admin-users";
+import {
+  adminToggleAdmin,
+  adminDisableUser,
+  adminEnableUser,
+} from "@/lib/actions/admin-users";
 
 const ADMIN = { id: "11111111-1111-4111-8111-111111111111" };
 const TARGET = "550e8400-e29b-41d4-a716-446655440000";
@@ -228,5 +237,149 @@ describe("adminToggleAdmin: refusals", () => {
     });
     // The raw Postgres text must not reach the browser.
     expect(JSON.stringify(result)).not.toContain("permission denied");
+  });
+});
+
+/**
+ * Disable / enable (Phase 2, Task 7). Before this the "disable" action wrote
+ * an audit row and nothing else: no column, no session revocation, no gate.
+ */
+function arrangeAccount({
+  isAdmin = false,
+  disabledAt = null as string | null,
+  rows = [{ id: TARGET }],
+} = {}) {
+  profileSingle.mockResolvedValue({
+    data: { username: "ada", is_admin: isAdmin, disabled_at: disabledAt },
+  });
+  sessionFrom.mockImplementation(() => ({
+    select: () => ({ eq: () => ({ single: profileSingle }) }),
+    update: sessionUpdate,
+  }));
+
+  adminSelect.mockResolvedValue({ data: rows, error: null });
+  adminUpdate.mockReturnValue({ eq: () => ({ select: adminSelect }) });
+  adminFrom.mockReturnValue({ update: adminUpdate });
+  updateUserById.mockResolvedValue({ data: {}, error: null });
+
+  requireAdmin.mockResolvedValue({
+    supabase: { from: sessionFrom },
+    user: ADMIN,
+  });
+}
+
+describe("adminDisableUser", () => {
+  it("sets disabled_at through the service-role client and bans the auth user", async () => {
+    arrangeAccount();
+
+    const result = await adminDisableUser(TARGET, "spam");
+
+    expect(result).toMatchObject({ success: true });
+    expect(adminFrom).toHaveBeenCalledWith("profiles");
+    expect(adminUpdate).toHaveBeenCalledWith({ disabled_at: expect.any(String) });
+    expect(updateUserById).toHaveBeenCalledWith(TARGET, { ban_duration: "876000h" });
+    // The session client must not have attempted the write: the trigger
+    // would silently revert it.
+    expect(sessionUpdate).not.toHaveBeenCalled();
+    expect(createAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "admin.user.disable",
+        targetId: TARGET,
+        metadata: expect.objectContaining({ reason: "spam", banApplied: true }),
+      })
+    );
+  });
+
+  it("refuses to disable an admin, without writing anything", async () => {
+    arrangeAccount({ isAdmin: true });
+
+    const result = await adminDisableUser(TARGET);
+
+    expect(result).toEqual({ success: false, error: "Cannot disable admin accounts" });
+    expect(adminFrom).not.toHaveBeenCalled();
+    expect(updateUserById).not.toHaveBeenCalled();
+  });
+
+  it("refuses to disable yourself", async () => {
+    arrangeAccount();
+
+    const result = await adminDisableUser(ADMIN.id);
+
+    expect(result).toEqual({ success: false, error: "Cannot disable your own account" });
+    expect(adminFrom).not.toHaveBeenCalled();
+  });
+
+  it("says so when the account is already disabled", async () => {
+    arrangeAccount({ disabledAt: "2026-09-01T00:00:00Z" });
+
+    const result = await adminDisableUser(TARGET);
+
+    expect(result).toEqual({ success: false, error: "This account is already disabled" });
+    expect(adminFrom).not.toHaveBeenCalled();
+  });
+
+  it("fails, without a ban or an audit row, when the update touched no row", async () => {
+    arrangeAccount({ rows: [] });
+
+    const result = await adminDisableUser(TARGET);
+
+    expect(result).toEqual({ success: false, error: "Nothing was changed" });
+    expect(updateUserById).not.toHaveBeenCalled();
+    expect(createAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed ban honestly instead of claiming the account is locked out", async () => {
+    arrangeAccount();
+    updateUserById.mockResolvedValue({ data: null, error: { message: "auth down" } });
+
+    const result = await adminDisableUser(TARGET);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/could not be revoked/);
+    // The column is set and the audit row says the ban did not apply.
+    expect(createAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ banApplied: false }),
+      })
+    );
+  });
+});
+
+describe("adminEnableUser", () => {
+  it("clears disabled_at through the service-role client and lifts the ban", async () => {
+    arrangeAccount({ disabledAt: "2026-09-01T00:00:00Z" });
+
+    const result = await adminEnableUser(TARGET);
+
+    expect(result).toMatchObject({ success: true });
+    expect(adminUpdate).toHaveBeenCalledWith({ disabled_at: null });
+    expect(updateUserById).toHaveBeenCalledWith(TARGET, { ban_duration: "none" });
+    expect(sessionUpdate).not.toHaveBeenCalled();
+    expect(createAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "admin.user.enable",
+        targetId: TARGET,
+        metadata: expect.objectContaining({ banLifted: true }),
+      })
+    );
+  });
+
+  it("says so when the account is not disabled", async () => {
+    arrangeAccount();
+
+    const result = await adminEnableUser(TARGET);
+
+    expect(result).toEqual({ success: false, error: "This account is not disabled" });
+    expect(adminFrom).not.toHaveBeenCalled();
+  });
+
+  it("fails, without lifting the ban, when the update touched no row", async () => {
+    arrangeAccount({ disabledAt: "2026-09-01T00:00:00Z", rows: [] });
+
+    const result = await adminEnableUser(TARGET);
+
+    expect(result).toEqual({ success: false, error: "Nothing was changed" });
+    expect(updateUserById).not.toHaveBeenCalled();
+    expect(createAuditLog).not.toHaveBeenCalled();
   });
 });

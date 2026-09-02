@@ -6,11 +6,18 @@ import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { logError } from "@/lib/utils/log";
+import { logError, logger } from "@/lib/utils/log";
+import { PROFILE_PUBLIC_COLUMNS } from "@/lib/queries/columns";
 import {
   adminUserIdSchema,
   adminUserActionSchema,
 } from "@/lib/validation/admin";
+
+/**
+ * Supabase Auth has no "banned forever"; a century is the conventional stand-in.
+ * `ban_duration: "none"` lifts it.
+ */
+const PERMANENT_BAN = "876000h";
 
 // User filters
 export interface UserFilters {
@@ -29,6 +36,7 @@ export interface UserWithStats {
   display_name: string | null;
   avatar_url: string | null;
   is_admin: boolean;
+  disabled_at: string | null;
   created_at: string;
   books_count: number;
   reviews_count: number;
@@ -57,6 +65,7 @@ export async function adminGetUsers(filters: UserFilters = {}) {
         display_name,
         avatar_url,
         is_admin,
+        disabled_at,
         created_at,
         user_books(count),
         reviews(count)
@@ -96,6 +105,7 @@ export async function adminGetUsers(filters: UserFilters = {}) {
       display_name: user.display_name,
       avatar_url: user.avatar_url,
       is_admin: user.is_admin ?? false,
+      disabled_at: user.disabled_at ?? null,
       created_at: user.created_at,
       books_count: Array.isArray(user.user_books)
         ? user.user_books[0]?.count || 0
@@ -143,11 +153,13 @@ export async function adminGetUser(userId: string) {
       return { success: false, error: "Invalid user ID" };
     }
 
-    // Get profile with stats
+    // Get profile with stats. Since 065 `*` on profiles is refused for the
+    // authenticated role (the admin's session client included), so this reads
+    // the public projection, which carries disabled_at.
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select(`
-        *,
+        ${PROFILE_PUBLIC_COLUMNS},
         reading_stats(*),
         user_books(count),
         reviews(count)
@@ -330,7 +342,7 @@ export async function adminDisableUser(userId: string, reason?: string) {
     // Get user info
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username, is_admin")
+      .select("username, is_admin, disabled_at")
       .eq("id", userId)
       .single();
 
@@ -343,9 +355,37 @@ export async function adminDisableUser(userId: string, reason?: string) {
       return { success: false, error: "Cannot disable admin accounts" };
     }
 
-    // For now, we'll add a disabled_at field. If it doesn't exist,
-    // we'll track this in the audit log
-    // In production, you'd want a dedicated disabled/banned field
+    if (profile.disabled_at) {
+      return { success: false, error: "This account is already disabled" };
+    }
+
+    // disabled_at is frozen by protect_admin_columns() for every JWT role
+    // except service_role (migration 066), so the write goes through the
+    // service-role client exactly like is_admin does. Authorization has
+    // already been enforced above by requireAdmin() + the guards.
+    const adminClient = createAdminClient();
+    const { data: disabled, error } = await adminClient
+      .from("profiles")
+      .update({ disabled_at: new Date().toISOString() })
+      .eq("id", userId)
+      .select("id");
+
+    if (error) throw error;
+    if (!disabled || disabled.length === 0) {
+      logger.error("Admin disable changed no rows", { userId });
+      return { success: false, error: "Nothing was changed" };
+    }
+
+    // Refuse new sessions too, so the flag is not only enforced by the app.
+    const { error: banError } = await adminClient.auth.admin.updateUserById(
+      userId,
+      { ban_duration: PERMANENT_BAN }
+    );
+    if (banError) {
+      logError("Disable: auth ban failed after disabled_at was set", banError, {
+        userId,
+      });
+    }
 
     // Audit log
     await createAuditLog({
@@ -356,11 +396,20 @@ export async function adminDisableUser(userId: string, reason?: string) {
       metadata: {
         username: profile.username,
         reason: reason || "No reason provided",
+        banApplied: !banError,
       },
     });
 
     revalidatePath("/admin/users");
     revalidatePath(`/admin/users/${userId}`);
+
+    if (banError) {
+      return {
+        success: false,
+        error:
+          "Account marked disabled, but existing sign-ins could not be revoked. Enable and disable it again to retry.",
+      };
+    }
 
     return {
       success: true,
@@ -395,12 +444,40 @@ export async function adminEnableUser(userId: string) {
     // Get user info
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username")
+      .select("username, disabled_at")
       .eq("id", userId)
       .single();
 
     if (!profile) {
       return { success: false, error: "User not found" };
+    }
+
+    if (!profile.disabled_at) {
+      return { success: false, error: "This account is not disabled" };
+    }
+
+    // Same service-role path as adminDisableUser (see the note there).
+    const adminClient = createAdminClient();
+    const { data: enabled, error } = await adminClient
+      .from("profiles")
+      .update({ disabled_at: null })
+      .eq("id", userId)
+      .select("id");
+
+    if (error) throw error;
+    if (!enabled || enabled.length === 0) {
+      logger.error("Admin enable changed no rows", { userId });
+      return { success: false, error: "Nothing was changed" };
+    }
+
+    const { error: banError } = await adminClient.auth.admin.updateUserById(
+      userId,
+      { ban_duration: "none" }
+    );
+    if (banError) {
+      logError("Enable: lifting the auth ban failed after disabled_at was cleared", banError, {
+        userId,
+      });
     }
 
     // Audit log
@@ -409,11 +486,19 @@ export async function adminEnableUser(userId: string) {
       targetType: "user",
       targetId: userId,
       userId: user.id,
-      metadata: { username: profile.username },
+      metadata: { username: profile.username, banLifted: !banError },
     });
 
     revalidatePath("/admin/users");
     revalidatePath(`/admin/users/${userId}`);
+
+    if (banError) {
+      return {
+        success: false,
+        error:
+          "Account re-enabled, but the sign-in block could not be lifted. Disable and enable it again to retry.",
+      };
+    }
 
     return {
       success: true,

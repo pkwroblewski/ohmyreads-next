@@ -10,10 +10,12 @@ import {
   Crown,
   Star,
   ExternalLink,
+  Ban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { UserDisableToggle } from "@/components/admin/user-disable-toggle";
 import { adminGetUser } from "@/lib/actions/admin-users";
 import { safeHref } from "@/lib/utils/sanitize";
 
@@ -52,12 +54,20 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
             </Button>
           </Link>
         </div>
-        <Link href={`/users/${user.username}`} target="_blank">
-          <Button variant="outline" size="sm">
-            <ExternalLink className="h-4 w-4 mr-2" />
-            View Profile
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <UserDisableToggle
+            userId={user.id}
+            username={user.username}
+            isDisabled={user.disabled_at !== null}
+            isAdmin={user.is_admin ?? false}
+          />
+          <Link href={`/users/${user.username}`} target="_blank">
+            <Button variant="outline" size="sm">
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View Profile
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* User Profile Card */}
@@ -79,6 +89,12 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
                 <Badge variant="secondary" className="gap-1">
                   <Crown className="h-3 w-3" />
                   Admin
+                </Badge>
+              )}
+              {user.disabled_at && (
+                <Badge variant="destructive" className="gap-1">
+                  <Ban className="h-3 w-3" aria-hidden="true" />
+                  Disabled {new Date(user.disabled_at).toLocaleDateString()}
                 </Badge>
               )}
             </div>

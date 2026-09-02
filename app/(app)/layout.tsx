@@ -77,6 +77,14 @@ export default async function AppLayout({
     redirect("/login?error=layout_error");
   }
 
+  // A disabled account gets no further than this. The auth ban set by
+  // adminDisableUser refuses new sessions; this catches the one that is still
+  // alive. A layout cannot clear cookies, so the sign-out itself happens in
+  // the route handler, which then lands on /login with the reason.
+  if (profile.disabled_at) {
+    redirect("/signout?reason=account_disabled");
+  }
+
   return (
     <AppShell
       user={user}

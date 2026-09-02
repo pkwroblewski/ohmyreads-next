@@ -15,6 +15,9 @@ export async function getProfileByUsername(
     .from("profiles")
     .select(PROFILE_PUBLIC_COLUMNS)
     .eq("username", username)
+    // A disabled account's public page 404s (Task 7); its content is hidden
+    // by RLS (066), so the profile would otherwise be an empty shell.
+    .is("disabled_at", null)
     .single();
 
   if (error) {
