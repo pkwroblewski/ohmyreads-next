@@ -15,12 +15,12 @@
 
 ## ▶ RESUME HERE (last updated 2026-09-02)
 
-Plan created from `.claude/plans/phase2-audit-findings-2026-09-01.md` (the 7-agent audit run after the Aug 2026 hardening plan). **Tasks 1–3 are COMPLETE** (064 applied live 2026-09-01; Task 2 URL hardening committed as `9dd193b`; Task 3 migration 065 applied live 2026-09-02). **Next: Task 4.**
+Plan created from `.claude/plans/phase2-audit-findings-2026-09-01.md` (the 7-agent audit run after the Aug 2026 hardening plan). **Tasks 1–4 are COMPLETE** (064 applied live 2026-09-01; Task 2 URL hardening `9dd193b`; Task 3 migration 065 applied live + `590b701`; Task 4 service-role catalog insert 2026-09-02). **Next: Task 5.**
 
 **Facts every task must respect:**
 - Migrations **064 and 065 are applied**. Next free migration number is **`066`** (Task 24).
 - Since 065, `select("*")` on `profiles` fails for anon/authenticated. Public reads use `PROFILE_PUBLIC_COLUMNS` (`lib/queries/columns.ts`); a user's own full row comes from `supabase.rpc("get_my_profile")`; other users' location/presence only via `get_nearby_readers()`. Re-run `supabase/checks/065_profiles_column_privacy.check.sql` after any change to profiles grants or those RPCs. Apply with `npx supabase db query --linked -f <file>` (no Docker; `db diff/dump` do not work). Regenerate types with `npm run types:gen` and commit `types/database.generated.ts`.
-- Baseline gates on `a51eab6`: `tsc` clean, lint **0 errors / 25 warnings**, **245 tests / 18 files**, build exit 0. After Task 3: **325 tests / 21 files**. Every task must end at or above this.
+- Baseline gates on `a51eab6`: `tsc` clean, lint **0 errors / 25 warnings**, **245 tests / 18 files**, build exit 0. After Task 4: **333 tests / 22 files**. Every task must end at or above this.
 - `no-console` is an **error** in `lib/**` and `app/**`; log through `logError` / `logger` from `lib/utils/log.ts`.
 - **Never run `npm run build` while `next dev` is up** (poisons `.next`; fix is `rm -rf .next`).
 - `requireAdmin()` returns the **session** client. Any admin write needs either a matching `is_admin` RLS policy (Task 1 added them for books/reviews/comments/place_photos/book_submissions) or `createAdminClient()`.
@@ -40,7 +40,7 @@ Plan created from `.claude/plans/phase2-audit-findings-2026-09-01.md` (the 7-age
 | 1 | Migration 064: RPC guards, RLS freezes, admin policies, constraints, indexes | 🔴 Critical | High | [x] COMPLETE | `supabase/migrations/064_phase2_security.sql`, `supabase/checks/064_phase2_security.check.sql`, `types/database.generated.ts`, `lib/actions/messages.ts`, `lib/queries/badges.ts`, `lib/actions/books.ts`, `components/dashboard/dashboard-stats.tsx` |
 | 2 | Reject `javascript:` / `data:` URLs in profile, social, cover fields | 🔴 Critical | Low | [x] COMPLETE | `lib/validation/shared.ts` (new), `lib/validation/{profile,admin,book-action,book-submission,place}.ts`, `lib/utils/sanitize.ts`, `app/(public)/users/[username]/page.tsx`, `app/(app)/profile/page.tsx`, `app/(app)/admin/users/[id]/page.tsx`, `app/(app)/admin/moderation/places/page.tsx`, `components/social/social-links-display.tsx`, `components/admin/submission-moderation-actions.tsx`, `components/geo/{map-context-panel,map-detail-panel}.tsx`, `__tests__/lib/validation/profile.test.ts` (new), `__tests__/lib/utils/sanitize.test.ts` |
 | 3 | Stop world-readable location / presence / admin columns on `profiles` | 🔴 Critical | Medium | [x] COMPLETE | `supabase/migrations/065_profiles_column_privacy.sql`, `supabase/checks/065_profiles_column_privacy.check.sql`, `types/database.generated.ts`, `lib/queries/{columns,users,geo}.ts`, `lib/actions/{user,location}.ts`, `app/(app)/{layout,dashboard/page,profile/page,profile/edit/page}.tsx`, `app/(public)/{layout,page,community/map/page}.tsx`, `app/api/geo/readers/{route,debug/route}.ts`, `__tests__/lib/queries/geo.test.ts`, `__tests__/app/api/geo-readers.test.ts` |
-| 4 | Let non-admin users add catalog books (service-role insert path) | 🔴 Critical | Medium | [ ] PENDING | `lib/actions/books.ts`, `lib/actions/import.ts`, `lib/supabase/admin.ts` |
+| 4 | Let non-admin users add catalog books (service-role insert path) | 🔴 Critical | Medium | [x] COMPLETE | `lib/actions/books.ts`, `__tests__/lib/actions/books.test.ts` |
 | 5 | Small security fixes: KV fail-closed, OG SSRF allow-list, CSRF Sec-Fetch-Site, cron compare, comment parent, CSV formulas, geohash, browse page coerce | 🟠 High | Medium | [ ] PENDING | `lib/utils/rate-limit.ts`, `app/api/og/{review,stats}/route.tsx`, `lib/utils/csrf.ts`, `app/api/cron/weekly-digest/route.ts`, `lib/actions/comments.ts`, `app/api/export/route.ts`, `lib/actions/location.ts`, `app/api/discover/browse/route.ts` |
 | 6 | Make admin book/review/comment/submission actions actually work and fail loudly | 🟠 High | Low | [ ] PENDING | `lib/actions/admin-books.ts`, `lib/actions/admin-reviews.ts`, `lib/actions/admin-enrichment.ts`, `lib/actions/book-submissions.ts` |
 | 7 | Real "disable user": column, enforcement, admin UI | 🟠 High | Medium | [ ] PENDING | `lib/actions/admin-users.ts`, `proxy.ts`, `app/(app)/layout.tsx`, `app/(app)/admin/users/[id]/page.tsx`, RLS in `064` |
@@ -193,25 +193,24 @@ The Aug 2026 hardening plan closed 32 findings but tested admin paths only throu
 **Context:** Live policy on `books` is INSERT for admins only (019:28). `importAndAddToShelf` (books.ts:419-471, called from `components/ai/ai-book-search.tsx:372`) and the Goodreads import (import.ts:199, 319) insert into `books` with the session client, so any reader who is not an admin gets "Error inserting book" when the title is not already catalogued. The owner tests as admin and never saw it. Decide: (a) insert through `createAdminClient()` after Zod validation and after `getUser()` succeeds, stamping `created_by = user.id` and null ratings, or (b) an RLS policy `authenticated may INSERT with created_by = auth.uid() AND average_rating IS NULL AND ratings_count = 0 AND local_* = 0`. Prefer (a): it keeps the catalog write behind server validation and does not widen RLS.
 
 **Steps:**
-1. [ ] In `insertBookWithUniqueSlug`, accept the client as a parameter as today, but have both callers pass `createAdminClient()` only for the `books` insert; every other query in those actions stays on the session client.
-2. [ ] Ensure the inserted row sets `created_by: user.id`, `average_rating: null`, `ratings_count: 0`, `local_average_rating: null`, `local_ratings_count: 0`, `cover_source` where known.
-3. [ ] Keep rate limits: `importAndAddToShelf` and `importFromGoodreads` already call `checkRateLimit` — confirm and tighten (10 catalog inserts / hour / user for AI import).
-4. [ ] Tests (`__tests__/lib/actions/books.test.ts`, new — also Task 21's T1): non-admin path calls the admin client for the insert, refuses unauthenticated, retries slug on 23505 up to 10 times.
-5. [ ] Throwaway-route or signed-in check: add a book that is not in the catalog as a non-admin user (create one with `supabase.auth.admin.createUser` in a script if needed) and confirm it lands on the shelf.
+1. [x] In `insertBookWithUniqueSlug`, accept the client as a parameter as today, but have both callers pass `createAdminClient()` only for the `books` insert; every other query in those actions stays on the session client.
+2. [x] Ensure the inserted row sets `created_by: user.id`, `average_rating: null`, `ratings_count: 0`, `local_average_rating: null`, `local_ratings_count: 0`, `cover_source` where known.
+3. [x] Keep rate limits: `importAndAddToShelf` and `importFromGoodreads` already call `checkRateLimit` — confirm and tighten (10 catalog inserts / hour / user for AI import).
+4. [x] Tests (`__tests__/lib/actions/books.test.ts`, new — also Task 21's T1): non-admin path calls the admin client for the insert, refuses unauthenticated, retries slug on 23505 up to 10 times.
+5. [x] Throwaway-route or signed-in check: add a book that is not in the catalog as a non-admin user (create one with `supabase.auth.admin.createUser` in a script if needed) and confirm it lands on the shelf.
 
 **Verify:**
-- [ ] A non-admin user can import an uncatalogued book via AI search and via Goodreads CSV.
-- [ ] `books` INSERT policy unchanged (still admin-only for direct REST writes).
-- [ ] Tests + gates at baseline.
+- [x] A non-admin user can import an uncatalogued book via AI search and via Goodreads CSV. — AI path verified live (see notes). Goodreads CSV never creates catalog rows (it only matches existing ISBNs/titles and reports the rest as "not found"), so there is nothing to verify there; the audit's claim that `import.ts` inserts into `books` was wrong.
+- [x] `books` INSERT policy unchanged (still admin-only for direct REST writes). — The live check's direct session-client insert as the non-admin returned `42501: new row violates row-level security policy for table "books"`.
+- [x] Tests + gates at baseline. — tsc clean, lint 0 errors / 25 warnings, **333 tests / 22 files**.
 
 **Completed Notes:**
-<!-- Fill in after completing -->
-- Files modified: 
-- Approach taken: 
-- Deviations from plan: 
-- Issues encountered: 
+- Files modified: `lib/actions/books.ts` (`importAndAddToShelf`, `insertBookWithUniqueSlug` signature + `BookInsertData`), `__tests__/lib/actions/books.test.ts` (new, 8 tests).
+- Approach taken: option (a). The catalog insert inside `importAndAddToShelf` now passes `createAdminClient()` to `insertBookWithUniqueSlug` — after `getUser()`, the existing 20/min shelf limit, a new `catalog-insert:<user>` limit of 10/hour, and the Zod parse. The duplicate lookups (ISBN / Google / Open Library) and the `user_books` upsert stay on the session client. The helper's parameter is typed `SupabaseClient<Database>` so both clients fit. New rows carry `average_rating: null, ratings_count: 0, local_average_rating: null, local_ratings_count: 0`. Live proof via a throwaway dev-only route (`app/task4-check/route.ts`, deleted): it created a temporary user with `auth.admin.createUser`, signed it in server-side with `signInWithPassword`, confirmed `is_admin=false`, showed the direct insert refused with 42501, then called the action — which created `books/task4-check-book-8a6b8a` (ratings null/0/null/0) and the `want_to_read` shelf row, verified by SQL. All three rows and the auth user were then deleted by SQL (0 left).
+- Deviations from plan: (1) `books` has no `created_by` column, so it is not stamped (adding one is a schema change; nothing reads it). (2) `cover_source` is not set — `ExternalBookData` carries no source; the existing cover pipeline infers it. (3) `import.ts` untouched: the Goodreads import does not insert into `books` (line 199 is a SELECT, 319 inserts `user_books`), so only the AI-search path needed the change. (4) `insertBookWithUniqueSlug` is not exported; the retry behaviour is covered through the action.
+- Issues encountered: calling the Server Action from a Route Handler throws at `invalidateTags()` (`updateTag` is Server-Action-only), which happens *after* the insert and shelf upsert — so the harness reported "unexpected error" while the rows had been created, and its own cleanup skipped them; cleaned up by SQL. `auth.admin.deleteUser` also failed ("Database error deleting user") until the profile row was deleted first. The earlier dev server (Task 3) survived `TaskStop` and held port 3000 with a deleted `.next`; killed by PID.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -943,4 +942,5 @@ The Aug 2026 hardening plan closed 32 findings but tested admin paths only throu
 | 2026-09-01 | 1 | COMPLETE | Migration 064 applied live; 28-check role matrix in `supabase/checks/064_phase2_security.check.sql` passes; freeze rule uses `current_user` not the JWT role; `updateReadingStats` removed; badges + unread count moved to the service-role client; username `fabfashion-bianca` → `fabfashionbianca`; residual anon-callable SECURITY DEFINER club helpers + missing WITH CHECK on reviews/reading_lists UPDATE noted for Task 24. Not committed. |
 | 2026-09-02 | 2 | COMPLETE | `httpUrl()` in `lib/validation/shared.ts` on every user URL schema (incl. `place.website`, previously unvalidated); `safeHref()` in `lib/utils/sanitize.ts` at 8 render sites; +80 tests (312 / 19 files); live scan of 7 URL columns found 0 offenders. Not committed. |
 | 2026-09-02 | 3 | COMPLETE | Migration 065 (column grants on profiles + `get_my_profile()` + `get_nearby_readers()`) applied live; 19-check matrix in `supabase/checks/065_profiles_column_privacy.check.sql` passes; 11 star-selects rewritten; `is_admin` kept public (20 inline policies) → Task 24; Task 24 migration is now 066. |
+| 2026-09-02 | 4 | COMPLETE | `importAndAddToShelf` inserts catalog rows through `createAdminClient()` after auth + Zod + new 10/h `catalog-insert` limit; 8 tests; live non-admin proof via throwaway route (direct insert 42501, action created book + shelf row; all cleaned up). Goodreads import never inserts books — audit claim wrong. |
 | | | | |

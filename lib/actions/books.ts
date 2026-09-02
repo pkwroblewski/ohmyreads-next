@@ -7,6 +7,7 @@ import {
   invalidateTags,
 } from "@/lib/cache/tags";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSlug } from "@/lib/utils/slug";
 import { syncUserBadges } from "@/lib/actions/badges";
 import { syncChallengeProgress } from "@/lib/actions/challenges";
@@ -19,6 +20,7 @@ import {
 } from "@/lib/validation/book-action";
 import crypto from "crypto";
 import type { Database } from "@/types/database";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { logError, reportError } from "@/lib/utils/log";
 type UserBookInsert = Database["public"]["Tables"]["user_books"]["Insert"];
 
@@ -62,15 +64,20 @@ interface BookInsertData {
   published_date?: string | null;
   average_rating?: number | null;
   ratings_count?: number;
+  local_average_rating?: number | null;
+  local_ratings_count?: number;
 }
 
 /**
  * Insert a book with automatic slug collision handling.
  * Uses database unique constraint instead of check-then-insert to avoid race conditions.
  * On collision, retries with random suffix until success or max retries reached.
+ *
+ * Pass the service-role client: the books INSERT policy is admin-only, and the
+ * caller is responsible for authenticating, rate-limiting and validating first.
  */
 async function insertBookWithUniqueSlug(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient<Database>,
   bookData: BookInsertData,
   baseSlug: string
 ): Promise<{ id: string; slug: string } | { error: string }> {
@@ -448,11 +455,27 @@ export async function importAndAddToShelf(
       bookId = existingBook.id;
       bookSlug = existingBook.slug;
     } else {
-      // Create new book in catalog with race-condition-safe slug generation
+      // Catalog inserts are rarer and heavier than shelf moves: 10 per hour
+      const { allowed: catalogAllowed } = await checkRateLimit(
+        `catalog-insert:${user.id}`,
+        10,
+        3600000
+      );
+      if (!catalogAllowed) {
+        return {
+          success: false,
+          error: "You've added a lot of new books recently. Please try again later.",
+        };
+      }
+
+      // Create new book in catalog with race-condition-safe slug generation.
+      // The books INSERT policy is admin-only, so the write goes through the
+      // service-role client — after the auth, rate-limit and Zod checks above,
+      // and only for this insert; every other query stays on the session client.
       const baseSlug = generateSlug(externalBook.title);
 
       const result = await insertBookWithUniqueSlug(
-        supabase,
+        createAdminClient(),
         {
           title: externalBook.title,
           author: externalBook.author,
@@ -464,9 +487,11 @@ export async function importAndAddToShelf(
           genres: externalBook.genres || [],
           page_count: externalBook.pageCount || null,
           published_date: externalBook.publishedDate || null,
-          // User-submitted books start with no ratings
+          // User-submitted books start with no ratings, external or local
           average_rating: null,
           ratings_count: 0,
+          local_average_rating: null,
+          local_ratings_count: 0,
         },
         baseSlug
       );
