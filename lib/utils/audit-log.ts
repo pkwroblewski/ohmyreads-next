@@ -45,6 +45,7 @@ export type AuditAction =
   // Authentication
   | "auth.login"
   | "auth.logout"
+  | "auth.password_change"
   | "auth.password_reset";
 
 // Target types

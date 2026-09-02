@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { getAllGenres } from "@/lib/queries/books";
 import { getTasteProfile } from "@/lib/actions/taste";
 import { getUserLocation } from "@/lib/queries/geo";
@@ -10,8 +10,9 @@ import { LocationSection } from "@/components/settings/location-section";
 import { PrivacySection } from "@/components/settings/privacy-section";
 import { EmailSection } from "@/components/settings/email-section";
 import { ExportSection } from "@/components/settings/export-section";
+import { AccountSection } from "@/components/settings/account-section";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Sparkles, MapPin, Download, Shield, Mail } from "lucide-react";
+import { Settings, Sparkles, MapPin, Download, Shield, Mail, UserCog } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -50,15 +51,27 @@ export default async function SettingsPage() {
     redirect("/login?redirect=/settings");
   }
 
-  // Fetch genres, taste profile, location, and privacy settings in parallel
-  const [genres, { profile: tasteProfile }, userLocation, discoveryVisible, emailPreferences] =
-    await Promise.all([
-      getAllGenres(),
-      getTasteProfile(),
-      getUserLocation(user.id),
-      getDiscoveryVisibility(),
-      getEmailPreferences(),
-    ]);
+  const supabase = await createClient();
+
+  // Fetch genres, taste profile, location, privacy settings and username in parallel
+  const [
+    genres,
+    { profile: tasteProfile },
+    userLocation,
+    discoveryVisible,
+    emailPreferences,
+    { data: profile },
+  ] = await Promise.all([
+    getAllGenres(),
+    getTasteProfile(),
+    getUserLocation(user.id),
+    getDiscoveryVisibility(),
+    getEmailPreferences(),
+    supabase.from("profiles").select("username").eq("id", user.id).maybeSingle(),
+  ]);
+
+  const username = profile?.username ?? "";
+  const hasPassword = user.identities?.some((identity) => identity.provider === "email") ?? false;
 
   const availableGenres = genres.length > 0 ? genres : FALLBACK_GENRES;
 
@@ -163,22 +176,23 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Account Settings Placeholder */}
+      {/* Account Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Account</CardTitle>
+          <div className="flex items-center gap-2">
+            <UserCog className="h-5 w-5 text-primary" />
+            <CardTitle>Account</CardTitle>
+          </div>
           <CardDescription>
-            Manage your account settings and profile information.
+            Change your password or delete your account. Display name and bio live on your{" "}
+            <a href="/profile" className="text-primary underline-offset-4 hover:underline">
+              profile page
+            </a>
+            .
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Account settings coming soon. Visit your{" "}
-            <a href="/profile" className="text-primary underline-offset-4 hover:underline">
-              profile page
-            </a>{" "}
-            to update your display name and bio.
-          </p>
+          <AccountSection username={username} email={user.email ?? null} hasPassword={hasPassword} />
         </CardContent>
       </Card>
     </div>
