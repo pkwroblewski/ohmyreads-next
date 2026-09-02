@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createAuditLog } from "@/lib/utils/audit-log";
-import { logError, reportError } from "@/lib/utils/log";
+import { logError, logger, reportError } from "@/lib/utils/log";
 import {
   submitReportSchema,
   resolveReportSchema,
@@ -162,7 +162,7 @@ async function closeReport(
       return { success: false, error: `This report is already ${report.status}` };
     }
 
-    const { error } = await supabase
+    const { data: closed, error } = await supabase
       .from("reports")
       .update({
         status,
@@ -173,13 +173,19 @@ async function closeReport(
       .eq("id", parsed.data.reportId)
       // Only close a report that is still open, so two admins acting at once
       // cannot overwrite each other's outcome.
-      .eq("status", "open");
+      .eq("status", "open")
+      .select("id");
 
     if (error) {
       return {
         success: false,
         error: reportError("Error closing report", error, { status }),
       };
+    }
+    // The other admin won the race (or RLS refused): no row, no audit entry.
+    if (!closed || closed.length === 0) {
+      logger.error("Report close changed no rows", { reportId: report.id, status });
+      return { success: false, error: "Nothing was changed" };
     }
 
     await createAuditLog({

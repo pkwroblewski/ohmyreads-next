@@ -1,6 +1,5 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { enrichBookEntry } from "@/lib/utils/external-book-search";
 import { logger, reportError } from "@/lib/utils/log";
@@ -14,6 +13,9 @@ import {
 // ============================================
 // TYPES
 // ============================================
+
+/** The session client `requireAdmin()` hands back; RLS still applies. */
+type AdminClient = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
 
 export interface BookToEnrich {
   id: string;
@@ -112,14 +114,12 @@ async function requireAdminRateLimit(userId: string): Promise<void> {
 export async function getBooksNeedingEnrichment(
   limit: number = 50
 ): Promise<{ stats: EnrichmentStats; books: BookToEnrich[] }> {
-  await requireAdmin();
+  const { supabase } = await requireAdmin();
 
   // Read-only: validate limit param only
   if (!enrichmentLimitSchema.safeParse(limit).success) {
     throw new Error("Invalid limit");
   }
-
-  const supabase = await createClient();
 
   // Fetch books to analyze
   const { data: books, error } = await supabase
@@ -180,7 +180,7 @@ export async function getBooksNeedingEnrichment(
 export async function enrichSingleBook(
   book: BookToEnrich
 ): Promise<EnrichmentResultItem> {
-  const { user } = await requireAdmin();
+  const { supabase, user } = await requireAdmin();
   await requireAdminRateLimit(user.id);
 
   // Validate input with Zod
@@ -195,7 +195,7 @@ export async function enrichSingleBook(
     };
   }
 
-  return enrichSingleBookCore(book);
+  return enrichSingleBookCore(supabase, book);
 }
 
 /**
@@ -204,10 +204,9 @@ export async function enrichSingleBook(
  * rate-limited once; per-book checks here would burn one token per book).
  */
 async function enrichSingleBookCore(
+  supabase: AdminClient,
   book: BookToEnrich
 ): Promise<EnrichmentResultItem> {
-  const supabase = await createClient();
-
   const result: EnrichmentResultItem = {
     bookId: book.id,
     title: book.title,
@@ -284,15 +283,26 @@ async function enrichSingleBookCore(
 
     // Only update if we have changes
     if (Object.keys(updates).length > 0) {
-      const { error } = await supabase
+      // RLS can turn an update into a silent no-op, so count the rows before
+      // reporting the fields as updated.
+      const { data: updated, error } = await supabase
         .from("books")
         .update(updates)
-        .eq("id", book.id);
+        .eq("id", book.id)
+        .select("id");
 
       if (error) {
         result.error = reportError("Book enrichment update failed", error, {
           bookId: book.id,
         });
+        return result;
+      }
+      if (!updated || updated.length === 0) {
+        logger.error("Book enrichment update changed no rows", {
+          bookId: book.id,
+        });
+        result.fieldsUpdated = [];
+        result.error = "Nothing was changed";
         return result;
       }
 
@@ -317,7 +327,7 @@ async function enrichSingleBookCore(
 export async function enrichBooks(
   bookIds: string[]
 ): Promise<EnrichmentResult> {
-  const { user } = await requireAdmin();
+  const { supabase, user } = await requireAdmin();
   await requireAdminRateLimit(user.id);
 
   // Validate input with Zod
@@ -327,8 +337,6 @@ export async function enrichBooks(
       validationResult.error.issues[0]?.message || "Invalid input"
     );
   }
-
-  const supabase = await createClient();
 
   // Fetch the specific books
   const { data: books, error } = await supabase
@@ -352,7 +360,7 @@ export async function enrichBooks(
 
   // Process books one at a time with rate limiting
   for (const book of books) {
-    const enrichResult = await enrichSingleBookCore(book as BookToEnrich);
+    const enrichResult = await enrichSingleBookCore(supabase, book as BookToEnrich);
     result.results.push(enrichResult);
 
     if (enrichResult.error) {

@@ -24,6 +24,7 @@ const sessionFrom = vi.fn();
 
 /** The admin client, used by resolve/dismiss. */
 const reportMaybeSingle = vi.fn();
+const reportsUpdateSelect = vi.fn();
 const reportsUpdateEq2 = vi.fn();
 const reportsUpdateEq1 = vi.fn();
 const reportsUpdate = vi.fn();
@@ -81,7 +82,8 @@ function arrangeAdmin({ status = "open" }: { status?: string } = {}) {
   reportMaybeSingle.mockResolvedValue({
     data: { id: REPORT, status, target_type: "review", target_id: REVIEW },
   });
-  reportsUpdateEq2.mockResolvedValue({ error: null });
+  reportsUpdateSelect.mockResolvedValue({ data: [{ id: REPORT }], error: null });
+  reportsUpdateEq2.mockReturnValue({ select: reportsUpdateSelect });
   reportsUpdateEq1.mockReturnValue({ eq: reportsUpdateEq2 });
   reportsUpdate.mockReturnValue({ eq: reportsUpdateEq1 });
 
@@ -278,6 +280,17 @@ describe("resolveReport / dismissReport", () => {
       error: "This report is already dismissed",
     });
     expect(reportsUpdate).not.toHaveBeenCalled();
+  });
+
+  it("refuses to claim success, or write an audit row, when the update touched no row", async () => {
+    arrangeAdmin();
+    // Another admin closed it between the read and the write, or RLS refused.
+    reportsUpdateSelect.mockResolvedValue({ data: [], error: null });
+
+    const result = await resolveReport(REPORT);
+
+    expect(result).toEqual({ success: false, error: "Nothing was changed" });
+    expect(createAuditLog).not.toHaveBeenCalled();
   });
 
   it("reports a missing report rather than writing nothing quietly", async () => {

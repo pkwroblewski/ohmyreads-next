@@ -14,7 +14,7 @@ import {
 } from "@/lib/validation/admin";
 import { BOOK_CARD_COLUMNS, BOOK_DETAIL_COLUMNS } from "@/lib/queries/columns";
 import type { Book, BookSummary } from "@/types/database";
-import { logError } from "@/lib/utils/log";
+import { logError, logger } from "@/lib/utils/log";
 
 // Input types
 export interface AdminBookInput {
@@ -253,14 +253,20 @@ export async function adminUpdateBook(bookId: string, input: Partial<AdminBookIn
       updates.slug = slug;
     }
 
-    const { data, error } = await supabase
+    // RLS can turn a write into a silent no-op, so count the rows that came
+    // back before claiming success or writing an audit row.
+    const { data: updated, error } = await supabase
       .from("books")
       .update(updates)
       .eq("id", bookId)
-      .select()
-      .single();
+      .select();
 
     if (error) throw error;
+    if (!updated || updated.length === 0) {
+      logger.error("Admin book update changed no rows", { bookId });
+      return { success: false, error: "Nothing was changed" };
+    }
+    const data = updated[0];
 
     // Audit log
     await createAuditLog({
@@ -310,13 +316,19 @@ export async function adminDeleteBook(bookId: string) {
       .eq("id", bookId)
       .single();
 
-    // Delete book (cascades to user_books, reviews via FK)
-    const { error } = await supabase
+    // Delete book (cascades to user_books, reviews via FK). RLS can turn a
+    // delete into a silent no-op, so count the rows before claiming success.
+    const { data: deleted, error } = await supabase
       .from("books")
       .delete()
-      .eq("id", bookId);
+      .eq("id", bookId)
+      .select("id");
 
     if (error) throw error;
+    if (!deleted || deleted.length === 0) {
+      logger.error("Admin book delete changed no rows", { bookId });
+      return { success: false, error: "Nothing was changed" };
+    }
 
     // Audit log
     await createAuditLog({

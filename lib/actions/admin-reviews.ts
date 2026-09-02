@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { logError } from "@/lib/utils/log";
+import { logError, logger } from "@/lib/utils/log";
 import {
   adminReviewIdSchema,
   adminDeleteReviewSchema,
@@ -232,13 +232,19 @@ export async function adminDeleteReview(reviewId: string, reason?: string) {
       ? review.books[0]
       : review.books;
 
-    // Delete review
-    const { error } = await supabase
+    // Delete review. RLS can turn a delete into a silent no-op, so count the
+    // rows before claiming success or writing an audit row.
+    const { data: deleted, error } = await supabase
       .from("reviews")
       .delete()
-      .eq("id", reviewId);
+      .eq("id", reviewId)
+      .select("id");
 
     if (error) throw error;
+    if (!deleted || deleted.length === 0) {
+      logger.error("Admin review delete changed no rows", { reviewId });
+      return { success: false, error: "Nothing was changed" };
+    }
 
     // Audit log
     await createAuditLog({

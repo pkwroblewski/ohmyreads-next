@@ -17,7 +17,7 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { generateSlug } from "@/lib/utils/slug";
 import type { BookSubmissionWithSubmitter } from "@/types/database";
-import { logError } from "@/lib/utils/log";
+import { logError, logger } from "@/lib/utils/log";
 
 // Helper function to ensure unique slug
 async function ensureUniqueSlug(
@@ -477,8 +477,9 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
     }
 
     if (action === "reject") {
-      // Reject the submission
-      const { error } = await supabase
+      // Reject the submission. RLS can turn an update into a silent no-op, so
+      // count the rows before claiming success or writing an audit row.
+      const { data: rejected, error } = await supabase
         .from("book_submissions")
         .update({
           status: "rejected",
@@ -486,11 +487,16 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
           moderated_at: new Date().toISOString(),
           rejection_reason: rejectionReason || null,
         })
-        .eq("id", submissionId);
+        .eq("id", submissionId)
+        .select("id");
 
       if (error) {
         logError("Error rejecting submission", error);
         return { error: "Failed to reject submission" };
+      }
+      if (!rejected || rejected.length === 0) {
+        logger.error("Submission reject changed no rows", { submissionId });
+        return { error: "Nothing was changed" };
       }
 
       // Audit log
