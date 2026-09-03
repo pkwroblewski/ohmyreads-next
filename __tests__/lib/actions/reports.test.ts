@@ -32,6 +32,7 @@ const adminFrom = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser }, from: sessionFrom }),
+  getUser: () => getUser(),
 }));
 
 vi.mock("@/lib/auth/require-admin", () => ({

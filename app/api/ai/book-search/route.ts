@@ -6,7 +6,7 @@ import { NextRequest } from "next/server";
 import { BOOK_SEARCH_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { bookSearchTools } from "@/lib/ai/tools";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { validateOrigin } from "@/lib/utils/csrf";
 import { reportError } from "@/lib/utils/log";
 
@@ -34,8 +34,7 @@ function getModel() {
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await getUser();
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),

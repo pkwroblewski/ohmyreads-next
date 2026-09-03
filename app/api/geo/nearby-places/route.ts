@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { isForeignOrigin } from "@/lib/utils/csrf";
 import { encodeGeohash, isValidGeohash, getNeighbors } from "@/lib/utils/geohash";
-import { createClient, createPublicClient } from "@/lib/supabase/server";
+import { createPublicClient, getUser } from "@/lib/supabase/server";
 import {
   getMatrix,
   isMcpConfigured,
@@ -38,8 +38,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Auth required: sole caller is the authenticated dashboard widget
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
+  const { data: { user } } = await getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   createShelfSchema,
@@ -64,7 +64,7 @@ export async function getUserShelves(): Promise<{
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { shelves: [], error: "Not authenticated" };
@@ -114,7 +114,7 @@ export async function createShelf(input: {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { error: "Not authenticated" };
@@ -203,7 +203,7 @@ export async function updateShelf(input: {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { error: "Not authenticated" };
@@ -292,7 +292,7 @@ export async function deleteShelf(
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { error: "Not authenticated" };
@@ -359,7 +359,7 @@ export async function addBookToShelf(input: {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { error: "Not authenticated" };
@@ -439,7 +439,7 @@ export async function removeBookFromShelf(input: {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { error: "Not authenticated" };
@@ -503,7 +503,7 @@ export async function getBookShelves(
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { shelfIds: [], error: "Not authenticated" };
@@ -544,7 +544,7 @@ export async function updateBookShelves(input: {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { error: "Not authenticated" };
@@ -596,7 +596,7 @@ export async function addBookToShelfByBookId(input: {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { error: "Not authenticated" };
@@ -694,7 +694,7 @@ export async function getBookShelvesByBookId(
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { shelfIds: [], error: "Not authenticated" };
@@ -751,7 +751,7 @@ export async function updateBookShelvesByBookId(input: {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { error: "Not authenticated" };

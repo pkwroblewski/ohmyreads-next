@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { encodeGeohash, isValidGeohash } from "@/lib/utils/geohash";
 import { logError } from "@/lib/utils/log";
@@ -34,7 +34,7 @@ export async function updateLocation(input: UpdateLocationInput) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -99,7 +99,7 @@ export async function updateLocationFromGeohash(input: {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -169,7 +169,7 @@ export async function toggleLocationSharing(enabled: boolean) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -235,7 +235,7 @@ export async function updateLocationPrecision(precision: number) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -314,7 +314,7 @@ export async function setPresence(input: SetPresenceInput) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -404,7 +404,7 @@ export async function clearPresence() {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -452,7 +452,7 @@ export async function clearLocation() {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };

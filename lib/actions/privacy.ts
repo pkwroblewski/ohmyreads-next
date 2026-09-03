@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
@@ -15,7 +15,7 @@ export async function updateDiscoveryVisibility(visible: boolean): Promise<{ suc
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -57,7 +57,7 @@ export async function getDiscoveryVisibility(): Promise<boolean> {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return true; // Default to visible
@@ -85,7 +85,7 @@ export async function getEmailPreferences(): Promise<EmailPreferences> {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { digestEnabled: true }; // column default (017)
@@ -112,7 +112,7 @@ export async function updateEmailPreferences(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };

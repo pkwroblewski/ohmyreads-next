@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import type { DirectMessage, ConversationPreview } from "@/types/database";
 import { logError } from "@/lib/utils/log";
 
@@ -16,7 +16,7 @@ export async function getConversations(): Promise<ConversationPreview[]> {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) return [];
 
@@ -63,7 +63,7 @@ export async function getMessages(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) return { messages: [], hasMore: false };
 
@@ -116,7 +116,7 @@ export async function getUnreadCount(): Promise<number> {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) return 0;
 
@@ -151,7 +151,7 @@ export async function getConversationFriend(friendId: string): Promise<{
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) return null;
 

@@ -1,4 +1,4 @@
-import { createClient, createPublicClient } from "@/lib/supabase/server";
+import { createClient, createPublicClient, getUser } from "@/lib/supabase/server";
 import { getCuratedList, type CuratedList } from "@/lib/data/curated-lists";
 import { BOOK_CARD_COLUMNS } from "./columns";
 import type { BookSummary, ReadingListWithDetails, ReadingListBookWithBook } from "@/types/database";
@@ -86,7 +86,7 @@ export async function getUserLists(options: GetListsOptions = {}): Promise<{
   // Get current user for like status
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Build query
   let query = supabase
@@ -173,7 +173,7 @@ export async function getListById(listId: string): Promise<ReadingListWithDetail
   // Get current user
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Fetch list
   const { data: list, error } = await supabase
@@ -243,7 +243,7 @@ export async function getMyLists(): Promise<ReadingListWithDetails[]> {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return [];

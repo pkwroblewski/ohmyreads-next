@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { getMessages, getConversationFriend } from "@/lib/queries/messages";
 import { friendIdSchema } from "@/lib/validation/message";
 import { logError } from "@/lib/utils/log";
@@ -10,11 +10,10 @@ export async function GET(
 ) {
   try {
     const { friendId: rawFriendId } = await params;
-    const supabase = await createClient();
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -7,7 +7,7 @@ import {
   Users,
   ArrowRight,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { HomeHero } from "@/components/home/home-hero";
@@ -79,7 +79,7 @@ export default async function HomePage() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Fetch all data in parallel
   const [

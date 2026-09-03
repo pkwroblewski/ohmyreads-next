@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CURATED_LISTS } from "@/lib/data/curated-lists";
 import { getUserLists } from "@/lib/queries/lists";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { ListCard } from "@/components/lists/list-card";
 
 export const metadata: Metadata = {
@@ -87,10 +87,9 @@ export default async function ListsPage({ searchParams }: ListsPageProps) {
   const search = params.q;
   const page = parseInt(params.page || "1", 10);
 
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   return (
     <div className="container max-w-6xl py-8 space-y-10">

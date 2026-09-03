@@ -5,7 +5,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { NextRequest } from "next/server";
 import { placeSearchTools } from "@/lib/ai/place-tools";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { validateOrigin } from "@/lib/utils/csrf";
 import { reportError } from "@/lib/utils/log";
 
@@ -60,8 +60,7 @@ function getModel() {
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await getUser();
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),

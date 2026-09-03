@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlaceSubmissionForm } from "@/components/geo/place-submission-form";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Submit a Place",
@@ -12,10 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default async function SubmitPlacePage() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     redirect("/login?redirect=/community/map/submit");

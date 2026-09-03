@@ -52,17 +52,16 @@ function sessionFrom(table: string) {
   throw new Error(`unexpected table ${table}`);
 }
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({
-    auth: {
-      getUser: async () =>
-        currentUser
-          ? { data: { user: currentUser }, error: null }
-          : { data: { user: null }, error: { message: "nope" } },
-    },
-    from: sessionFrom,
-  }),
-}));
+vi.mock("@/lib/supabase/server", () => {
+  const getUser = async () =>
+    currentUser
+      ? { data: { user: currentUser }, error: null }
+      : { data: { user: null }, error: { message: "nope" } };
+  return {
+    createClient: async () => ({ auth: { getUser }, from: sessionFrom }),
+    getUser,
+  };
+});
 
 // ---- service-role client ----
 type InsertResult = { data: { id: string; slug: string } | null; error: { code?: string; message?: string } | null };

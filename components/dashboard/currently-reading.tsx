@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { BookListHorizontal } from "@/components/books/book-list-horizontal";
 import { BOOK_CARD_COLUMNS } from "@/lib/queries/columns";
 import type { BookSummary, UserBook } from "@/types/database";
@@ -16,7 +16,7 @@ export async function CurrentlyReading() {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return null;

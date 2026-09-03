@@ -2,7 +2,7 @@ import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { ChatWrapper } from "@/components/messages";
 import { AppShell } from "@/components/layout/app-shell";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { getConversations, getUnreadCount } from "@/lib/queries/messages";
 import type { Profile } from "@/types/database";
 
@@ -12,7 +12,7 @@ export default async function PublicLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await getUser();
 
   // Fetch chat data if logged in
   let conversations: Awaited<ReturnType<typeof getConversations>> = [];

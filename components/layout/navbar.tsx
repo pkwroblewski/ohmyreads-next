@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { NavbarUserMenu } from "./navbar-user-menu";
@@ -23,7 +23,7 @@ export async function Navbar() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Check if user is admin
   let isAdmin = false;

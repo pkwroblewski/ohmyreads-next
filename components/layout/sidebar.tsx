@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { cn } from "@/lib/utils";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type { Profile } from "@/types/database";
@@ -82,7 +82,7 @@ const navSections: NavSection[] = [
 
 export function Sidebar({ user, profile }: SidebarProps) {
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
 
   const displayName =
     profile?.display_name ||

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { createCommentSchema } from "@/lib/validation/comment";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logger, reportError } from "@/lib/utils/log";
@@ -39,7 +39,7 @@ export async function createComment(input: {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
     if (authError || !user) {
       return { error: "Not authenticated" };
     }
@@ -107,7 +107,7 @@ export async function deleteComment(commentId: string) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
     if (authError || !user) {
       return { error: "Not authenticated" };
     }

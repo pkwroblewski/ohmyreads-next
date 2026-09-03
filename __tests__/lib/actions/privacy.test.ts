@@ -23,6 +23,7 @@ vi.mock("@/lib/supabase/server", () => ({
     from,
     rpc: () => ({ maybeSingle: rpcMaybeSingle }),
   }),
+  getUser: () => getUser(),
 }));
 
 vi.mock("@/lib/utils/rate-limit", () => ({

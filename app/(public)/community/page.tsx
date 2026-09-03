@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { getInitialCommunityFeed, getCommunitySidebar, getUserLikedReviewIds } from "@/lib/queries/community";
 import { getHomeReadingActivity } from "@/lib/queries/home";
 import { getSuggestedFollows, getFollowingIds } from "@/lib/queries/follows";
@@ -28,7 +28,7 @@ export default async function CommunityPage() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Fetch user profile if logged in
   let userProfile = null;

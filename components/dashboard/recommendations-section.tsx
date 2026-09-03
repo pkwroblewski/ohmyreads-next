@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { RecommendedBooksRow } from "@/components/books/recommended-books-row";
 import {
@@ -14,11 +14,10 @@ import { cn } from "@/lib/utils";
  * Wrapped in Suspense by parent for independent loading.
  */
 export async function RecommendationsSection() {
-  const supabase = await createClient();
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return null;

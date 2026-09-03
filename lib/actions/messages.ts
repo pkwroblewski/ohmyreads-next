@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logError } from "@/lib/utils/log";
@@ -29,7 +29,7 @@ export async function sendMessage(
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, messageId: null, error: "Not authenticated" };
@@ -109,7 +109,7 @@ export async function markMessagesAsRead(friendId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
@@ -174,7 +174,7 @@ export async function deleteMessage(messageId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };

@@ -5,7 +5,7 @@ import { Users, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getClubs, getUserClubs } from "@/lib/queries/clubs";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { ClubCard } from "@/components/clubs/club-card";
 
 export const metadata: Metadata = {
@@ -104,10 +104,9 @@ export default async function ClubsPage({ searchParams }: ClubsPageProps) {
   const search = params.q;
   const page = parseInt(params.page || "1", 10);
 
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   return (
     <div className="container max-w-6xl py-8 space-y-8">

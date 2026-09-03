@@ -15,6 +15,7 @@ const getUser = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser } }),
+  getUser: () => getUser(),
 }));
 vi.mock("@/lib/queries/discover", () => ({
   browseReaders: (...args: unknown[]) => browseReaders(...args),

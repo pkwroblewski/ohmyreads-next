@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { targetUserIdSchema } from "@/lib/validation/social";
 import { logError, reportError } from "@/lib/utils/log";
@@ -15,7 +15,7 @@ export async function followUser(targetUserId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
@@ -82,7 +82,7 @@ export async function unfollowUser(targetUserId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
@@ -134,7 +134,7 @@ export async function toggleFollow(targetUserId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, isFollowing: false, error: "Not authenticated" };

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkAdmin } from "@/lib/auth/require-admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { encodeGeohash } from "@/lib/utils/geohash";
@@ -42,7 +42,7 @@ export async function submitPlace(input: SubmitPlaceInput) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "You must be logged in to submit a place" };
@@ -113,7 +113,7 @@ export async function getMyPlaceSubmissions() {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { submissions: [] };

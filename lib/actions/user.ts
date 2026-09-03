@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   updateProfileSchema,
@@ -23,7 +23,7 @@ export async function updateProfile(input: UpdateProfileInput) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -105,7 +105,7 @@ export async function updateSocialLinks(links: SocialLinkInput[]) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -167,7 +167,7 @@ export async function getCurrentUserProfile() {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { profile: null };
@@ -198,7 +198,7 @@ export async function checkUsernameAvailable(username: string) {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     let query = supabase
       .from("profiles")
@@ -234,7 +234,7 @@ export async function ensureUserProfile(): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { profile: null, error: "Not authenticated" };

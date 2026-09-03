@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   targetUserIdSchema,
@@ -22,7 +22,7 @@ export async function sendFriendRequest(targetUserId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
@@ -103,7 +103,7 @@ export async function acceptFriendRequest(requestId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
@@ -180,7 +180,7 @@ export async function rejectFriendRequest(requestId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
@@ -256,7 +256,7 @@ export async function cancelFriendRequest(requestId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };
@@ -329,7 +329,7 @@ export async function removeFriend(targetUserId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };

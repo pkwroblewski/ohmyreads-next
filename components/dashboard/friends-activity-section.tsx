@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { getFriendsActivity } from "@/lib/queries/follows";
 import { FriendsActivity } from "./friends-activity";
 
@@ -7,11 +7,10 @@ import { FriendsActivity } from "./friends-activity";
  * Wrapped in Suspense by parent for independent loading.
  */
 export async function FriendsActivitySection() {
-  const supabase = await createClient();
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return null;

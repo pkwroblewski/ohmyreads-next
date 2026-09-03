@@ -6,7 +6,7 @@ import { getCuratedListWithBooks, getListById } from "@/lib/queries/lists";
 import { getAllListSlugs } from "@/lib/data/curated-lists";
 import { BookCard } from "@/components/books/book-card";
 import { CommunityListView } from "@/components/lists/community-list-view";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { safeJsonLd } from "@/lib/utils/jsonld";
 
 // User-created lists are routed by UUID; curated slugs are kebab-case words, so no collision
@@ -61,10 +61,9 @@ export default async function ListPage({ params }: Props) {
       notFound();
     }
 
-    const supabase = await createClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     return <CommunityListView list={list} isOwner={user?.id === list.user_id} />;
   }

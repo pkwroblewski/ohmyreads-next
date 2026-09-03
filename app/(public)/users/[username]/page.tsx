@@ -12,7 +12,7 @@ import {
   Calendar,
   Lock,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import {
   getProfileByUsername,
   getUserStats,
@@ -70,10 +70,9 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
   const { tab } = await searchParams;
 
   // Get current user
-  const supabase = await createClient();
   const {
     data: { user: currentUser },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   const profile = await getProfileByUsername(username);
 

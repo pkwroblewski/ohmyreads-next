@@ -43,6 +43,7 @@ let mockSupabase: ReturnType<typeof createMockSupabase>;
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabase)),
+  getUser: () => mockSupabase.auth.getUser(),
 }));
 
 const { setPresence } = await import("@/lib/actions/location");

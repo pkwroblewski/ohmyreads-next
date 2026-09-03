@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, invalidateTags } from "@/lib/cache/tags";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import {
   createReviewSchema,
   updateReviewSchema,
@@ -37,7 +37,7 @@ export async function createReview(input: CreateReviewInput) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "You must be logged in to write a review" };
@@ -133,7 +133,7 @@ export async function updateReview(input: UpdateReviewInput) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -230,7 +230,7 @@ export async function deleteReview(reviewId: string) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -290,7 +290,7 @@ export async function likeReview(reviewId: string) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "You must be logged in to like reviews" };
@@ -354,7 +354,7 @@ export async function unlikeReview(reviewId: string) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -394,7 +394,7 @@ export async function toggleReviewLike(reviewId: string) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "You must be logged in to like reviews", liked: false };
@@ -432,7 +432,7 @@ export async function hasLikedReview(reviewId: string) {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { liked: false };
@@ -461,7 +461,7 @@ export async function getUserLikesForReviews(reviewIds: string[]) {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { likes: {} };

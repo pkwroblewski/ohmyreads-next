@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { trendingInsightSchema } from "@/lib/ai/schemas";
 import { NextResponse } from "next/server";
-import { createPublicClient, createClient } from "@/lib/supabase/server";
+import { createPublicClient, getUser } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logError } from "@/lib/utils/log";
 interface TrendingInsight {
@@ -139,8 +139,7 @@ const getCachedTrendingInsights = unstable_cache(
 export async function GET() {
   try {
     // Check authentication
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await getUser();
     if (authError || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },

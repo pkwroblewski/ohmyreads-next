@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
@@ -26,7 +26,7 @@ export async function createList(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -92,7 +92,7 @@ export async function updateList(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -152,7 +152,7 @@ export async function deleteList(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -197,7 +197,7 @@ export async function addBookToList(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -280,7 +280,7 @@ export async function removeBookFromList(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -335,7 +335,7 @@ export async function likeList(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getClubBySlug, getClubMembers, getClubPastReads } from "@/lib/queries/clubs";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { JoinButton } from "@/components/clubs/join-button";
 import { SetCurrentBookDialog } from "@/components/clubs/set-current-book-dialog";
 
@@ -37,10 +37,9 @@ export default async function ClubPage({ params }: ClubPageProps) {
     notFound();
   }
 
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   const [{ members }, pastReads] = await Promise.all([
     getClubMembers(club.id, { limit: 10 }),

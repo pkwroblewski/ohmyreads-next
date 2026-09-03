@@ -44,6 +44,7 @@ vi.mock("@/lib/supabase/server", () => ({
     auth: { getUser, getClaims, updateUser, signOut: sessionSignOut },
     from: sessionFrom,
   }),
+  getUser: () => getUser(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({

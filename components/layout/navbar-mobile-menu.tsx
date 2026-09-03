@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
-import { useAuth } from "@/hooks/use-auth";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { cn } from "@/lib/utils";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -44,7 +44,7 @@ const authLinks = [
 
 export function NavbarMobileMenu({ user, isAdmin = false }: NavbarMobileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
 
   const displayName = user
     ? user.user_metadata?.full_name ||

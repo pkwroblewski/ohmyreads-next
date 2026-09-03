@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BookOpen, Leaf, Shield } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 
 const footerLinks = {
@@ -26,7 +26,7 @@ async function getIsAdmin(): Promise<boolean> {
     await cookies();
 
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getUser();
 
     if (!user) return false;
 

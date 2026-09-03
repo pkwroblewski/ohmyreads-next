@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { Sparkles } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import {
   getCuratedBooks,
   getPersonalizedRecommendations,
@@ -36,7 +36,7 @@ export default async function RecommendationsPage({
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Get recommendations
   let recommendations: RecommendedBook[] = [];

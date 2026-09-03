@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { browseReaders, searchReaders } from "@/lib/queries/discover";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { logError } from "@/lib/utils/log";
@@ -40,10 +40,9 @@ export async function GET(request: NextRequest) {
     const { page, limit } = paging.data;
 
     // Get current user if authenticated
-    const supabase = await createClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     // If there's a search query, use search function
     if (query && query.length >= 2) {

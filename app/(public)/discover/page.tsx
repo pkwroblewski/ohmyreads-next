@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { getRecommendedReaders, browseReaders } from "@/lib/queries/discover";
 import { ReadersLikeYou } from "@/components/discover/readers-like-you";
 import { ReaderBrowser } from "@/components/discover/reader-browser";
@@ -17,10 +17,9 @@ export const metadata: Metadata = {
 };
 
 export default async function DiscoverPage() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Fetch data in parallel
   const [recommendations, initialBrowse] = await Promise.all([

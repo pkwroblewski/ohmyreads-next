@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import type { FriendshipStatus, FriendRequestWithSender, FriendRequestWithReceiver } from "@/types/database";
 import { logError } from "@/lib/utils/log";
 export interface FriendProfile {
@@ -108,7 +108,7 @@ export async function getPendingRequests(): Promise<FriendRequestWithSender[]> {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) return [];
 
@@ -158,7 +158,7 @@ export async function getSentRequests(): Promise<FriendRequestWithReceiver[]> {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) return [];
 
@@ -210,7 +210,7 @@ export async function getFriendshipStatus(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { status: "none", requestId: null };
@@ -270,7 +270,7 @@ export async function getPendingRequestsCount(): Promise<number> {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) return 0;
 

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { User, Library, Users, Settings, LogOut, Shield } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
-import { useAuth } from "@/hooks/use-auth";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { cn } from "@/lib/utils";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -23,7 +23,7 @@ const menuItems = [
 export function NavbarUserMenu({ user, isAdmin = false }: NavbarUserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
 
   const displayName =
     user.user_metadata?.full_name ||

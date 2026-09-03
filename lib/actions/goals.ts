@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { updateReadingGoalSchema } from "@/lib/validation/goal";
 import { logError, reportError } from "@/lib/utils/log";
@@ -12,7 +12,7 @@ export async function updateReadingGoal(targetBooks: number) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
     if (authError || !user) {
       return { error: "Not authenticated" };
     }

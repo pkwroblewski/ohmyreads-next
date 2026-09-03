@@ -1,5 +1,5 @@
 import { BookOpen, FileText, MessageSquare, Flame } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import type { ReadingStats } from "@/types/database";
 
@@ -12,7 +12,7 @@ export async function DashboardStats() {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return null;

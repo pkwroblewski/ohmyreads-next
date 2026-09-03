@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { MapPageClient } from "@/components/geo/map-page-client";
 import type { UserPresenceData } from "@/components/geo/map-context-panel";
 
@@ -17,7 +17,7 @@ export default async function ReaderMapPage() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Get user's display name and presence info
   let userName: string | undefined;

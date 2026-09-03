@@ -2,7 +2,7 @@ import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { unstable_cache } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { curatedPickSchema } from "@/lib/ai/schemas";
@@ -174,8 +174,7 @@ export async function GET(request: NextRequest) {
     // unauthenticated cost-amplification vector. Anonymous visitors still see
     // the curated books (rendered server-side); they just don't get the
     // AI-written reason blurbs, which are a progressive enhancement.
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

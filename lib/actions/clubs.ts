@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
@@ -24,7 +24,7 @@ export async function createClub(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -102,7 +102,7 @@ export async function joinClub(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -158,7 +158,7 @@ export async function leaveClub(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -233,7 +233,7 @@ export async function setCurrentBook(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -311,7 +311,7 @@ export async function updateClub(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };
@@ -372,7 +372,7 @@ export async function deleteClub(
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return { success: false, error: "Not authenticated" };

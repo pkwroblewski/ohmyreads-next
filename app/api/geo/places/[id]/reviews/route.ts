@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateOrigin } from "@/lib/utils/csrf";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
@@ -90,10 +90,9 @@ export async function POST(
   }
 
   // Check authentication
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -200,10 +199,9 @@ export async function DELETE(
   }
 
   // Check authentication
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });

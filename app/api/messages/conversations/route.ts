@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { getConversations, getUnreadCount } from "@/lib/queries/messages";
 import { logError } from "@/lib/utils/log";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

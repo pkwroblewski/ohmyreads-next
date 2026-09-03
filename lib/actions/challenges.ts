@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   createChallengeSchema,
@@ -31,7 +31,7 @@ export async function createChallenge(input: CreateChallengeInput) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
     if (authError || !user) {
       return { error: "Not authenticated" };
     }
@@ -100,7 +100,7 @@ export async function updateChallenge(
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
     if (authError || !user) {
       return { error: "Not authenticated" };
     }
@@ -152,7 +152,7 @@ export async function deleteChallenge(challengeId: string) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
     if (authError || !user) {
       return { error: "Not authenticated" };
     }
@@ -205,7 +205,7 @@ export async function getChallenges(): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
     if (authError || !user) {
       return { data: null, error: "Not authenticated" };
     }
@@ -341,7 +341,7 @@ export async function syncChallengeProgress() {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
     if (authError || !user) {
       return { error: "Not authenticated" };
     }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { getFollowingFeedPage } from "@/lib/queries/community";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { logError } from "@/lib/utils/log";
@@ -17,10 +17,9 @@ export async function GET(request: NextRequest) {
   }
 
   // Check authentication
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return NextResponse.json(

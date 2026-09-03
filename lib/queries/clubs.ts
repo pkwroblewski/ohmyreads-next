@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
 import type {
   BookClubWithDetails,
@@ -27,7 +27,7 @@ export async function getClubs(options: GetClubsOptions = {}): Promise<{
   // Get current user
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Build query
   let query = supabase
@@ -122,7 +122,7 @@ export async function getClubBySlug(slug: string): Promise<BookClubWithDetails |
   // Get current user
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Fetch club
   const { data: club, error } = await supabase
@@ -247,7 +247,7 @@ export async function getUserClubs(): Promise<BookClubWithDetails[]> {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return [];

@@ -6,7 +6,7 @@ import {
   CACHE_TAGS,
   invalidateTags,
 } from "@/lib/cache/tags";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSlug } from "@/lib/utils/slug";
 import { syncUserBadges } from "@/lib/actions/badges";
@@ -137,7 +137,7 @@ export async function addToShelf(bookId: string, status: string) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -234,7 +234,7 @@ export async function updateReadingProgress(
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -325,7 +325,7 @@ export async function removeFromShelf(bookId: string) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -386,7 +386,7 @@ export async function importAndAddToShelf(
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };

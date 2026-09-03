@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createAuditLog } from "@/lib/utils/audit-log";
@@ -40,7 +40,7 @@ export async function submitReport(
     const supabase = await createClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { success: false, error: "Please sign in to report content" };

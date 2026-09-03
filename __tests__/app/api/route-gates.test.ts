@@ -22,6 +22,7 @@ const getMatrix = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser } }),
+  getUser: () => getUser(),
   createPublicClient: () => ({
     from: () => ({
       select: () => ({

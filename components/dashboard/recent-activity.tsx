@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Library, Upload } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,7 @@ export async function RecentActivity() {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   if (!user) {
     return null;

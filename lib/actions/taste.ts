@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logger, reportError } from "@/lib/utils/log";
 import {
@@ -22,7 +22,7 @@ export async function updateTasteProfile(input: UpdateTasteProfileInput) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "You must be logged in to update your taste profile" };
@@ -100,7 +100,7 @@ export async function completeTasteOnboarding(input: OnboardingTasteProfileInput
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "You must be logged in to complete onboarding" };
@@ -184,7 +184,7 @@ export async function getTasteProfile() {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { profile: null };

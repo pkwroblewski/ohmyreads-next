@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkAdmin } from "@/lib/auth/require-admin";
 import {
   createBookSubmissionSchema,
@@ -76,7 +76,7 @@ export async function submitBook(input: CreateBookSubmissionInput) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "You must be logged in to submit a book" };
@@ -179,7 +179,7 @@ export async function updateBookSubmission(
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -283,7 +283,7 @@ export async function deleteBookSubmission(submissionId: string) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated" };
@@ -356,7 +356,7 @@ export async function getUserSubmissions() {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "Not authenticated", submissions: [] };

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkAndUnlockBadges } from "@/lib/queries/badges";
 import { getBadgeById } from "@/lib/data/badges";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
@@ -13,12 +13,11 @@ export async function syncUserBadges(): Promise<{
   error: string | null;
 }> {
   try {
-    const supabase = await createClient();
 
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { newBadges: [], error: "Not authenticated" };
@@ -65,7 +64,7 @@ export async function removeBadge(badgeId: string): Promise<{
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { success: false, error: "Not authenticated" };

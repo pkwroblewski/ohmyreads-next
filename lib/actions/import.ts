@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import {
   parseGoodreadsCSV,
   mapGoodreadsShelf,
@@ -96,7 +96,7 @@ export async function importFromGoodreads(
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       result.errors.push("Not authenticated");

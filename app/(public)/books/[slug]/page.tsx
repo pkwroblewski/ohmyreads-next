@@ -3,7 +3,7 @@ import { CoverImage } from "@/components/books/cover-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Calendar, FileText, Star } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getBookBySlug,
@@ -107,10 +107,9 @@ export default async function BookPage({ params }: Props) {
   }
 
   // Get user if logged in
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUser();
 
   // Fetch related data in parallel
   const [reviews, relatedBooks, similarRecs, userBookStatus, userReviewCheck] = await Promise.all([

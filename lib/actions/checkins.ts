@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, invalidateTags } from "@/lib/cache/tags";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { checkRateLimit, getRateLimitStatus } from "@/lib/utils/rate-limit";
 import {
   createCheckinSchema,
@@ -51,7 +51,7 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "You must be logged in to check in" };
@@ -280,11 +280,10 @@ export async function canCheckinAtPlace(
   placeId: string
 ): Promise<{ canCheckin: boolean; reason?: string; hoursRemaining?: number }> {
   try {
-    const supabase = await createClient();
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { canCheckin: false, reason: "not_authenticated" };
@@ -323,7 +322,7 @@ export async function deleteCheckin(checkinId: string): Promise<{ success?: bool
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (authError || !user) {
       return { error: "You must be logged in" };

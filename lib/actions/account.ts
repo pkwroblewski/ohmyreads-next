@@ -2,7 +2,7 @@
 
 import { createClient as createBareClient } from "@supabase/supabase-js";
 import type { AMREntry, User } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createAuditLog } from "@/lib/utils/audit-log";
@@ -59,7 +59,7 @@ export async function changePassword(input: ChangePasswordInput): Promise<Accoun
     const supabase = await createClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { success: false, error: "Please sign in to change your password" };
@@ -141,7 +141,7 @@ export async function deleteAccount(input: DeleteAccountInput): Promise<AccountA
     const supabase = await createClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await getUser();
 
     if (!user) {
       return { success: false, error: "Please sign in to delete your account" };

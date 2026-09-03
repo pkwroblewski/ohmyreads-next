@@ -7,7 +7,7 @@ import { BookOpen, Search, User, Settings, LogOut, Shield } from "lucide-react";
 import { GlobalSearchModal } from "@/components/search/global-search-modal";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
-import { useAuth } from "@/hooks/use-auth";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { cn } from "@/lib/utils";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -28,7 +28,7 @@ const navLinks = [
 
 export function AppTopBar({ user, profile, isAdmin = false }: AppTopBarProps) {
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const [searchOpen, setSearchOpen] = useState(false);
 
   const displayName =
