@@ -69,12 +69,13 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
   const { username } = await params;
   const { tab } = await searchParams;
 
-  // Get current user
-  const {
-    data: { user: currentUser },
-  } = await getUser();
-
-  const profile = await getProfileByUsername(username);
+  // The viewer and the profile do not depend on each other: resolve both at once.
+  const [
+    {
+      data: { user: currentUser },
+    },
+    profile,
+  ] = await Promise.all([getUser(), getProfileByUsername(username)]);
 
   if (!profile) {
     notFound();

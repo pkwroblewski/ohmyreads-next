@@ -1,4 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { createClient, createPublicClient } from "@/lib/supabase/server";
+import { CACHE_TAGS } from "@/lib/cache/tags";
 import { BOOK_CARD_COLUMNS, PROFILE_PUBLIC_COLUMNS } from "./columns";
 import type { Profile, ReviewWithUser, UserBookWithBook } from "@/types/database";
 import { logError } from "@/lib/utils/log";
@@ -6,9 +9,11 @@ import { logError } from "@/lib/utils/log";
 /**
  * Get profile by username
  */
-export async function getProfileByUsername(
+export const getProfileByUsername = cache(async function getProfileByUsername(
   username: string
 ): Promise<Profile | null> {
+  // Memoised per request: `generateMetadata` and the page both resolve the
+  // same username. Not cached across requests — profile edits carry no tag.
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -27,7 +32,7 @@ export async function getProfileByUsername(
 
   // Public projection only: the private columns are absent, not null (065).
   return data as Profile;
-}
+});
 
 /**
  * Get profile by user ID
@@ -189,11 +194,11 @@ export async function getUserReviewsPaginated(
 /**
  * Get user's reviews (simple, for profile page)
  */
-export async function getUserReviews(
+async function fetchUserReviews(
   userId: string,
-  limit = 5
+  limit: number
 ): Promise<ReviewWithBook[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("reviews")
@@ -226,6 +231,16 @@ export async function getUserReviews(
 
   return (data as unknown as ReviewWithBook[]) || [];
 }
+
+/**
+ * A reader's latest reviews with their books. Public data, so it is cached
+ * under `reviews` (expired by every review write) and `books`.
+ */
+export const getUserReviews = unstable_cache(
+  fetchUserReviews,
+  ["user-reviews"],
+  { revalidate: 3600, tags: [CACHE_TAGS.reviews, CACHE_TAGS.books] }
+);
 
 /**
  * Get user's social links

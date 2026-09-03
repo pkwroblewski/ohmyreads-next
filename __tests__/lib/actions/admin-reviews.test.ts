@@ -30,7 +30,7 @@ vi.mock("@/lib/utils/audit-log", () => ({
   createAuditLog: (...args: unknown[]) => createAuditLog(...args),
 }));
 
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), updateTag: vi.fn() }));
 
 import { adminDeleteReview } from "@/lib/actions/admin-reviews";
 

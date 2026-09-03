@@ -2,6 +2,7 @@
 
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logError, logger } from "@/lib/utils/log";
@@ -260,6 +261,9 @@ export async function adminDeleteReview(reviewId: string, reason?: string) {
       },
     });
 
+    // The review is gone and the book's local rating moved with it; the
+    // cached book page and review lists must not keep serving it.
+    invalidateTags(CACHE_TAGS.books, CACHE_TAGS.reviews);
     revalidatePath("/admin/reviews");
 
     return {

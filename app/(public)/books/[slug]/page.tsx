@@ -4,12 +4,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Calendar, FileText, Star } from "lucide-react";
 import { getUser } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getBookBySlug,
   getBookReviews,
   getRelatedBooks,
   getUserBookStatus,
+  REVIEWS_PAGE_SIZE,
 } from "@/lib/queries/books";
 import { createAuthorSlug } from "@/lib/queries/authors";
 import { hasUserReviewedBook } from "@/lib/queries/reviews";
@@ -27,10 +27,16 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { safeJsonLd } from "@/lib/utils/jsonld";
-import { logError } from "@/lib/utils/log";
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ page?: string }>;
+}
+
+/** `?page=` as a 1-based integer; anything else is page 1. */
+function parsePage(raw: string | undefined): number {
+  const n = Number.parseInt(raw ?? "", 10);
+  return Number.isFinite(n) && n >= 1 ? n : 1;
 }
 
 // Generate metadata for SEO
@@ -79,47 +85,34 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-// Generate static params for popular books
-export async function generateStaticParams() {
-  try {
-    const supabase = createAdminClient();
-    const { data: books } = await supabase
-      .from("books")
-      .select("slug")
-      .order("ratings_count", { ascending: false })
-      .limit(100);
-    
-    return (books || []).map((book) => ({ slug: book.slug }));
-  } catch (error) {
-    logError("Error in generateStaticParams", error);
-    return [];
-  }
-}
+export default async function BookPage({ params, searchParams }: Props) {
+  const [{ slug }, { page: rawPage }] = await Promise.all([params, searchParams]);
+  const page = parsePage(rawPage);
 
-export default async function BookPage({ params }: Props) {
-  const { slug } = await params;
-
-  // Fetch book first
-  const book = await getBookBySlug(slug);
+  // The book (cached, shared by every visitor) and the viewer (per request)
+  // do not depend on each other, so neither waits for the other.
+  const [
+    book,
+    {
+      data: { user },
+    },
+  ] = await Promise.all([getBookBySlug(slug), getUser()]);
 
   if (!book) {
     notFound();
   }
 
-  // Get user if logged in
-  const {
-    data: { user },
-  } = await getUser();
-
   // Fetch related data in parallel
-  const [reviews, relatedBooks, similarRecs, userBookStatus, userReviewCheck] = await Promise.all([
-    getBookReviews(book.id),
-    getRelatedBooks(book.genres ?? [], book.id),
+  const [reviewsPage, relatedBooks, similarRecs, userBookStatus, userReviewCheck] = await Promise.all([
+    getBookReviews(book.id, page),
+    getRelatedBooks(book.genres ?? [], book.id, 6),
     getSimilarBookRecommendations(book.id, user?.id || null, 6),
     user ? getUserBookStatus(user.id, book.id) : Promise.resolve(null),
     user ? hasUserReviewedBook(user.id, book.id) : Promise.resolve({ hasReviewed: false, review: null }),
   ]);
 
+  const { reviews, total: reviewTotal } = reviewsPage;
+  const totalPages = Math.max(1, Math.ceil(reviewTotal / REVIEWS_PAGE_SIZE));
   const { hasReviewed, review: userExistingReview } = userReviewCheck;
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
@@ -390,7 +383,7 @@ export default async function BookPage({ params }: Props) {
             ======================================== */}
         <section id="reviews" className="mb-12 scroll-mt-20">
           <h2 className="text-xl font-semibold font-serif mb-6">
-            Reviews ({reviews.length})
+            Reviews ({reviewTotal})
           </h2>
 
           {/* Review Form - show if user is logged in and hasn't reviewed yet */}
@@ -445,6 +438,38 @@ export default async function BookPage({ params }: Props) {
               }
             />
           ) : null}
+
+          {/* Pagination: plain links so every page is crawlable and cacheable */}
+          {totalPages > 1 && (
+            <nav
+              aria-label="Review pages"
+              className="mt-6 flex items-center justify-between text-sm"
+            >
+              {page > 1 ? (
+                <Link
+                  href={`/books/${book.slug}?page=${page - 1}#reviews`}
+                  className="text-primary hover:underline"
+                >
+                  &larr; Newer reviews
+                </Link>
+              ) : (
+                <span />
+              )}
+              <span className="text-muted-foreground">
+                Page {page} of {totalPages}
+              </span>
+              {page < totalPages ? (
+                <Link
+                  href={`/books/${book.slug}?page=${page + 1}#reviews`}
+                  className="text-primary hover:underline"
+                >
+                  Older reviews &rarr;
+                </Link>
+              ) : (
+                <span />
+              )}
+            </nav>
+          )}
         </section>
 
         {/* ========================================

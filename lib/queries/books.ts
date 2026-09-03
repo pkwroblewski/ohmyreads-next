@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache/tags";
@@ -9,14 +10,16 @@ import { logError } from "@/lib/utils/log";
 /**
  * Get a single book by its slug
  */
-export async function getBookBySlug(slug: string): Promise<Book | null> {
-  const supabase = await createClient();
+async function fetchBookBySlug(slug: string): Promise<Book | null> {
+  // Catalog rows are public, so the cookie-less client is enough and the
+  // result can be shared between every visitor.
+  const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("books")
     .select(BOOK_DETAIL_COLUMNS)
     .eq("slug", slug)
-    .single();
+    .maybeSingle();
 
   if (error) {
     logError("Error fetching book", error);
@@ -24,35 +27,48 @@ export async function getBookBySlug(slug: string): Promise<Book | null> {
   }
 
   // DB stores cover_source as plain text; narrow to the app union at the boundary
-  return data as Book;
+  return (data as Book | null) ?? null;
 }
+
+const getCachedBookBySlug = unstable_cache(
+  fetchBookBySlug,
+  ["book-by-slug"],
+  { revalidate: 3600, tags: [CACHE_TAGS.books] } // 1 hour, or until a book or review changes
+);
+
+/**
+ * Get a book by slug. Cached for an hour under the `books` tag, and memoised
+ * per request so `generateMetadata` and the page share one read.
+ */
+export const getBookBySlug = cache(
+  (slug: string): Promise<Book | null> => getCachedBookBySlug(slug)
+);
 
 /**
  * Get reviews for a book with structured fields and sorting
  * Uses FK join to fetch profiles in a single query
  */
-export async function getBookReviews(
+export const REVIEWS_PAGE_SIZE = 10;
+
+export interface BookReviewsPage {
+  reviews: ReviewWithUser[];
+  /** Total reviews on the book, so callers can render page links. */
+  total: number;
+}
+
+async function fetchBookReviewsPage(
   bookId: string,
-  options: {
-    sort?: "most_recent" | "most_helpful" | "highest_rating" | "lowest_rating";
-    minRating?: number;
-    includeSpoilers?: boolean;
-    limit?: number;
-  } = {}
-): Promise<ReviewWithUser[]> {
-  const {
-    sort = "most_recent",
-    minRating,
-    includeSpoilers = true,
-    limit = 50,
-  } = options;
+  page: number
+): Promise<BookReviewsPage> {
+  const supabase = createPublicClient();
+  const offset = (page - 1) * REVIEWS_PAGE_SIZE;
 
-  const supabase = await createClient();
-
-  // Use FK join to fetch reviews with profiles in a single query
-  let query = supabase
+  // Use FK join to fetch reviews with profiles in a single query; the exact
+  // count rides along on the same request instead of a second HEAD call.
+  const { data: reviews, error, count } = await supabase
     .from("reviews")
-    .select(`
+    .select(
+      `
       id,
       user_id,
       book_id,
@@ -72,49 +88,40 @@ export async function getBookReviews(
         display_name,
         avatar_url
       )
-    `)
-    .eq("book_id", bookId);
-
-  // Apply filters
-  if (minRating) {
-    query = query.gte("rating", minRating);
-  }
-
-  if (!includeSpoilers) {
-    query = query.eq("is_spoiler", false);
-  }
-
-  // Apply sorting
-  switch (sort) {
-    case "most_helpful":
-      query = query.order("likes_count", { ascending: false });
-      break;
-    case "highest_rating":
-      query = query.order("rating", { ascending: false });
-      break;
-    case "lowest_rating":
-      query = query.order("rating", { ascending: true });
-      break;
-    default:
-      query = query.order("created_at", { ascending: false });
-  }
-
-  query = query.limit(limit);
-
-  const { data: reviews, error } = await query;
+    `,
+      { count: "exact" }
+    )
+    .eq("book_id", bookId)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + REVIEWS_PAGE_SIZE - 1);
 
   if (error) {
     logError("Error fetching reviews", error);
     logError("getBookReviews failed for bookId", bookId);
-    return [];
+    return { reviews: [], total: 0 };
   }
 
-  if (!reviews || reviews.length === 0) {
-    return [];
-  }
-
-  return reviews as unknown as ReviewWithUser[];
+  return {
+    reviews: (reviews ?? []) as unknown as ReviewWithUser[],
+    total: count ?? 0,
+  };
 }
+
+const getCachedBookReviewsPage = unstable_cache(
+  fetchBookReviewsPage,
+  ["book-reviews-page"],
+  { revalidate: 3600, tags: [CACHE_TAGS.reviews] } // 1 hour, or until a review is written, edited, deleted or liked
+);
+
+/**
+ * One page of a book's reviews, newest first. Anonymous view: the review
+ * actions expire the `reviews` tag, so a fresh review shows up on the next
+ * request rather than after the hour.
+ */
+export const getBookReviews = cache(
+  (bookId: string, page = 1): Promise<BookReviewsPage> =>
+    getCachedBookReviewsPage(bookId, Math.max(1, Math.floor(page)))
+);
 
 /**
  * Get a user's review for a specific book
@@ -348,12 +355,12 @@ export const getAllGenres = unstable_cache(
 /**
  * Get related books based on overlapping genres
  */
-export async function getRelatedBooks(
+async function fetchRelatedBooks(
   genres: string[],
   excludeId: string,
-  limit = 6
+  limit: number
 ): Promise<BookSummary[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("books")
@@ -370,6 +377,13 @@ export async function getRelatedBooks(
 
   return (data || []) as BookSummary[];
 }
+
+/** Books sharing a genre, by Open Library popularity. Cached under `books`. */
+export const getRelatedBooks = unstable_cache(
+  fetchRelatedBooks,
+  ["related-books"],
+  { revalidate: 3600, tags: [CACHE_TAGS.books] }
+);
 
 /**
  * Get all book slugs (useful for static generation)

@@ -333,8 +333,9 @@ export async function likeReview(reviewId: string) {
     // reviews.likes_count is updated by a trigger in the same transaction as
     // the insert above (migration 057), so it can no longer drift.
 
-    // Deliberately no tag invalidation: a like is high-frequency and only moves
-    // reviews.likes_count, which no tagged cache entry sorts or filters on.
+    // The cached review pages on /books/[slug] render likes_count, so a like
+    // has to expire them or every other reader sees the old number for an hour.
+    invalidateTags(CACHE_TAGS.reviews);
     revalidateBookPages();
 
     return { success: true };
@@ -375,6 +376,7 @@ export async function unlikeReview(reviewId: string) {
     // reviews.likes_count is updated by a trigger in the same transaction as
     // the delete above (migration 057), so it can no longer drift.
 
+    invalidateTags(CACHE_TAGS.reviews);
     revalidateBookPages();
 
     return { success: true };

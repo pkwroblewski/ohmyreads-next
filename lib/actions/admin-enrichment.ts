@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { enrichBookEntry } from "@/lib/utils/external-book-search";
 import { logger, reportError } from "@/lib/utils/log";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
@@ -306,6 +307,8 @@ async function enrichSingleBookCore(
         return result;
       }
 
+      // Cover, description or ratings changed: the cached book page reads them.
+      invalidateTags(...BOOK_CATALOG_TAGS);
       result.success = true;
     } else {
       // No new data found - mark as success but no updates
