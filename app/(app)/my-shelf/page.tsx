@@ -5,19 +5,20 @@ import Link from "next/link";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
 import { ShelfTabs } from "@/components/books/shelf-tabs";
-import { ShelfBookCard } from "@/components/books/shelf-book-card";
+import { ShelfGrid, type ShelfGridItem } from "@/components/books/shelf-grid";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ShelfSidebar } from "@/components/shelves/shelf-sidebar";
 import { MobileShelfDrawer } from "@/components/shelves/mobile-shelf-drawer";
-import { BOOK_CARD_COLUMNS } from "@/lib/queries/columns";
-import type { BookSummary, UserBook } from "@/types/database";
+import { getShelfCounts, getUserBooks, SHELF_PAGE_SIZE } from "@/lib/queries/users";
 
 export const metadata: Metadata = {
   title: "Bookshelves",
 };
 
-interface UserBookWithBook extends UserBook {
-  book: BookSummary | null;
+type ShelfStatus = "reading" | "read" | "want_to_read";
+
+function toStatus(raw: string | undefined): ShelfStatus | undefined {
+  return raw === "reading" || raw === "read" || raw === "want_to_read" ? raw : undefined;
 }
 
 export default async function MyShelfPage({
@@ -38,73 +39,31 @@ export default async function MyShelfPage({
 
   const supabase = await createClient();
 
-  // If filtering by custom shelf, get those books
-  let filteredBooks: UserBookWithBook[] = [];
-  let allBooks: UserBookWithBook[] = [];
-  let shelfName: string | null = null;
+  // Counts are three HEAD requests, the grid is one page of 48 rows, and a
+  // custom shelf filters through the shelf_books join in the same query — so
+  // the page no longer loads (and, past 1,000 rows, silently truncates) the
+  // whole collection just to count it.
+  const [counts, page, shelf] = await Promise.all([
+    getShelfCounts(user.id),
+    getUserBooks(user.id, {
+      status: shelfFilter ? undefined : toStatus(statusFilter),
+      shelfId: shelfFilter,
+      limit: SHELF_PAGE_SIZE,
+      offset: 0,
+    }),
+    shelfFilter
+      ? supabase
+          .from("user_shelves")
+          .select("name")
+          .eq("id", shelfFilter)
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
-  if (shelfFilter) {
-    // Get shelf info
-    const { data: shelf } = await supabase
-      .from("user_shelves")
-      .select("name")
-      .eq("id", shelfFilter)
-      .eq("user_id", user.id)
-      .single();
-
-    shelfName = shelf?.name || null;
-
-    // Get books in this custom shelf - first get shelf_book entries
-    const { data: shelfBookEntries } = await supabase
-      .from("shelf_books")
-      .select("user_book_id")
-      .eq("shelf_id", shelfFilter);
-
-    const shelfUserBookIds = (shelfBookEntries || []).map((sb) => sb.user_book_id);
-
-    if (shelfUserBookIds.length > 0) {
-      const { data: shelfUserBooks } = await supabase
-        .from("user_books")
-        .select(`*, book:books(${BOOK_CARD_COLUMNS})`)
-        .in("id", shelfUserBookIds);
-
-      filteredBooks = (shelfUserBooks as UserBookWithBook[]) || [];
-    }
-
-    // Still need all books for counts
-    const { data: userBooks } = await supabase
-      .from("user_books")
-      .select(`*, book:books(${BOOK_CARD_COLUMNS})`)
-      .eq("user_id", user.id);
-
-    allBooks = (userBooks as UserBookWithBook[]) || [];
-  } else {
-    // Get all user's books
-    const { data: userBooks } = await supabase
-      .from("user_books")
-      .select(`
-        *,
-        book:books(${BOOK_CARD_COLUMNS})
-      `)
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
-
-    allBooks = (userBooks as UserBookWithBook[]) || [];
-
-    // Filter by status if specified
-    filteredBooks = allBooks;
-    if (statusFilter && statusFilter !== "all") {
-      filteredBooks = allBooks.filter((b) => b.status === statusFilter);
-    }
-  }
-
-  // Count by status
-  const counts = {
-    all: allBooks.length,
-    reading: allBooks.filter((b) => b.status === "reading").length,
-    read: allBooks.filter((b) => b.status === "read").length,
-    want_to_read: allBooks.filter((b) => b.status === "want_to_read").length,
-  };
+  const shelfName = shelf.data?.name ?? null;
+  const books = page.userBooks as unknown as ShelfGridItem[];
+  const total = page.total;
 
   return (
     <div className="flex gap-6">
@@ -133,7 +92,7 @@ export default async function MyShelfPage({
             </h1>
             <p className="text-muted-foreground">
               {shelfFilter
-                ? `${filteredBooks.length} book${filteredBooks.length !== 1 ? "s" : ""} in this shelf`
+                ? `${total} book${total !== 1 ? "s" : ""} in this shelf`
                 : `${counts.all} book${counts.all !== 1 ? "s" : ""} in your collection`}
             </p>
           </div>
@@ -170,16 +129,15 @@ export default async function MyShelfPage({
         )}
 
         {/* Book Grid */}
-        {filteredBooks.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
-            {filteredBooks.map((userBook) => (
-              <ShelfBookCard
-                key={userBook.id}
-                userBook={userBook}
-                book={userBook.book}
-              />
-            ))}
-          </div>
+        {books.length > 0 ? (
+          <ShelfGrid
+            key={`${shelfFilter ?? ""}:${statusFilter ?? "all"}`}
+            initialBooks={books}
+            total={total}
+            status={statusFilter}
+            shelfId={shelfFilter}
+            pageSize={SHELF_PAGE_SIZE}
+          />
         ) : (
           <EmptyState
             icon={Library}

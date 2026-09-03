@@ -1,92 +1,100 @@
 // OhMyReads Service Worker
-// Provides offline shell and caching for static assets
+//
+// Caches only what is the same for every reader: hashed build assets, fonts,
+// icons, the manifest and the static /offline page. Pages, RSC payloads and
+// API responses are never stored — the old worker kept every same-origin 200,
+// which on a shared device could hand one reader's dashboard to the next.
 
-const CACHE_NAME = "ohmyreads-v1";
+const CACHE_NAME = "ohmyreads-v2";
+const OFFLINE_URL = "/offline";
 
 // Static assets to cache on install
-const STATIC_ASSETS = [
-  "/",
-  "/login",
-  "/signup",
-  "/discover",
-  "/site.webmanifest",
-];
+const PRECACHE = [OFFLINE_URL, "/site.webmanifest", "/icons/icon-192", "/icons/icon-512"];
 
-// Install event - cache static assets
+// Path prefixes whose responses are immutable or reader-independent
+const CACHEABLE_PREFIXES = ["/_next/static/", "/icons/", "/images/", "/fonts/"];
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
+    caches.open(CACHE_NAME).then((cache) =>
+      // Precache what we can; a missing icon must not block activation.
+      Promise.allSettled(PRECACHE.map((url) => cache.add(url)))
+    )
   );
-  // Activate immediately
   self.skipWaiting();
 });
 
-// Activate event - clean old caches
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    })
+    caches
+      .keys()
+      .then((names) => Promise.all(names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name))))
+      .then(() => self.clients.claim())
   );
-  // Take control of all clients
-  self.clients.claim();
 });
 
-// Fetch event - network-first strategy with cache fallback
-self.addEventListener("fetch", (event) => {
-  // Skip non-GET requests
-  if (event.request.method !== "GET") {
-    return;
-  }
+function isCacheableAsset(url) {
+  return (
+    CACHEABLE_PREFIXES.some((prefix) => url.pathname.startsWith(prefix)) ||
+    url.pathname === "/site.webmanifest"
+  );
+}
 
-  // Skip API routes, auth, and external requests
-  const url = new URL(event.request.url);
+function isPrivateResponse(response) {
+  const cacheControl = response.headers.get("cache-control") || "";
+  return /\b(private|no-store)\b/i.test(cacheControl);
+}
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Never touch data: API responses, auth callbacks, and React Server
+  // Component payloads (the `_rsc` query or the text/x-component accept type).
   if (
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/callback") ||
-    url.origin !== self.location.origin
+    url.searchParams.has("_rsc") ||
+    (request.headers.get("accept") || "").includes("text/x-component")
   ) {
     return;
   }
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Cache successful responses
-        if (response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        // Return cached response on network failure
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // Return offline page for navigation requests
-          if (event.request.mode === "navigate") {
-            return caches.match("/") || new Response("Offline", {
-              status: 503,
-              statusText: "Service Unavailable",
-              headers: { "Content-Type": "text/plain" },
-            });
-          }
-          return new Response("Offline", {
+  // Navigations: network only, offline page when the network is gone.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        const offline = await caches.match(OFFLINE_URL);
+        return (
+          offline ||
+          new Response("Offline", {
             status: 503,
             statusText: "Service Unavailable",
             headers: { "Content-Type": "text/plain" },
-          });
-        });
+          })
+        );
       })
+    );
+    return;
+  }
+
+  if (!isCacheableAsset(url)) return;
+
+  // Static assets: cache first, then network, and keep what the network gave us.
+  event.respondWith(
+    caches.match(request).then(
+      (cached) =>
+        cached ||
+        fetch(request).then((response) => {
+          if (response.status === 200 && !isPrivateResponse(response)) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+    )
   );
 });

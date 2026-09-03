@@ -9,14 +9,11 @@ export function ServiceWorkerRegistration() {
       "serviceWorker" in navigator &&
       process.env.NODE_ENV === "production"
     ) {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .then((registration) => {
-          console.log("SW registered:", registration.scope);
-        })
-        .catch((error) => {
-          console.error("SW registration failed:", error);
-        });
+      // Registration succeeding is the normal case and needs no console line;
+      // a failure is worth surfacing because it silently removes offline support.
+      navigator.serviceWorker.register("/sw.js").catch((error) => {
+        console.error("SW registration failed:", error);
+      });
     }
   }, []);
 

@@ -62,24 +62,61 @@ export async function getUserStats(userId: string) {
   const supabase = await createClient();
 
   // Fetch counts in parallel
-  const [booksResult, reviewsResult] = await Promise.all([
-    supabase.from("user_books").select("status").eq("user_id", userId),
+  const [shelf, reviewsResult] = await Promise.all([
+    getShelfCounts(userId),
     supabase
       .from("reviews")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
   ]);
 
-  const books = booksResult.data || [];
-
   return {
-    booksRead: books.filter((b) => b.status === "read").length,
-    booksReading: books.filter((b) => b.status === "reading").length,
-    booksWantToRead: books.filter((b) => b.status === "want_to_read").length,
-    totalBooks: books.length,
+    booksRead: shelf.read,
+    booksReading: shelf.reading,
+    booksWantToRead: shelf.want_to_read,
+    totalBooks: shelf.all,
     reviewsCount: reviewsResult.count || 0,
   };
 }
+
+export interface ShelfCounts {
+  all: number;
+  reading: number;
+  read: number;
+  want_to_read: number;
+}
+
+const SHELF_STATUSES = ["reading", "read", "want_to_read"] as const;
+
+/**
+ * Per-status shelf sizes as three HEAD counts in parallel. `all` is their
+ * sum: `user_books.status` is CHECK-constrained to exactly these values.
+ * Counting in SQL is what keeps a large import honest — a `select("status")`
+ * stops at PostgREST's 1,000-row cap and under-reports from there.
+ */
+export async function getShelfCounts(userId: string): Promise<ShelfCounts> {
+  const supabase = await createClient();
+
+  const results = await Promise.all(
+    SHELF_STATUSES.map((status) =>
+      supabase
+        .from("user_books")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", status)
+    )
+  );
+
+  const [reading, read, want_to_read] = results.map((r) => {
+    if (r.error) logError("Error counting shelf", r.error);
+    return r.count ?? 0;
+  });
+
+  return { all: reading + read + want_to_read, reading, read, want_to_read };
+}
+
+/** Rows per page on /my-shelf and its "Load more" route. */
+export const SHELF_PAGE_SIZE = 48;
 
 /**
  * Get user's books with book details
@@ -88,25 +125,31 @@ export async function getUserBooks(
   userId: string,
   options: {
     status?: "reading" | "read" | "want_to_read";
+    /** Restrict to one custom shelf (joins shelf_books instead of a second query). */
+    shelfId?: string;
     limit?: number;
     offset?: number;
   } = {}
 ): Promise<{ userBooks: UserBookWithBook[]; total: number }> {
-  const { status, limit = 20, offset = 0 } = options;
+  const { status, shelfId, limit = 20, offset = 0 } = options;
 
   const supabase = await createClient();
 
+  // With a shelf id the inner join both filters the rows and keeps the count
+  // exact for that shelf; without one the join is left out entirely.
+  const columns = shelfId
+    ? `*, book:books(${BOOK_CARD_COLUMNS}), shelf_books!inner(shelf_id)`
+    : `*, book:books(${BOOK_CARD_COLUMNS})`;
+
   let query = supabase
     .from("user_books")
-    .select(
-      `
-      *,
-      book:books(${BOOK_CARD_COLUMNS})
-    `,
-      { count: "exact" }
-    )
+    .select(columns, { count: "exact" })
     .eq("user_id", userId)
     .order("updated_at", { ascending: false });
+
+  if (shelfId) {
+    query = query.eq("shelf_books.shelf_id", shelfId);
+  }
 
   if (status) {
     query = query.eq("status", status);
@@ -121,7 +164,7 @@ export async function getUserBooks(
     return { userBooks: [], total: 0 };
   }
 
-  return { userBooks: (data || []) as UserBookWithBook[], total: count || 0 };
+  return { userBooks: (data || []) as unknown as UserBookWithBook[], total: count || 0 };
 }
 
 // Type for review with book info
