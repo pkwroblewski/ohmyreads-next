@@ -34,13 +34,13 @@ export function HomeHero({
       {/* Full-width background image */}
       <div className="absolute inset-0">
         <Image
-          src="/images/Gemini_Generated_Image_sdr5ejsdr5ejsdr5.png"
+          src="/images/hero.webp"
           alt="Cozy reading atmosphere"
           fill
           priority
-          quality={90}
+          quality={75}
           className="object-cover object-center lg:object-right"
-          sizes="100vw"
+          sizes="(max-width: 1024px) 100vw, 70vw"
           placeholder="blur"
           blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAUH/8QAIhAAAgEDAwUBAAAAAAAAAAAAAQIDAAQRBSExBhITQWFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAYEQEBAQEBAAAAAAAAAAAAAAABAgADEf/aAAwDAQACEQMRAD8AyrT9V1G2s4reC9njgiQJGiyEBVAwAPgqtSlMZdzOf//Z"
         />

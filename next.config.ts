@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   images: {
+    // Covers and the hero never change under the same URL; keep optimizer output for 30 days
+    minimumCacheTTL: 2592000,
     qualities: [75, 85, 90],
     remotePatterns: ALLOWED_IMAGE_HOSTS,
   },
@@ -56,7 +58,7 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               // 'unsafe-inline' needed for Next.js inline scripts; 'unsafe-eval' removed
-              "script-src 'self' 'unsafe-inline' https://vercel.live https://*.sentry.io",
+              "script-src 'self' 'unsafe-inline' https://vercel.live https://*.sentry.io https://browser.sentry-cdn.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://*.supabase.co https://archive.org https://*.us.archive.org",
               "font-src 'self' https://fonts.gstatic.com data:",
@@ -97,11 +99,6 @@ export default withSentryConfig(nextConfig, {
 
   // Webpack-specific options
   webpack: {
-    // Automatically annotate React components to show their full name in breadcrumbs and session replay
-    reactComponentAnnotation: {
-      enabled: true,
-    },
-
     // Automatically tree-shake Sentry logger statements to reduce bundle size
     treeshake: {
       removeDebugLogging: true,
