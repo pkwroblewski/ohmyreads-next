@@ -12,10 +12,32 @@ import type { BookSummary } from "@/types/database";
 
 interface BookBrowserProps {
   initialBooks: BookSummary[];
+  /** Exact total for the seeded filter; omitted for the unfiltered default. */
+  initialTotal?: number;
+  initialQuery?: string;
+  initialGenre?: string | null;
+  initialSort?: SortOption;
   genres: string[];
 }
 
 type SortOption = "popular" | "newest" | "rating" | "title";
+
+const PAGE_SIZE = 20;
+
+/** Keep the address bar in step with the filters so the view can be shared. */
+function syncUrl(query: string, genre: string | null, sort: SortOption) {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (genre) params.set("genre", genre);
+  if (sort !== "popular") params.set("sort", sort);
+  const search = params.toString();
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${window.location.pathname}${search ? `?${search}` : ""}`
+  );
+}
 
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: "popular", label: "Popular" },
@@ -24,18 +46,30 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: "title", label: "Title A-Z" },
 ];
 
-export function BookBrowser({ initialBooks, genres }: BookBrowserProps) {
+export function BookBrowser({
+  initialBooks,
+  initialTotal,
+  initialQuery = "",
+  initialGenre = null,
+  initialSort = "popular",
+  genres,
+}: BookBrowserProps) {
   const [books, setBooks] = useState<BookSummary[]>(initialBooks);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortOption>("popular");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(initialGenre);
+  const [sortBy, setSortBy] = useState<SortOption>(initialSort);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(initialBooks.length);
+  const [hasMore, setHasMore] = useState(
+    initialTotal === undefined ? true : initialTotal > initialBooks.length
+  );
+  const [totalCount, setTotalCount] = useState(initialTotal ?? initialBooks.length);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showAISearch, setShowAISearch] = useState(false);
-  const [showAllGenres, setShowAllGenres] = useState(false);
+  // A seeded genre beyond the first ten pills must be visible as selected.
+  const [showAllGenres, setShowAllGenres] = useState(
+    initialGenre !== null && genres.indexOf(initialGenre) >= 10
+  );
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
@@ -74,7 +108,8 @@ export function BookBrowser({ initialBooks, genres }: BookBrowserProps) {
         if (genre) params.set("genre", genre);
         params.set("sort", sort);
         params.set("page", pageNum.toString());
-        params.set("limit", "20");
+        params.set("limit", String(PAGE_SIZE));
+        if (pageNum === 1) syncUrl(query, genre, sort);
 
         const response = await fetch(`/api/books/search?${params.toString()}`);
         const data = await response.json();

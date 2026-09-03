@@ -10,11 +10,13 @@ import {
 import { RecommendationsGrid } from "@/components/recommendations/recommendations-grid";
 
 export const metadata: Metadata = {
-  title: "Curated For You - OhMyReads",
+  title: "Curated For You",
   description:
     "Personalized book recommendations based on your reading preferences, favorite genres, and books you've loved.",
+  // Personalised per reader: nothing a crawler sees is what a reader sees.
+  robots: { index: false, follow: true },
   openGraph: {
-    title: "Curated For You - OhMyReads",
+    title: "Curated For You",
     description:
       "Discover your next favorite read with personalized recommendations.",
   },

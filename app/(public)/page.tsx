@@ -30,7 +30,10 @@ import { cn } from "@/lib/utils";
 import { safeJsonLd } from "@/lib/utils/jsonld";
 
 export const metadata: Metadata = {
-  title: "OhMyReads - Independent Minds, Shared Stories",
+  // `absolute` opts out of the layout's "%s | OhMyReads" template, which would
+  // otherwise print the brand twice on the one page that names itself.
+  title: { absolute: "OhMyReads - Independent Minds, Shared Stories" },
+  alternates: { canonical: "/" },
   description:
     "The independent reading community where you own your data and readers come first. Track your reading journey without corporate interference.",
   keywords: [
@@ -114,7 +117,7 @@ export default async function HomePage() {
             "@type": "Organization",
             name: "OhMyReads",
             url: siteUrl,
-            logo: `${siteUrl}/logo.png`,
+            logo: `${siteUrl}/icons/icon-512`,
             sameAs: [],
             description:
               "Discover books, write reviews, and connect with fellow readers.",

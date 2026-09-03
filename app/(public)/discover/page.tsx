@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   title: "Discover Readers",
   description:
     "Find readers with similar taste. Discover new book lovers based on shared reading interests, genres, and vibes.",
+  // Personalised per reader: nothing a crawler sees is what a reader sees.
+  robots: { index: false, follow: true },
   openGraph: {
     title: "Discover Readers",
     description:

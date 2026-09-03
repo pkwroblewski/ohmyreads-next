@@ -4,11 +4,12 @@ import { getTrulyTrending } from "@/lib/queries/recommendations";
 import { TrendingGrid } from "@/components/trending/trending-grid";
 
 export const metadata: Metadata = {
-  title: "Trending Books - OhMyReads",
+  title: "Trending Books",
   description:
     "Discover what readers are buzzing about right now. See the most talked-about books this week based on reviews, ratings, and reader activity.",
+  alternates: { canonical: "/trending" },
   openGraph: {
-    title: "Trending Books - OhMyReads",
+    title: "Trending Books",
     description:
       "Discover what readers are buzzing about right now.",
   },

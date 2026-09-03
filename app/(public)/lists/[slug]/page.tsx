@@ -23,23 +23,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (UUID_RE.test(slug)) {
     const list = await getListById(slug);
     if (!list) {
-      return { title: "List Not Found" };
+      notFound();
     }
     return {
       title: list.title,
       description: list.description || undefined,
+      alternates: { canonical: `/lists/${list.id}` },
     };
   }
 
   const list = await getCuratedListWithBooks(slug);
 
   if (!list) {
-    return { title: "List Not Found" };
+    notFound();
   }
 
   return {
     title: list.title,
     description: list.longDescription || list.description,
+    alternates: { canonical: `/lists/${list.slug}` },
     openGraph: {
       title: list.title,
       description: list.longDescription || list.description,

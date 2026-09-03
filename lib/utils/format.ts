@@ -40,6 +40,26 @@ export function truncate(str: string, length: number): string {
 }
 
 /**
+ * Truncate for a meta description: cut at the last word boundary before
+ * `length`, whitespace collapsed, with a single-character ellipsis so the
+ * result never exceeds `length`. A hard `slice(0, 160)` ends snippets on a
+ * half word, which is what search results used to show.
+ */
+export function truncateAtWord(str: string, length = 160): string {
+  const text = str.replace(/\s+/g, " ").trim();
+  if (text.length <= length) {
+    return text;
+  }
+  const cut = text.slice(0, length - 1);
+  // If the cut already lands on a word boundary, keep the whole word.
+  const lastSpace = /\s/.test(text.charAt(length - 1))
+    ? cut.length
+    : cut.lastIndexOf(" ");
+  const head = lastSpace > length / 2 ? cut.slice(0, lastSpace) : cut;
+  return `${head.replace(/[\s,;:.!?-]+$/, "")}…`;
+}
+
+/**
  * Formats time remaining until expiration as "Xh Xm remaining"
  * Returns null if no expiration, "Expired" if past
  */

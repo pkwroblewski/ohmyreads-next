@@ -72,6 +72,24 @@ export const searchParamsSchema = z.object({
 export type SearchParams = z.infer<typeof searchParamsSchema>;
 
 /**
+ * The browse state `/books` accepts from its URL (server-rendered seed for
+ * the client island). `genre` must be one the page actually offers — the DB
+ * genre list, which is what genre links elsewhere point at — and anything
+ * else falls back to the unfiltered view so the canonical stays honest.
+ */
+export function parseBrowseParams(
+  raw: { q?: string; genre?: string; sort?: string },
+  genres: readonly string[]
+): { q: string; genre: string | null; sort: SortOption } {
+  const q = (raw.q ?? "").trim().slice(0, 200);
+  const genre = raw.genre && genres.includes(raw.genre) ? raw.genre : null;
+  const sort = SORT_OPTIONS.includes(raw.sort as SortOption)
+    ? (raw.sort as SortOption)
+    : "popular";
+  return { q, genre, sort };
+}
+
+/**
  * Parse and validate search parameters from URLSearchParams
  */
 export function parseSearchParams(searchParams: URLSearchParams): {

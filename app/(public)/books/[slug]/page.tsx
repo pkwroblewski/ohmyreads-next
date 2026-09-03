@@ -26,6 +26,7 @@ import { UserReviewCard } from "@/components/reviews/user-review-card";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { truncateAtWord } from "@/lib/utils/format";
 import { safeJsonLd } from "@/lib/utils/jsonld";
 
 interface Props {
@@ -45,17 +46,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const book = await getBookBySlug(slug);
 
   if (!book) {
-    return { title: "Book Not Found" };
+    // Thrown here, before the streamed body, so the response is a real 404.
+    // The segment has a loading.tsx, so a notFound() from the page component
+    // alone arrives after the 200 status has been sent (a soft 404).
+    notFound();
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
   const ogImageUrl = `${baseUrl}/api/og/book?slug=${encodeURIComponent(slug)}`;
+  const title = `${book.title} by ${book.author}`;
+  const description = book.description
+    ? truncateAtWord(book.description)
+    : `Read reviews and track ${book.title} by ${book.author} on OhMyReads.`;
 
   return {
-    title: `${book.title} by ${book.author}`,
-    description:
-      book.description?.slice(0, 160) ||
-      `Read reviews and track ${book.title} by ${book.author} on OhMyReads.`,
+    title,
+    description,
     keywords: [
       book.title,
       book.author,
@@ -63,23 +69,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       "book review",
       "reading",
     ],
+    // Review pages (?page=2…) are views of the same book, so they all point
+    // at the parameter-free URL.
+    alternates: { canonical: `/books/${book.slug}` },
     openGraph: {
-      title: `${book.title} by ${book.author}`,
-      description: book.description?.slice(0, 160),
+      title,
+      description,
       images: [
         {
           url: ogImageUrl,
           width: 1200,
           height: 630,
-          alt: `${book.title} by ${book.author}`,
+          alt: title,
         },
       ],
-      type: "website",
+      type: "book",
+      authors: [book.author],
+      ...(book.isbn ? { isbn: book.isbn } : {}),
+      ...(book.published_date ? { releaseDate: book.published_date } : {}),
     },
     twitter: {
       card: "summary_large_image",
-      title: `${book.title} by ${book.author}`,
-      description: book.description?.slice(0, 160),
+      title,
+      description,
       images: [ogImageUrl],
     },
   };

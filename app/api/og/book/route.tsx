@@ -18,7 +18,9 @@ export async function GET(request: Request) {
 
     const { data: book, error } = await supabase
       .from("books")
-      .select("title, author, cover_url, genres, average_rating, ratings_count, page_count")
+      .select(
+        "title, author, cover_url, genres, average_rating, ratings_count, local_average_rating, local_ratings_count, page_count"
+      )
       .eq("slug", slug)
       .single();
 
@@ -27,8 +29,23 @@ export async function GET(request: Request) {
     }
 
     const genres = (book.genres || []).slice(0, 3);
-    const rating = book.average_rating ? book.average_rating.toFixed(1) : null;
-    const ratingCount = book.ratings_count || 0;
+
+    // Two rating populations (migration 063). The card is this site's share
+    // image, so its own readers' figure comes first; the Open Library one is
+    // shown only as a fallback and says where it is from.
+    const hasLocal =
+      book.local_average_rating !== null && book.local_ratings_count > 0;
+    const rating = hasLocal
+      ? book.local_average_rating!.toFixed(1)
+      : book.average_rating
+        ? book.average_rating.toFixed(1)
+        : null;
+    const ratingCount = hasLocal
+      ? book.local_ratings_count
+      : book.ratings_count || 0;
+    const ratingLabel = hasLocal
+      ? `from ${ratingCount} ${ratingCount === 1 ? "reader" : "readers"} on OhMyReads`
+      : `${ratingCount} ${ratingCount === 1 ? "rating" : "ratings"} on Open Library`;
 
     return new ImageResponse(
       (
@@ -151,7 +168,7 @@ export async function GET(request: Request) {
                   <span>{rating}</span>
                 </div>
                 <span style={{ fontSize: "16px", color: "#8b9c8b" }}>
-                  {ratingCount} {ratingCount === 1 ? "rating" : "ratings"}
+                  {ratingLabel}
                 </span>
               </div>
             )}

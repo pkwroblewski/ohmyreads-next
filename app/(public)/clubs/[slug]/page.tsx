@@ -20,12 +20,13 @@ export async function generateMetadata({ params }: ClubPageProps): Promise<Metad
   const club = await getClubBySlug(slug);
 
   if (!club) {
-    return { title: "Club Not Found" };
+    notFound();
   }
 
   return {
     title: `${club.name} | Book Clubs`,
     description: club.description || `Join ${club.name} on OhMyReads`,
+    alternates: { canonical: `/clubs/${club.slug}` },
   };
 }
 

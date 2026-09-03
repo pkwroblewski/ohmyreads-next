@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const profile = await getProfileByUsername(username);
 
   if (!profile) {
-    return { title: "User Not Found" };
+    notFound();
   }
 
   const name = profile.display_name || profile.username;
@@ -54,9 +54,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${name} (@${profile.username})`,
     description: profile.bio || `See what ${name} is reading on OhMyReads`,
-    alternates: {
-      canonical: `${process.env.NEXT_PUBLIC_SITE_URL}/users/${profile.username}`,
-    },
+    alternates: { canonical: `/users/${profile.username}` },
+    // A reader who opted out of discovery should not be in search results
+    // either; the page stays reachable by direct link.
+    ...(profile.discovery_visible === false
+      ? { robots: { index: false, follow: false } }
+      : {}),
     openGraph: {
       title: `${name} on OhMyReads`,
       description: profile.bio || `Check out ${name}'s reading list`,
@@ -119,23 +122,26 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
   const displayName = profile.display_name || profile.username;
   const memberSince = format(new Date(profile.created_at), "MMMM yyyy");
   const websiteHref = safeHref(profile.website);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
 
   return (
     <>
-      {/* JSON-LD for SEO */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: safeJsonLd({
-            "@context": "https://schema.org",
-            "@type": "Person",
-            name: displayName,
-            url: `${process.env.NEXT_PUBLIC_SITE_URL}/users/${profile.username}`,
-            image: profile.avatar_url,
-            description: profile.bio,
-          }),
-        }}
-      />
+      {/* JSON-LD for SEO — not for readers who opted out of discovery */}
+      {profile.discovery_visible !== false && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd({
+              "@context": "https://schema.org",
+              "@type": "Person",
+              name: displayName,
+              url: `${siteUrl}/users/${profile.username}`,
+              image: profile.avatar_url,
+              description: profile.bio,
+            }),
+          }}
+        />
+      )}
 
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
         {/* ========================================

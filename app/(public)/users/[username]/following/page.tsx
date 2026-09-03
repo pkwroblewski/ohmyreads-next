@@ -21,6 +21,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const name = profile.display_name || profile.username;
 
   return {
+    ...(profile.discovery_visible === false
+      ? { robots: { index: false, follow: false } }
+      : {}),
     title: `People ${name} follows`,
     description: `See who ${name} follows on OhMyReads`,
   };

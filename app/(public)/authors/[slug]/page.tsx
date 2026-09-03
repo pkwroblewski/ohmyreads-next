@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const author = await getAuthorBySlug(slug);
 
   if (!author) {
-    return { title: "Author Not Found" };
+    notFound();
   }
 
   const description = `Explore ${author.books.length} book${author.books.length !== 1 ? "s" : ""} by ${author.name} on OhMyReads. Read reviews and add to your shelf.`;
@@ -23,6 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: author.name,
     description,
+    alternates: { canonical: `/authors/${author.slug}` },
     openGraph: {
       title: `Books by ${author.name}`,
       description,
@@ -125,7 +126,7 @@ export default async function AuthorPage({ params }: Props) {
             {author.avgRating && (
               <span className="flex items-center gap-2">
                 <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
-                {author.avgRating} average rating
+                {author.avgRating} on Open Library
                 <span className="text-sm">
                   ({author.totalRatings.toLocaleString()} ratings)
                 </span>
