@@ -10,9 +10,11 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const revalidatePath = vi.fn();
+const invalidateTags = vi.fn();
+vi.mock("next/cache", () => ({ revalidatePath: (...a: unknown[]) => revalidatePath(...a) }));
 vi.mock("@/lib/cache/tags", () => ({
-  invalidateTags: vi.fn(),
+  invalidateTags: (...a: unknown[]) => invalidateTags(...a),
   CACHE_TAGS: { activity: "activity", trending: "trending" },
   BOOK_CATALOG_TAGS: ["books"],
 }));
@@ -105,6 +107,8 @@ describe("importAndAddToShelf", () => {
     shelfUpsert.mockClear();
     checkRateLimit.mockReset();
     checkRateLimit.mockResolvedValue({ allowed: true });
+    revalidatePath.mockClear();
+    invalidateTags.mockClear();
   });
 
   it("refuses an unauthenticated caller before touching either client", async () => {
@@ -140,6 +144,13 @@ describe("importAndAddToShelf", () => {
     // The shelf row stays on the session client under the user's own id
     expect(shelfUpsert).toHaveBeenCalledTimes(1);
     expect(shelfUpsert.mock.calls[0][0]).toMatchObject({ user_id: USER.id, book_id: "book-1", status: "want_to_read" });
+
+    // A new catalog row expires the catalog lists; the shelf write expires
+    // activity + trending; both shelf pages refresh.
+    expect(invalidateTags).toHaveBeenCalledWith("books");
+    expect(invalidateTags).toHaveBeenCalledWith("activity", "trending");
+    expect(revalidatePath).toHaveBeenCalledWith("/dashboard");
+    expect(revalidatePath).toHaveBeenCalledWith("/my-shelf");
   });
 
   it("rate-limits catalog inserts at 10 per hour on top of the shelf limit", async () => {
@@ -169,6 +180,9 @@ describe("importAndAddToShelf", () => {
     expect(adminFrom).not.toHaveBeenCalled();
     expect(checkRateLimit).not.toHaveBeenCalledWith(expect.stringMatching(/^catalog-insert:/), expect.anything(), expect.anything());
     expect(shelfUpsert.mock.calls[0][0]).toMatchObject({ book_id: "book-existing", status: "reading" });
+    // Nothing about the catalog changed, so its tag must stay warm.
+    expect(invalidateTags).not.toHaveBeenCalledWith("books");
+    expect(invalidateTags).toHaveBeenCalledWith("activity", "trending");
   });
 
   it("retries with a random suffix on a slug collision", async () => {
@@ -202,5 +216,7 @@ describe("importAndAddToShelf", () => {
     expect(result).toEqual({ success: false, error: "Error inserting book" });
     expect(adminInsert).toHaveBeenCalledTimes(1);
     expect(shelfUpsert).not.toHaveBeenCalled();
+    expect(invalidateTags).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

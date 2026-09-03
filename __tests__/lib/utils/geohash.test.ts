@@ -97,7 +97,9 @@ describe("decodeGeohash", () => {
   });
 
   it("ignores characters outside the alphabet instead of throwing", () => {
-    expect(() => decodeGeohash("gcpv!?j0")).not.toThrow();
+    // The two junk characters contribute nothing: the result is the decode
+    // of the remaining six valid characters.
+    expect(decodeGeohash("gcpv!?j0")).toEqual(decodeGeohash("gcpvj0"));
     expect(decodeGeohash("GCPVJ0")).toEqual(decodeGeohash("gcpvj0"));
   });
 });

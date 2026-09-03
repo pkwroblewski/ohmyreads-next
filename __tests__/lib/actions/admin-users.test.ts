@@ -155,6 +155,8 @@ describe("adminToggleAdmin: the Task 1 regression", () => {
         userId: ADMIN.id,
       })
     );
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/users");
+    expect(revalidatePath).toHaveBeenCalledWith(`/admin/users/${TARGET}`);
   });
 });
 
@@ -288,6 +290,8 @@ describe("adminDisableUser", () => {
         metadata: expect.objectContaining({ reason: "spam", banApplied: true }),
       })
     );
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/users");
+    expect(revalidatePath).toHaveBeenCalledWith(`/admin/users/${TARGET}`);
   });
 
   it("refuses to disable an admin, without writing anything", async () => {
@@ -362,6 +366,8 @@ describe("adminEnableUser", () => {
         metadata: expect.objectContaining({ banLifted: true }),
       })
     );
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/users");
+    expect(revalidatePath).toHaveBeenCalledWith(`/admin/users/${TARGET}`);
   });
 
   it("says so when the account is not disabled", async () => {

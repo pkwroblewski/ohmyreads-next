@@ -30,7 +30,8 @@ vi.mock("@/lib/utils/rate-limit", () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
 }));
 
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const revalidatePath = vi.fn();
+vi.mock("next/cache", () => ({ revalidatePath: (...a: unknown[]) => revalidatePath(...a) }));
 
 import { getEmailPreferences, updateEmailPreferences } from "@/lib/actions/privacy";
 
@@ -54,6 +55,7 @@ describe("updateEmailPreferences", () => {
     expect(from).toHaveBeenCalledWith("profiles");
     expect(update).toHaveBeenCalledWith({ email_digest_enabled: false });
     expect(eq).toHaveBeenCalledWith("id", USER.id);
+    expect(revalidatePath).toHaveBeenCalledWith("/settings");
   });
 
   it("refuses an anonymous caller without writing", async () => {

@@ -120,10 +120,12 @@ export function parseOpeningHours(hoursStr: string): ParsedHours | null {
     for (const tg of timeGroups) {
       const [openTime, closeTime] = tg.trim().split("-");
       if (openTime && closeTime) {
-        timeRanges.push({
-          open: parseTime(openTime),
-          close: parseTime(closeTime),
-        });
+        const open = parseTime(openTime);
+        let close = parseTime(closeTime);
+        // "22:00-02:00" closes the next morning: keep the range monotonic by
+        // pushing the close past midnight (minute 1440 = 24:00).
+        if (close <= open) close += 1440;
+        timeRanges.push({ open, close });
       }
     }
 
@@ -160,18 +162,28 @@ export function isOpenNow(hoursStr: string | null): { isOpen: boolean; nextChang
 
   const todaySchedule = parsed.schedules.find((s) => s.day === currentDay);
 
+  const closesAt = (close: number) => {
+    const closeHour = Math.floor((close % 1440) / 60);
+    const closeMin = close % 60;
+    return `Closes at ${closeHour}:${closeMin.toString().padStart(2, "0")}`;
+  };
+
+  // A range that started yesterday and runs past midnight (close > 1440) is
+  // still going in the small hours of today.
+  const yesterday = parsed.schedules.find((s) => s.day === (currentDay + 6) % 7);
+  for (const range of yesterday?.ranges ?? []) {
+    if (range.close > 1440 && currentMinutes + 1440 < range.close) {
+      return { isOpen: true, nextChange: closesAt(range.close) };
+    }
+  }
+
   if (!todaySchedule || todaySchedule.ranges.length === 0) {
     return { isOpen: false, nextChange: findNextOpenTime(parsed.schedules, currentDay, currentMinutes) };
   }
 
   for (const range of todaySchedule.ranges) {
     if (currentMinutes >= range.open && currentMinutes < range.close) {
-      const closeHour = Math.floor(range.close / 60);
-      const closeMin = range.close % 60;
-      return {
-        isOpen: true,
-        nextChange: `Closes at ${closeHour}:${closeMin.toString().padStart(2, "0")}`,
-      };
+      return { isOpen: true, nextChange: closesAt(range.close) };
     }
   }
 
@@ -251,7 +263,7 @@ export function formatHoursForDisplay(hoursStr: string | null): string[] | null 
 }
 
 function formatMinutes(minutes: number): string {
-  const h = Math.floor(minutes / 60);
+  const h = Math.floor(minutes / 60) % 24; // a close past midnight displays as 2:00
   const m = minutes % 60;
   return `${h}:${m.toString().padStart(2, "0")}`;
 }

@@ -30,7 +30,12 @@ vi.mock("@/lib/utils/audit-log", () => ({
   createAuditLog: (...args: unknown[]) => createAuditLog(...args),
 }));
 
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), updateTag: vi.fn() }));
+const revalidatePath = vi.fn();
+const updateTag = vi.fn();
+vi.mock("next/cache", () => ({
+  revalidatePath: (...a: unknown[]) => revalidatePath(...a),
+  updateTag: (...a: unknown[]) => updateTag(...a),
+}));
 
 import { adminDeleteReview } from "@/lib/actions/admin-reviews";
 
@@ -99,6 +104,10 @@ describe("adminDeleteReview", () => {
         }),
       })
     );
+    // The real invalidateTags runs here: both tags expire and the queue page refreshes.
+    expect(updateTag).toHaveBeenCalledWith("books");
+    expect(updateTag).toHaveBeenCalledWith("reviews");
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/reviews");
   });
 
   it("reports a missing review before attempting the delete", async () => {

@@ -161,6 +161,37 @@ describe("GET /api/cron/weekly-digest — the send (Task 9)", () => {
     expect(sent.html).not.toContain("settings?unsubscribe=digest");
   });
 
+  it("keeps going when one recipient fails and counts it (Task 21, T5)", async () => {
+    // Two digest-enabled users; the email lookup throws for the first, so the
+    // loop must isolate that failure and still send to the second.
+    const from = vi.fn((table: string) =>
+      table === "profiles"
+        ? chain({
+            data: [
+              { id: USER, username: "ada", display_name: null },
+              { id: "550e8400-e29b-41d4-a716-446655440001", username: "bob", display_name: null },
+            ],
+            error: null,
+          })
+        : chain({ data: null, error: null })
+    );
+    const getUserById = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("auth admin unavailable"))
+      .mockResolvedValueOnce({ data: { user: { email: "bob@example.com" } } });
+    createAdminClient.mockReturnValue({ from, auth: { admin: { getUserById } } });
+    sendEmail.mockResolvedValue({ data: { id: "email-1" }, error: null });
+    getResendClient.mockReturnValue({ emails: { send: sendEmail } });
+    const route = await loadRoute("cron-secret");
+
+    const response = await route.GET(req("Bearer cron-secret"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ sent: 1, errors: 1, total: 2 });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail.mock.calls[0][0].to).toBe("bob@example.com");
+  });
+
   it("prefers EMAIL_TOKEN_SECRET over CRON_SECRET for the link", async () => {
     arrangeSend();
     vi.stubEnv("EMAIL_TOKEN_SECRET", "link-key");

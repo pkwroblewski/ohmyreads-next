@@ -21,8 +21,10 @@ import type {
  * - Shared Books: 40%
  * - Shared Genres: 35%
  * - Shared Vibes: 25%
+ *
+ * Exported for its unit test only; pure.
  */
-function computeCompatibilityScore(
+export function computeCompatibilityScore(
   userTaste: ReaderTasteData,
   targetTaste: ReaderTasteData
 ): { score: number; level: CompatibilityLevel; sharedBooks: number; sharedGenres: string[]; sharedVibes: string[] } {

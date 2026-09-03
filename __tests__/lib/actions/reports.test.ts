@@ -47,7 +47,8 @@ vi.mock("@/lib/utils/audit-log", () => ({
   createAuditLog: (...args: unknown[]) => createAuditLog(...args),
 }));
 
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const revalidatePath = vi.fn();
+vi.mock("next/cache", () => ({ revalidatePath: (...a: unknown[]) => revalidatePath(...a) }));
 
 import { submitReport, resolveReport, dismissReport } from "@/lib/actions/reports";
 
@@ -235,6 +236,7 @@ describe("resolveReport / dismissReport", () => {
         targetId: REPORT,
       })
     );
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/reports");
   });
 
   it("dismisses with its own audit action", async () => {
@@ -248,6 +250,7 @@ describe("resolveReport / dismissReport", () => {
     expect(createAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "moderation.report.dismiss" })
     );
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/reports");
   });
 
   it("scopes the write to reports that are still open", async () => {

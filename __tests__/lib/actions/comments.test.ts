@@ -4,11 +4,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { createMockSupabase, type MockSupabase } from "../../helpers/mock-supabase";
+
+const { revalidatePath } = vi.hoisted(() => ({ revalidatePath: vi.fn() }));
 
 // Mock next/cache before importing actions
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
+vi.mock("next/cache", () => ({ revalidatePath }));
 
 // Mock rate limiting to always allow
 vi.mock("@/lib/utils/rate-limit", () => ({
@@ -20,27 +21,7 @@ vi.mock("@/lib/utils/log", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
-// Supabase mock builder
-function createMockSupabase(user: { id: string } | null) {
-  const mockChain = {
-    from: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    insert: vi.fn().mockReturnThis(),
-    delete: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue({ data: null, error: null }),
-    auth: {
-      getUser: vi.fn().mockResolvedValue(
-        user
-          ? { data: { user }, error: null }
-          : { data: { user: null }, error: { message: "Not authenticated" } }
-      ),
-    },
-  };
-  return mockChain;
-}
-
-let mockSupabase: ReturnType<typeof createMockSupabase>;
+let mockSupabase: MockSupabase;
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabase)),
@@ -83,15 +64,10 @@ describe("Comment actions - auth guards", () => {
       mockSupabase = createMockSupabase({ id: userId });
     });
 
-    it("createComment should pass auth check with valid input", async () => {
-      // Mock successful insert
+    it("createComment inserts the comment and revalidates the book page", async () => {
+      vi.clearAllMocks();
       mockSupabase.single.mockResolvedValueOnce({
         data: { id: "new-comment-id" },
-        error: null,
-      });
-      // Mock revalidation review lookup
-      mockSupabase.single.mockResolvedValueOnce({
-        data: { book_id: "book-1", books: { slug: "test-book" } },
         error: null,
       });
 
@@ -100,10 +76,17 @@ describe("Comment actions - auth guards", () => {
         content: "This is a test comment",
       });
 
-      // Should NOT get an auth error
-      if (result.error) {
-        expect(result.error).not.toMatch(/authenticated/i);
-      }
+      expect(result).toMatchObject({ success: true });
+      expect(result).not.toHaveProperty("error");
+      expect(mockSupabase.from).toHaveBeenCalledWith("comments");
+      expect(mockSupabase.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          review_id: "550e8400-e29b-41d4-a716-446655440000",
+          user_id: userId,
+          content: "This is a test comment",
+        })
+      );
+      expect(revalidatePath).toHaveBeenCalledWith("/books/[slug]", "page");
     });
 
     it("deleteComment should check ownership after auth", async () => {

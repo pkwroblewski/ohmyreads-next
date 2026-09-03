@@ -35,11 +35,14 @@ vi.mock("@/lib/utils/audit-log", () => ({
   createAuditLog: (...args: unknown[]) => createAuditLog(...args),
 }));
 
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const revalidatePath = vi.fn();
+vi.mock("next/cache", () => ({ revalidatePath: (...a: unknown[]) => revalidatePath(...a) }));
 
+const invalidateTags = vi.fn();
+const BOOK_CATALOG_TAGS = ["books"];
 vi.mock("@/lib/cache/tags", () => ({
   BOOK_CATALOG_TAGS: ["books"],
-  invalidateTags: vi.fn(),
+  invalidateTags: (...a: unknown[]) => invalidateTags(...a),
 }));
 
 import { adminDeleteBook, adminUpdateBook } from "@/lib/actions/admin-books";
@@ -99,6 +102,9 @@ describe("adminDeleteBook", () => {
         metadata: { title: "Dune", author: "Frank Herbert" },
       })
     );
+    expect(invalidateTags).toHaveBeenCalledWith(...BOOK_CATALOG_TAGS);
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/books");
+    expect(revalidatePath).toHaveBeenCalledWith("/books");
   });
 
   it("does not claim success on a database error either", async () => {
@@ -121,6 +127,8 @@ describe("adminUpdateBook", () => {
     expect(result).toEqual({ success: false, error: "Nothing was changed" });
     expect(update).toHaveBeenCalledWith({ author: "F. Herbert" });
     expect(createAuditLog).not.toHaveBeenCalled();
+    expect(invalidateTags).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it("returns the updated row and records which fields changed", async () => {
@@ -136,5 +144,8 @@ describe("adminUpdateBook", () => {
         metadata: { updates: ["author"] },
       })
     );
+    expect(invalidateTags).toHaveBeenCalledWith(...BOOK_CATALOG_TAGS);
+    expect(revalidatePath).toHaveBeenCalledWith(`/admin/books/${BOOK}`);
+    expect(revalidatePath).toHaveBeenCalledWith("/books/dune");
   });
 });
