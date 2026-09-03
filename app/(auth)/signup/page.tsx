@@ -163,7 +163,10 @@ export default function SignupPage() {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+        <div
+          role="alert"
+          className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"
+        >
           {error}
         </div>
       )}
@@ -236,6 +239,7 @@ export default function SignupPage() {
               autoComplete="new-password"
               className="pr-10"
               error={password.length > 0 && password.length < 8}
+              aria-describedby="password-hint"
             />
             <button
               type="button"
@@ -255,7 +259,7 @@ export default function SignupPage() {
               )}
             </button>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p id="password-hint" className="text-xs text-muted-foreground">
             At least 8 characters
           </p>
         </div>
@@ -282,6 +286,11 @@ export default function SignupPage() {
               error={
                 confirmPassword.length > 0 && confirmPassword !== password
               }
+              aria-describedby={
+                confirmPassword.length > 0 && confirmPassword !== password
+                  ? "confirm-password-hint"
+                  : undefined
+              }
             />
             <button
               type="button"
@@ -304,7 +313,9 @@ export default function SignupPage() {
             </button>
           </div>
           {confirmPassword.length > 0 && confirmPassword !== password && (
-            <p className="text-xs text-destructive">Passwords do not match</p>
+            <p id="confirm-password-hint" className="text-xs text-destructive">
+              Passwords do not match
+            </p>
           )}
         </div>
 

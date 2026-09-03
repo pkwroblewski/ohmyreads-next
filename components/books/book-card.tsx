@@ -20,6 +20,8 @@ interface BookCardProps {
     open_library_cover_id?: number | null;
     average_rating: number | null;
     ratings_count?: number | null;
+    local_average_rating?: number | null;
+    local_ratings_count?: number | null;
   };
   showRating?: boolean;
   showActions?: boolean;
@@ -56,19 +58,70 @@ const BLUR_DATA_URL =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyYTJhMmEiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxYTFhMWEiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2cpIi8+PC9zdmc+";
 
 /**
- * Compact rating display: "4.6 ★ · 220"
+ * The rating a card shows. This site's own average wins when readers here
+ * have rated the book; otherwise the Open Library figure, flagged as such so
+ * the card and the detail page (which labels both) tell the same story.
  */
-function formatCompactRating(
-  rating: number | null,
-  count?: number | null
-): string | null {
-  if (rating === null) return null;
-  const ratingStr = rating.toFixed(1);
-  if (count != null && count > 0) {
-    const countStr = count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
-    return `${ratingStr} ★ · ${countStr}`;
+function pickRating(book: BookCardProps["book"]): {
+  rating: number;
+  count: number | null;
+  external: boolean;
+} | null {
+  if (book.local_average_rating != null && (book.local_ratings_count ?? 0) > 0) {
+    return {
+      rating: book.local_average_rating,
+      count: book.local_ratings_count ?? null,
+      external: false,
+    };
   }
-  return `${ratingStr} ★`;
+  if (book.average_rating != null) {
+    return { rating: book.average_rating, count: book.ratings_count ?? null, external: true };
+  }
+  return null;
+}
+
+function formatCount(count: number | null): string | null {
+  if (count == null || count <= 0) return null;
+  return count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
+}
+
+/**
+ * Star glyph + number + count + optional "OL" source tag. The star is the
+ * contrast-checked gold; the number is body text, not gold (2.1:1 was the
+ * old ratio). One accessible name covers the whole thing.
+ */
+function CardRating({
+  picked,
+  className,
+}: {
+  picked: NonNullable<ReturnType<typeof pickRating>>;
+  className?: string;
+}) {
+  const countStr = formatCount(picked.count);
+  const label = `${picked.rating.toFixed(1)} out of 5${
+    countStr ? `, ${countStr} ratings` : ""
+  }${picked.external ? " on Open Library" : ""}`;
+  return (
+    <div
+      className={cn("flex items-center gap-1 whitespace-nowrap text-foreground", className)}
+      role="img"
+      aria-label={label}
+    >
+      <Star className="w-3 h-3 flex-shrink-0 text-star fill-star" aria-hidden="true" />
+      <span className="truncate">
+        {picked.rating.toFixed(1)}
+        {countStr && <span className="text-muted-foreground"> · {countStr}</span>}
+      </span>
+      {picked.external && (
+        <abbr
+          title="Open Library rating"
+          className="rounded bg-muted px-1 text-[9px] font-medium uppercase tracking-wide no-underline"
+        >
+          OL
+        </abbr>
+      )}
+    </div>
+  );
 }
 
 export function BookCard({
@@ -93,11 +146,7 @@ export function BookCard({
   // Server-rendered cover with client-side fallback chain (see hooks/use-cover-src.ts)
   const { src: coverSrc, onError: onCoverError, onLoad: onCoverLoad } = useCoverSrc(book);
 
-  // Compact rating for grid variant
-  const compactRating = formatCompactRating(
-    book.average_rating,
-    book.ratings_count
-  );
+  const picked = pickRating(book);
 
   // Responsive image sizes
   const imageSizes = isGrid
@@ -162,12 +211,7 @@ export function BookCard({
         </Link>
 
         {/* Rating - only show if book has ratings */}
-        {compactRating && (
-          <div className="flex items-center gap-1 text-xs whitespace-nowrap mt-1 text-accent">
-            <Star className="w-3 h-3 flex-shrink-0 fill-current" />
-            <span className="truncate">{compactRating}</span>
-          </div>
-        )}
+        {picked && <CardRating picked={picked} className="text-xs mt-1" />}
 
         {/* Actions - anchored at bottom */}
         <div className="mt-auto pt-3 space-y-2">
@@ -267,12 +311,7 @@ export function BookCard({
         </Link>
 
         {/* Rating - only show if book has ratings */}
-        {compactRating && (
-          <div className={cn("flex items-center gap-1 mt-1 text-accent", classes.rating)}>
-            <Star className="w-3 h-3 fill-current" />
-            <span className="whitespace-nowrap truncate">{compactRating}</span>
-          </div>
-        )}
+        {picked && <CardRating picked={picked} className={cn("mt-1", classes.rating)} />}
 
         <div className="mt-3 space-y-2">
           <AddToShelfButton bookId={book.id} />
@@ -372,16 +411,11 @@ export function BookCard({
           {book.author}
         </p>
 
-        {showRating && book.average_rating !== null && (
-          <div
-            className={cn(
-              "flex items-center gap-1 text-accent",
-              isGrid ? "text-xs" : classes.rating
-            )}
-          >
-            <Star className="w-3 h-3 fill-current" />
-            <span>{book.average_rating.toFixed(1)}</span>
-          </div>
+        {showRating && picked && (
+          <CardRating
+            picked={{ ...picked, count: null }}
+            className={isGrid ? "text-xs" : classes.rating}
+          />
         )}
       </div>
     </Link>

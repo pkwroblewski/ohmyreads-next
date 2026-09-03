@@ -159,10 +159,10 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
             {config.label}
           </div>
 
-          {/* Rating Badge */}
+          {/* Rating Badge — bottom corner, clear of the always-visible menu button */}
           {userBook.rating && (
-            <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-background/90 backdrop-blur-sm z-10">
-              <Star className="h-3 w-3 fill-accent text-accent" aria-hidden="true" />
+            <div className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-background/90 backdrop-blur-sm z-10">
+              <Star className="h-3 w-3 fill-star text-star" aria-hidden="true" />
               <span className="sr-only">Your rating:</span>
               {userBook.rating}
             </div>
@@ -181,16 +181,27 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
           {book.author}
         </p>
 
-        {/* Book Rating */}
-        {book.average_rating && (
+        {/* Book Rating — this site's own when readers here have rated it,
+            otherwise the labelled Open Library figure (same rule as BookCard) */}
+        {book.local_average_rating != null && book.local_ratings_count > 0 ? (
+          <div className="mb-2">
+            <RatingDisplay
+              rating={book.local_average_rating}
+              count={book.local_ratings_count}
+              size="sm"
+              source="local"
+            />
+          </div>
+        ) : book.average_rating ? (
           <div className="mb-2">
             <RatingDisplay
               rating={book.average_rating}
               count={book.ratings_count ?? undefined}
               size="sm"
+              source="external"
             />
           </div>
-        )}
+        ) : null}
 
         {/* Date Info */}
         <p className="text-xs text-muted-foreground">
@@ -231,15 +242,18 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
         )}
       </div>
 
-      {/* Menu Button */}
+      {/* Menu Button. Always visible below lg (touch has no hover); on
+          desktop it appears on hover or when anything in the card has focus,
+          and it never hides from its own keyboard focus. */}
       <div className="absolute top-2 right-2 z-10" ref={menuRef}>
         <Button
           variant="ghost"
           size="icon"
           className={cn(
-            "h-7 w-7 bg-background/80 backdrop-blur-sm",
-            "opacity-0 group-hover:opacity-100 transition-opacity",
-            isMenuOpen && "opacity-100"
+            "h-10 w-10 bg-background/80 backdrop-blur-sm",
+            "lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100",
+            "focus-visible:opacity-100 transition-opacity",
+            isMenuOpen && "lg:opacity-100"
           )}
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label={`Book options for ${book.title}`}

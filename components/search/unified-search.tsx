@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useId } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Sparkles, X, Loader2, ArrowRight, User, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,8 @@ export function UnifiedSearch({
   onNavigate,
 }: UnifiedSearchProps) {
   const router = useRouter();
+  const listboxId = useId();
+  const optionId = (index: number) => `${listboxId}-option-${index}`;
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -207,6 +209,17 @@ export function UnifiedSearch({
 
   const isModal = variant === "modal";
 
+  // Screen-reader status for the result list (visual users see the list).
+  const liveStatus = !showDropdown
+    ? ""
+    : isLoading && totalItems === 0
+      ? "Searching"
+      : totalItems > 0
+        ? `${totalItems} result${totalItems === 1 ? "" : "s"}, plus mood search`
+        : query.length >= 2
+          ? "No results"
+          : "";
+
   return (
     <>
       <div
@@ -221,6 +234,15 @@ export function UnifiedSearch({
           <input
             ref={inputRef}
             type="text"
+            role="combobox"
+            aria-expanded={showDropdown}
+            aria-controls={listboxId}
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            aria-activedescendant={
+              showDropdown && selectedIndex >= 0 ? optionId(selectedIndex) : undefined
+            }
+            aria-label={placeholder}
             value={query}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -235,8 +257,12 @@ export function UnifiedSearch({
               "transition-colors"
             )}
           />
+          <div className="sr-only" role="status" aria-live="polite">
+            {liveStatus}
+          </div>
           {query && (
             <button
+              type="button"
               onClick={handleClear}
               className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
               aria-label="Clear search"
@@ -252,6 +278,9 @@ export function UnifiedSearch({
           {showDropdown && (
             <div
               ref={dropdownRef}
+              id={listboxId}
+              role="listbox"
+              aria-label="Search results"
               className={cn(
                 "absolute top-full left-0 right-0 mt-2 z-50",
                 "bg-background border border-border rounded-xl shadow-lg",
@@ -267,13 +296,21 @@ export function UnifiedSearch({
                 <>
                   {/* Authors Section */}
                   {authors.length > 0 && (
-                    <div className="py-2">
-                      <div className="px-4 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <div className="py-2" role="group" aria-label="Authors">
+                      <div
+                        className="px-4 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        aria-hidden="true"
+                      >
                         Authors
                       </div>
                       {authors.map((author, index) => (
                         <button
                           key={author.name}
+                          type="button"
+                          role="option"
+                          id={optionId(index)}
+                          aria-selected={selectedIndex === index}
+                          tabIndex={-1}
                           onClick={() => handleAuthorSelect(author)}
                           className={cn(
                             "w-full flex items-center gap-3 px-4 py-2.5 text-left",
@@ -300,8 +337,15 @@ export function UnifiedSearch({
 
                   {/* Books Section */}
                   {books.length > 0 && (
-                    <div className={cn("py-2", authors.length > 0 && "border-t border-border")}>
-                      <div className="px-4 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <div
+                      className={cn("py-2", authors.length > 0 && "border-t border-border")}
+                      role="group"
+                      aria-label="Books"
+                    >
+                      <div
+                        className="px-4 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        aria-hidden="true"
+                      >
                         Books
                       </div>
                       {books.map((book, index) => {
@@ -309,6 +353,11 @@ export function UnifiedSearch({
                         return (
                           <button
                             key={book.id}
+                            type="button"
+                            role="option"
+                            id={optionId(itemIndex)}
+                            aria-selected={selectedIndex === itemIndex}
+                            tabIndex={-1}
                             onClick={() => handleBookSelect(book)}
                             className={cn(
                               "w-full flex items-center gap-3 px-4 py-2.5 text-left",
@@ -347,6 +396,11 @@ export function UnifiedSearch({
 
                   {/* AI Search CTA */}
                   <button
+                    type="button"
+                    role="option"
+                    id={optionId(totalItems)}
+                    aria-selected={selectedIndex === totalItems}
+                    tabIndex={-1}
                     onClick={() => handleAISearch()}
                     className={cn(
                       "w-full flex items-center justify-between px-4 py-3",
@@ -363,11 +417,12 @@ export function UnifiedSearch({
                   </button>
                 </>
               ) : query.length >= 2 && !isLoading ? (
-                <div className="p-6 text-center">
+                <div className="p-6 text-center" role="option" aria-selected={false}>
                   <p className="text-muted-foreground mb-3">
                     No results found for &quot;{query}&quot;
                   </p>
                   <button
+                    type="button"
                     onClick={() => handleAISearch()}
                     className={cn(
                       "inline-flex items-center gap-2 px-4 py-2 rounded-lg",

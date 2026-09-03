@@ -48,7 +48,9 @@ export default async function PublicLayout({
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1">{children}</main>
+      <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
+        {children}
+      </main>
       <Footer />
 
       {/* Chat Panel - only show when logged in */}

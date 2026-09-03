@@ -21,6 +21,7 @@ import { ShareButton } from "@/components/books/share-button";
 import { RatingDisplay } from "@/components/ui/rating-display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReviewForm } from "@/components/reviews/review-form";
+import { QuickRating } from "@/components/reviews/quick-rating";
 import { ReviewCard } from "@/components/reviews/review-card";
 import { UserReviewCard } from "@/components/reviews/user-review-card";
 import { Button } from "@/components/ui/button";
@@ -366,6 +367,17 @@ export default async function BookPage({ params, searchParams }: Props) {
 
               {/* Share Button */}
               <ShareButton title={book.title} slug={book.slug} />
+
+              {/* Rate without opening the full form (a rating alone is a
+                  valid review). Edits the reader's existing review if any. */}
+              {user && (
+                <QuickRating
+                  bookId={book.id}
+                  bookTitle={book.title}
+                  initialRating={userExistingReview?.rating ?? null}
+                  reviewId={userExistingReview?.id ?? null}
+                />
+              )}
             </div>
           </div>
         </section>

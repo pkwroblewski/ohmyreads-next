@@ -41,7 +41,11 @@ export default function AuthLayout({
       </header>
 
       {/* Main content - centered */}
-      <main className="flex-1 flex items-center justify-center py-8">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="flex-1 flex items-center justify-center py-8 focus:outline-none"
+      >
         {children}
       </main>
     </div>

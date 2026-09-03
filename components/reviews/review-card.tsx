@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Star,
-  ThumbsUp,
+  Heart,
   MessageCircle,
   AlertTriangle,
   ChevronDown,
@@ -111,8 +111,8 @@ export function ReviewCard({
   if (review.is_spoiler && !showSpoiler) {
     return (
       <div className="p-6 rounded-xl border bg-card">
-        <div className="flex items-center gap-3 text-amber-600 dark:text-amber-500">
-          <AlertTriangle className="h-5 w-5" />
+        <div className="flex items-center gap-3 text-amber-700 dark:text-amber-500">
+          <AlertTriangle className="h-5 w-5" aria-hidden="true" />
           <span className="font-medium">This review contains spoilers</span>
         </div>
         <Button
@@ -162,7 +162,7 @@ export function ReviewCard({
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <RelativeTime date={review.created_at} />
               {review.is_spoiler && (
-                <span className="text-amber-600 dark:text-amber-500 text-xs">
+                <span className="text-amber-700 dark:text-amber-500 text-xs">
                   • Contains spoilers
                 </span>
               )}
@@ -173,14 +173,19 @@ export function ReviewCard({
         <div className="flex items-center gap-2">
           {/* Rating */}
           {review.rating != null && (
-            <div className="flex items-center gap-1">
+            <div
+              className="flex items-center gap-1"
+              role="img"
+              aria-label={`${review.rating} out of 5`}
+            >
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star
                   key={star}
+                  aria-hidden="true"
                   className={cn(
                     "h-4 w-4",
                     star <= review.rating!
-                      ? "text-accent fill-accent"
+                      ? "text-star fill-star"
                       : "text-muted-foreground/30"
                   )}
                 />
@@ -345,11 +350,14 @@ export function ReviewCard({
         </button>
       )}
 
-      {/* Actions */}
+      {/* Actions. One verb for `toggleReviewLike` everywhere: a heart and
+          "Like", the same as the community feed card. */}
       <div className="flex items-center gap-4 mt-4 pt-4 border-t">
         <button
+          type="button"
           onClick={handleLike}
           disabled={isLiking}
+          aria-pressed={hasLiked}
           className={cn(
             "flex items-center gap-2 text-sm transition-colors",
             hasLiked
@@ -357,20 +365,24 @@ export function ReviewCard({
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <ThumbsUp
+          <Heart
             className={cn("h-4 w-4", hasLiked && "fill-current")}
+            aria-hidden="true"
           />
           <span>
-            {likesCount > 0 ? `${likesCount} helpful` : "Helpful"}
+            {likesCount > 0
+              ? `${likesCount} ${likesCount === 1 ? "like" : "likes"}`
+              : "Like"}
           </span>
         </button>
 
         {onCommentClick && (
           <button
+            type="button"
             onClick={onCommentClick}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            <MessageCircle className="h-4 w-4" />
+            <MessageCircle className="h-4 w-4" aria-hidden="true" />
             <span>Comment</span>
           </button>
         )}

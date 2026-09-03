@@ -41,7 +41,7 @@ export function AppShell({
 
       {/* Main Content Area - padded for sidebar on desktop, starts below top bar */}
       <div className="lg:pl-64 pt-12">
-        <main className="min-h-[calc(100vh-48px)]">
+        <main id="main" tabIndex={-1} className="min-h-[calc(100vh-48px)] focus:outline-none">
           <div className="p-4 lg:p-8 pb-20 lg:pb-8">{children}</div>
         </main>
       </div>

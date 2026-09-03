@@ -406,15 +406,20 @@ function ReviewCard({
           <div className="flex-1 min-w-0">
             {/* Rating */}
             {review && review.rating != null && (
-              <div className="flex items-center gap-0.5 mb-2">
+              <div
+                className="flex items-center gap-0.5 mb-2"
+                role="img"
+                aria-label={`${review.rating} out of 5`}
+              >
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
+                    aria-hidden="true"
                     className={cn(
                       "w-4 h-4",
                       star <= review.rating!
-                        ? "fill-accent text-accent"
-                        : "text-muted-foreground"
+                        ? "fill-star text-star"
+                        : "text-muted-foreground/30"
                     )}
                   />
                 ))}
@@ -436,34 +441,40 @@ function ReviewCard({
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Actions. Same heart + "Like" + liked colour as ReviewCard, so the
+            one action reads the same in the feed and under a review. */}
         <div className="mt-4 flex items-center gap-4 text-muted-foreground">
           <button
             type="button"
             onClick={handleLike}
             disabled={isPending}
+            aria-pressed={hasLiked}
             className={cn(
               "flex items-center gap-1.5 text-sm transition-colors",
-              hasLiked ? "text-red-500" : "hover:text-primary",
+              hasLiked ? "text-primary" : "hover:text-foreground",
               isPending && "opacity-50 cursor-not-allowed"
             )}
           >
-            <Heart className={cn("w-4 h-4", hasLiked && "fill-current")} />
-            <span>{likesCount > 0 ? likesCount : "Like"}</span>
+            <Heart className={cn("w-4 h-4", hasLiked && "fill-current")} aria-hidden="true" />
+            <span>
+              {likesCount > 0
+                ? `${likesCount} ${likesCount === 1 ? "like" : "likes"}`
+                : "Like"}
+            </span>
           </button>
           <Link
             href={`/books/${book.slug}#reviews`}
-            className="flex items-center gap-1.5 text-sm hover:text-primary transition-colors"
+            className="flex items-center gap-1.5 text-sm hover:text-foreground transition-colors"
           >
-            <MessageCircle className="w-4 h-4" />
+            <MessageCircle className="w-4 h-4" aria-hidden="true" />
             <span>Comment</span>
           </Link>
           <button
             type="button"
             onClick={handleShare}
-            className="flex items-center gap-1.5 text-sm hover:text-primary transition-colors"
+            className="flex items-center gap-1.5 text-sm hover:text-foreground transition-colors"
           >
-            <Share2 className="w-4 h-4" />
+            <Share2 className="w-4 h-4" aria-hidden="true" />
             <span>Share</span>
           </button>
         </div>

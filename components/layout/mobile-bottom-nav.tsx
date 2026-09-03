@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   LayoutDashboard,
   Library,
@@ -22,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useMemo } from "react";
 
 const primaryItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
@@ -50,10 +51,8 @@ export function MobileBottomNav() {
   // Track which pathname the menu was opened on — auto-closes on navigation
   const [openOnPath, setOpenOnPath] = useState<string | null>(null);
   const showMore = openOnPath !== null && openOnPath === pathname;
-  const menuRef = useRef<HTMLDivElement>(null);
 
-  const toggleMore = () => setOpenOnPath(showMore ? null : pathname);
-  const closeMore = () => setOpenOnPath(null);
+  const setMoreOpen = (open: boolean) => setOpenOnPath(open ? pathname : null);
 
   // Check if current path matches any overflow item
   const isOverflowActive = useMemo(
@@ -64,36 +63,18 @@ export function MobileBottomNav() {
     [pathname]
   );
 
-  // Close on outside click
-  useEffect(() => {
-    if (!showMore) return;
-
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        closeMore();
-      }
-    }
-
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showMore]);
-
   return (
-    <>
-      {/* Backdrop */}
-      {showMore && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
-          aria-hidden="true"
-        />
-      )}
-
-      <div ref={menuRef} className="lg:hidden">
-        {/* Overflow Menu */}
-        {showMore && (
-          <div
+    <div className="lg:hidden">
+      {/* Overflow sheet. A Radix Dialog so that Escape closes it, focus moves
+          into it and back to the More button afterwards, and the page behind
+          it is hidden from assistive tech while it is open. */}
+      <Dialog.Root open={showMore} onOpenChange={setMoreOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden" />
+          <Dialog.Content
+            aria-describedby={undefined}
             className={cn(
-              "fixed bottom-16 inset-x-0 z-50",
+              "fixed bottom-16 inset-x-0 z-50 lg:hidden focus:outline-none",
               "pb-[env(safe-area-inset-bottom)]",
               "animate-in slide-in-from-bottom-4 fade-in-0 duration-200"
             )}
@@ -101,18 +82,19 @@ export function MobileBottomNav() {
             <div className="mx-3 mb-2 rounded-2xl bg-card border border-border shadow-xl overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-                <span className="text-sm font-semibold text-foreground">More</span>
-                <button
-                  onClick={closeMore}
-                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                <Dialog.Title className="text-sm font-semibold text-foreground">
+                  More
+                </Dialog.Title>
+                <Dialog.Close
+                  className="p-2 -m-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   aria-label="Close menu"
                 >
-                  <X className="w-4 h-4" />
-                </button>
+                  <X className="w-4 h-4" aria-hidden="true" />
+                </Dialog.Close>
               </div>
 
               {/* Menu Grid */}
-              <div className="grid grid-cols-4 gap-1 p-3">
+              <nav aria-label="More pages" className="grid grid-cols-4 gap-1 p-3">
                 {overflowItems.map((item) => {
                   const isActive =
                     pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -121,6 +103,7 @@ export function MobileBottomNav() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      aria-current={isActive ? "page" : undefined}
                       className={cn(
                         "flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl",
                         "text-center transition-colors",
@@ -129,18 +112,22 @@ export function MobileBottomNav() {
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
                       )}
                     >
-                      <item.icon className={cn("w-5 h-5", isActive && "stroke-[2.5px]")} />
+                      <item.icon
+                        className={cn("w-5 h-5", isActive && "stroke-[2.5px]")}
+                        aria-hidden="true"
+                      />
                       <span className="text-[10px] font-medium leading-tight">{item.label}</span>
                     </Link>
                   );
                 })}
-              </div>
+              </nav>
             </div>
-          </div>
-        )}
+          </Dialog.Content>
+        </Dialog.Portal>
 
         {/* Bottom Nav Bar */}
         <nav
+          aria-label="Primary"
           className={cn(
             "fixed bottom-0 inset-x-0 z-50",
             "bg-background/80 backdrop-blur-lg",
@@ -157,6 +144,7 @@ export function MobileBottomNav() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex flex-col items-center justify-center",
                     "w-full h-full",
@@ -165,19 +153,18 @@ export function MobileBottomNav() {
                       ? "text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   )}
-                  aria-label={item.label}
                 >
                   <item.icon
                     className={cn("w-5 h-5", isActive && "stroke-[2.5px]")}
+                    aria-hidden="true"
                   />
                   <span className="text-[10px] mt-1 font-medium">{item.label}</span>
                 </Link>
               );
             })}
 
-            {/* More Button */}
-            <button
-              onClick={toggleMore}
+            {/* More Button — the Dialog trigger, so focus returns here on close */}
+            <Dialog.Trigger
               className={cn(
                 "flex flex-col items-center justify-center",
                 "w-full h-full",
@@ -186,17 +173,17 @@ export function MobileBottomNav() {
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
-              aria-label="More options"
-              aria-expanded={showMore}
+              aria-label="More pages"
             >
               <MoreHorizontal
                 className={cn("w-5 h-5", (showMore || isOverflowActive) && "stroke-[2.5px]")}
+                aria-hidden="true"
               />
               <span className="text-[10px] mt-1 font-medium">More</span>
-            </button>
+            </Dialog.Trigger>
           </div>
         </nav>
-      </div>
-    </>
+      </Dialog.Root>
+    </div>
   );
 }

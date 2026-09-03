@@ -13,7 +13,8 @@ export function ChatTrigger({ unreadCount, onClick }: ChatTriggerProps) {
     <button
       onClick={onClick}
       className={cn(
-        "fixed bottom-6 right-6 z-30",
+        // The mobile bottom nav is 4rem tall and hidden from lg up.
+        "fixed bottom-20 lg:bottom-6 right-6 z-30",
         "h-14 w-14 rounded-full",
         "bg-primary text-primary-foreground",
         "shadow-lg shadow-primary/25",
@@ -24,7 +25,7 @@ export function ChatTrigger({ unreadCount, onClick }: ChatTriggerProps) {
       )}
       aria-label={`Messages${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
     >
-      <MessageSquare className="h-6 w-6" />
+      <MessageSquare className="h-6 w-6" aria-hidden="true" />
       {unreadCount > 0 && (
         <span
           className={cn(
