@@ -7,7 +7,11 @@ import {
   Users,
   ArrowRight,
 } from "lucide-react";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
+import {
+  getCachedTrendingInsights,
+  type TrendingInsight,
+} from "@/lib/ai/trending-insights";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { HomeHero } from "@/components/home/home-hero";
@@ -20,6 +24,7 @@ import {
 import {
   getHomeReadingActivity,
   getCommunityFeed,
+  getHomeCounts,
 } from "@/lib/queries/home";
 import { cn } from "@/lib/utils";
 import { safeJsonLd } from "@/lib/utils/jsonld";
@@ -76,27 +81,27 @@ export default async function HomePage() {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
 
   // Get user if logged in
-  const supabase = await createClient();
   const {
     data: { user },
   } = await getUser();
 
   // Fetch all data in parallel
-  const [
-    curatedBooks,
-    trendingBooks,
-    activity,
-    communityFeed,
-    { count: readerCount },
-    { count: reviewCount },
-  ] = await Promise.all([
-    getCuratedBooks(user?.id, 4), // Only need 4 for mini grid
-    getTrulyTrending(7, 7), // 7 books, 7-day window for real trending
-    user ? getHomeReadingActivity(user.id) : Promise.resolve(null),
-    getCommunityFeed(6), // 6 recent reviews
-    supabase.from("profiles").select("id", { count: "exact", head: true }),
-    supabase.from("reviews").select("*", { count: "exact", head: true }),
-  ]);
+  const [curatedBooks, trendingBooks, activity, communityFeed, counts] =
+    await Promise.all([
+      getCuratedBooks(user?.id, 4), // Only need 4 for mini grid
+      getTrulyTrending(7, 7), // 7 books, 7-day window for real trending
+      user ? getHomeReadingActivity(user.id) : Promise.resolve(null),
+      getCommunityFeed(6), // 6 recent reviews
+      getHomeCounts(),
+    ]);
+
+  // Not awaited: the trending panel streams it in (see HomeFeed). Signed-in
+  // readers only — the entry is one LLM generation per day for the whole
+  // site, and it used to be a client fetch that anonymous visitors paid for
+  // as a guaranteed 401.
+  const trendingInsights: Promise<TrendingInsight[]> = user
+    ? getCachedTrendingInsights().catch(() => [])
+    : Promise.resolve([]);
 
   return (
     <div className="flex flex-col">
@@ -116,7 +121,7 @@ export default async function HomePage() {
           }),
         }}
       />
-      
+
       {/* WebSite JSON-LD with SearchAction */}
       <script
         type="application/ld+json"
@@ -143,8 +148,8 @@ export default async function HomePage() {
           ======================================== */}
       <HomeHero
         isLoggedIn={!!user}
-        readerCount={readerCount ?? 0}
-        reviewCount={reviewCount ?? 0}
+        readerCount={counts.readers}
+        reviewCount={counts.reviews}
       />
 
       {/* ========================================
@@ -154,6 +159,7 @@ export default async function HomePage() {
         activity={activity}
         curatedBooks={curatedBooks}
         trendingBooks={trendingBooks}
+        trendingInsights={trendingInsights}
         isLoggedIn={!!user}
       />
 
@@ -204,7 +210,7 @@ export default async function HomePage() {
                   >
                     <feature.icon className="w-5 h-5" strokeWidth={1.75} />
                   </div>
-                  
+
                   {/* Content */}
                   <h3 className="font-semibold text-sm mb-1">{feature.title}</h3>
                   <p className="text-xs text-muted-foreground">
@@ -230,12 +236,12 @@ export default async function HomePage() {
             <h2 className="text-xl sm:text-2xl font-bold font-serif mb-2 text-primary-foreground">
               Ready to start your reading journey?
             </h2>
-            
+
             {/* Subheading */}
             <p className="text-sm text-primary-foreground/80 mb-5">
               Join readers who track, review, and share what they read.
             </p>
-            
+
             {/* CTA Button */}
             <Link href="/signup">
               <Button
@@ -250,7 +256,7 @@ export default async function HomePage() {
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
-            
+
             {/* Small text */}
             <p className="text-xs text-primary-foreground/60 mt-2">
               No credit card required

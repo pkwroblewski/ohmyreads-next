@@ -1,4 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createClient, createPublicClient } from "@/lib/supabase/server";
+import { CACHE_TAGS } from "@/lib/cache/tags";
 import { logError } from "@/lib/utils/log";
 
 export interface HomeReadingActivity {
@@ -50,49 +52,46 @@ export async function getHomeReadingActivity(
   const supabase = await createClient();
   const currentYear = new Date().getFullYear();
 
-  // Fetch reading goal (if table exists)
-  let goal: HomeReadingActivity["goal"] = null;
-  try {
-    const { data: goalData } = await supabase
-      .from("reading_goals")
-      .select("target_books, year")
-      .eq("user_id", userId)
-      .eq("year", currentYear)
-      .single();
-
-    if (goalData) {
-      // Count books finished this year
-      const { count } = await supabase
+  // The goal row, the finished-this-year count and the current shelf are three
+  // independent reads; the count is only *used* when a goal exists.
+  const [goalResult, finishedResult, { data: currentlyReadingData }] =
+    await Promise.all([
+      supabase
+        .from("reading_goals")
+        .select("target_books, year")
+        .eq("user_id", userId)
+        .eq("year", currentYear)
+        .maybeSingle(),
+      supabase
         .from("user_books")
         .select("*", { count: "exact", head: true })
         .eq("user_id", userId)
         .eq("status", "read")
-        .gte("finished_at", `${currentYear}-01-01`);
-
-      goal = {
-        target: goalData.target_books,
-        progress: count || 0,
-        year: goalData.year,
-      };
-    }
-  } catch {
-    // Table might not exist yet, ignore
-  }
-
-  // Fetch currently reading books (up to 2)
-  const { data: currentlyReadingData } = await supabase
-    .from("user_books")
-    .select(
-      `
+        .gte("finished_at", `${currentYear}-01-01`),
+      // Currently reading books (up to 2)
+      supabase
+        .from("user_books")
+        .select(
+          `
       id,
       started_at,
       book:books(id, title, author, slug, cover_url)
     `
-    )
-    .eq("user_id", userId)
-    .eq("status", "reading")
-    .order("updated_at", { ascending: false })
-    .limit(2);
+        )
+        .eq("user_id", userId)
+        .eq("status", "reading")
+        .order("updated_at", { ascending: false })
+        .limit(2),
+    ]);
+
+  const goalData = goalResult.data;
+  const goal: HomeReadingActivity["goal"] = goalData
+    ? {
+        target: goalData.target_books,
+        progress: finishedResult.count || 0,
+        year: goalData.year,
+      }
+    : null;
 
   const currentlyReading =
     currentlyReadingData?.flatMap((ub) =>
@@ -110,15 +109,11 @@ export async function getHomeReadingActivity(
   return { goal, currentlyReading };
 }
 
-/**
- * Fetch recent public reviews for the community feed
- */
-export async function getCommunityFeed(
-  limit: number = 5
-): Promise<CommunityFeedItem[]> {
-  const supabase = await createClient();
+async function fetchCommunityFeed(limit: number): Promise<CommunityFeedItem[]> {
+  const supabase = createPublicClient();
 
-  // First, fetch reviews with books (this FK exists: reviews.book_id -> books.id)
+  // One query: reviews with their book and author through the two FKs
+  // (reviews.book_id -> books.id, reviews.user_id -> profiles.id).
   const { data: reviewsData, error: reviewsError } = await supabase
     .from("reviews")
     .select(
@@ -128,7 +123,8 @@ export async function getCommunityFeed(
       content,
       created_at,
       user_id,
-      book:books(id, title, author, slug, cover_url)
+      book:books(id, title, author, slug, cover_url),
+      profile:profiles!reviews_user_profile_fkey(id, username, display_name, avatar_url)
     `
     )
     .order("created_at", { ascending: false })
@@ -139,43 +135,61 @@ export async function getCommunityFeed(
     return [];
   }
 
-  if (!reviewsData || reviewsData.length === 0) {
-    return [];
-  }
-
-  // Get unique user IDs from reviews
-  const userIds = [...new Set(reviewsData.map((r) => r.user_id))];
-
-  // Fetch profiles for these users (profiles.id = auth.users.id = reviews.user_id)
-  const { data: profilesData } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .in("id", userIds);
-
-  // Create a map for quick lookup
-  const profilesMap = new Map(
-    (profilesData || []).map((p) => [p.id, p])
-  );
-
-  // Combine reviews with profiles
-  return reviewsData
-    .filter((item) => item.book && profilesMap.has(item.user_id))
-    .map((item) => {
-      const bookData = item.book as CommunityFeedItem["book"];
-      const userData = profilesMap.get(item.user_id)!;
-      return {
+  return (reviewsData ?? []).flatMap((item) => {
+    const book = item.book as CommunityFeedItem["book"] | null;
+    const profile = item.profile as CommunityFeedItem["user"] | null;
+    if (!book || !profile) return [];
+    return [
+      {
         id: item.id,
         rating: item.rating,
         content: item.content,
         created_at: item.created_at,
         user: {
-          id: userData.id,
-          username: userData.username,
-          display_name: userData.display_name,
-          avatar_url: userData.avatar_url,
+          id: profile.id,
+          username: profile.username,
+          display_name: profile.display_name,
+          avatar_url: profile.avatar_url,
         },
-        book: bookData,
-      };
-    });
+        book,
+      },
+    ];
+  });
 }
+
+/**
+ * Recent public reviews for the homepage community feed. Identical for every
+ * visitor, so it is served from the cache and expired by the review actions.
+ */
+export const getCommunityFeed = unstable_cache(
+  fetchCommunityFeed,
+  ["home-community-feed"],
+  { revalidate: 600, tags: [CACHE_TAGS.reviews, CACHE_TAGS.books] } // 10 minutes
+);
+
+export interface HomeCounts {
+  readers: number;
+  reviews: number;
+}
+
+async function fetchHomeCounts(): Promise<HomeCounts> {
+  const supabase = createPublicClient();
+
+  const [readers, reviews] = await Promise.all([
+    supabase.from("profiles").select("id", { count: "exact", head: true }),
+    supabase.from("reviews").select("id", { count: "exact", head: true }),
+  ]);
+
+  return { readers: readers.count ?? 0, reviews: reviews.count ?? 0 };
+}
+
+/**
+ * The two social-proof numbers in the hero. Two full-table counts on every
+ * homepage hit bought nothing: the hero rounds them to the nearest hundred.
+ */
+export const getHomeCounts = unstable_cache(
+  fetchHomeCounts,
+  ["home-counts"],
+  { revalidate: 600, tags: [CACHE_TAGS.reviews] } // 10 minutes, or until a review is written
+);
 

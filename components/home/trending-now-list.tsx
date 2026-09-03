@@ -1,20 +1,18 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Star, TrendingUp, Bookmark, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "@/components/books/cover-image";
 import type { BookSummary } from "@/types/database";
-
-interface TrendingInsight {
-  bookId: string;
-  insight: string;
-  keywords: string[];
-}
+import type { TrendingInsight } from "@/lib/ai/trending-insights";
 
 interface TrendingNowListProps {
   books: BookSummary[];
+  /**
+   * AI blurbs keyed by book id. The page resolves these server-side for
+   * signed-in readers (one cached generation per day); anonymous visitors
+   * get none, and used to pay a guaranteed-401 function call for them.
+   */
+  insights?: TrendingInsight[];
   title?: string;
   maxItems?: number;
   variant?: "sidebar" | "panel";
@@ -22,39 +20,13 @@ interface TrendingNowListProps {
 
 export function TrendingNowList({
   books,
+  insights = [],
   title = "Trending Now",
   maxItems = 7,
   variant = "panel",
 }: TrendingNowListProps) {
   const displayBooks = books.slice(0, maxItems);
-  const [insights, setInsights] = useState<Map<string, TrendingInsight>>(new Map());
-  const [, setLoadingInsights] = useState(false);
-
-  // Fetch AI insights on mount
-  useEffect(() => {
-    if (displayBooks.length === 0) return;
-
-    const fetchInsights = async () => {
-      setLoadingInsights(true);
-      try {
-        const response = await fetch("/api/ai/trending-insights");
-        if (response.ok) {
-          const data = await response.json();
-          const insightsMap = new Map<string, TrendingInsight>();
-          for (const insight of data.insights || []) {
-            insightsMap.set(insight.bookId, insight);
-          }
-          setInsights(insightsMap);
-        }
-      } catch (error) {
-        console.error("Failed to fetch trending insights:", error);
-      } finally {
-        setLoadingInsights(false);
-      }
-    };
-
-    fetchInsights();
-  }, [displayBooks.length]);
+  const insightsByBook = new Map(insights.map((insight) => [insight.bookId, insight]));
 
   if (displayBooks.length === 0) {
     return null;
@@ -84,13 +56,13 @@ export function TrendingNowList({
             book={book}
             rank={index + 1}
             compact={variant === "panel"}
-            insight={insights.get(book.id)}
+            insight={insightsByBook.get(book.id)}
           />
         ))}
       </div>
 
       {/* Community Badge */}
-      {insights.size > 0 && (
+      {insightsByBook.size > 0 && (
         <div className="mt-3 pt-2 border-t border-border/50">
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
             <MessageCircle className="w-3 h-3" />

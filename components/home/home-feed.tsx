@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReadingActivityPanel } from "./reading-activity-panel";
 import { CuratedMiniGrid } from "./curated-mini-grid";
@@ -5,11 +6,18 @@ import { TrendingNowList } from "./trending-now-list";
 import { UnifiedSearch } from "@/components/search/unified-search";
 import type { BookSummary } from "@/types/database";
 import type { HomeReadingActivity } from "@/lib/queries/home";
+import type { TrendingInsight } from "@/lib/ai/trending-insights";
 
 interface HomeFeedProps {
   activity: HomeReadingActivity | null;
   curatedBooks: BookSummary[];
   trendingBooks: BookSummary[];
+  /**
+   * Resolved server-side by the page and not awaited there: on a cache hit it
+   * is already settled, on the daily miss the list streams in without its
+   * blurbs first so the LLM round-trips never sit in the page's TTFB.
+   */
+  trendingInsights: Promise<TrendingInsight[]>;
   isLoggedIn: boolean;
 }
 
@@ -17,6 +25,7 @@ export function HomeFeed({
   activity,
   curatedBooks,
   trendingBooks,
+  trendingInsights,
   isLoggedIn,
 }: HomeFeedProps) {
   const hasContent = curatedBooks.length > 0 || trendingBooks.length > 0;
@@ -59,16 +68,43 @@ export function HomeFeed({
           {/* Panel 3: Trending Now */}
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardContent className="p-5 lg:p-6 h-full">
-              <TrendingNowList
-                books={trendingBooks}
-                title="Trending Now"
-                maxItems={7}
-                variant="panel"
-              />
+              <Suspense
+                fallback={
+                  <TrendingNowList
+                    books={trendingBooks}
+                    title="Trending Now"
+                    maxItems={7}
+                    variant="panel"
+                  />
+                }
+              >
+                <TrendingNowWithInsights
+                  books={trendingBooks}
+                  insights={trendingInsights}
+                />
+              </Suspense>
             </CardContent>
           </Card>
         </div>
       </div>
     </section>
+  );
+}
+
+async function TrendingNowWithInsights({
+  books,
+  insights,
+}: {
+  books: BookSummary[];
+  insights: Promise<TrendingInsight[]>;
+}) {
+  return (
+    <TrendingNowList
+      books={books}
+      insights={await insights}
+      title="Trending Now"
+      maxItems={7}
+      variant="panel"
+    />
   );
 }

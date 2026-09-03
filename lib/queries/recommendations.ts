@@ -47,6 +47,59 @@ const WEIGHTS = {
   POPULAR: 5, // Small bonus for popular books
 };
 
+/** The 200 most-rated books plus the vibe tags reviewers gave each of them. */
+interface CandidatePool {
+  books: BookSummary[];
+  /** book_id -> distinct vibe tags, from every review carrying tags. */
+  vibeTags: Record<string, string[]>;
+}
+
+async function fetchCandidatePool(): Promise<CandidatePool> {
+  const supabase = createPublicClient();
+
+  const { data: allBooks } = await supabase
+    .from("books")
+    .select(BOOK_CARD_COLUMNS)
+    .order("ratings_count", { ascending: false, nullsFirst: false })
+    .limit(200); // Get a pool of books to score
+
+  if (!allBooks || allBooks.length === 0) {
+    return { books: [], vibeTags: {} };
+  }
+
+  // Get aggregate vibe tags for these books from reviews
+  const bookIds = allBooks.map((b) => b.id);
+  const { data: bookReviews } = await supabase
+    .from("reviews")
+    .select("book_id, vibe_tags")
+    .in("book_id", bookIds)
+    .not("vibe_tags", "eq", "{}");
+
+  // Build a map of book_id -> vibe tags (a plain object: the cache serialises it)
+  const vibeTags: Record<string, string[]> = {};
+  for (const review of bookReviews || []) {
+    const existing = vibeTags[review.book_id] ?? [];
+    for (const tag of review.vibe_tags || []) {
+      if (!existing.includes(tag)) {
+        existing.push(tag);
+      }
+    }
+    vibeTags[review.book_id] = existing;
+  }
+
+  return { books: allBooks as BookSummary[], vibeTags };
+}
+
+/**
+ * Reader-independent half of the recommender. Every signed-in homepage and
+ * dashboard used to pull the pool and its review tags per view.
+ */
+const getCandidatePool = unstable_cache(
+  fetchCandidatePool,
+  ["recommendation-candidate-pool"],
+  { revalidate: 1800, tags: [CACHE_TAGS.books, CACHE_TAGS.reviews] } // 30 minutes
+);
+
 /**
  * Get personalized book recommendations for a user
  */
@@ -56,28 +109,41 @@ export async function getPersonalizedRecommendations(
 ): Promise<RecommendedBook[]> {
   const supabase = await createClient();
 
-  // 1. Get user's taste profile
-  const { data: tasteProfile } = await supabase
-    .from("user_taste_profiles")
-    .select("*")
-    .eq("user_id", userId)
-    .single();
-
-  // 2. Get user's books (to exclude from recommendations)
-  const { data: userBooks } = await supabase
-    .from("user_books")
-    .select("book_id")
-    .eq("user_id", userId);
+  // The four reads about this reader and the site-wide candidate pool do not
+  // depend on each other: one round-trip instead of six in a row.
+  const [
+    { data: tasteProfile },
+    { data: userBooks },
+    { data: lovedBooks },
+    { data: userReviews },
+    { books: allBooks, vibeTags: bookVibeTags },
+  ] = await Promise.all([
+    // 1. Get user's taste profile
+    supabase
+      .from("user_taste_profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .single(),
+    // 2. Get user's books (to exclude from recommendations)
+    supabase.from("user_books").select("book_id").eq("user_id", userId),
+    // 3. Get user's highly-rated books (4+ stars) for similarity matching
+    supabase
+      .from("user_books")
+      .select("book_id, rating, book:books(id, title, genres)")
+      .eq("user_id", userId)
+      .gte("rating", 4)
+      .not("rating", "is", null),
+    // 4. Get reviews with vibe tags from user's reviews
+    supabase
+      .from("reviews")
+      .select("book_id, vibe_tags")
+      .eq("user_id", userId)
+      .not("vibe_tags", "eq", "{}"),
+    // 5. Candidate books + their aggregate vibe tags (shared, cached)
+    getCandidatePool(),
+  ]);
 
   const excludedBookIds = new Set((userBooks || []).map((ub) => ub.book_id));
-
-  // 3. Get user's highly-rated books (4+ stars) for similarity matching
-  const { data: lovedBooks } = await supabase
-    .from("user_books")
-    .select("book_id, rating, book:books(id, title, genres)")
-    .eq("user_id", userId)
-    .gte("rating", 4)
-    .not("rating", "is", null);
 
   // Extract genres from loved books
   const lovedGenres = new Map<string, string>(); // genre -> book title
@@ -92,13 +158,6 @@ export async function getPersonalizedRecommendations(
     }
   }
 
-  // 4. Get reviews with vibe tags from user's reviews
-  const { data: userReviews } = await supabase
-    .from("reviews")
-    .select("book_id, vibe_tags")
-    .eq("user_id", userId)
-    .not("vibe_tags", "eq", "{}");
-
   // Collect vibe tags user has used
   const usedVibeTags = new Set<string>();
   for (const review of userReviews || []) {
@@ -107,42 +166,14 @@ export async function getPersonalizedRecommendations(
     }
   }
 
-  // 5. Get candidate books (excluding user's books)
-  // First, get all books with their aggregate vibe tags from reviews
-  const { data: allBooks } = await supabase
-    .from("books")
-    .select(BOOK_CARD_COLUMNS)
-    .order("ratings_count", { ascending: false, nullsFirst: false })
-    .limit(200); // Get a pool of books to score
-
-  if (!allBooks || allBooks.length === 0) {
+  if (allBooks.length === 0) {
     return [];
-  }
-
-  // Get aggregate vibe tags for these books from reviews
-  const bookIds = allBooks.map((b) => b.id);
-  const { data: bookReviews } = await supabase
-    .from("reviews")
-    .select("book_id, vibe_tags")
-    .in("book_id", bookIds)
-    .not("vibe_tags", "eq", "{}");
-
-  // Build a map of book_id -> vibe tags
-  const bookVibeTags = new Map<string, string[]>();
-  for (const review of bookReviews || []) {
-    const existing = bookVibeTags.get(review.book_id) || [];
-    for (const tag of review.vibe_tags || []) {
-      if (!existing.includes(tag)) {
-        existing.push(tag);
-      }
-    }
-    bookVibeTags.set(review.book_id, existing);
   }
 
   // 6. Score and rank books
   const scoredBooks: RecommendedBook[] = [];
 
-  for (const book of allBooks as BookSummary[]) {
+  for (const book of allBooks) {
     // Skip books already on shelf
     if (excludedBookIds.has(book.id)) {
       continue;
@@ -152,7 +183,7 @@ export async function getPersonalizedRecommendations(
     let bestReason: RecommendationReason | null = null;
 
     const bookGenres = book.genres || [];
-    const bookVibes = bookVibeTags.get(book.id) || [];
+    const bookVibes = bookVibeTags[book.id] ?? [];
 
     // Score: Genre match with taste profile
     if (tasteProfile?.preferred_genres?.length) {
@@ -436,8 +467,6 @@ export async function getCuratedBooks(
   userId: string | undefined,
   limit: number = 12
 ): Promise<RecommendedBook[]> {
-  const supabase = await createClient();
-
   // If user is logged in, try to get personalized recommendations
   if (userId) {
     const hasSignals = await hasEnoughSignals(userId);
@@ -445,6 +474,23 @@ export async function getCuratedBooks(
       return getPersonalizedRecommendations(userId, limit);
     }
   }
+
+  return getCuratedFallback(limit);
+}
+
+/**
+ * The reader-independent curated list: every anonymous homepage hit and every
+ * signed-in reader without taste signals gets the same books, so it is
+ * computed once per ten minutes on the public client.
+ */
+const getCuratedFallback = unstable_cache(
+  fetchCuratedFallback,
+  ["curated-fallback"],
+  { revalidate: 600, tags: [CACHE_TAGS.books] } // 10 minutes, or until a book changes
+);
+
+async function fetchCuratedFallback(limit: number): Promise<RecommendedBook[]> {
+  const supabase = createPublicClient();
 
   // Fallback: get diverse highly-rated books across different genres
   // This provides a better "curated" experience than just newest books
