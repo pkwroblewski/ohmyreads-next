@@ -1,14 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Star, BookOpen, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  getCoverUrlsWithFallbacks,
-  findFirstValidCoverUrl,
-} from "@/lib/utils/covers";
+import { useCoverSrc } from "@/hooks/use-cover-src";
 import { AddToShelfButton } from "./add-to-shelf-button";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -83,10 +79,6 @@ export function BookCard({
   variant = "rail",
   priority = false,
 }: BookCardProps) {
-  const [coverResult, setCoverResult] = useState<{
-    urls: readonly string[];
-    validatedUrl: string | null;
-  } | null>(null);
   const classes = sizeClasses[size];
   const isGrid = variant === "grid";
 
@@ -98,37 +90,8 @@ export function BookCard({
     `${book.title} ${book.author}`
   )}`;
 
-  // Get all possible cover URLs for fallback chain
-  // Intentionally use primitive fields (not the book object) so coverUrls stays
-  // referentially stable across parent re-renders.
-  const coverUrls = useMemo(
-    () => getCoverUrlsWithFallbacks(book),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [book.open_library_cover_id, book.isbn, book.cover_url, book.google_books_id]
-  );
-
-  // Derive validation state: no URLs means nothing to validate
-  const isValidating = coverUrls.length > 0 && (coverResult === null || coverResult.urls !== coverUrls);
-  const validatedUrl = !isValidating && coverResult?.urls === coverUrls ? coverResult.validatedUrl : null;
-
-  // Pre-load and validate URLs before displaying
-  useEffect(() => {
-    if (coverUrls.length === 0) return;
-
-    const controller = new AbortController();
-
-    findFirstValidCoverUrl(coverUrls, controller.signal).then((url) => {
-      if (!controller.signal.aborted) {
-        setCoverResult({ urls: coverUrls, validatedUrl: url });
-      }
-    });
-
-    return () => {
-      controller.abort();
-    };
-  }, [coverUrls]);
-
-  const showPlaceholder = !isValidating && !validatedUrl;
+  // Server-rendered cover with client-side fallback chain (see hooks/use-cover-src.ts)
+  const { src: coverSrc, onError: onCoverError, onLoad: onCoverLoad } = useCoverSrc(book);
 
   // Compact rating for grid variant
   const compactRating = formatCompactRating(
@@ -164,25 +127,26 @@ export function BookCard({
             )}
             style={{ aspectRatio: "2/3" }}
           >
-            {isValidating ? (
-              <div className="absolute inset-0 animate-pulse bg-muted" aria-busy="true" role="img" aria-label="Loading book cover" />
-            ) : showPlaceholder ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
-                <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
-                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
-              </div>
-            ) : (
+            {coverSrc ? (
               <Image
-                src={validatedUrl!}
+                key={coverSrc}
+                src={coverSrc}
                 alt={book.title}
                 fill
                 quality={85}
                 placeholder="blur"
                 blurDataURL={BLUR_DATA_URL}
                 priority={priority}
+                onError={onCoverError}
+                onLoad={onCoverLoad}
                 className="object-cover object-[center_top] transition-transform duration-300 group-hover:scale-[1.03]"
                 sizes={imageSizes}
               />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
+                <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
+              </div>
             )}
           </div>
 
@@ -262,25 +226,26 @@ export function BookCard({
             )}
             style={{ aspectRatio: "2/3" }}
           >
-            {isValidating ? (
-              <div className="absolute inset-0 animate-pulse bg-muted" aria-busy="true" role="img" aria-label="Loading book cover" />
-            ) : showPlaceholder ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
-                <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
-                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
-              </div>
-            ) : (
+            {coverSrc ? (
               <Image
-                src={validatedUrl!}
+                key={coverSrc}
+                src={coverSrc}
                 alt={book.title}
                 fill
                 quality={85}
                 placeholder="blur"
                 blurDataURL={BLUR_DATA_URL}
                 priority={priority}
+                onError={onCoverError}
+                onLoad={onCoverLoad}
                 className="object-cover object-[center_top] transition-transform duration-300 group-hover:scale-[1.03]"
                 sizes={imageSizes}
               />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
+                <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
+              </div>
             )}
           </div>
 
@@ -367,24 +332,25 @@ export function BookCard({
         )}
         style={{ aspectRatio: "2/3" }}
       >
-        {isValidating ? (
-          <div className="absolute inset-0 animate-pulse bg-muted" aria-busy="true" role="img" aria-label="Loading book cover" />
-        ) : showPlaceholder ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <BookOpen className="w-8 h-8 text-muted-foreground/50" />
-          </div>
-        ) : (
+        {coverSrc ? (
           <Image
-            src={validatedUrl!}
+            key={coverSrc}
+            src={coverSrc}
             alt={book.title}
             fill
             quality={85}
             placeholder="blur"
             blurDataURL={BLUR_DATA_URL}
             priority={priority}
+            onError={onCoverError}
+            onLoad={onCoverLoad}
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             sizes={imageSizes}
           />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <BookOpen className="w-8 h-8 text-muted-foreground/50" />
+          </div>
         )}
       </div>
 

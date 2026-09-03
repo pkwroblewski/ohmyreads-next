@@ -83,7 +83,7 @@ const PROCESSORS: Processor[] = [
   {
     name: "Open Library, Google Books, archive.org",
     purpose: "Book metadata and cover images",
-    data: "Search text for catalog lookups. Cover images are loaded by your browser directly from these hosts, so they see your IP address",
+    data: "Search text for catalog lookups. Cover images are fetched by our server-side image optimiser, so these hosts see our server, not your browser",
     when: "Catalog searches and whenever a book cover is shown",
   },
 ];

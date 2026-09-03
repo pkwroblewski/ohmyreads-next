@@ -36,13 +36,20 @@ export function getGoogleBooksCoverUrl(
 }
 
 /**
+ * Without this Open Library answers a missing cover with a 200 and a 1×1
+ * blank image; with it the request 404s, which is what lets `<img onError>`
+ * (via the `/_next/image` optimizer) fall through to the next candidate.
+ */
+const OPEN_LIBRARY_MISSING_AS_404 = "?default=false";
+
+/**
  * Get Open Library cover URL by cover ID
  */
 export function getOpenLibraryCoverById(
   coverId: number | string,
   size: CoverSize = "L"
 ): string {
-  return `${OPEN_LIBRARY_COVER_BY_ID}/${coverId}-${size}.jpg`;
+  return `${OPEN_LIBRARY_COVER_BY_ID}/${coverId}-${size}.jpg${OPEN_LIBRARY_MISSING_AS_404}`;
 }
 
 /**
@@ -54,7 +61,7 @@ export function getOpenLibraryCoverByIsbn(
 ): string {
   // Clean ISBN (remove hyphens/spaces)
   const cleanIsbn = isbn.replace(/[-\s]/g, "");
-  return `${OPEN_LIBRARY_COVER_BY_ISBN}/${cleanIsbn}-${size}.jpg`;
+  return `${OPEN_LIBRARY_COVER_BY_ISBN}/${cleanIsbn}-${size}.jpg${OPEN_LIBRARY_MISSING_AS_404}`;
 }
 
 /**
@@ -178,52 +185,9 @@ export function getCoverUrlsWithFallbacks(book: BookCoverData): string[] {
   return urls;
 }
 
-/**
- * Pre-load and validate a cover URL in a hidden Image element.
- * Client-side only - validates image dimensions and detects Google Books placeholders.
- * Returns true if the image is valid, false otherwise.
- */
-export async function validateCoverUrl(url: string): Promise<boolean> {
-  // Only run in browser
-  if (typeof window === "undefined") return true;
-
-  return new Promise((resolve) => {
-    const img = new window.Image();
-    img.onload = () => {
-      // Too small = likely placeholder
-      if (img.naturalWidth < 50 || img.naturalHeight < 50) {
-        resolve(false);
-        return;
-      }
-
-      // Note: Google Books "no preview" grey placeholders (128x170, 575x750)
-      // cannot be reliably detected client-side without CORS canvas access.
-      // With the Open Library ISBN fallback (CSP fix in next.config.ts),
-      // these are rarely reached. The size check above catches 1x1 pixels.
-
-      resolve(true);
-    };
-    img.onerror = () => resolve(false);
-    img.src = url;
-  });
-}
-
-/**
- * Find the first valid cover URL from a list of URLs.
- * Pre-loads each URL and validates it before returning.
- * Client-side only.
- */
-export async function findFirstValidCoverUrl(
-  urls: string[],
-  signal?: AbortSignal
-): Promise<string | null> {
-  for (const url of urls) {
-    if (signal?.aborted) return null;
-    const isValid = await validateCoverUrl(url);
-    if (isValid && !signal?.aborted) {
-      return url;
-    }
-  }
-  return null;
-}
+// Note: Google Books "no preview" grey placeholders (128x170, 575x750) cannot
+// be detected client-side without CORS canvas access; Google Books is last in
+// the chain so they are rarely reached. Broken and 1×1 candidates are skipped
+// by `useCoverSrc` (hooks/use-cover-src.ts) through the <img> error/load
+// events, so no separate probe request is made.
 

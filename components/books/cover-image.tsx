@@ -1,14 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  getCoverUrlsWithFallbacks,
-  findFirstValidCoverUrl,
-  type BookCoverData,
-} from "@/lib/utils/covers";
+import { useCoverSrc } from "@/hooks/use-cover-src";
+import type { BookCoverData } from "@/lib/utils/covers";
 
 // Placeholder blur data URL (dark gradient)
 const BLUR_DATA_URL =
@@ -26,7 +22,7 @@ interface CoverImageProps {
   width?: number;
   /** Custom height in pixels (overrides size preset) */
   height?: number;
-  /** 
+  /**
    * Fill mode: image fills its parent container.
    * When true, width/height/size are ignored and parent must have position:relative.
    */
@@ -52,8 +48,11 @@ const SIZE_PRESETS: Record<CoverSize, { width: number; height: number }> = {
  * Unified book cover image component
  *
  * Features:
- * - Pre-load validation: images are tested in hidden elements before display
- * - Automatic cover URL resolution (Open Library → ISBN → cover_url → Google Books)
+ * - Server-rendered: the first candidate URL is chosen during render, so the
+ *   HTML already carries the `<img>` (LCP preload + crawlers) and the browser
+ *   only ever talks to `/_next/image`, never to Open Library directly
+ * - Automatic cover URL resolution (Open Library → ISBN → cover_url → Google Books),
+ *   falling through on image error / tiny placeholder via `useCoverSrc`
  * - Consistent styling with rounded corners, shadows, and optional hover effects
  * - Optimized blur placeholder for loading states
  * - Fallback to modern gradient placeholder with book icon when no valid cover
@@ -70,47 +69,11 @@ export function CoverImage({
   className,
   priority = false,
 }: CoverImageProps) {
-  const [coverResult, setCoverResult] = useState<{
-    urls: readonly string[];
-    validatedUrl: string | null;
-  } | null>(null);
+  const { src, onError, onLoad } = useCoverSrc(book);
 
   const dimensions = fill
     ? null
     : (width && height ? { width, height } : SIZE_PRESETS[size]);
-
-  // Use primitive fields as deps so coverUrls is referentially stable across re-renders
-  // Intentionally use primitive fields (not the book object) so coverUrls stays
-  // referentially stable across parent re-renders. Without this, the identity check
-  // `coverResult.urls !== coverUrls` always fails and covers never resolve.
-  const coverUrls = useMemo(
-    () => getCoverUrlsWithFallbacks(book),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [book.open_library_cover_id, book.isbn, book.cover_url, book.google_books_id]
-  );
-
-  // Derive validation state: no URLs means nothing to validate
-  const isValidating = coverUrls.length > 0 && (coverResult === null || coverResult.urls !== coverUrls);
-  const validatedUrl = !isValidating && coverResult?.urls === coverUrls ? coverResult.validatedUrl : null;
-
-  // Pre-load and validate URLs before displaying
-  useEffect(() => {
-    if (coverUrls.length === 0) return;
-
-    const controller = new AbortController();
-
-    findFirstValidCoverUrl(coverUrls, controller.signal).then((url) => {
-      if (!controller.signal.aborted) {
-        setCoverResult({ urls: coverUrls, validatedUrl: url });
-      }
-    });
-
-    return () => {
-      controller.abort();
-    };
-  }, [coverUrls]);
-
-  const showPlaceholder = !isValidating && !validatedUrl;
 
   // Responsive sizes hint for next/image
   const sizes = fill
@@ -130,14 +93,10 @@ export function CoverImage({
       )}
       style={dimensions ? { width: dimensions.width, height: dimensions.height } : undefined}
     >
-      {isValidating ? (
-        // Show blur placeholder while validating
-        <div className="absolute inset-0 animate-pulse bg-muted" aria-busy="true" role="img" aria-label="Loading book cover" />
-      ) : showPlaceholder ? (
-        <PlaceholderCover title={book.title} author={book.author} />
-      ) : (
+      {src ? (
         <Image
-          src={validatedUrl!}
+          key={src}
+          src={src}
           alt={`Cover of ${book.title}`}
           fill
           sizes={sizes}
@@ -145,6 +104,8 @@ export function CoverImage({
           priority={priority}
           placeholder="blur"
           blurDataURL={BLUR_DATA_URL}
+          onError={onError}
+          onLoad={onLoad}
           className={cn(
             "object-cover",
             // Position top to crop barcodes that often appear at bottom
@@ -153,6 +114,8 @@ export function CoverImage({
             hover && "group-hover:scale-[1.03]"
           )}
         />
+      ) : (
+        <PlaceholderCover title={book.title} author={book.author} />
       )}
     </div>
   );
@@ -173,7 +136,7 @@ function PlaceholderCover({
     <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
       {/* Subtle pattern overlay */}
       <div className="absolute inset-0 opacity-5 bg-[radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_0)] bg-[size:12px_12px]" />
-      
+
       {/* Icon */}
       <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 mb-2">
         <BookOpen className="w-5 h-5 text-primary/60" />
@@ -196,7 +159,7 @@ function PlaceholderCover({
 
 /**
  * Minimal cover for tiny displays (e.g., activity feed)
- * Uses same pre-load validation as CoverImage
+ * Same server-rendered fallback chain as CoverImage
  */
 export function CoverImageMini({
   book,
@@ -205,42 +168,7 @@ export function CoverImageMini({
   book: BookCoverData & { title: string };
   className?: string;
 }) {
-  const [coverResult, setCoverResult] = useState<{
-    urls: readonly string[];
-    validatedUrl: string | null;
-  } | null>(null);
-
-  // Use primitive fields as deps so coverUrls is referentially stable across re-renders
-  // Intentionally use primitive fields (not the book object) so coverUrls stays
-  // referentially stable across parent re-renders.
-  const coverUrls = useMemo(
-    () => getCoverUrlsWithFallbacks(book),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [book.open_library_cover_id, book.isbn, book.cover_url, book.google_books_id]
-  );
-
-  // Derive validation state: no URLs means nothing to validate
-  const isValidating = coverUrls.length > 0 && (coverResult === null || coverResult.urls !== coverUrls);
-  const validatedUrl = !isValidating && coverResult?.urls === coverUrls ? coverResult.validatedUrl : null;
-
-  // Pre-load and validate URLs before displaying
-  useEffect(() => {
-    if (coverUrls.length === 0) return;
-
-    const controller = new AbortController();
-
-    findFirstValidCoverUrl(coverUrls, controller.signal).then((url) => {
-      if (!controller.signal.aborted) {
-        setCoverResult({ urls: coverUrls, validatedUrl: url });
-      }
-    });
-
-    return () => {
-      controller.abort();
-    };
-  }, [coverUrls]);
-
-  const showPlaceholder = !isValidating && !validatedUrl;
+  const { src, onError, onLoad } = useCoverSrc(book);
 
   return (
     <div
@@ -250,21 +178,22 @@ export function CoverImageMini({
         className
       )}
     >
-      {isValidating ? (
-        <div className="absolute inset-0 animate-pulse bg-muted" aria-busy="true" role="img" aria-label="Loading book cover" />
-      ) : showPlaceholder ? (
-        <div className="w-full h-full flex items-center justify-center">
-          <BookOpen className="w-4 h-4 text-muted-foreground/50" />
-        </div>
-      ) : (
+      {src ? (
         <Image
-          src={validatedUrl!}
+          key={src}
+          src={src}
           alt={book.title}
           fill
           sizes="40px"
           quality={75}
+          onError={onError}
+          onLoad={onLoad}
           className="object-cover object-[center_top]"
         />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <BookOpen className="w-4 h-4 text-muted-foreground/50" />
+        </div>
       )}
     </div>
   );
