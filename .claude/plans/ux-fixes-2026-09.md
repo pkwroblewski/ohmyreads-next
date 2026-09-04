@@ -22,7 +22,7 @@
 | 3 | Migrate the three dialogs: progress, Mood Search, custom shelves | 🔴 Critical | Medium | [x] COMPLETE | `components/books/update-progress-dialog.tsx`, `components/ai/ai-book-search.tsx`, `components/shelves/add-to-shelf-modal.tsx` |
 | 4 | Mobile chrome: clip horizontal overflow, reserve nav space, Messages into the nav | 🟠 High | Medium | [x] COMPLETE | `components/messages/chat-panel.tsx`, `components/messages/chat-trigger.tsx`, `components/layout/app-shell.tsx`, `components/layout/mobile-bottom-nav.tsx`, `components/layout/sidebar.tsx`, `app/globals.css` |
 | 5 | Full cover column set in feed, activity and club queries | 🟠 High | Low | [x] COMPLETE | `lib/queries/community.ts`, `components/dashboard/recent-activity.tsx`, `lib/queries/clubs.ts` |
-| 6 | Muted text token passes AA | 🟠 High | Low | [ ] PENDING | `app/globals.css`, `components/layout/sidebar.tsx`, `components/reviews/quick-rating.tsx` |
+| 6 | Muted text token passes AA | 🟠 High | Low | [x] COMPLETE | `app/globals.css`, `components/layout/sidebar.tsx`, `components/reviews/quick-rating.tsx` |
 | 7 | Browse cards show the viewer's shelf status | 🔴 Critical | Medium | [ ] PENDING | `app/api/books/search/route.ts`, `components/books/book-browser.tsx`, `components/books/book-card.tsx` |
 | 8 | Progress from the book page and dashboard, percent + "finished" | 🟠 High | High | [ ] PENDING | `components/books/update-progress-dialog.tsx`, `app/(public)/books/[slug]/page.tsx`, `components/dashboard/currently-reading.tsx`, `lib/actions/books.ts`, `lib/validation/book-action.ts` |
 | 9 | One first-run checklist instead of five empty states | 🟡 Medium | Medium | [ ] PENDING | `app/(app)/dashboard/page.tsx`, `components/dashboard/first-run-checklist.tsx` (new), `components/dashboard/recent-activity.tsx`, `components/dashboard/friends-activity-section.tsx`, `components/dashboard/recommendations-section.tsx` |
@@ -30,7 +30,7 @@
 | 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [ ] PENDING | `components/books/book-card.tsx`, `components/books/book-browser.tsx` |
 | 12 | Final QA | - | Medium | [ ] PENDING | - |
 
-**Progress: 5/12 complete**
+**Progress: 6/12 complete**
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -243,23 +243,23 @@ first-time tester's first screen is clean.
 **Context:** `--muted-foreground` colours every author name, date, description and count and measures 4.0:1 on the cream background.
 
 **Steps:**
-1. [ ] `globals.css:27`: `--muted-foreground: 30 14% 42%`; compute contrast against `--background` and `--card` with a 10-line node script (WCAG relative luminance) and record the numbers.
-2. [ ] Grep `text-muted-foreground/` and raise anything used for text (not decoration) to at least `/80`; `sidebar.tsx:111` section labels → solid token with `uppercase tracking-wide`; `quick-rating.tsx:93` unrated stars keep `/40` only if the control also has a visible label (it is decorative once labelled).
-3. [ ] Screenshot home, Browse, dashboard in light and dark before/after.
+1. [x] `globals.css:27`: `--muted-foreground: 30 14% 42%`; compute contrast against `--background` and `--card` with a 10-line node script (WCAG relative luminance) and record the numbers.
+2. [x] Grep `text-muted-foreground/` and raise anything used for text (not decoration) to at least `/80`; `sidebar.tsx:111` section labels → solid token with `uppercase tracking-wide`; `quick-rating.tsx:93` unrated stars keep `/40` only if the control also has a visible label (it is decorative once labelled).
+3. [x] Screenshot home, Browse, dashboard in light and dark before/after.
 
 **Verify:**
-- [ ] Light: token ≥ 4.5:1 on both `--background` and `--card`; dark unchanged
-- [ ] No text-bearing element left below 4.5:1 among the `/xx` variants
-- [ ] Visual check: still reads as "muted", not as body text
+- [x] Light: token ≥ 4.5:1 on both `--background` and `--card`; dark unchanged
+- [x] No text-bearing element left below 4.5:1 among the `/xx` variants
+- [x] Visual check: still reads as "muted", not as body text
 
 **Completed Notes:**
-<!-- Fill in after completing -->
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `app/globals.css` (`--muted-foreground: 30 14% 42%` + a comment with the measured ratios), `components/layout/sidebar.tsx` (section labels → solid token), `components/reviews/quick-rating.tsx` (unrated stars `/40` → `/80`), `components/books/book-card.tsx` (two placeholder titles `/60` → solid), `components/books/cover-image.tsx` (placeholder title `/80` and author `/60` → solid), `components/geo/map-context-panel.tsx` (two inactive Directions/Website tiles `/50` → solid), `components/geo/map-detail-panel.tsx` (inactive Website tile `/50` → solid), `components/settings/export-section.tsx` (format notes `/70` → solid).
+- Approach taken: WCAG relative-luminance script over the HSL tokens (`node -e`, 10 lines). At 48 % the token measured **3.97:1** on `--background`, **4.11:1** on `--card`, **3.64:1** on `--muted`; at 42 % it measures **4.96 / 5.13 / 4.55**. The same script showed that *no* opacity variant of the new token passes: `/80` = 3.35 on the background, 3.43 on the card, 3.15 on muted, so "raise to at least `/80`" cannot satisfy the Verify line — every text-bearing site was moved to the solid token instead. The remaining `/xx` uses are icons and display-only star outlines (decorative). Dark value untouched: `42 12% 68%` = 8.72 / 8.07 / 7.60.
+- Deviations from plan: (1) text-bearing variants went to the solid token rather than `/80` (above). (2) `quick-rating.tsx` has an `aria-label` and a live region but no *visible* label, so its unrated star outlines are a UI-component boundary, not decoration; they are `/80`, which clears the 3:1 non-text minimum (3.35) while staying lighter than the filled gold. (3) Sidebar labels already had `uppercase tracking-wider`; only the opacity changed.
+- Issues encountered: (1) During the "after" capture Browse rendered **0 books** with the curated genre fallback. Cause, not this task: a 10 s Supabase connect timeout (`ConnectTimeoutError … supabase.co:443`, 17:17 in the dev log) hit `fetchPopularBooks` / `fetchAllGenres`, both of which return `[]` on error, and `unstable_cache` then keeps that empty array for its 1 h `revalidate`. One network blip blanks Browse's default load (and the genre pills) for up to an hour. Added to Out of Scope with the fix. The after capture was retaken via `/books?sort=title`, which goes through the uncached `searchBooks` path. (2) `review-form.tsx:146` uses `/30` for the unrated stars of a rating *input* (same class of issue as quick-rating); not in this task's file list — Out of Scope, a11y polish.
+- Verification: in-browser computed colour of a muted `<p>` on the dashboard is `rgb(122, 107, 92)` → **4.97:1** on the page background, **5.14:1** on a card; sidebar "Main" label **5.14:1** on the sidebar surface; dark unchanged (`rgb(183, 177, 164)`). Before/after screenshots of home, Browse and dashboard in light and dark were compared: author names, dates, counts and section labels are darker but still read as secondary against headings and body text. `npm run lint` 0/0, `npm run typecheck` clean, `npm run test:run` 68 files / 622 passed. Screenshots and the throwaway account were deleted.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -471,6 +471,8 @@ first-time tester's first screen is clean.
 | Loading skeletons for nine routes (P1) | Mechanical; no user report | Next plan |
 | Curated genre pills (D6), Open Library 404 probing (N8), unused font preloads (N9), first-login onboarding routing (N10) | Lower impact | Backlog |
 | Browse card action row (`book-card.tsx`, `flex gap-2` with "Buy Local") lays out 23 px wider than a 390 px viewport; body `overflow-x: clip` hides the symptom | Found in Task 4; the file belongs to Tasks 7/11 | Task 7 or 11 — add `flex-wrap` / `min-w-0` |
+| `getPopularBooks` / `getAllGenres` (`lib/queries/books.ts`) return `[]` on a Supabase error and `unstable_cache` keeps it for 1 h — one connect timeout blanks Browse's default load and its genre pills | Found in Task 6; caching layer, not UX | Ops plan: throw from the fetchers on error (uncached) and let the page fall back per request, or cache only non-empty results |
+| `review-form.tsx:146` unrated stars of the rating *input* at `/30` (non-text contrast < 3:1) | Same class as quick-rating; file not in Task 6 | a11y polish batch — `/80` like quick-rating |
 | Shelf status on home rails (Task 7 step 4) | Rails are server-rendered and cached; needs a client island per rail | If readers ask |
 | Batching the AI blurb calls (4 + 7 requests) | Depends on the billing decision | Ops plan |
 
@@ -497,4 +499,5 @@ first-time tester's first screen is clean.
 | 2026-09-04 | 3 | COMPLETE | Progress, Mood Search and custom-shelf dialogs on `Dialog`; `returnFocusTo` threaded from the three callers; reduced-motion scroll; Mood Search full-screen below `sm` |
 | 2026-09-04 | 4 | COMPLETE | Closed chat drawer invisible + `overflow-x: clip`; safe-area nav padding + `scroll-padding-bottom`; `ChatPanelContext` puts Messages (badge) in the sidebar and More sheet with Map/About; bubble desktop-only |
 | 2026-09-04 | 5 | COMPLETE | `BOOK_COVER_COLUMNS` + `BookCoverSummary` in feed, activity and club queries; club card and club page hand the whole book to `CoverImage` |
+| 2026-09-04 | 6 | COMPLETE | `--muted-foreground` 48 % → 42 % (4.96 / 5.13 / 4.55); every text-bearing `/xx` variant → solid token; quick-rating unrated stars `/80` (3.35 non-text) |
 | | | | |

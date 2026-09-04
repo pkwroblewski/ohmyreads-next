@@ -453,7 +453,7 @@ function PlaceContent({ place, currentUserId, onMarkSpotAtPlace }: {
             <span>Website</span>
           </a>
         ) : (
-          <div className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground/50">
+          <div className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-muted/30 text-xs font-medium text-muted-foreground">
             <Globe className="h-3.5 w-3.5" />
             <span>Website</span>
           </div>

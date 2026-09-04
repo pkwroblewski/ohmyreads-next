@@ -90,7 +90,7 @@ export function QuickRating({
             aria-hidden="true"
             className={cn(
               "h-6 w-6 transition-colors",
-              value <= shown ? "text-star fill-star" : "text-muted-foreground/40"
+              value <= shown ? "text-star fill-star" : "text-muted-foreground/80"
             )}
           />
         </button>

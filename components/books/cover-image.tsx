@@ -143,13 +143,13 @@ function PlaceholderCover({
       </div>
 
       {/* Title (truncated) */}
-      <p className="relative text-xs font-medium text-muted-foreground/80 line-clamp-2 leading-tight px-1">
+      <p className="relative text-xs font-medium text-muted-foreground line-clamp-2 leading-tight px-1">
         {title}
       </p>
 
       {/* Author (if provided) */}
       {author && (
-        <p className="relative text-[10px] text-muted-foreground/60 truncate mt-0.5 px-1 max-w-full">
+        <p className="relative text-[10px] text-muted-foreground truncate mt-0.5 px-1 max-w-full">
           {author}
         </p>
       )}

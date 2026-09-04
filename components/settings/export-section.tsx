@@ -87,7 +87,7 @@ export function ExportSection() {
         <p className="text-sm text-destructive">{error}</p>
       )}
 
-      <div className="text-xs text-muted-foreground/70 space-y-1">
+      <div className="text-xs text-muted-foreground space-y-1">
         <p className="flex items-center gap-1.5">
           <Download className="h-3 w-3" />
           <span>

@@ -111,7 +111,7 @@ export function Sidebar({ user, profile }: SidebarProps) {
             {sectionIndex > 0 && (
               <div className="my-2 mx-3 border-t border-border/50" />
             )}
-            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               {section.label}
             </p>
             <div className="space-y-0.5">

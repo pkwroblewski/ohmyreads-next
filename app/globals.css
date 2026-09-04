@@ -24,7 +24,10 @@
   --secondary-foreground: 0 0% 100%;
 
   --muted: 36 33% 94%;
-  --muted-foreground: 30 14% 48%;
+  /* 42 % lightness: 4.96:1 on --background, 5.13:1 on --card, 4.55:1 on
+     --muted (48 % measured 3.97 / 4.11 / 3.64). Opacity variants of this
+     token cannot reach 4.5:1, so text always uses it solid. */
+  --muted-foreground: 30 14% 42%;
 
   --accent: 43 66% 52%;
   --accent-foreground: 30 27% 13%;

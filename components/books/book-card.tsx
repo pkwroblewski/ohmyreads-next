@@ -194,7 +194,7 @@ export function BookCard({
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
                 <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
-                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2">{book.title}</p>
               </div>
             )}
           </div>
@@ -288,7 +288,7 @@ export function BookCard({
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
                 <BookOpen className="w-8 h-8 text-muted-foreground/40 mb-2" />
-                <p className="text-xs text-muted-foreground/60 line-clamp-2">{book.title}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2">{book.title}</p>
               </div>
             )}
           </div>

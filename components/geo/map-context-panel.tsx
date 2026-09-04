@@ -609,7 +609,7 @@ function PlaceView({
               <span className="text-xs font-medium">Directions</span>
             </a>
           ) : (
-            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/30 text-muted-foreground/50">
+            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/30 text-muted-foreground">
               <Navigation className="h-5 w-5" />
               <span className="text-xs font-medium">Directions</span>
             </div>
@@ -626,7 +626,7 @@ function PlaceView({
               <span className="text-xs font-medium">Website</span>
             </a>
           ) : (
-            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/30 text-muted-foreground/50">
+            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/30 text-muted-foreground">
               <Globe className="h-5 w-5" />
               <span className="text-xs font-medium">Website</span>
             </div>
