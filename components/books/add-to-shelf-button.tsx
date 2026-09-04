@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   BookOpen,
@@ -54,6 +54,7 @@ export function AddToShelfButton({
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<ShelfStatus | null>(currentStatus ?? null);
   const [shelfModalOpen, setShelfModalOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const handleStatusChange = (newStatus: ShelfStatus) => {
     startTransition(async () => {
@@ -99,6 +100,7 @@ export function AddToShelfButton({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
+            ref={triggerRef}
             aria-busy={isPending}
             aria-label={status ? `Current status: ${buttonLabel}. Change status` : "Add book to shelf"}
             className={cn(
@@ -161,6 +163,7 @@ export function AddToShelfButton({
         onOpenChange={setShelfModalOpen}
         bookId={bookId}
         bookTitle={bookTitle || "this book"}
+        returnFocusTo={triggerRef}
       />
     </>
   );

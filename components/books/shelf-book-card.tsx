@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   BookOpen,
@@ -68,6 +68,8 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
   );
   const [isShelfModalOpen, setIsShelfModalOpen] = useState(false);
   const [isProgressOpen, setIsProgressOpen] = useState(false);
+  const progressButtonRef = useRef<HTMLButtonElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   // Optimistic progress state, reconciled by revalidation on refresh
   const [progress, setProgress] = useState<{
     page: number | null;
@@ -204,6 +206,7 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
         {/* Reading Progress */}
         {currentStatus === "reading" && (
           <button
+            ref={progressButtonRef}
             type="button"
             onClick={() => setIsProgressOpen(true)}
             aria-label={`Update reading progress for ${book.title}`}
@@ -238,6 +241,7 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
+              ref={menuButtonRef}
               variant="ghost"
               size="icon"
               className={cn(
@@ -289,6 +293,7 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
         onOpenChange={setIsShelfModalOpen}
         userBookId={userBook.id}
         bookTitle={book.title}
+        returnFocusTo={menuButtonRef}
       />
 
       {/* Update Progress Dialog */}
@@ -300,6 +305,7 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
         open={isProgressOpen}
         onOpenChange={setIsProgressOpen}
         onUpdated={(page, total, pct) => setProgress({ page, total, pct })}
+        returnFocusTo={progressButtonRef}
       />
     </div>
   );

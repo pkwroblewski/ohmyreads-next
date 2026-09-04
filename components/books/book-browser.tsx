@@ -78,6 +78,7 @@ export function BookBrowser({
   );
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const aiSearchButtonRef = useRef<HTMLButtonElement>(null);
 
   // Fetch books from API
   const fetchBooks = useCallback(
@@ -174,6 +175,7 @@ export function BookBrowser({
           />
         </div>
         <Button
+          ref={aiSearchButtonRef}
           variant="outline"
           onClick={() => setShowAISearch(true)}
           className="h-12 px-4 gap-2 bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/20 hover:border-primary/40 hover:bg-primary/10"
@@ -332,7 +334,11 @@ export function BookBrowser({
       )}
 
       {/* AI Book Search Dialog */}
-      <AIBookSearch open={showAISearch} onOpenChange={setShowAISearch} />
+      <AIBookSearch
+        open={showAISearch}
+        onOpenChange={setShowAISearch}
+        returnFocusTo={aiSearchButtonRef}
+      />
     </div>
   );
 }

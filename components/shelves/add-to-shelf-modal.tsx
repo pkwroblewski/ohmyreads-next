@@ -1,8 +1,15 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { X, Loader2, FolderPlus, Check, Plus } from "lucide-react";
+import { Loader2, FolderPlus, Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   getUserShelves,
   getBookShelves,
@@ -21,6 +28,8 @@ interface AddToShelfModalProps {
   userBookId?: string;  // Optional - provide if book is already in user's library
   bookId?: string;      // Optional - provide for direct book-to-shelf (auto-creates user_book)
   bookTitle: string;
+  /** The control that opened the dialog; focus goes back there on close. */
+  returnFocusTo?: React.RefObject<HTMLElement | null>;
 }
 
 export function AddToShelfModal({
@@ -29,6 +38,7 @@ export function AddToShelfModal({
   userBookId,
   bookId,
   bookTitle,
+  returnFocusTo,
 }: AddToShelfModalProps) {
   const [shelves, setShelves] = useState<UserShelfWithCount[]>([]);
   const [selectedShelfIds, setSelectedShelfIds] = useState<Set<string>>(
@@ -149,38 +159,37 @@ export function AddToShelfModal({
     });
   };
 
-  if (!open) return null;
+  const cancelCreating = () => {
+    setIsCreating(false);
+    setNewShelfName("");
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={() => onOpenChange(false)}
-      />
-
-      {/* Modal */}
-      <div className="relative bg-background rounded-xl shadow-2xl w-full max-w-md z-10 overflow-hidden">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="sm:max-w-md p-0"
+        returnFocusTo={returnFocusTo}
+        // Escape while naming a new shelf backs out of that step only
+        onEscapeKeyDown={(event) => {
+          if (isCreating) {
+            event.preventDefault();
+            cancelCreating();
+          }
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <FolderPlus className="h-5 w-5 text-primary" />
-            <h2 className="font-semibold">Add to Shelves</h2>
-          </div>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
-            aria-label="Close dialog"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+        <DialogHeader className="p-4 border-b space-y-0">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <FolderPlus className="h-5 w-5 text-primary" aria-hidden="true" />
+            Add to Shelves
+          </DialogTitle>
+        </DialogHeader>
 
         {/* Book title */}
         <div className="px-4 py-2 bg-muted/50 border-b">
-          <p className="text-sm text-muted-foreground">
+          <DialogDescription>
             Adding: <span className="font-medium text-foreground">{bookTitle}</span>
-          </p>
+          </DialogDescription>
         </div>
 
         {/* Content */}
@@ -247,9 +256,6 @@ export function AddToShelfModal({
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && newShelfName.trim()) {
                         handleCreateShelf();
-                      } else if (e.key === "Escape") {
-                        setIsCreating(false);
-                        setNewShelfName("");
                       }
                     }}
                   />
@@ -258,10 +264,7 @@ export function AddToShelfModal({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        setIsCreating(false);
-                        setNewShelfName("");
-                      }}
+                      onClick={cancelCreating}
                     >
                       Cancel
                     </Button>
@@ -309,7 +312,7 @@ export function AddToShelfModal({
             )}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

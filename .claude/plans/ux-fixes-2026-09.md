@@ -19,7 +19,7 @@
 |---|------|----------|--------|--------|-------|
 | 1 | Shared Radix `Dialog` and `DropdownMenu` primitives | 🔴 Critical | Medium | [x] COMPLETE | `components/ui/dialog.tsx` (new), `components/ui/dropdown-menu.tsx` (new), `__tests__/components/ui/dialog.test.tsx` (new) |
 | 2 | Migrate the three menus: shelf dropdown, shelf-card actions, Browse sort | 🔴 Critical | Medium | [x] COMPLETE | `components/books/add-to-shelf-button.tsx`, `components/books/shelf-book-card.tsx`, `components/books/book-browser.tsx` |
-| 3 | Migrate the three dialogs: progress, Mood Search, custom shelves | 🔴 Critical | Medium | [ ] PENDING | `components/books/update-progress-dialog.tsx`, `components/ai/ai-book-search.tsx`, `components/shelves/add-to-shelf-modal.tsx` |
+| 3 | Migrate the three dialogs: progress, Mood Search, custom shelves | 🔴 Critical | Medium | [x] COMPLETE | `components/books/update-progress-dialog.tsx`, `components/ai/ai-book-search.tsx`, `components/shelves/add-to-shelf-modal.tsx` |
 | 4 | Mobile chrome: clip horizontal overflow, reserve nav space, Messages into the nav | 🟠 High | Medium | [ ] PENDING | `components/messages/chat-panel.tsx`, `components/messages/chat-trigger.tsx`, `components/layout/app-shell.tsx`, `components/layout/mobile-bottom-nav.tsx`, `components/layout/sidebar.tsx`, `app/globals.css` |
 | 5 | Full cover column set in feed, activity and club queries | 🟠 High | Low | [ ] PENDING | `lib/queries/community.ts`, `components/dashboard/recent-activity.tsx`, `lib/queries/clubs.ts` |
 | 6 | Muted text token passes AA | 🟠 High | Low | [ ] PENDING | `app/globals.css`, `components/layout/sidebar.tsx`, `components/reviews/quick-rating.tsx` |
@@ -30,7 +30,7 @@
 | 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [ ] PENDING | `components/books/book-card.tsx`, `components/books/book-browser.tsx` |
 | 12 | Final QA | - | Medium | [ ] PENDING | - |
 
-**Progress: 2/12 complete**
+**Progress: 3/12 complete**
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -145,26 +145,26 @@ first-time tester's first screen is clean.
 **Context:** Three plain `fixed` divs: no `role="dialog"`, no focus trap, no Escape, page behind stays tabbable and readable by assistive tech.
 
 **Steps:**
-1. [ ] `update-progress-dialog.tsx`: wrap in `Dialog`/`DialogContent`; keep the form, `currentPage`/`totalPages` props and `onUpdated`. Pass the caller's trigger ref as `returnFocusTo` (the shelf card's "Update progress" button).
-2. [ ] `ai-book-search.tsx:163`: the panel becomes `DialogContent` (`sm:max-w-3xl`, full-height on mobile); `DialogTitle` "Mood Search" (one name for the feature, see Out of Scope for the rest of the copy); the two `scrollIntoView({behavior:"smooth"})` calls check `matchMedia("(prefers-reduced-motion: reduce)")` and use `"auto"` when set; focus lands in the input on open (`onOpenAutoFocus`).
-3. [ ] `shelves/add-to-shelf-modal.tsx`: same wrap; it is opened from the shelf menu, so `returnFocusTo` is the shelf button.
-4. [ ] Remove the hand-rolled overlay/close-button/Escape code from all three.
-5. [ ] `npm run lint`, `npm run typecheck`, `npm run test:run`
+1. [x] `update-progress-dialog.tsx`: wrap in `Dialog`/`DialogContent`; keep the form, `currentPage`/`totalPages` props and `onUpdated`. Pass the caller's trigger ref as `returnFocusTo` (the shelf card's "Update progress" button).
+2. [x] `ai-book-search.tsx:163`: the panel becomes `DialogContent` (`sm:max-w-3xl`, full-height on mobile); `DialogTitle` "Mood Search" (one name for the feature, see Out of Scope for the rest of the copy); the two `scrollIntoView({behavior:"smooth"})` calls check `matchMedia("(prefers-reduced-motion: reduce)")` and use `"auto"` when set; focus lands in the input on open (`onOpenAutoFocus`).
+3. [x] `shelves/add-to-shelf-modal.tsx`: same wrap; it is opened from the shelf menu, so `returnFocusTo` is the shelf button.
+4. [x] Remove the hand-rolled overlay/close-button/Escape code from all three.
+5. [x] `npm run lint`, `npm run typecheck`, `npm run test:run`
 
 **Verify:**
-- [ ] Each dialog: `role="dialog"` + `aria-modal="true"` in the snapshot, Tab cycles inside, Escape closes, focus returns to the opener
-- [ ] Mood Search: opens from "Mood Search" on `/books`, sends a query, shows either results or the calm quota sentence (Google billing may still be off — the error path is enough to verify the dialog)
-- [ ] Progress dialog from a shelf card saves a page and the card's bar updates
-- [ ] Lint 0/0, tests green
+- [x] Each dialog: `role="dialog"` + `aria-modal="true"` in the snapshot, Tab cycles inside, Escape closes, focus returns to the opener
+- [x] Mood Search: opens from "Mood Search" on `/books`, sends a query, shows either results or the calm quota sentence (Google billing may still be off — the error path is enough to verify the dialog)
+- [x] Progress dialog from a shelf card saves a page and the card's bar updates
+- [x] Lint 0/0, tests green
 
 **Completed Notes:**
-<!-- Fill in after completing -->
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `components/books/update-progress-dialog.tsx`, `components/ai/ai-book-search.tsx`, `components/shelves/add-to-shelf-modal.tsx` (the three dialogs); `components/books/shelf-book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `components/books/book-browser.tsx` (callers now hold a ref to the opener and pass `returnFocusTo`).
+- Approach taken: each `fixed inset-0` div + backdrop + hand ✕ became `Dialog` → `DialogContent` from Task 1 (`p-0` so the existing header/body/footer strips keep their own padding); the `<h2>` became `DialogTitle` and the "Adding: …" / book-title strip became `DialogDescription`, so every dialog has an accessible name and description. The `if (!open) return null` early returns are gone — Radix mounts the content only while open, which also keeps the progress form's "mount fresh, re-seed from props" behaviour with no effect. All three components take an optional `returnFocusTo` ref. Mood Search: `DialogTitle` "Mood Search" (was "AI Book Finder"), `onOpenAutoFocus` puts focus in the input (replaces the 100 ms `setTimeout` effect), `onOpenChange(false)` routes through the existing `handleClose` so the chat resets, both `scrollIntoView` calls go through a `scrollBehavior()` helper that returns `"auto"` under `prefers-reduced-motion: reduce`, and the content is a full-screen sheet below `sm` (`inset-x-0 top-0 h-dvh rounded-none`) and the old 700 px / 85 vh / `max-w-3xl` panel above. Custom shelves: the new-shelf input's own Escape handler moved to `onEscapeKeyDown` on the content (Radix listens in the capture phase, so an input-level handler could not stop the dialog closing) — Escape while naming a shelf backs out of that step only.
+- Deviations from plan: none material. The corner close buttons are now the primitive's (`aria-label="Close"` instead of "Close AI book finder" / "Close dialog"); no test referenced the old labels.
+- Issues encountered: (1) While a dialog is open the app root `div.min-h-screen` is *not* `aria-hidden` on the book page. Traced to `aria-hidden@1.2.6` (Radix's dependency): it keeps every `[aria-live]` element **and its ancestors** visible and hides the rest at that depth — the book page has a polite `sr-only` live region, so 22 descendants (header, aside, h1, …) get hidden instead of the root. On the shelf page (no live region) the root itself is hidden. Intended library behaviour, not a bug; the menu → dialog handoff was also checked and keeps the root hidden throughout. (2) Playwright's aria-snapshot prints `dialog` without its name even though `aria-labelledby` resolves ("Add to Shelves", "Update Progress", "Mood Search") — same rendering quirk as Task 2's checked radio. (3) Browse at 390 px has `scrollWidth` 413 with no dialog open — pre-existing horizontal overflow for Task 4. (4) The book has no page count, so the progress bar stays at 0 % after saving page 42 — Task 10 data.
+- Verification (local dev, throwaway account, deleted afterwards): **Custom shelves** from the book page's shelf menu → `role="dialog"`, `aria-modal="true"`, name "Add to Shelves", description "Adding: Harry Potter", focus inside; five real Tabs across the four tabbables (Create your first shelf, Cancel, Save, Close) stayed inside and wrapped; Escape closed it and focus landed on the shelf button. Same from the shelf card's menu. **Progress** from the shelf card's button → name "Update Progress", description "Harry Potter", focus on `#current-page`; saved 42 → toast "Progress updated", dialog closed, card reads "Page 42", focus back on the progress button. **Mood Search** from `/books` → name "Mood Search", description "Describe what you want to read", focus in the input, sent "a cozy mystery in a small village" → user bubble, then the error box "Something went wrong. Please try again." (server: `No AI API key configured`, 500 — the expected local error path; the quota sentence needs prod's Gemini key); Escape → closed, focus on the Mood Search button, chat reset to the welcome bubble; at 390×844 the sheet measures 0,0,390,844. `npm run lint` 0/0, `npm run typecheck` clean, `npm run test:run` 68 files / 620 passed.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -493,4 +493,5 @@ first-time tester's first screen is clean.
 | 2026-09-04 | - | Plan created | From the UX review; ground truth gathered the same day (see Summary) |
 | 2026-09-04 | 1 | COMPLETE | `Dialog` + `DropdownMenu` primitives, 8 tests; `animate-in` classes found to be no-ops under Tailwind v4 (see notes) |
 | 2026-09-04 | 2 | COMPLETE | Shelf button, shelf-card menu and Browse sort on `DropdownMenu`; trigger `disabled` → `aria-busy` so focus can return; verified signed-in at 1280 and 390 px |
+| 2026-09-04 | 3 | COMPLETE | Progress, Mood Search and custom-shelf dialogs on `Dialog`; `returnFocusTo` threaded from the three callers; reduced-motion scroll; Mood Search full-screen below `sm` |
 | | | | |

@@ -5,7 +5,6 @@ import { DefaultChatTransport, UIMessage } from "ai";
 import { useRef, useEffect, useState, useMemo, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  X,
   Sparkles,
   Send,
   Loader2,
@@ -16,6 +15,13 @@ import {
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CoverImage } from "@/components/books/cover-image";
 import { AddToShelfButton } from "@/components/books/add-to-shelf-button";
 import { BuyLinks } from "@/components/books/buy-links";
@@ -28,6 +34,16 @@ interface AIBookSearchProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialQuery?: string;
+  /** The control that opened the dialog; focus goes back there on close. */
+  returnFocusTo?: React.RefObject<HTMLElement | null>;
+}
+
+/** Readers who asked for less motion get an instant scroll instead. */
+function scrollBehavior(): ScrollBehavior {
+  return typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "auto"
+    : "smooth";
 }
 
 interface BookResult {
@@ -59,7 +75,12 @@ const WELCOME_MESSAGE: UIMessage = {
   ],
 };
 
-export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchProps) {
+export function AIBookSearch({
+  open,
+  onOpenChange,
+  initialQuery,
+  returnFocusTo,
+}: AIBookSearchProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,22 +121,15 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior() });
   }, [messages]);
 
   // Scroll results into view when books are found
   useEffect(() => {
     if (allBooks.length > 0 && resultsRef.current) {
-      resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      resultsRef.current.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
     }
   }, [allBooks.length]);
-
-  // Focus input when dialog opens
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [open]);
 
   // Auto-send initial query if provided
   useEffect(() => {
@@ -157,39 +171,32 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
       .join("");
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={handleClose}
-      />
-
-      {/* Dialog */}
-      <div className="relative bg-background rounded-xl shadow-2xl w-full max-w-3xl h-[700px] max-h-[85vh] z-10 flex flex-col overflow-hidden">
+    <Dialog
+      open={open}
+      onOpenChange={(next) => (next ? onOpenChange(true) : handleClose())}
+    >
+      <DialogContent
+        returnFocusTo={returnFocusTo}
+        // Full-screen sheet on phones, a 700 px panel from `sm` up
+        className="inset-x-0 top-0 translate-y-0 h-dvh max-h-dvh rounded-none sm:inset-x-auto sm:top-1/2 sm:-translate-y-1/2 sm:h-[700px] sm:max-h-[85vh] sm:max-w-3xl sm:rounded-xl p-0 flex flex-col overflow-hidden"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          inputRef.current?.focus();
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-full bg-primary/10">
-              <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
-            </div>
-            <div>
-              <h2 className="font-semibold">AI Book Finder</h2>
-              <p className="text-xs text-muted-foreground">
-                Describe what you want to read
-              </p>
-            </div>
+        <DialogHeader className="flex-row items-center gap-2 space-y-0 p-4 border-b">
+          <div className="p-2 rounded-full bg-primary/10">
+            <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
           </div>
-          <button
-            onClick={handleClose}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
-            aria-label="Close AI book finder"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
-        </div>
+          <div>
+            <DialogTitle className="text-base">Mood Search</DialogTitle>
+            <DialogDescription className="text-xs">
+              Describe what you want to read
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto">
@@ -301,8 +308,8 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
             Powered by AI. Results may vary.
           </p>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
