@@ -22,8 +22,9 @@
 | 3 | Final QA | - | Low | [x] CODE COMPLETE - Verification blocked | - |
 | 4 | Gemini model retired: `gemini-2.0-flash` now 404s | 🔴 Critical | Low | [x] COMPLETE | `lib/ai/models.ts`, 4 call sites |
 | 5 | Sentry DSN carries whitespace: reporting silently off | 🟠 High | Low | [x] CODE COMPLETE - Verification blocked | `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts` |
+| 6 | Gemini 3.6 Flash thinks through its output budget: chat stalls 30 s, blurbs unparseable | 🔴 Critical | Low | [ ] PENDING | `lib/ai/models.ts`, 4 call sites |
 
-**Progress: 3/5 complete (Tasks 1, 3 and 5 wait on the second deploy's production check)**
+**Progress: 3/6 complete (Task 6 deploying; Tasks 3 and 5 wait on production checks)**
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -190,7 +191,7 @@ expect the count to open the list behind it. `StatCard` is also used on
 
 **Verify:**
 - [x] Lint 0/0, typecheck clean
-- [ ] After deploy: no `Invalid Sentry Dsn` in the browser console on `/dashboard` nor in the runtime logs
+- [x] After deploy: no `Invalid Sentry Dsn` in the browser console on `/dashboard` nor in the runtime logs (dpl_5Db1, 14:04 UTC)
 - [ ] User: an event shows up in the Sentry project (trigger a deliberate error if needed)
 
 **Completed Notes:**
@@ -201,6 +202,36 @@ expect the count to open the list behind it. `StatCard` is also used on
 - Still open: the user should also re-enter `NEXT_PUBLIC_SENTRY_DSN` in Vercel so the raw value is clean
 
 **Status:** [x] CODE COMPLETE - Verification blocked (deploy + Sentry event)
+
+---
+
+## Task 6: Gemini 3.6 Flash thinks through its output budget
+
+**Source:** Production check after Task 4's deploy > `POST /api/ai/book-search` returned 200 but the stream went silent after the tool step until `Vercel Runtime Timeout Error: Task timed out after 30 seconds`; `GET /api/ai/curated-picks` 504 with `AI_NoObjectGeneratedError: could not parse the response` per book. A no-tool "reply hello" round-trip took 2.8 s, so the model itself is reachable.
+**Priority:** 🔴 Critical
+**Effort:** Low
+**File(s):** `lib/ai/models.ts`, `app/api/ai/book-search/route.ts`, `app/api/ai/place-search/route.ts`, `app/api/ai/curated-picks/route.ts`, `lib/ai/trending-insights.ts`
+
+**Context:** Gemini 3.x reasons before answering and the thinking tokens count against `maxOutputTokens`. The app's budgets are 120 / 150 / 800 tokens, sized for the non-thinking 2.0 Flash. `@ai-sdk/google` 2.0.51 exposes `thinkingConfig.thinkingLevel` ("minimal" | "low" | "medium" | "high").
+
+**Steps:**
+1. [x] Export `GEMINI_PROVIDER_OPTIONS = { google: { thinkingConfig: { thinkingLevel: "minimal" } } }` from `lib/ai/models.ts`
+2. [x] Pass `providerOptions: GEMINI_PROVIDER_OPTIONS` at the four call sites
+3. [x] Lint, typecheck, AI/API tests (88/88)
+4. [ ] Deploy; re-run the signed-in stream timeline and the curated-picks GET
+
+**Verify:**
+- [ ] `POST /api/ai/book-search` for "the hobbit": tool step + text reply + `finish` + `[DONE]` well inside 30 s
+- [ ] `GET /api/ai/curated-picks` for a fresh reader: 200 with AI-written reasons (not the `Popular … pick` fallback) and no `AI generation failed` in the runtime logs
+- [ ] No new error type in the stream (a rejected `thinkingLevel` would surface as an `error` event)
+
+**Completed Notes:**
+- Files modified:
+- Approach taken:
+- Deviations from plan:
+- Issues encountered:
+
+**Status:** [ ] PENDING
 
 ---
 
@@ -236,3 +267,5 @@ expect the count to open the list behind it. `StatCard` is also used on
 | 2026-09-04 | 1 | ✅ Verified | Deploy dpl_6mBV: same signed-in POST went 403 → 200; stat cards render as links |
 | 2026-09-04 | 4 | ✅ Complete | Found by the prod check: Gemini 2.0 Flash retired → one constant, gemini-3.6-flash |
 | 2026-09-04 | 5 | ✅ Code complete | Found by the prod check: DSN has a mid-string line break → whitespace stripped |
+| 2026-09-04 | 5 | ✅ Verified | Deploy dpl_5Db1: no `Invalid Sentry Dsn` in console or runtime logs; Sentry event still to be seen by the user |
+| 2026-09-04 | 6 | 🚧 Deploying | 8a5ef83: thinkingLevel minimal at all four Gemini call sites |

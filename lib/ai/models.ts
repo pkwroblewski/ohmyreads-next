@@ -15,3 +15,14 @@ export const GEMINI_MODEL = "gemini-3.6-flash";
 export const GEMINI_PROVIDER_OPTIONS = {
   google: { thinkingConfig: { thinkingLevel: "minimal" as const } },
 };
+
+/**
+ * Spread into every Gemini call. `maxRetries: 0` because the SDK honours
+ * Google's `retry-after` (25-55 s on a free-tier 429) and the API routes have
+ * a 30 s budget: with the default two retries a quota hit produced a silent
+ * stall until the function timeout instead of a readable error.
+ */
+export const GEMINI_CALL_OPTIONS = {
+  providerOptions: GEMINI_PROVIDER_OPTIONS,
+  maxRetries: 0,
+};

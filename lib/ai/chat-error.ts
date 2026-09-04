@@ -30,5 +30,9 @@ export function chatErrorMessage(error: { message?: string } | null | undefined)
     }
   }
 
+  if (/quota|rate.?limit|resource_exhausted|high demand|try again later/i.test(text)) {
+    return "The AI assistant is over its request limit right now. Please try again in a minute.";
+  }
+
   return KNOWN[text] ?? text;
 }

@@ -1,6 +1,6 @@
 import { streamText, createUIMessageStreamResponse, UIMessage, stepCountIs } from "ai";
 import { google } from "@ai-sdk/google";
-import { GEMINI_MODEL, GEMINI_PROVIDER_OPTIONS } from "@/lib/ai/models";
+import { GEMINI_MODEL, GEMINI_CALL_OPTIONS } from "@/lib/ai/models";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { NextRequest } from "next/server";
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       toolChoice: "auto",
       stopWhen: stepCountIs(3), // Allow tool call + follow-up response with results
       maxOutputTokens: MAX_REPLY_TOKENS,
-      providerOptions: GEMINI_PROVIDER_OPTIONS,
+      ...GEMINI_CALL_OPTIONS,
     });
 
     // Return as UI message stream for the DefaultChatTransport

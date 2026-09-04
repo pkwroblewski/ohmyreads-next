@@ -1,6 +1,6 @@
 import { generateText, stepCountIs, UIMessage, CoreMessage } from "ai";
 import { google } from "@ai-sdk/google";
-import { GEMINI_MODEL, GEMINI_PROVIDER_OPTIONS } from "@/lib/ai/models";
+import { GEMINI_MODEL, GEMINI_CALL_OPTIONS } from "@/lib/ai/models";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { NextRequest } from "next/server";
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       // book-search), and state the bound explicitly rather than by default.
       stopWhen: stepCountIs(3),
       maxOutputTokens: MAX_REPLY_TOKENS,
-      providerOptions: GEMINI_PROVIDER_OPTIONS,
+      ...GEMINI_CALL_OPTIONS,
     });
 
     // Extract places from tool results if any
