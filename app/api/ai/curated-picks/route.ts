@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
-import { GEMINI_MODEL } from "@/lib/ai/models";
+import { GEMINI_MODEL, GEMINI_PROVIDER_OPTIONS } from "@/lib/ai/models";
 import { unstable_cache } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
@@ -128,6 +128,7 @@ async function generateCuratedPicks(userId: string): Promise<CuratedPick[]> {
           model,
           schema: curatedPickSchema,
           maxOutputTokens: MAX_PICK_TOKENS,
+          providerOptions: GEMINI_PROVIDER_OPTIONS,
           system: `You are a personal book recommender. Generate a very short (10-20 words max) personalized reason why this specific reader might love this book. Be warm, specific, and avoid generic phrases. Focus on emotional appeal or thematic connection. Also classify the match type.`,
           prompt: `Reader profile: ${userContext}
 

@@ -2,7 +2,7 @@ import "server-only";
 
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
-import { GEMINI_MODEL } from "@/lib/ai/models";
+import { GEMINI_MODEL, GEMINI_PROVIDER_OPTIONS } from "@/lib/ai/models";
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { trendingInsightSchema } from "@/lib/ai/schemas";
@@ -103,6 +103,7 @@ async function generateTrendingInsights(): Promise<TrendingInsight[]> {
           model,
           schema: trendingInsightSchema,
           maxOutputTokens: MAX_INSIGHT_TOKENS,
+          providerOptions: GEMINI_PROVIDER_OPTIONS,
           system: `You are a book trend analyst. Generate a very short (15-25 words max) insight about why a book is trending based on recent reader reviews. Focus on themes, emotions, or qualities readers mention. Be specific and engaging. Do not use generic phrases like "readers love" - be more creative.`,
           prompt: `Book: "${book.title}" by ${book.author}
 Genres: ${book.genres?.join(", ") || "Unknown"}
