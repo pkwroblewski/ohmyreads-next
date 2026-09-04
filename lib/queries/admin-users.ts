@@ -144,12 +144,14 @@ export async function adminGetUser(userId: string) {
 
     // Get profile with stats. Since 065 `*` on profiles is refused for the
     // authenticated role (the admin's session client included), so this reads
-    // the public projection, which carries disabled_at.
+    // the public projection, which carries disabled_at. reading_stats is read
+    // separately: its only FK points at auth.users, not profiles, so PostgREST
+    // cannot embed it here (PGRST200) — user_books and reviews carry a second
+    // FK to profiles, which is why their counts can be embedded.
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select(`
         ${PROFILE_PUBLIC_COLUMNS},
-        reading_stats(*),
         user_books(count),
         reviews(count)
       `)
@@ -158,8 +160,13 @@ export async function adminGetUser(userId: string) {
 
     if (profileError) throw profileError;
 
-    // Get recent activity
-    const [recentBooks, recentReviews] = await Promise.all([
+    // Get stats and recent activity
+    const [readingStats, recentBooks, recentReviews] = await Promise.all([
+      supabase
+        .from("reading_stats")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle(),
       supabase
         .from("user_books")
         .select("id, status, created_at, book:books(id, title, author, slug)")
@@ -178,6 +185,7 @@ export async function adminGetUser(userId: string) {
       success: true,
       user: {
         ...profile,
+        reading_stats: readingStats.data,
         books_count: Array.isArray(profile.user_books)
           ? profile.user_books[0]?.count || 0
           : 0,
