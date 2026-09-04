@@ -4,7 +4,7 @@ import { BookOpen, Clock, ExternalLink } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-import { getAllSubmissions } from "@/lib/actions/book-submissions";
+import { getAllSubmissions } from "@/lib/queries/book-submissions";
 import { SubmissionModerationActions } from "@/components/admin/submission-moderation-actions";
 import {
   toAdminParams,

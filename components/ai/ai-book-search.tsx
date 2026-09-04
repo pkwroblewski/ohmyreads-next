@@ -371,7 +371,7 @@ function BookResultCard({ book }: { book: BookResult }) {
 
       const result = await importAndAddToShelf(externalBookData, "want_to_read");
 
-      if (result.error) {
+      if (!result.success) {
         if (result.error === "Not authenticated") {
           router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
           return;

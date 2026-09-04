@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { MapPin, CheckCircle, ExternalLink, Clock } from "lucide-react";
 import { checkAdmin } from "@/lib/auth/require-admin";
-import { getPendingPlaceSubmissions } from "@/lib/actions/places";
+import { getPendingPlaceSubmissions } from "@/lib/queries/places";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlaceModerationActions } from "@/components/admin/place-moderation-actions";
 import { EmptyState } from "@/components/ui/empty-state";

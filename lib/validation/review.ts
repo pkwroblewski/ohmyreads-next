@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ALL_VIBE_TAGS } from "@/types/database";
 
 // Zod enum for vibe tags
-const vibeTagSchema = z.enum(ALL_VIBE_TAGS as unknown as [string, ...string[]]);
+const vibeTagSchema = z.enum(ALL_VIBE_TAGS);
 
 export const createReviewSchema = z
   .object({

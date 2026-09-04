@@ -1,32 +1,30 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { updateReadingGoalSchema } from "@/lib/validation/goal";
 import { logError, reportError } from "@/lib/utils/log";
-export async function updateReadingGoal(targetBooks: number) {
+import type { ActionResult } from "@/types/app";
+export async function updateReadingGoal(targetBooks: number): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 10 goal updates per minute per user
     const { allowed } = await checkRateLimit(`goal:${user.id}`, 10, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = updateReadingGoalSchema.safeParse(targetBooks);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -47,7 +45,7 @@ export async function updateReadingGoal(targetBooks: number) {
     );
 
     if (error) {
-      return { error: reportError("Error updating reading goal", error) };
+      return { success: false, error: reportError("Error updating reading goal", error) };
     }
 
     revalidatePath("/stats");
@@ -56,7 +54,7 @@ export async function updateReadingGoal(targetBooks: number) {
     return { success: true };
   } catch (error) {
     logError("Unexpected error in updateReadingGoal", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 

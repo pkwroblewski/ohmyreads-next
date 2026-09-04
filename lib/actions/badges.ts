@@ -1,32 +1,28 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { checkAndUnlockBadges } from "@/lib/queries/badges";
 import { getBadgeById } from "@/lib/data/badges";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { badgeIdSchema } from "@/lib/validation/badge";
-import { logError, reportError } from "@/lib/utils/log";
+import { logError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
 // Sync badges for the current user (check and unlock any new badges)
-export async function syncUserBadges(): Promise<{
-  newBadges: Array<{ id: string; name: string; icon: string }>;
-  error: string | null;
-}> {
+export async function syncUserBadges(): Promise<
+  ActionResult<{ newBadges: Array<{ id: string; name: string; icon: string }> }>
+> {
   try {
 
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { newBadges: [], error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { user } = auth;
 
     // Rate limit: 20 badge mutations per minute per user
     const { allowed } = await checkRateLimit(`badge:${user.id}`, 20, 60000);
     if (!allowed) {
-      return { newBadges: [], error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     const newlyUnlocked = await checkAndUnlockBadges(user.id);
@@ -46,60 +42,9 @@ export async function syncUserBadges(): Promise<{
       revalidatePath("/stats");
     }
 
-    return { newBadges, error: null };
+    return { success: true, newBadges };
   } catch (error) {
     logError("Error syncing badges", error);
-    return { newBadges: [], error: "An unexpected error occurred" };
-  }
-}
-
-// Remove a badge (if user wants to hide it)
-export async function removeBadge(badgeId: string): Promise<{
-  success: boolean;
-  error: string | null;
-}> {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
-    }
-
-    // Rate limit: 20 badge mutations per minute per user
-    const { allowed } = await checkRateLimit(`badge:${user.id}`, 20, 60000);
-    if (!allowed) {
-      return { success: false, error: "Too many requests. Please wait a moment." };
-    }
-
-    // Validate input with Zod
-    const validationResult = badgeIdSchema.safeParse(badgeId);
-    if (!validationResult.success) {
-      return {
-        success: false,
-        error: validationResult.error.issues[0]?.message || "Invalid input",
-      };
-    }
-
-    const { error } = await supabase
-      .from("user_badges")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("badge_id", badgeId);
-
-    if (error) {
-      return { success: false, error: reportError("Error removing badge", error) };
-    }
-
-    revalidatePath("/profile");
-
-    return { success: true, error: null };
-  } catch (error) {
-    logError("Error removing badge", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }

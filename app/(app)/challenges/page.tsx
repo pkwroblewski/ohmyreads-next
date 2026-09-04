@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Target, Trophy, Clock, CheckCircle2 } from "lucide-react";
 import { getUser } from "@/lib/supabase/server";
-import { getChallenges } from "@/lib/actions/challenges";
+import { getChallenges } from "@/lib/queries/challenges";
 import ChallengeCard from "@/components/challenges/challenge-card";
 import CreateChallengeForm from "@/components/challenges/create-challenge-form";
 import { Card, CardContent } from "@/components/ui/card";

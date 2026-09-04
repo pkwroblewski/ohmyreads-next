@@ -19,7 +19,7 @@ function builder(table: string) {
   const call: Call = { table, args: {} };
   calls.push(call);
   const chain: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "order", "range", "limit", "single", "maybeSingle", "is"]) {
+  for (const m of ["select", "eq", "order", "range", "limit", "overrideTypes", "single", "maybeSingle", "is"]) {
     chain[m] = (...a: unknown[]) => {
       (call.args[m] ??= []).push(a);
       return chain;

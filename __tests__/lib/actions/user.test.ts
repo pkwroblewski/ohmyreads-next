@@ -39,7 +39,7 @@ beforeEach(() => {
 describe("updateProfile", () => {
   it("refuses an anonymous caller and stops at the rate limit", async () => {
     mock = createMockSupabase(null);
-    expect(await updateProfile({ bio: "hi" })).toEqual({ error: "Not authenticated" });
+    expect(await updateProfile({ bio: "hi" })).toEqual({ success: false, error: "Not authenticated" });
 
     mock = createMockSupabase(ME);
     checkRateLimit.mockResolvedValue({ allowed: false });
@@ -53,7 +53,7 @@ describe("updateProfile", () => {
 
     const result = await updateProfile({ username: "ada" });
 
-    expect(result).toEqual({ error: "Username is already taken" });
+    expect(result).toEqual({ success: false, error: "Username is already taken" });
     expect(mock.from).toHaveBeenCalledWith("profiles");
     expect(mock.eq).toHaveBeenCalledWith("username", "ada");
     expect(mock.neq).toHaveBeenCalledWith("id", ME.id);
@@ -107,7 +107,7 @@ describe("updateProfile", () => {
     mock.eq.mockReset();
     mock.eq.mockResolvedValueOnce({ error: { message: "boom" } });
 
-    expect(await updateProfile({ bio: "hi" })).toEqual({ error: "Error updating profile" });
+    expect(await updateProfile({ bio: "hi" })).toEqual({ success: false, error: "Error updating profile" });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

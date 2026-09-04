@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import {
   parseGoodreadsCSV,
   mapGoodreadsShelf,
@@ -90,18 +90,12 @@ export async function importFromGoodreads(
   };
 
   try {
-    const supabase = await createClient();
-
-    // Get current user
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      result.errors.push("Not authenticated");
+    const auth = await requireUser();
+    if (!auth.ok) {
+      result.errors.push(auth.error);
       return result;
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 3 imports per minute per user (imports are heavy)
     const { allowed } = await checkRateLimit(`import:${user.id}`, 3, 60000);

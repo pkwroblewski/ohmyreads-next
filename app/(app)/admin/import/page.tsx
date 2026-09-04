@@ -16,12 +16,8 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  parseCSVForPreview,
-  importBooksFromCSV,
-  type ImportResult,
-} from "@/lib/actions/admin-import";
-import { generateCSVTemplate, type ParsedBookRow } from "@/lib/utils/book-csv-parser";
+import { importBooksFromCSV, type ImportResult } from "@/lib/actions/admin-import";
+import { generateCSVTemplate, parseBookCSV, type ParsedBookRow } from "@/lib/utils/book-csv-parser";
 
 type Step = "upload" | "preview" | "importing" | "results";
 
@@ -49,7 +45,7 @@ export default function AdminImportPage() {
     setLoading(true);
 
     try {
-      const result = await parseCSVForPreview(content);
+      const result = parseBookCSV(content);
 
       if (result.success) {
         setParsedRows(result.rows);

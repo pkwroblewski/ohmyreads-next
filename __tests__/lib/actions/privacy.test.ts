@@ -33,7 +33,8 @@ vi.mock("@/lib/utils/rate-limit", () => ({
 const revalidatePath = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath: (...a: unknown[]) => revalidatePath(...a) }));
 
-import { getEmailPreferences, updateEmailPreferences } from "@/lib/actions/privacy";
+import { updateEmailPreferences } from "@/lib/actions/privacy";
+import { getEmailPreferences } from "@/lib/queries/privacy";
 
 const USER = { id: "550e8400-e29b-41d4-a716-446655440000" };
 

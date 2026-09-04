@@ -1,15 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logError } from "@/lib/utils/log";
 import {
   sendMessageSchema,
   friendIdSchema,
-  messageIdSchema,
 } from "@/lib/validation/message";
+import type { ActionResult } from "@/types/app";
 
 // ============================================
 // SEND MESSAGE
@@ -18,27 +18,18 @@ import {
 export async function sendMessage(
   receiverId: string,
   content: string
-): Promise<{
-  success: boolean;
-  messageId: string | null;
-  error: string | null;
-}> {
+): Promise<ActionResult<{ messageId: string }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, messageId: null, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 30 messages per minute per user
     const { allowed } = await checkRateLimit(`message:${user.id}`, 30, 60000);
     if (!allowed) {
-      return { success: false, messageId: null, error: "Too many messages. Please wait a moment." };
+      return { success: false, error: "Too many messages. Please wait a moment." };
     }
 
     // Validate input with Zod
@@ -49,7 +40,6 @@ export async function sendMessage(
     if (!validationResult.success) {
       return {
         success: false,
-        messageId: null,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -57,7 +47,7 @@ export async function sendMessage(
     const { content: trimmedContent } = validationResult.data;
 
     if (user.id === receiverId) {
-      return { success: false, messageId: null, error: "You cannot message yourself" };
+      return { success: false, error: "You cannot message yourself" };
     }
 
     // Verify friendship (RLS will also check but we provide better error message)
@@ -69,7 +59,7 @@ export async function sendMessage(
       .single();
 
     if (!friendship) {
-      return { success: false, messageId: null, error: "You can only message friends" };
+      return { success: false, error: "You can only message friends" };
     }
 
     // Insert message
@@ -85,13 +75,13 @@ export async function sendMessage(
 
     if (error) {
       logError("Error sending message", error);
-      return { success: false, messageId: null, error: "Failed to send message" };
+      return { success: false, error: "Failed to send message" };
     }
 
-    return { success: true, messageId: message.id, error: null };
+    return { success: true, messageId: message.id };
   } catch (error) {
     logError("Unexpected error in sendMessage", error);
-    return { success: false, messageId: null, error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -99,21 +89,13 @@ export async function sendMessage(
 // MARK MESSAGES AS READ
 // ============================================
 
-export async function markMessagesAsRead(friendId: string): Promise<{
-  success: boolean;
-  error: string | null;
-}> {
+export async function markMessagesAsRead(friendId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Validate input with Zod
     const validationResult = friendIdSchema.safeParse(friendId);
@@ -153,7 +135,7 @@ export async function markMessagesAsRead(friendId: string): Promise<{
 
     revalidatePath("/");
 
-    return { success: true, error: null };
+    return { success: true };
   } catch (error) {
     logError("Unexpected error in markMessagesAsRead", error);
     return { success: false, error: "An unexpected error occurred" };
@@ -163,47 +145,3 @@ export async function markMessagesAsRead(friendId: string): Promise<{
 // ============================================
 // DELETE MESSAGE
 // ============================================
-
-export async function deleteMessage(messageId: string): Promise<{
-  success: boolean;
-  error: string | null;
-}> {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
-    }
-
-    // Validate input with Zod
-    const validationResult = messageIdSchema.safeParse(messageId);
-    if (!validationResult.success) {
-      return {
-        success: false,
-        error: validationResult.error.issues[0]?.message || "Invalid input",
-      };
-    }
-
-    // Delete message (RLS ensures only sender can delete)
-    const { error } = await supabase
-      .from("direct_messages")
-      .delete()
-      .eq("id", messageId)
-      .eq("sender_id", user.id);
-
-    if (error) {
-      logError("Error deleting message", error);
-      return { success: false, error: "Failed to delete message" };
-    }
-
-    return { success: true, error: null };
-  } catch (error) {
-    logError("Unexpected error in deleteMessage", error);
-    return { success: false, error: "An unexpected error occurred" };
-  }
-}

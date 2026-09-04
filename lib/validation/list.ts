@@ -20,17 +20,6 @@ export const createListSchema = z.object({
   visibility: visibilitySchema.optional(),
 });
 
-export const updateListSchema = z.object({
-  listId: listIdSchema,
-  title: listTitleSchema.optional(),
-  description: z
-    .string()
-    .trim()
-    .max(2000, "Description must be less than 2000 characters")
-    .optional(),
-  visibility: visibilitySchema.optional(),
-});
-
 export const addBookToListSchema = z.object({
   listId: listIdSchema,
   bookId: z.string().uuid("Invalid book ID"),
@@ -47,6 +36,5 @@ export const removeBookFromListSchema = z.object({
 });
 
 export type CreateListInput = z.infer<typeof createListSchema>;
-export type UpdateListInput = z.infer<typeof updateListSchema>;
 export type AddBookToListInput = z.infer<typeof addBookToListSchema>;
 export type RemoveBookFromListInput = z.infer<typeof removeBookFromListSchema>;

@@ -329,6 +329,7 @@ async function cacheOsmPlaces(
       .upsert({
         geohash_prefix: geohashPrefix,
         place_type: placeType,
+        // JSON column write, not a join: interfaces have no index signature
         data: places as unknown as Json,
         fetched_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h

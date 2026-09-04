@@ -100,16 +100,16 @@ export function ChatWindow({
     try {
       const result = await sendMessage(friend.id, content);
 
-      if (result.error) {
+      if (!result.success) {
         // Remove optimistic message on error
         setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
         toast.error(result.error);
         setInputValue(content); // Restore input
-      } else if (result.messageId) {
+      } else {
         // Update optimistic message with real ID from server
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === optimisticMessage.id ? { ...m, id: result.messageId! } : m
+            m.id === optimisticMessage.id ? { ...m, id: result.messageId } : m
           )
         );
       }

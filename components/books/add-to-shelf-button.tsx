@@ -64,10 +64,9 @@ export function AddToShelfButton({
       }
     }
 
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
+    if (!isOpen) return;
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
   // Keyboard navigation
@@ -122,7 +121,7 @@ export function AddToShelfButton({
     startTransition(async () => {
       const result = await addToShelf(bookId, newStatus);
 
-      if (result.error) {
+      if (!result.success) {
         // Redirect to login if not authenticated
         if (result.error === "Not authenticated") {
           router.push(`/login?redirect=${encodeURIComponent(pathname)}`);

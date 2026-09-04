@@ -13,7 +13,7 @@ import {
   adminGetBooks,
   adminGetGenres,
   type BookFilters,
-} from "@/lib/actions/admin-books";
+} from "@/lib/queries/admin-books";
 import {
   toAdminParams,
   readPage,

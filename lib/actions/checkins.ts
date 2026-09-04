@@ -2,16 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, invalidateTags } from "@/lib/cache/tags";
-import { createClient, getUser } from "@/lib/supabase/server";
-import { checkRateLimit, getRateLimitStatus } from "@/lib/utils/rate-limit";
+import { requireUser } from "@/lib/auth/require-user";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   createCheckinSchema,
-  checkinIdSchema,
   placeIdSchema,
-  checkinUserIdSchema,
 } from "@/lib/validation/checkin";
-import type { CheckinWithRelations, UserCheckinStats } from "@/types/database";
+import type { CheckinWithRelations } from "@/types/database";
 import { logError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
+import { createClient } from "@/lib/supabase/server";
 
 // ============================================
 // CONSTANTS
@@ -29,12 +29,10 @@ interface CreateCheckinInput {
   note?: string | null;
 }
 
-interface CreateCheckinResult {
-  success?: boolean;
-  checkinId?: string;
-  newBadges?: Array<{ id: string; name: string; icon: string }>;
-  error?: string;
-}
+type CreateCheckinResult = ActionResult<{
+  checkinId: string;
+  newBadges: Array<{ id: string; name: string; icon: string }>;
+}>;
 
 // ============================================
 // CREATE CHECK-IN
@@ -46,21 +44,17 @@ interface CreateCheckinResult {
  */
 export async function createCheckin(input: CreateCheckinInput): Promise<CreateCheckinResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "You must be logged in to check in" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: "You must be logged in to check in" };
     }
+    const { supabase, user } = auth;
 
     // Validate input with Zod (before the rate limit — its key embeds placeId)
     const validationResult = createCheckinSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -73,6 +67,7 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
     if (!allowed) {
       const hoursRemaining = Math.ceil(resetIn / (60 * 60 * 1000));
       return {
+        success: false,
         error: `You've already checked in here recently. Try again in ${hoursRemaining} hour${hoursRemaining !== 1 ? "s" : ""}.`,
       };
     }
@@ -85,7 +80,7 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
       .single();
 
     if (placeError || !place) {
-      return { error: "Place not found" };
+      return { success: false, error: "Place not found" };
     }
 
     // Validate book if provided
@@ -97,7 +92,7 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
         .single();
 
       if (bookError || !book) {
-        return { error: "Book not found" };
+        return { success: false, error: "Book not found" };
       }
     }
 
@@ -115,7 +110,7 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
 
     if (error) {
       logError("Error creating check-in", error);
-      return { error: "Failed to create check-in" };
+      return { success: false, error: "Failed to create check-in" };
     }
 
     // Check for new badges (after stats are updated by trigger)
@@ -133,7 +128,7 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
     };
   } catch (error) {
     logError("Error in createCheckin", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -226,149 +221,13 @@ export async function getPlaceCheckins(
 // GET USER CHECK-IN STATS
 // ============================================
 
-/**
- * Get user's check-in stats (for streaks)
- */
-export async function getUserCheckinStats(userId: string): Promise<{ stats: UserCheckinStats | null }> {
-  try {
-    // Read-only: validate id param only
-    if (!checkinUserIdSchema.safeParse(userId).success) {
-      return { stats: null };
-    }
-
-    const supabase = await createClient();
-
-    const { data, error } = await supabase
-      .from("user_checkin_stats")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
-
-    if (error && error.code !== "PGRST116") {
-      // PGRST116 = not found, which is OK
-      logError("Error fetching check-in stats", error);
-    }
-
-    if (!data) {
-      return {
-        stats: {
-          user_id: userId,
-          total_checkins: 0,
-          current_streak: 0,
-          longest_streak: 0,
-          last_checkin_date: null,
-          updated_at: new Date().toISOString(),
-        },
-      };
-    }
-
-    return { stats: data };
-  } catch (error) {
-    logError("Error in getUserCheckinStats", error);
-    return { stats: null };
-  }
-}
-
 // ============================================
 // CAN CHECK-IN AT PLACE
 // ============================================
 
-/**
- * Check if user can check in at a place (rate limit check)
- */
-export async function canCheckinAtPlace(
-  placeId: string
-): Promise<{ canCheckin: boolean; reason?: string; hoursRemaining?: number }> {
-  try {
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { canCheckin: false, reason: "not_authenticated" };
-    }
-
-    const rateLimitKey = `checkin:${user.id}:${placeId}`;
-    const status = await getRateLimitStatus(rateLimitKey, 1);
-
-    if (status && status.remaining === 0) {
-      const hoursRemaining = Math.ceil(status.resetIn / (60 * 60 * 1000));
-      return {
-        canCheckin: false,
-        reason: "rate_limited",
-        hoursRemaining,
-      };
-    }
-
-    return { canCheckin: true };
-  } catch (error) {
-    logError("Error in canCheckinAtPlace", error);
-    return { canCheckin: false, reason: "error" };
-  }
-}
-
 // ============================================
 // DELETE CHECK-IN
 // ============================================
-
-/**
- * Delete a check-in (user can only delete their own)
- */
-export async function deleteCheckin(checkinId: string): Promise<{ success?: boolean; error?: string }> {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "You must be logged in" };
-    }
-
-    // Validate input with Zod
-    const validationResult = checkinIdSchema.safeParse(checkinId);
-    if (!validationResult.success) {
-      return {
-        error: validationResult.error.issues[0]?.message || "Invalid input",
-      };
-    }
-
-    // Check ownership
-    const { data: checkin, error: fetchError } = await supabase
-      .from("place_checkins")
-      .select("id, user_id")
-      .eq("id", checkinId)
-      .single();
-
-    if (fetchError || !checkin) {
-      return { error: "Check-in not found" };
-    }
-
-    if (checkin.user_id !== user.id) {
-      return { error: "You can only delete your own check-ins" };
-    }
-
-    const { error } = await supabase.from("place_checkins").delete().eq("id", checkinId);
-
-    if (error) {
-      logError("Error deleting check-in", error);
-      return { error: "Failed to delete check-in" };
-    }
-
-    // A trigger writes the check-in into activity_feed, staling the cached feed.
-    invalidateTags(CACHE_TAGS.activity);
-    revalidatePath("/community");
-    revalidatePath("/community/map");
-
-    return { success: true };
-  } catch (error) {
-    logError("Error in deleteCheckin", error);
-    return { error: "An unexpected error occurred" };
-  }
-}
 
 // ============================================
 // CHECK AND UNLOCK CHECK-IN BADGES

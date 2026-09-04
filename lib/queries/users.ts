@@ -35,27 +35,6 @@ export const getProfileByUsername = cache(async function getProfileByUsername(
 });
 
 /**
- * Get profile by user ID
- */
-export async function getProfileById(userId: string): Promise<Profile | null> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(PROFILE_PUBLIC_COLUMNS)
-    .eq("id", userId)
-    .single();
-
-  if (error) {
-    logError("Error fetching profile", error);
-    return null;
-  }
-
-  // Public projection only: the private columns are absent, not null (065).
-  return data as Profile;
-}
-
-/**
  * Get user statistics
  */
 export async function getUserStats(userId: string) {
@@ -157,14 +136,15 @@ export async function getUserBooks(
 
   query = query.range(offset, offset + limit - 1);
 
-  const { data, error, count } = await query;
+  // `columns` is built at runtime, so the select cannot infer the join shape
+  const { data, error, count } = await query.overrideTypes<UserBookWithBook[], { merge: false }>();
 
   if (error) {
     logError("Error fetching user books", error);
     return { userBooks: [], total: 0 };
   }
 
-  return { userBooks: (data || []) as unknown as UserBookWithBook[], total: count || 0 };
+  return { userBooks: data ?? [], total: count || 0 };
 }
 
 // Type for review with book info
@@ -177,62 +157,6 @@ type ReviewWithBook = ReviewWithUser & {
     author: string;
   };
 };
-
-/**
- * Get user's reviews with pagination
- */
-export async function getUserReviewsPaginated(
-  userId: string,
-  options: {
-    page?: number;
-    limit?: number;
-    minRating?: number;
-  } = {}
-): Promise<{ reviews: ReviewWithBook[]; total: number }> {
-  const { page = 1, limit = 10, minRating } = options;
-  const offset = (page - 1) * limit;
-
-  const supabase = await createClient();
-
-  let query = supabase
-    .from("reviews")
-    .select(
-      `
-      id,
-      user_id,
-      book_id,
-      content,
-      summary,
-      liked,
-      disliked,
-      takeaway,
-      rating,
-      likes_count,
-      is_spoiler,
-      created_at,
-      updated_at,
-      book:books(id, title, slug, cover_url, author)
-    `,
-      { count: "exact" }
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (minRating) {
-    query = query.gte("rating", minRating);
-  }
-
-  query = query.range(offset, offset + limit - 1);
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    logError("Error fetching user reviews", error);
-    return { reviews: [], total: 0 };
-  }
-
-  return { reviews: (data as unknown as ReviewWithBook[]) || [], total: count || 0 };
-}
 
 /**
  * Get user's reviews (simple, for profile page)
@@ -265,14 +189,16 @@ async function fetchUserReviews(
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(limit)
+    // The declared type predates the select: book is a 5-column subset
+    .overrideTypes<ReviewWithBook[], { merge: false }>();
 
   if (error) {
     logError("Error fetching user reviews", error);
     return [];
   }
 
-  return (data as unknown as ReviewWithBook[]) || [];
+  return data ?? [];
 }
 
 /**

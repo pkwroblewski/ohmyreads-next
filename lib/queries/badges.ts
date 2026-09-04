@@ -61,14 +61,6 @@ export async function getUserBadgesWithDefinitions(
   });
 }
 
-// Get only unlocked badges for a user (for profile display)
-export async function getUnlockedBadges(
-  userId: string
-): Promise<UserBadgeWithDefinition[]> {
-  const allBadges = await getUserBadgesWithDefinitions(userId);
-  return allBadges.filter((b) => b.unlocked);
-}
-
 // Calculate stats needed for badge unlock checks
 async function calculateBadgeStats(userId: string): Promise<BadgeStats> {
   const supabase = await createClient();
@@ -288,78 +280,4 @@ export async function checkAndUnlockBadges(userId: string): Promise<string[]> {
   }
 
   return (data || []).map((row) => row.badge_id);
-}
-
-// Get badge unlock progress for a user (for showing how close they are)
-export async function getBadgeProgress(
-  userId: string
-): Promise<
-  Array<{ badge: BadgeDefinition; progress: number; current: number; target: number }>
-> {
-  const stats = await calculateBadgeStats(userId);
-  const userBadges = await getUserBadges(userId);
-  const unlockedIds = new Set(userBadges.map((b) => b.badge_id));
-
-  const progressList: Array<{
-    badge: BadgeDefinition;
-    progress: number;
-    current: number;
-    target: number;
-  }> = [];
-
-  for (const badge of BADGES) {
-    // Skip already unlocked
-    if (unlockedIds.has(badge.id)) continue;
-
-    const { criteria } = badge;
-    let current = 0;
-    let target = 0;
-
-    if (criteria.booksRead !== undefined) {
-      current = stats.booksRead;
-      target = criteria.booksRead;
-    } else if (criteria.pagesRead !== undefined) {
-      current = stats.pagesRead;
-      target = criteria.pagesRead;
-    } else if (criteria.reviewsWritten !== undefined) {
-      current = stats.reviewsWritten;
-      target = criteria.reviewsWritten;
-    } else if (criteria.fiveStarReviews !== undefined) {
-      current = stats.fiveStarReviews;
-      target = criteria.fiveStarReviews;
-    } else if (criteria.challengesCompleted !== undefined) {
-      current = stats.challengesCompleted;
-      target = criteria.challengesCompleted;
-    } else if (criteria.genreBooksRead !== undefined) {
-      current = stats.genreCounts[criteria.genreBooksRead.genre] || 0;
-      target = criteria.genreBooksRead.count;
-    } else if (criteria.booksInOneYear !== undefined) {
-      current = stats.booksThisYear;
-      target = criteria.booksInOneYear;
-    } else if (criteria.booksInOneMonth !== undefined) {
-      current = stats.booksThisMonth;
-      target = criteria.booksInOneMonth;
-    } else if (criteria.accountAgeDays !== undefined) {
-      current = stats.accountAgeDays;
-      target = criteria.accountAgeDays;
-    } else if (criteria.totalCheckins !== undefined) {
-      current = stats.totalCheckins;
-      target = criteria.totalCheckins;
-    } else if (criteria.checkinStreak !== undefined) {
-      current = stats.checkinStreak;
-      target = criteria.checkinStreak;
-    }
-
-    if (target > 0) {
-      progressList.push({
-        badge,
-        progress: Math.min(100, Math.round((current / target) * 100)),
-        current,
-        target,
-      });
-    }
-  }
-
-  // Sort by progress (closest to unlocking first)
-  return progressList.sort((a, b) => b.progress - a.progress);
 }

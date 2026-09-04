@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { adminDeleteReview } from "@/lib/actions/admin-reviews";
-import type { ReviewWithDetails } from "@/lib/actions/admin-reviews";
+import type { ReviewWithDetails } from "@/lib/queries/admin-reviews";
 
 interface ReviewRowActionsProps {
   review: ReviewWithDetails;

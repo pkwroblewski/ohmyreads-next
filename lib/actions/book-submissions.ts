@@ -2,22 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { checkAdmin } from "@/lib/auth/require-admin";
 import {
   createBookSubmissionSchema,
-  updateBookSubmissionSchema,
   moderateBookSubmissionSchema,
-  submissionIdSchema,
   type CreateBookSubmissionInput,
-  type UpdateBookSubmissionInput,
   type ModerateBookSubmissionInput,
 } from "@/lib/validation/book-submission";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { generateSlug } from "@/lib/utils/slug";
-import type { BookSubmissionWithSubmitter } from "@/types/database";
 import { logError, logger } from "@/lib/utils/log";
+import type { createClient } from "@/lib/supabase/server";
+import type { ActionResult } from "@/types/app";
 
 // Helper function to ensure unique slug
 async function ensureUniqueSlug(
@@ -68,19 +66,13 @@ async function ensureUniqueSlug(
 /**
  * Submit a new book for review/moderation
  */
-export async function submitBook(input: CreateBookSubmissionInput) {
+export async function submitBook(input: CreateBookSubmissionInput): Promise<ActionResult<{ submissionId: string; message: string }>> {
   try {
-    const supabase = await createClient();
-
-    // Get current user
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "You must be logged in to submit a book" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: "You must be logged in to submit a book" };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 10 submissions per minute per user
     const { allowed } = await checkRateLimit(
@@ -89,13 +81,14 @@ export async function submitBook(input: CreateBookSubmissionInput) {
       60000
     );
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = createBookSubmissionSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -118,6 +111,7 @@ export async function submitBook(input: CreateBookSubmissionInput) {
 
     if (existingSubmission) {
       return {
+        success: false,
         error: "You already have a pending submission for this book",
       };
     }
@@ -148,7 +142,7 @@ export async function submitBook(input: CreateBookSubmissionInput) {
 
     if (error) {
       logError("Error submitting book", error);
-      return { error: "Failed to submit book. Please try again." };
+      return { success: false, error: "Failed to submit book. Please try again." };
     }
 
     // Revalidate relevant paths
@@ -162,221 +156,7 @@ export async function submitBook(input: CreateBookSubmissionInput) {
     };
   } catch (error) {
     logError("Error in submitBook", error);
-    return { error: "An unexpected error occurred" };
-  }
-}
-
-/**
- * Update a pending book submission (only by submitter)
- */
-export async function updateBookSubmission(
-  submissionId: string,
-  input: UpdateBookSubmissionInput
-) {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
-    }
-
-    // Rate limit: 20 submission updates per minute per user
-    const { allowed } = await checkRateLimit(
-      `submission:update:${user.id}`,
-      20,
-      60000
-    );
-    if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
-    }
-
-    // Validate input
-    const idValidation = submissionIdSchema.safeParse(submissionId);
-    if (!idValidation.success) {
-      return {
-        error: idValidation.error.issues[0]?.message || "Invalid input",
-      };
-    }
-    const validationResult = updateBookSubmissionSchema.safeParse(input);
-    if (!validationResult.success) {
-      return {
-        error: validationResult.error.issues[0]?.message || "Invalid input",
-      };
-    }
-
-    const data = validationResult.data;
-
-    // Verify ownership and status
-    const { data: submission } = await supabase
-      .from("book_submissions")
-      .select("submitted_by, status, slug")
-      .eq("id", submissionId)
-      .single();
-
-    if (!submission) {
-      return { error: "Submission not found" };
-    }
-
-    if (submission.submitted_by !== user.id) {
-      return { error: "Not authorized to edit this submission" };
-    }
-
-    if (submission.status !== "pending") {
-      return { error: "Cannot edit a submission that is no longer pending" };
-    }
-
-    // Prepare update data
-    const updateData: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
-    };
-
-    if (data.title !== undefined) {
-      updateData.title = data.title;
-      // Update slug if title changed
-      const baseSlug = generateSlug(data.title);
-      updateData.slug = await ensureUniqueSlug(supabase, baseSlug, submissionId);
-    }
-    if (data.author !== undefined) updateData.author = data.author;
-    if (data.isbn !== undefined) updateData.isbn = data.isbn || null;
-    if (data.description !== undefined)
-      updateData.description = data.description || null;
-    if (data.coverUrl !== undefined)
-      updateData.cover_url = data.coverUrl || null;
-    if (data.genres !== undefined) updateData.genres = data.genres;
-    if (data.publishedDate !== undefined)
-      updateData.published_date = data.publishedDate || null;
-    if (data.pageCount !== undefined)
-      updateData.page_count = data.pageCount || null;
-
-    const { error } = await supabase
-      .from("book_submissions")
-      .update(updateData)
-      .eq("id", submissionId);
-
-    if (error) {
-      logError("Error updating submission", error);
-      return { error: "Failed to update submission" };
-    }
-
-    revalidatePath("/submit-book");
-    revalidatePath("/dashboard");
-
-    return { success: true };
-  } catch (error) {
-    logError("Error in updateBookSubmission", error);
-    return { error: "An unexpected error occurred" };
-  }
-}
-
-/**
- * Delete a pending book submission (only by submitter)
- */
-export async function deleteBookSubmission(submissionId: string) {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
-    }
-
-    // Rate limit: 20 submission deletes per minute per user
-    const { allowed } = await checkRateLimit(
-      `submission:delete:${user.id}`,
-      20,
-      60000
-    );
-    if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
-    }
-
-    // Validate input with Zod
-    const validationResult = submissionIdSchema.safeParse(submissionId);
-    if (!validationResult.success) {
-      return {
-        error: validationResult.error.issues[0]?.message || "Invalid input",
-      };
-    }
-
-    // Verify ownership and status
-    const { data: submission } = await supabase
-      .from("book_submissions")
-      .select("submitted_by, status")
-      .eq("id", submissionId)
-      .single();
-
-    if (!submission) {
-      return { error: "Submission not found" };
-    }
-
-    if (submission.submitted_by !== user.id) {
-      return { error: "Not authorized to delete this submission" };
-    }
-
-    if (submission.status !== "pending") {
-      return { error: "Cannot delete a submission that is no longer pending" };
-    }
-
-    const { error } = await supabase
-      .from("book_submissions")
-      .delete()
-      .eq("id", submissionId);
-
-    if (error) {
-      logError("Error deleting submission", error);
-      return { error: "Failed to delete submission" };
-    }
-
-    revalidatePath("/submit-book");
-    revalidatePath("/dashboard");
-
-    return { success: true };
-  } catch (error) {
-    logError("Error in deleteBookSubmission", error);
-    return { error: "An unexpected error occurred" };
-  }
-}
-
-/**
- * Get user's book submissions
- */
-export async function getUserSubmissions() {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated", submissions: [] };
-    }
-
-    const { data: submissions, error } = await supabase
-      .from("book_submissions")
-      .select("*")
-      .eq("submitted_by", user.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      logError("Error fetching submissions", error);
-      return { error: "Failed to fetch submissions", submissions: [] };
-    }
-
-    return { submissions: submissions || [] };
-  } catch (error) {
-    logError("Error in getUserSubmissions", error);
-    return { error: "An unexpected error occurred", submissions: [] };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -385,57 +165,16 @@ export async function getUserSubmissions() {
 // ============================================
 
 /**
- * Get pending submissions (admin only)
- */
-export async function getPendingSubmissions() {
-  try {
-    const admin = await checkAdmin();
-
-    if (!admin.ok) {
-      return { error: admin.error, submissions: [] };
-    }
-
-    const { supabase } = admin;
-
-    const { data: submissions, error } = await supabase
-      .from("book_submissions")
-      .select(
-        `
-        *,
-        submitter:profiles!book_submissions_submitted_by_profiles_fkey(
-          id,
-          username,
-          display_name,
-          avatar_url
-        )
-      `
-      )
-      .eq("status", "pending")
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      logError("Error fetching pending submissions", error);
-      return { error: "Failed to fetch submissions", submissions: [] };
-    }
-
-    // DB stores status/cover_source as plain text; narrow to the app unions at the boundary
-    return { submissions: (submissions as BookSubmissionWithSubmitter[]) || [] };
-  } catch (error) {
-    logError("Error in getPendingSubmissions", error);
-    return { error: "An unexpected error occurred", submissions: [] };
-  }
-}
-
-/**
  * Moderate a book submission (approve/reject) - admin only
  */
-export async function moderateSubmission(input: ModerateBookSubmissionInput) {
+export async function moderateSubmission(input: ModerateBookSubmissionInput): Promise<ActionResult<{ action: "approved" | "rejected"; bookId?: string }>> {
   try {
     const admin = await checkAdmin();
 
     if (!admin.ok) {
       // This one keeps its own wording for the authorization case.
       return {
+        success: false,
         error:
           admin.reason === "unauthorized"
             ? "Not authorized to moderate submissions"
@@ -448,13 +187,14 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
     // Rate limit: 30 admin mutations per minute per admin
     const { allowed } = await checkRateLimit(`admin:${user.id}`, 30, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input
     const validationResult = moderateBookSubmissionSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -469,11 +209,11 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
       .single();
 
     if (!submission) {
-      return { error: "Submission not found" };
+      return { success: false, error: "Submission not found" };
     }
 
     if (submission.status !== "pending") {
-      return { error: "Submission has already been moderated" };
+      return { success: false, error: "Submission has already been moderated" };
     }
 
     if (action === "reject") {
@@ -492,11 +232,11 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
 
       if (error) {
         logError("Error rejecting submission", error);
-        return { error: "Failed to reject submission" };
+        return { success: false, error: "Failed to reject submission" };
       }
       if (!rejected || rejected.length === 0) {
         logger.error("Submission reject changed no rows", { submissionId });
-        return { error: "Nothing was changed" };
+        return { success: false, error: "Nothing was changed" };
       }
 
       // Audit log
@@ -529,7 +269,7 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
 
     if (approveError) {
       logError("Error approving submission", approveError);
-      return { error: "Failed to approve submission" };
+      return { success: false, error: "Failed to approve submission" };
     }
 
     // Get the created book's slug for revalidation
@@ -565,7 +305,7 @@ export async function moderateSubmission(input: ModerateBookSubmissionInput) {
     return { success: true, action: "approved", bookId: bookId };
   } catch (error) {
     logError("Error in moderateSubmission", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -591,54 +331,5 @@ export async function rejectBookSubmission(
     action: "reject",
     rejectionReason,
   });
-}
-
-/**
- * Get all submissions with filters (admin only)
- */
-export async function getAllSubmissions(
-  status?: "pending" | "approved" | "rejected"
-) {
-  try {
-    const admin = await checkAdmin();
-
-    if (!admin.ok) {
-      return { error: admin.error, submissions: [] };
-    }
-
-    const { supabase } = admin;
-
-    let query = supabase
-      .from("book_submissions")
-      .select(
-        `
-        *,
-        submitter:profiles!book_submissions_submitted_by_profiles_fkey(
-          id,
-          username,
-          display_name,
-          avatar_url
-        )
-      `
-      )
-      .order("created_at", { ascending: false });
-
-    if (status) {
-      query = query.eq("status", status);
-    }
-
-    const { data: submissions, error } = await query;
-
-    if (error) {
-      logError("Error fetching submissions", error);
-      return { error: "Failed to fetch submissions", submissions: [] };
-    }
-
-    // DB stores status/cover_source as plain text; narrow to the app unions at the boundary
-    return { submissions: (submissions as BookSubmissionWithSubmitter[]) || [] };
-  } catch (error) {
-    logError("Error in getAllSubmissions", error);
-    return { error: "An unexpected error occurred", submissions: [] };
-  }
 }
 

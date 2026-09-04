@@ -85,10 +85,9 @@ export function BookBrowser({
       }
     }
 
-    if (showSortDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
+    if (!showSortDropdown) return;
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showSortDropdown]);
 
   // Fetch books from API

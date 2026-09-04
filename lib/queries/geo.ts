@@ -1,7 +1,7 @@
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getNeighbors, isValidGeohash } from "@/lib/utils/geohash";
-import { logError, logger } from "@/lib/utils/log";
+import { logError } from "@/lib/utils/log";
 // ============================================
 // TYPES
 // ============================================
@@ -200,28 +200,10 @@ export async function getCachedPlaces(
 
   const isStale = new Date(data.expires_at) < new Date();
   return {
+    // JSON column round-trip, not a join: the row type is `Json`
     data: data.data as unknown as CachedPlaceData[],
     isStale,
   };
-}
-
-/**
- * Save OSM places to cache
- * Note: This should be called from API routes using service role
- */
-export async function savePlacesCache(
-  geohashPrefix: string,
-  placeType: string,
-  places: CachedPlaceData[]
-): Promise<boolean> {
-  // This function will be called from API routes with admin client
-  // The actual implementation is in the API route
-  logger.debug("Place caching is handled by the API route, not here", {
-    placeCount: places.length,
-    placeType,
-    geohashPrefix,
-  });
-  return true;
 }
 
 // ============================================

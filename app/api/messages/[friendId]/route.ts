@@ -5,7 +5,7 @@ import { friendIdSchema } from "@/lib/validation/message";
 import { logError } from "@/lib/utils/log";
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ friendId: string }> }
 ) {
   try {

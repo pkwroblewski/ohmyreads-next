@@ -1,17 +1,17 @@
 "use server";
 
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   createListSchema,
-  updateListSchema,
   addBookToListSchema,
   removeBookFromListSchema,
   listIdSchema,
 } from "@/lib/validation/list";
 import type { ListVisibility } from "@/types/database";
 import { logError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
 
 interface CreateListInput {
   title: string;
@@ -21,16 +21,12 @@ interface CreateListInput {
 
 export async function createList(
   input: CreateListInput
-): Promise<{ success: boolean; listId?: string; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
+): Promise<ActionResult<{ listId: string }>> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
+  const { supabase, user } = auth;
 
   // Rate limit: 10 list creations per minute per user
   const { allowed } = await checkRateLimit(`list:create:${user.id}`, 10, 60000);
@@ -84,124 +80,16 @@ export async function createList(
   return { success: true, listId: list.id };
 }
 
-export async function updateList(
-  listId: string,
-  updates: { title?: string; description?: string; visibility?: ListVisibility }
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
-  }
-
-  // Rate limit: 20 list updates per minute per user
-  const { allowed } = await checkRateLimit(`list:update:${user.id}`, 20, 60000);
-  if (!allowed) {
-    return { success: false, error: "Too many requests. Please wait a moment." };
-  }
-
-  // Validate input with Zod
-  const validationResult = updateListSchema.safeParse({ listId, ...updates });
-  if (!validationResult.success) {
-    return {
-      success: false,
-      error: validationResult.error.issues[0]?.message || "Invalid input",
-    };
-  }
-
-  const data = validationResult.data;
-
-  // Verify ownership
-  const { data: list } = await supabase
-    .from("reading_lists")
-    .select("user_id")
-    .eq("id", data.listId)
-    .single();
-
-  if (!list || list.user_id !== user.id) {
-    return { success: false, error: "Not authorized" };
-  }
-
-  const updateData: Record<string, unknown> = {};
-  if (data.title) updateData.title = data.title;
-  if (data.description !== undefined) updateData.description = data.description || null;
-  if (data.visibility) updateData.visibility = data.visibility;
-
-  const { error } = await supabase
-    .from("reading_lists")
-    .update(updateData)
-    .eq("id", data.listId);
-
-  if (error) {
-    logError("Error updating list", error);
-    return { success: false, error: "Failed to update list" };
-  }
-
-  revalidatePath("/lists");
-  return { success: true };
-}
-
-export async function deleteList(
-  listId: string
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
-  }
-
-  // Rate limit: 20 list deletes per minute per user
-  const { allowed } = await checkRateLimit(`list:delete:${user.id}`, 20, 60000);
-  if (!allowed) {
-    return { success: false, error: "Too many requests. Please wait a moment." };
-  }
-
-  // Validate input with Zod
-  const validationResult = listIdSchema.safeParse(listId);
-  if (!validationResult.success) {
-    return {
-      success: false,
-      error: validationResult.error.issues[0]?.message || "Invalid input",
-    };
-  }
-
-  const { error } = await supabase
-    .from("reading_lists")
-    .delete()
-    .eq("id", listId)
-    .eq("user_id", user.id);
-
-  if (error) {
-    logError("Error deleting list", error);
-    return { success: false, error: "Failed to delete list" };
-  }
-
-  revalidatePath("/lists");
-  return { success: true };
-}
-
 export async function addBookToList(
   listId: string,
   bookId: string,
   note?: string
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
+  const { supabase, user } = auth;
 
   // Rate limit: 30 list-book toggles per minute per user
   const { allowed } = await checkRateLimit(`list:book:${user.id}`, 30, 60000);
@@ -275,16 +163,12 @@ export async function addBookToList(
 export async function removeBookFromList(
   listId: string,
   bookId: string
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
+  const { supabase, user } = auth;
 
   // Rate limit: 30 list-book toggles per minute per user
   const { allowed } = await checkRateLimit(`list:book:${user.id}`, 30, 60000);
@@ -330,16 +214,12 @@ export async function removeBookFromList(
 
 export async function likeList(
   listId: string
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
+  const { supabase, user } = auth;
 
   // Rate limit: 30 like toggles per minute per user
   const { allowed } = await checkRateLimit(`list:like:${user.id}`, 30, 60000);

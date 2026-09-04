@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
@@ -575,15 +574,3 @@ export async function browseReaders(options: {
 // ============================================
 // SIDEBAR RECOMMENDATIONS
 // ============================================
-
-/**
- * Get sidebar recommendations with compatibility (cached)
- */
-/**
- * Per-user and cookie-dependent (own taste + following list), so it cannot go
- * in unstable_cache — that combination throws. React cache() gives
- * request-level deduplication instead, which is the useful part here anyway.
- */
-export const getSidebarRecommendations = cache(async (userId: string) => {
-  return getRecommendedReaders(userId, { limit: 5, excludeFollowing: true });
-});

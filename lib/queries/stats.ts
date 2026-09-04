@@ -127,10 +127,8 @@ export async function getUserReadingStats(
         .eq("status", "read")
         .order("finished_at", { ascending: false })
         .order("id", { ascending: true })
-        .range(from, to) as unknown as PromiseLike<{
-          data: UserBookWithDetails[] | null;
-          error: unknown;
-        }>
+        .range(from, to)
+        .overrideTypes<UserBookWithDetails[], { merge: false }>()
   );
 
   if (error) {
@@ -146,10 +144,7 @@ export async function getUserReadingStats(
         .select("rating, book_id")
         .eq("user_id", userId)
         .order("id", { ascending: true })
-        .range(from, to) as unknown as PromiseLike<{
-          data: { rating: number | null; book_id: string }[] | null;
-          error: unknown;
-        }>
+        .range(from, to)
   );
 
   // Get user's reading goal

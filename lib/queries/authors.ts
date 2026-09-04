@@ -108,28 +108,3 @@ export async function getAuthorBySlug(
     totalRatings,
   };
 }
-
-/**
- * Get authors grouped by first letter
- */
-export async function getAuthorsByLetter(): Promise<Map<string, AuthorSummary[]>> {
-  const authors = await getAllAuthors();
-  const grouped = new Map<string, AuthorSummary[]>();
-
-  for (const author of authors) {
-    const firstLetter = author.name.charAt(0).toUpperCase();
-    const letter = /[A-Z]/.test(firstLetter) ? firstLetter : "#";
-
-    if (!grouped.has(letter)) {
-      grouped.set(letter, []);
-    }
-    grouped.get(letter)!.push(author);
-  }
-
-  // Sort each group alphabetically
-  for (const [, list] of grouped) {
-    list.sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  return grouped;
-}

@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
 import { getAllGenres } from "@/lib/queries/books";
-import { getTasteProfile } from "@/lib/actions/taste";
+import { getTasteProfile } from "@/lib/queries/taste";
 import { TasteOnboardingWizard } from "@/components/onboarding/taste-onboarding-wizard";
 
 export const metadata: Metadata = {

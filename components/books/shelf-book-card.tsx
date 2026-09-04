@@ -79,10 +79,9 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
       }
     }
 
-    if (isMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
+    if (!isMenuOpen) return;
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isMenuOpen]);
 
   if (!book) return null;
@@ -100,7 +99,7 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
     startTransition(async () => {
       const result = await addToShelf(book.id, newStatus);
 
-      if (result.error) {
+      if (!result.success) {
         // Revert on error
         setCurrentStatus(previousStatus);
         toast.error(result.error);

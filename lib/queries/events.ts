@@ -69,45 +69,6 @@ export async function getEventsNearby(
 }
 
 /**
- * Get weekly AI summary for a region
- */
-export async function getWeeklySummary(
-  geohashPrefix: string
-): Promise<EventsSummary | null> {
-  if (!geohashPrefix || !isValidGeohash(geohashPrefix)) {
-    return null;
-  }
-
-  const supabase = createPublicClient();
-
-  // Use 2-char prefix for broader regional summary
-  const prefix = geohashPrefix.slice(0, 2);
-
-  // Get the start of current week (Monday)
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-  const weekStart = new Date(now.setDate(diff)).toISOString().split("T")[0];
-
-  const { data, error } = await supabase
-    .from("book_events_summaries")
-    .select("summary, event_count, generated_at")
-    .eq("geohash_prefix", prefix)
-    .eq("week_start", weekStart)
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
-  return {
-    summary: data.summary,
-    event_count: data.event_count ?? 0,
-    generated_at: data.generated_at ?? "",
-  };
-}
-
-/**
  * Get events by city name
  */
 export async function getEventsByCity(
@@ -128,30 +89,6 @@ export async function getEventsByCity(
 
   if (error) {
     logError("Error fetching events by city", error);
-    return [];
-  }
-
-  return (data as BookEvent[]) || [];
-}
-
-/**
- * Get featured events globally
- */
-export async function getFeaturedEvents(limit: number = 10): Promise<BookEvent[]> {
-  const supabase = createPublicClient();
-
-  const today = new Date().toISOString().split("T")[0];
-
-  const { data, error } = await supabase
-    .from("book_events")
-    .select("*")
-    .eq("is_featured", true)
-    .gte("start_date", today)
-    .order("start_date", { ascending: true })
-    .limit(limit);
-
-  if (error) {
-    logError("Error fetching featured events", error);
     return [];
   }
 

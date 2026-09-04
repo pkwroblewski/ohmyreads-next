@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { checkAdmin } from "@/lib/auth/require-admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { encodeGeohash } from "@/lib/utils/geohash";
@@ -11,6 +11,7 @@ import {
   submitPlaceSchema,
   placeModerationSchema,
 } from "@/lib/validation/place";
+import type { ActionResult } from "@/types/app";
 
 // ============================================
 // TYPES
@@ -35,29 +36,25 @@ interface SubmitPlaceInput {
 /**
  * Submit a new place for moderation
  */
-export async function submitPlace(input: SubmitPlaceInput) {
+export async function submitPlace(input: SubmitPlaceInput): Promise<ActionResult<{ submissionId: string }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "You must be logged in to submit a place" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: "You must be logged in to submit a place" };
     }
+    const { supabase, user } = auth;
 
     // Rate limit (5 submissions per hour)
     const { allowed } = await checkRateLimit(`place-submit:${user.id}`, 5, 3600000);
     if (!allowed) {
-      return { error: "You've submitted too many places recently. Please try again later." };
+      return { success: false, error: "You've submitted too many places recently. Please try again later." };
     }
 
     // Validate input with Zod
     const validationResult = submitPlaceSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -90,13 +87,13 @@ export async function submitPlace(input: SubmitPlaceInput) {
 
     if (error) {
       logError("Error submitting place", error);
-      return { error: "Failed to submit place" };
+      return { success: false, error: "Failed to submit place" };
     }
 
     return { success: true, submissionId: data.id };
   } catch (error) {
     logError("Error in submitPlace", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -104,76 +101,9 @@ export async function submitPlace(input: SubmitPlaceInput) {
 // GET USER SUBMISSIONS
 // ============================================
 
-/**
- * Get the current user's place submissions
- */
-export async function getMyPlaceSubmissions() {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { submissions: [] };
-    }
-
-    const { data, error } = await supabase
-      .from("place_submissions")
-      .select("*")
-      .eq("submitted_by", user.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      logError("Error fetching submissions", error);
-      return { submissions: [] };
-    }
-
-    return { submissions: data || [] };
-  } catch (error) {
-    logError("Error in getMyPlaceSubmissions", error);
-    return { submissions: [] };
-  }
-}
-
 // ============================================
 // ADMIN: GET PENDING SUBMISSIONS
 // ============================================
-
-/**
- * Get all pending place submissions (admin only)
- */
-export async function getPendingPlaceSubmissions() {
-  try {
-    const admin = await checkAdmin();
-
-    if (!admin.ok) {
-      return { submissions: [], error: admin.error };
-    }
-
-    const { supabase } = admin;
-
-    const { data, error } = await supabase
-      .from("place_submissions")
-      .select(`
-        *,
-        submitter:profiles!place_submissions_submitted_by_fkey(username, display_name)
-      `)
-      .eq("status", "pending")
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      logError("Error fetching pending submissions", error);
-      return { submissions: [], error: "Failed to fetch submissions" };
-    }
-
-    return { submissions: data || [] };
-  } catch (error) {
-    logError("Error in getPendingPlaceSubmissions", error);
-    return { submissions: [], error: "An unexpected error occurred" };
-  }
-}
 
 // ============================================
 // ADMIN: APPROVE SUBMISSION
@@ -182,12 +112,12 @@ export async function getPendingPlaceSubmissions() {
 /**
  * Approve a place submission (admin only)
  */
-export async function approvePlaceSubmission(submissionId: string, notes?: string) {
+export async function approvePlaceSubmission(submissionId: string, notes?: string): Promise<ActionResult<{ placeId: string }>> {
   try {
     const admin = await checkAdmin();
 
     if (!admin.ok) {
-      return { error: admin.error };
+      return { success: false, error: admin.error };
     }
 
     const { supabase, user } = admin;
@@ -199,6 +129,7 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
     });
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -218,7 +149,7 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
 
     if (error) {
       logError("Error approving submission", error);
-      return { error: "Failed to approve submission" };
+      return { success: false, error: "Failed to approve submission" };
     }
 
     // Audit log
@@ -244,7 +175,7 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
     return { success: true, placeId: data };
   } catch (error) {
     logError("Error in approvePlaceSubmission", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -255,12 +186,12 @@ export async function approvePlaceSubmission(submissionId: string, notes?: strin
 /**
  * Reject a place submission (admin only)
  */
-export async function rejectPlaceSubmission(submissionId: string, notes?: string) {
+export async function rejectPlaceSubmission(submissionId: string, notes?: string): Promise<ActionResult> {
   try {
     const admin = await checkAdmin();
 
     if (!admin.ok) {
-      return { error: admin.error };
+      return { success: false, error: admin.error };
     }
 
     const { supabase, user } = admin;
@@ -272,6 +203,7 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
     });
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -291,7 +223,7 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
 
     if (error) {
       logError("Error rejecting submission", error);
-      return { error: "Failed to reject submission" };
+      return { success: false, error: "Failed to reject submission" };
     }
 
     // Audit log
@@ -315,7 +247,7 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
     return { success: true };
   } catch (error) {
     logError("Error in rejectPlaceSubmission", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 

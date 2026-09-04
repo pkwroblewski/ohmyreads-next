@@ -29,7 +29,7 @@ vi.mock("@/lib/supabase/server", () => ({
 const adminFrom = vi.fn(() => ({ update: adminUpdate }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from: adminFrom }) }));
 
-import { sendMessage, markMessagesAsRead, deleteMessage } from "@/lib/actions/messages";
+import { sendMessage, markMessagesAsRead } from "@/lib/actions/messages";
 
 const ME = { id: "550e8400-e29b-41d4-a716-446655440000" };
 const FRIEND = "550e8400-e29b-41d4-a716-446655440001";
@@ -48,7 +48,6 @@ describe("sendMessage", () => {
     mock = createMockSupabase(null);
     expect(await sendMessage(FRIEND, "hi")).toEqual({
       success: false,
-      messageId: null,
       error: "Not authenticated",
     });
     expect(mock.from).not.toHaveBeenCalled();
@@ -57,7 +56,7 @@ describe("sendMessage", () => {
   it("refuses a message to yourself before looking up any friendship", async () => {
     const result = await sendMessage(ME.id, "talking to myself");
 
-    expect(result).toEqual({ success: false, messageId: null, error: "You cannot message yourself" });
+    expect(result).toEqual({ success: false, error: "You cannot message yourself" });
     expect(mock.from).not.toHaveBeenCalled();
   });
 
@@ -66,7 +65,7 @@ describe("sendMessage", () => {
 
     const result = await sendMessage(FRIEND, "hello");
 
-    expect(result).toEqual({ success: false, messageId: null, error: "You can only message friends" });
+    expect(result).toEqual({ success: false, error: "You can only message friends" });
     expect(mock.from).toHaveBeenCalledWith("friend_requests");
     expect(mock.eq).toHaveBeenCalledWith("status", "accepted");
     expect(mock.or).toHaveBeenCalledWith(expect.stringContaining(`sender_id.eq.${ME.id},receiver_id.eq.${FRIEND}`));
@@ -80,7 +79,7 @@ describe("sendMessage", () => {
 
     const result = await sendMessage(FRIEND, "  hello there  ");
 
-    expect(result).toEqual({ success: true, messageId: MESSAGE, error: null });
+    expect(result).toEqual({ success: true, messageId: MESSAGE });
     expect(mock.from).toHaveBeenCalledWith("direct_messages");
     expect(mock.insert).toHaveBeenCalledWith({
       sender_id: ME.id,
@@ -115,7 +114,7 @@ describe("markMessagesAsRead", () => {
 
     const result = await markMessagesAsRead(FRIEND);
 
-    expect(result).toEqual({ success: true, error: null });
+    expect(result).toEqual({ success: true });
     expect(mock.from).toHaveBeenCalledWith("direct_messages");
     expect(mock.update).toHaveBeenCalledWith({ read_at: expect.any(String) });
     expect(mock.eq).toHaveBeenCalledWith("sender_id", FRIEND);
@@ -133,24 +132,5 @@ describe("markMessagesAsRead", () => {
     mock = createMockSupabase(null);
     expect(await markMessagesAsRead(FRIEND)).toEqual({ success: false, error: "Not authenticated" });
     expect(adminFrom).not.toHaveBeenCalled();
-  });
-});
-
-describe("deleteMessage", () => {
-  it("deletes only a message the caller sent", async () => {
-    const result = await deleteMessage(MESSAGE);
-
-    expect(result).toEqual({ success: true, error: null });
-    expect(mock.delete).toHaveBeenCalled();
-    expect(mock.eq).toHaveBeenCalledWith("id", MESSAGE);
-    expect(mock.eq).toHaveBeenCalledWith("sender_id", ME.id);
-  });
-
-  it("reports a database error without claiming success", async () => {
-    mock.eq
-      .mockReturnValueOnce(mock)
-      .mockResolvedValueOnce({ error: { message: "boom" } });
-
-    expect(await deleteMessage(MESSAGE)).toEqual({ success: false, error: "Failed to delete message" });
   });
 });

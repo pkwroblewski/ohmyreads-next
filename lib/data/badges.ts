@@ -384,13 +384,3 @@ export const BADGES: BadgeDefinition[] = [
 export function getBadgeById(id: string): BadgeDefinition | undefined {
   return BADGES.find((badge) => badge.id === id);
 }
-
-// Helper to get badges by category
-export function getBadgesByCategory(category: BadgeCategory): BadgeDefinition[] {
-  return BADGES.filter((badge) => badge.category === category);
-}
-
-// Helper to get badges by tier
-export function getBadgesByTier(tier: BadgeTier): BadgeDefinition[] {
-  return BADGES.filter((badge) => badge.tier === tier);
-}

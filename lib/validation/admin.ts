@@ -4,7 +4,7 @@ import { httpUrl } from "./shared";
 // ---- Shared ----
 export const adminBookIdSchema = z.string().uuid("Invalid book ID");
 export const adminUserIdSchema = z.string().uuid("Invalid user ID");
-export const adminReviewIdSchema = z.string().uuid("Invalid review ID");
+const adminReviewIdSchema = z.string().uuid("Invalid review ID");
 
 const adminReasonSchema = z
   .string()

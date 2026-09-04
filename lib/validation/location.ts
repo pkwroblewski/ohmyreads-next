@@ -20,12 +20,6 @@ export const updateLocationSchema = z.object({
   precision: precisionSchema,
 });
 
-export const updateLocationFromGeohashSchema = z.object({
-  geohash: z.string().min(1, "Invalid geohash").max(12, "Invalid geohash"),
-  label: locationLabelSchema,
-  precision: precisionSchema,
-});
-
 export const locationEnabledSchema = z.boolean();
 
 export const locationPrecisionSchema = z.number().int("Invalid precision");

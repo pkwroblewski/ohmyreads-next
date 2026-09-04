@@ -1,32 +1,25 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   targetUserIdSchema,
   friendRequestIdSchema,
 } from "@/lib/validation/social";
 import { logError, reportError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
 // ============================================
 // SEND FRIEND REQUEST
 // ============================================
 
-export async function sendFriendRequest(targetUserId: string): Promise<{
-  success: boolean;
-  error: string | null;
-}> {
+export async function sendFriendRequest(targetUserId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 30 friend actions per minute per user
     const { allowed } = await checkRateLimit(`friend:${user.id}`, 30, 60000);
@@ -82,7 +75,7 @@ export async function sendFriendRequest(targetUserId: string): Promise<{
     revalidatePath("/friends");
     revalidatePath(`/users`);
 
-    return { success: true, error: null };
+    return { success: true };
   } catch (error) {
     logError("Unexpected error in sendFriendRequest", error);
     return { success: false, error: "An unexpected error occurred" };
@@ -93,21 +86,13 @@ export async function sendFriendRequest(targetUserId: string): Promise<{
 // ACCEPT FRIEND REQUEST
 // ============================================
 
-export async function acceptFriendRequest(requestId: string): Promise<{
-  success: boolean;
-  error: string | null;
-}> {
+export async function acceptFriendRequest(requestId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 30 friend actions per minute per user
     const { allowed } = await checkRateLimit(`friend:${user.id}`, 30, 60000);
@@ -159,7 +144,7 @@ export async function acceptFriendRequest(requestId: string): Promise<{
     revalidatePath("/friends");
     revalidatePath("/dashboard");
 
-    return { success: true, error: null };
+    return { success: true };
   } catch (error) {
     logError("Unexpected error in acceptFriendRequest", error);
     return { success: false, error: "An unexpected error occurred" };
@@ -170,21 +155,13 @@ export async function acceptFriendRequest(requestId: string): Promise<{
 // REJECT FRIEND REQUEST
 // ============================================
 
-export async function rejectFriendRequest(requestId: string): Promise<{
-  success: boolean;
-  error: string | null;
-}> {
+export async function rejectFriendRequest(requestId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 30 friend actions per minute per user
     const { allowed } = await checkRateLimit(`friend:${user.id}`, 30, 60000);
@@ -235,7 +212,7 @@ export async function rejectFriendRequest(requestId: string): Promise<{
 
     revalidatePath("/friends");
 
-    return { success: true, error: null };
+    return { success: true };
   } catch (error) {
     logError("Unexpected error in rejectFriendRequest", error);
     return { success: false, error: "An unexpected error occurred" };
@@ -246,21 +223,13 @@ export async function rejectFriendRequest(requestId: string): Promise<{
 // CANCEL FRIEND REQUEST (sent by current user)
 // ============================================
 
-export async function cancelFriendRequest(requestId: string): Promise<{
-  success: boolean;
-  error: string | null;
-}> {
+export async function cancelFriendRequest(requestId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 30 friend actions per minute per user
     const { allowed } = await checkRateLimit(`friend:${user.id}`, 30, 60000);
@@ -308,7 +277,7 @@ export async function cancelFriendRequest(requestId: string): Promise<{
 
     revalidatePath("/friends");
 
-    return { success: true, error: null };
+    return { success: true };
   } catch (error) {
     logError("Unexpected error in cancelFriendRequest", error);
     return { success: false, error: "An unexpected error occurred" };
@@ -319,21 +288,13 @@ export async function cancelFriendRequest(requestId: string): Promise<{
 // REMOVE FRIEND (unfriend)
 // ============================================
 
-export async function removeFriend(targetUserId: string): Promise<{
-  success: boolean;
-  error: string | null;
-}> {
+export async function removeFriend(targetUserId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 30 friend actions per minute per user
     const { allowed } = await checkRateLimit(`friend:${user.id}`, 30, 60000);
@@ -375,7 +336,7 @@ export async function removeFriend(targetUserId: string): Promise<{
     revalidatePath("/friends");
     revalidatePath(`/users`);
 
-    return { success: true, error: null };
+    return { success: true };
   } catch (error) {
     logError("Unexpected error in removeFriend", error);
     return { success: false, error: "An unexpected error occurred" };

@@ -13,8 +13,6 @@ import {
   encodeGeohash,
   decodeGeohash,
   getNeighbors,
-  getGeohashPrefix,
-  precisionToDistance,
   isValidGeohash,
 } from "@/lib/utils/geohash";
 
@@ -111,9 +109,7 @@ describe("privacy: truncation actually destroys precision", () => {
     const a = { lat: 51.5074, lng: -0.1278 };
     const b = { lat: 51.5074 + 200 / M_PER_DEG_LAT, lng: -0.1278 };
 
-    expect(getGeohashPrefix(encodeGeohash(a.lat, a.lng, 9), 5)).toBe(
-      getGeohashPrefix(encodeGeohash(b.lat, b.lng, 9), 5)
-    );
+    expect(encodeGeohash(a.lat, a.lng, 5)).toBe(encodeGeohash(b.lat, b.lng, 5));
   });
 
   it("keeps a published 5-character cell at least a kilometre across", () => {
@@ -132,21 +128,13 @@ describe("privacy: truncation actually destroys precision", () => {
 
   it("cannot recover the original position from a truncated hash", () => {
     const exact = { lat: 51.50734, lng: -0.12776 };
-    const published = getGeohashPrefix(encodeGeohash(exact.lat, exact.lng, 9), 5);
+    const published = encodeGeohash(exact.lat, exact.lng, 5);
     const recovered = decodeGeohash(published);
 
     // The best an attacker gets is the cell centre, which is not the point.
     expect(recovered.lat).not.toBe(exact.lat);
     expect(recovered.lng).not.toBe(exact.lng);
     expect(recovered.latErr * 2 * M_PER_DEG_LAT).toBeGreaterThan(1_000);
-  });
-
-  it("never lengthens a hash when asked for more precision than it has", () => {
-    const hash = encodeGeohash(PLACES.london.lat, PLACES.london.lng, 4);
-
-    expect(getGeohashPrefix(hash, 9)).toBe(hash);
-    expect(getGeohashPrefix(hash, 2)).toBe(hash.slice(0, 2));
-    expect(getGeohashPrefix(hash, 0)).toBe("");
   });
 });
 
@@ -210,17 +198,5 @@ describe("isValidGeohash", () => {
     ]) {
       expect(isValidGeohash(payload)).toBe(false);
     }
-  });
-});
-
-describe("precisionToDistance", () => {
-  it("labels the precisions the app actually publishes", () => {
-    expect(precisionToDistance(5)).toBe("~2.4 km");
-    expect(precisionToDistance(6)).toBe("~1.2 km");
-  });
-
-  it("says so rather than guessing for an unmapped precision", () => {
-    expect(precisionToDistance(0)).toBe("unknown");
-    expect(precisionToDistance(12)).toBe("unknown");
   });
 });

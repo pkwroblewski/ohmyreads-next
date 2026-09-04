@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { UserDisableToggle } from "@/components/admin/user-disable-toggle";
-import { adminGetUser } from "@/lib/actions/admin-users";
+import { adminGetUser } from "@/lib/queries/admin-users";
 import { safeHref } from "@/lib/utils/sanitize";
 
 export const metadata: Metadata = {

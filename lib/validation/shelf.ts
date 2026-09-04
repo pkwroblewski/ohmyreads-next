@@ -34,31 +34,11 @@ export const updateShelfSchema = z.object({
   icon: z.string().max(50, "Invalid icon").optional(),
 });
 
-export const addBookToShelfSchema = z.object({
-  shelfId: shelfIdSchema,
-  userBookId: userBookIdSchema,
-  notes: z
-    .string()
-    .trim()
-    .max(2000, "Notes must be less than 2000 characters")
-    .optional(),
-});
-
-export const removeBookFromShelfSchema = z.object({
-  shelfId: shelfIdSchema,
-  userBookId: userBookIdSchema,
-});
-
 export const updateBookShelvesSchema = z.object({
   userBookId: userBookIdSchema,
   shelfIds: z
     .array(shelfIdSchema)
     .max(50, "Maximum 50 shelves allowed"),
-});
-
-export const addBookToShelfByBookIdSchema = z.object({
-  shelfId: shelfIdSchema,
-  bookId: z.string().uuid("Invalid book ID"),
 });
 
 export const updateBookShelvesByBookIdSchema = z.object({
@@ -70,12 +50,7 @@ export const updateBookShelvesByBookIdSchema = z.object({
 
 export type CreateShelfInput = z.infer<typeof createShelfSchema>;
 export type UpdateShelfInput = z.infer<typeof updateShelfSchema>;
-export type AddBookToShelfInput = z.infer<typeof addBookToShelfSchema>;
-export type RemoveBookFromShelfInput = z.infer<typeof removeBookFromShelfSchema>;
 export type UpdateBookShelvesInput = z.infer<typeof updateBookShelvesSchema>;
-export type AddBookToShelfByBookIdInput = z.infer<
-  typeof addBookToShelfByBookIdSchema
->;
 export type UpdateBookShelvesByBookIdInput = z.infer<
   typeof updateBookShelvesByBookIdSchema
 >;

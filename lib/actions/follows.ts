@@ -1,25 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { targetUserIdSchema } from "@/lib/validation/social";
 import { logError, reportError } from "@/lib/utils/log";
-export async function followUser(targetUserId: string): Promise<{
-  success: boolean;
-  error: string | null;
-}> {
+import type { ActionResult } from "@/types/app";
+async function followUser(targetUserId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 30 follow actions per minute per user
     const { allowed } = await checkRateLimit(`follow:${user.id}`, 30, 60000);
@@ -65,28 +58,20 @@ export async function followUser(targetUserId: string): Promise<{
     // Revalidate relevant pages
     revalidatePath("/community");
 
-    return { success: true, error: null };
+    return { success: true };
   } catch (error) {
     logError("Unexpected error in followUser", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
 
-export async function unfollowUser(targetUserId: string): Promise<{
-  success: boolean;
-  error: string | null;
-}> {
+async function unfollowUser(targetUserId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 30 follow actions per minute per user
     const { allowed } = await checkRateLimit(`follow:${user.id}`, 30, 60000);
@@ -116,29 +101,20 @@ export async function unfollowUser(targetUserId: string): Promise<{
     // Revalidate relevant pages
     revalidatePath("/community");
 
-    return { success: true, error: null };
+    return { success: true };
   } catch (error) {
     logError("Unexpected error in unfollowUser", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
 
-export async function toggleFollow(targetUserId: string): Promise<{
-  success: boolean;
-  isFollowing: boolean;
-  error: string | null;
-}> {
+export async function toggleFollow(targetUserId: string): Promise<ActionResult<{ isFollowing: boolean }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, isFollowing: false, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Validate input with Zod (rate limiting happens in the delegated
     // followUser/unfollowUser call — checking here too would double-count)
@@ -146,13 +122,12 @@ export async function toggleFollow(targetUserId: string): Promise<{
     if (!validationResult.success) {
       return {
         success: false,
-        isFollowing: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
 
     if (user.id === targetUserId) {
-      return { success: false, isFollowing: false, error: "You cannot follow yourself" };
+      return { success: false, error: "You cannot follow yourself" };
     }
 
     // Check if already following
@@ -166,14 +141,14 @@ export async function toggleFollow(targetUserId: string): Promise<{
     if (existing) {
       // Unfollow
       const result = await unfollowUser(targetUserId);
-      return { ...result, isFollowing: false };
+      return result.success ? { success: true, isFollowing: false } : result;
     } else {
       // Follow
       const result = await followUser(targetUserId);
-      return { ...result, isFollowing: result.success };
+      return result.success ? { success: true, isFollowing: true } : result;
     }
   } catch (error) {
     logError("Unexpected error in toggleFollow", error);
-    return { success: false, isFollowing: false, error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }

@@ -31,7 +31,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 // Import actions after mocks
-const { createReview, updateReview, deleteReview, likeReview, unlikeReview, toggleReviewLike } =
+const { createReview, updateReview, deleteReview, toggleReviewLike } =
   await import("@/lib/actions/reviews");
 
 describe("Review actions - auth guards", () => {
@@ -50,7 +50,7 @@ describe("Review actions - auth guards", () => {
 
       expect(result).toHaveProperty("error");
       expect(result.error).toMatch(/logged in|authenticated/i);
-      expect(result).not.toHaveProperty("success");
+      expect(result).toHaveProperty("success", false);
     });
 
     it("updateReview should reject unauthenticated user", async () => {
@@ -61,7 +61,7 @@ describe("Review actions - auth guards", () => {
 
       expect(result).toHaveProperty("error");
       expect(result.error).toMatch(/authenticated/i);
-      expect(result).not.toHaveProperty("success");
+      expect(result).toHaveProperty("success", false);
     });
 
     it("deleteReview should reject unauthenticated user", async () => {
@@ -69,23 +69,7 @@ describe("Review actions - auth guards", () => {
 
       expect(result).toHaveProperty("error");
       expect(result.error).toMatch(/authenticated/i);
-      expect(result).not.toHaveProperty("success");
-    });
-
-    it("likeReview should reject unauthenticated user", async () => {
-      const result = await likeReview("550e8400-e29b-41d4-a716-446655440000");
-
-      expect(result).toHaveProperty("error");
-      expect(result.error).toMatch(/logged in|authenticated/i);
-      expect(result).not.toHaveProperty("success");
-    });
-
-    it("unlikeReview should reject unauthenticated user", async () => {
-      const result = await unlikeReview("550e8400-e29b-41d4-a716-446655440000");
-
-      expect(result).toHaveProperty("error");
-      expect(result.error).toMatch(/authenticated/i);
-      expect(result).not.toHaveProperty("success");
+      expect(result).toHaveProperty("success", false);
     });
 
     it("toggleReviewLike should reject unauthenticated user", async () => {
@@ -141,7 +125,7 @@ describe("Review actions - auth guards", () => {
         isSpoiler: false,
       });
 
-      expect(result).toEqual({ error: "You have already reviewed this book" });
+      expect(result).toEqual({ success: false, error: "You have already reviewed this book" });
       expect(mockSupabase.insert).not.toHaveBeenCalled();
       expect(invalidateTags).not.toHaveBeenCalled();
     });

@@ -25,7 +25,7 @@ export function ShelfSidebar({ activeShelfId }: ShelfSidebarProps) {
   const loadShelves = async () => {
     setIsLoading(true);
     const result = await getUserShelves();
-    if (result.shelves) {
+    if (result.success) {
       setShelves(result.shelves);
     }
     setIsLoading(false);

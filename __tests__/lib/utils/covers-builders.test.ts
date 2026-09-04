@@ -11,9 +11,7 @@ import {
   isOpenLibraryCover,
   isGoogleBooksCover,
   getCoverSource,
-  getCoverAttribution,
   resolveCoverUrl,
-  resolveHighResCoverUrl,
 } from "@/lib/utils/covers";
 
 describe("cover URL builders", () => {
@@ -36,7 +34,7 @@ describe("cover URL builders", () => {
     );
   });
 
-  it("classifies a URL by host and attributes it", () => {
+  it("classifies a URL by host", () => {
     const ol = getOpenLibraryCoverById(1);
     const gb = getGoogleBooksCoverUrl("x");
     expect(isOpenLibraryCover(ol)).toBe(true);
@@ -46,10 +44,6 @@ describe("cover URL builders", () => {
     expect(getCoverSource(gb)).toBe("google");
     expect(getCoverSource("https://cdn.example.com/c.jpg")).toBe("unknown");
     expect(getCoverSource(null)).toBeNull();
-    expect(getCoverAttribution(ol)).toBe("Cover via Open Library");
-    expect(getCoverAttribution(gb)).toBe("Cover via Google Books");
-    expect(getCoverAttribution("https://cdn.example.com/c.jpg")).toBeNull();
-    expect(getCoverAttribution(null)).toBeNull();
   });
 
   it("resolves in priority order: cover id, ISBN, stored URL (upgraded), Google Books", () => {
@@ -61,8 +55,5 @@ describe("cover URL builders", () => {
     );
     expect(resolveCoverUrl({ ...base, google_books_id: "g" })).toContain("id=g");
     expect(resolveCoverUrl(base)).toBeNull();
-    expect(resolveHighResCoverUrl({ ...base, google_books_id: "g" })).toBe(
-      resolveCoverUrl({ ...base, google_books_id: "g" })
-    );
   });
 });

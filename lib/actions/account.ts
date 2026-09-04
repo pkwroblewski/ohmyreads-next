@@ -2,7 +2,7 @@
 
 import { createClient as createBareClient } from "@supabase/supabase-js";
 import type { AMREntry, User } from "@supabase/supabase-js";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createAuditLog } from "@/lib/utils/audit-log";
@@ -20,6 +20,7 @@ import {
  * the settings placeholder promised and the app never had — changing the
  * password and deleting the account.
  */
+/** An `ActionResult` whose failure branch also carries a machine-readable code. */
 export type AccountActionResult =
   | { success: true }
   | {
@@ -56,14 +57,11 @@ function latestAuthTimestamp(amr: AMREntry[] | undefined): number | null {
  */
 export async function changePassword(input: ChangePasswordInput): Promise<AccountActionResult> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
+    const auth = await requireUser();
+    if (!auth.ok) {
       return { success: false, error: "Please sign in to change your password" };
     }
+    const { supabase, user } = auth;
 
     if (!user.email || !hasPasswordIdentity(user)) {
       return {
@@ -138,14 +136,11 @@ export async function changePassword(input: ChangePasswordInput): Promise<Accoun
  */
 export async function deleteAccount(input: DeleteAccountInput): Promise<AccountActionResult> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
+    const auth = await requireUser();
+    if (!auth.ok) {
       return { success: false, error: "Please sign in to delete your account" };
     }
+    const { supabase, user } = auth;
 
     const { allowed } = await checkRateLimit(`delete-account:${user.id}`, 5, 10 * 60 * 1000);
     if (!allowed) {

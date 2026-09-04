@@ -25,13 +25,5 @@ export const setCurrentBookSchema = z.object({
   clubSlug: z.string().trim().max(100, "Invalid club slug").optional(),
 });
 
-export const updateClubSchema = z.object({
-  clubId: clubIdSchema,
-  name: clubNameSchema.optional(),
-  description: clubDescriptionSchema.optional(),
-  visibility: z.enum(["public", "private"]).optional(),
-});
-
 export type CreateClubInput = z.infer<typeof createClubSchema>;
 export type SetCurrentBookInput = z.infer<typeof setCurrentBookSchema>;
-export type UpdateClubInput = z.infer<typeof updateClubSchema>;

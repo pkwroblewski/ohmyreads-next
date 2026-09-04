@@ -70,7 +70,7 @@ function validateFileSignature(buffer: ArrayBuffer, mimeType: string): boolean {
  * Get all approved photos for a place
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: placeId } = await params;

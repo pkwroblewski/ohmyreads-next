@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createAuditLog } from "@/lib/utils/audit-log";
@@ -12,6 +12,7 @@ import {
   type ReportTargetType,
   type SubmitReportInput,
 } from "@/lib/validation/report";
+import type { ActionResult } from "@/types/app";
 
 /**
  * Which table owns each reportable content type, and which column names its
@@ -24,8 +25,6 @@ const TARGET_TABLES: Record<ReportTargetType, "reviews" | "comments" | "place_ph
   place_photo: "place_photos",
 };
 
-type ActionResult = { success: boolean; error?: string };
-
 /**
  * File a report against a review, comment or place photo.
  *
@@ -37,14 +36,11 @@ export async function submitReport(
   input: SubmitReportInput
 ): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
+    const auth = await requireUser();
+    if (!auth.ok) {
       return { success: false, error: "Please sign in to report content" };
     }
+    const { supabase, user } = auth;
 
     const parsed = submitReportSchema.safeParse(input);
     if (!parsed.success) {

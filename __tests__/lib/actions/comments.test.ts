@@ -45,7 +45,7 @@ describe("Comment actions - auth guards", () => {
 
       expect(result).toHaveProperty("error");
       expect(result.error).toMatch(/authenticated/i);
-      expect(result).not.toHaveProperty("success");
+      expect(result).toHaveProperty("success", false);
     });
 
     it("deleteComment should reject unauthenticated user", async () => {
@@ -53,7 +53,7 @@ describe("Comment actions - auth guards", () => {
 
       expect(result).toHaveProperty("error");
       expect(result.error).toMatch(/authenticated/i);
-      expect(result).not.toHaveProperty("success");
+      expect(result).toHaveProperty("success", false);
     });
   });
 

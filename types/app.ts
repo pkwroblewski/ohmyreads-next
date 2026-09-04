@@ -26,6 +26,23 @@ import type {
 } from "./database";
 
 // ============================================
+// Server Action results
+// ============================================
+
+/**
+ * The one shape a Server Action resolves to. `success` is the discriminant
+ * because it was already on more than half of the return sites and every
+ * caller branches on `result.success` or `result.error`; the payload of a
+ * successful call sits beside it (`ActionResult<{ shelves: Shelf[] }>`) rather
+ * than under a `data` key, which is how the callers already read it.
+ * `error` is declared `undefined` on the success branch so `if (result.error)`
+ * keeps narrowing.
+ */
+export type ActionResult<T extends object = Record<never, never>> =
+  | ({ success: true; error?: undefined } & T)
+  | { success: false; error: string };
+
+// ============================================
 // Narrowed string unions
 // The DB stores these columns as CHECK-constrained TEXT, so the generated
 // types say `string`. These aliases preserve the app-level narrowing.

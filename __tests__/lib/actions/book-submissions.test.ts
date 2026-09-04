@@ -102,7 +102,7 @@ describe("moderateSubmission — reject", () => {
       rejectionReason: "duplicate",
     });
 
-    expect(result).toEqual({ error: "Nothing was changed" });
+    expect(result).toEqual({ success: false, error: "Nothing was changed" });
     expect(createAuditLog).not.toHaveBeenCalled();
   });
 
@@ -140,7 +140,7 @@ describe("moderateSubmission — reject", () => {
       action: "reject",
     });
 
-    expect(result).toEqual({ error: "Submission has already been moderated" });
+    expect(result).toEqual({ success: false, error: "Submission has already been moderated" });
     expect(update).not.toHaveBeenCalled();
   });
 });
@@ -181,7 +181,7 @@ describe("moderateSubmission — approve", () => {
       action: "approve",
     });
 
-    expect(result).toEqual({ error: "Failed to approve submission" });
+    expect(result).toEqual({ success: false, error: "Failed to approve submission" });
     expect(createAuditLog).not.toHaveBeenCalled();
   });
 
@@ -197,7 +197,7 @@ describe("moderateSubmission — approve", () => {
       action: "approve",
     });
 
-    expect(result).toEqual({ error: "Not authorized to moderate submissions" });
+    expect(result).toEqual({ success: false, error: "Not authorized to moderate submissions" });
     expect(rpc).not.toHaveBeenCalled();
   });
 });

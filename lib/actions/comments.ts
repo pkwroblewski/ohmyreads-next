@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { createCommentSchema } from "@/lib/validation/comment";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logger, reportError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
 
 /**
  * Revalidate the book detail route.
@@ -24,30 +25,25 @@ export async function createComment(input: {
   reviewId: string;
   content: string;
   parentId?: string | null;
-}) {
+}): Promise<ActionResult<{ commentId: string }>> {
   try {
     // Validate input
     const validationResult = createCommentSchema.safeParse(input);
     if (!validationResult.success) {
-      return { error: validationResult.error.issues[0]?.message || "Invalid input" };
+      return { success: false, error: validationResult.error.issues[0]?.message || "Invalid input" };
     }
 
     const data = validationResult.data;
-    const supabase = await createClient();
-
-    // Get current user
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit
     const { allowed } = await checkRateLimit(`comment:${user.id}`, 10, 60000);
     if (!allowed) {
-      return { error: "Too many comments. Please wait a moment." };
+      return { success: false, error: "Too many comments. Please wait a moment." };
     }
 
     // If replying, verify the parent exists ON THIS REVIEW and check nesting.
@@ -62,12 +58,12 @@ export async function createComment(input: {
         .single();
 
       if (parentError || !parent) {
-        return { error: "Parent comment not found" };
+        return { success: false, error: "Parent comment not found" };
       }
 
       // Don't allow replies to replies (max 2 levels)
       if (parent.parent_id) {
-        return { error: "Cannot reply to a reply. Maximum nesting is 2 levels." };
+        return { success: false, error: "Cannot reply to a reply. Maximum nesting is 2 levels." };
       }
     }
 
@@ -85,6 +81,7 @@ export async function createComment(input: {
 
     if (error) {
       return {
+        success: false,
         error: reportError("Error creating comment", error, {
           userId: user.id,
         }),
@@ -96,21 +93,17 @@ export async function createComment(input: {
     return { success: true, commentId: comment.id };
   } catch (error) {
     logger.error("Unexpected error in createComment", { error });
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
-export async function deleteComment(commentId: string) {
+export async function deleteComment(commentId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Verify ownership
     const { data: comment, error: fetchError } = await supabase
@@ -120,11 +113,11 @@ export async function deleteComment(commentId: string) {
       .single();
 
     if (fetchError || !comment) {
-      return { error: "Comment not found" };
+      return { success: false, error: "Comment not found" };
     }
 
     if (comment.user_id !== user.id) {
-      return { error: "Not authorized to delete this comment" };
+      return { success: false, error: "Not authorized to delete this comment" };
     }
 
     // Delete comment (and its replies via cascade if set up)
@@ -135,6 +128,7 @@ export async function deleteComment(commentId: string) {
 
     if (error) {
       return {
+        success: false,
         error: reportError("Error deleting comment", error, { commentId }),
       };
     }
@@ -144,6 +138,6 @@ export async function deleteComment(commentId: string) {
     return { success: true };
   } catch (error) {
     logger.error("Unexpected error in deleteComment", { error });
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }

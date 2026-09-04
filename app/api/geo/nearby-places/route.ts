@@ -149,6 +149,7 @@ export async function GET(request: NextRequest) {
           address?: string;
           tags?: Record<string, string>;
         }
+        // JSON column round-trip, not a join: the row type is `Json`
         const places = (cache.data as unknown as CachedPlace[]) || [];
         for (const p of places) {
           if (!communityNames.has(p.name.toLowerCase())) {

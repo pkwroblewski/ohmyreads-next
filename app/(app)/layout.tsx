@@ -49,7 +49,7 @@ export default async function AppLayout({
       const { ensureUserProfile } = await import("@/lib/actions/user");
       const result = await ensureUserProfile();
 
-      if (result.error || !result.profile) {
+      if (!result.success) {
         logError("Failed to ensure profile", result.error);
         redirect("/login?error=profile_creation_failed");
       }

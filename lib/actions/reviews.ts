@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, invalidateTags } from "@/lib/cache/tags";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import {
   createReviewSchema,
   updateReviewSchema,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/validation/review";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logError, reportError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
 /**
  * Revalidate the book detail route.
  *
@@ -29,30 +30,25 @@ function revalidateBookPages() {
 /**
  * Create a new review with structured fields
  */
-export async function createReview(input: CreateReviewInput) {
+export async function createReview(input: CreateReviewInput): Promise<ActionResult<{ reviewId: string }>> {
   try {
-    const supabase = await createClient();
-
-    // Get current user
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "You must be logged in to write a review" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: "You must be logged in to write a review" };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 10 reviews per minute per user
     const { allowed } = await checkRateLimit(`review:${user.id}`, 10, 60000);
     if (!allowed) {
-      return { error: "Too many reviews. Please wait a moment." };
+      return { success: false, error: "Too many reviews. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = createReviewSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -68,7 +64,7 @@ export async function createReview(input: CreateReviewInput) {
       .single();
 
     if (existingReview) {
-      return { error: "You have already reviewed this book" };
+      return { success: false, error: "You have already reviewed this book" };
     }
 
     // Construct content from structured fields for backward compatibility
@@ -99,7 +95,7 @@ export async function createReview(input: CreateReviewInput) {
 
     if (error) {
       logError("Error creating review", error);
-      return { error: "Failed to create review" };
+      return { success: false, error: "Failed to create review" };
     }
 
     // books.local_average_rating and reading_stats are both maintained by
@@ -119,30 +115,26 @@ export async function createReview(input: CreateReviewInput) {
     return { success: true, reviewId: review.id };
   } catch (error) {
     logError("Error in createReview", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
 /**
  * Update an existing review
  */
-export async function updateReview(input: UpdateReviewInput) {
+export async function updateReview(input: UpdateReviewInput): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Validate input
     const validationResult = updateReviewSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -157,7 +149,7 @@ export async function updateReview(input: UpdateReviewInput) {
       .single();
 
     if (!review || review.user_id !== user.id) {
-      return { error: "Not authorized to edit this review" };
+      return { success: false, error: "Not authorized to edit this review" };
     }
 
     // Build update object
@@ -188,7 +180,7 @@ export async function updateReview(input: UpdateReviewInput) {
 
     // Must have at least a rating or 50+ chars of text
     if (finalRating == null && finalTextLength < 50) {
-      return { error: "Add a star rating, or write at least 50 characters for a text-only review" };
+      return { success: false, error: "Add a star rating, or write at least 50 characters for a text-only review" };
     }
 
     const contentParts: string[] = [];
@@ -205,7 +197,7 @@ export async function updateReview(input: UpdateReviewInput) {
 
     if (error) {
       logError("Error updating review", error);
-      return { error: "Failed to update review" };
+      return { success: false, error: "Failed to update review" };
     }
 
     // An edit does not add a feed row, but it can move the book's local rating,
@@ -216,25 +208,20 @@ export async function updateReview(input: UpdateReviewInput) {
     return { success: true };
   } catch (error) {
     logError("Error in updateReview", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
 /**
  * Delete a review
  */
-export async function deleteReview(reviewId: string) {
+export async function deleteReview(reviewId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Get review to verify ownership and get book_id
     const { data: review } = await supabase
@@ -244,7 +231,7 @@ export async function deleteReview(reviewId: string) {
       .single();
 
     if (!review || review.user_id !== user.id) {
-      return { error: "Not authorized to delete this review" };
+      return { success: false, error: "Not authorized to delete this review" };
     }
 
     // Delete review
@@ -254,7 +241,7 @@ export async function deleteReview(reviewId: string) {
       .eq("id", reviewId);
 
     if (error) {
-      return { error: reportError("Error deleting review", error, { reviewId }) };
+      return { success: false, error: reportError("Error deleting review", error, { reviewId }) };
     }
 
     // books.local_average_rating and reading_stats are both maintained by
@@ -272,7 +259,7 @@ export async function deleteReview(reviewId: string) {
     return { success: true };
   } catch (error) {
     logError("Error in deleteReview", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -283,18 +270,13 @@ export async function deleteReview(reviewId: string) {
 /**
  * Like a review
  */
-export async function likeReview(reviewId: string) {
+async function likeReview(reviewId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "You must be logged in to like reviews" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: "You must be logged in to like reviews" };
     }
+    const { supabase, user } = auth;
 
     // Existence check only — revalidation no longer needs the book id.
     const { data: review } = await supabase
@@ -304,7 +286,7 @@ export async function likeReview(reviewId: string) {
       .single();
 
     if (!review) {
-      return { error: "Review not found" };
+      return { success: false, error: "Review not found" };
     }
 
     // Check if already liked
@@ -316,7 +298,7 @@ export async function likeReview(reviewId: string) {
       .single();
 
     if (existingLike) {
-      return { error: "You have already liked this review" };
+      return { success: false, error: "You have already liked this review" };
     }
 
     // Insert like
@@ -327,7 +309,7 @@ export async function likeReview(reviewId: string) {
 
     if (likeError) {
       logError("Error liking review", likeError);
-      return { error: "Failed to like review" };
+      return { success: false, error: "Failed to like review" };
     }
 
     // reviews.likes_count is updated by a trigger in the same transaction as
@@ -341,25 +323,20 @@ export async function likeReview(reviewId: string) {
     return { success: true };
   } catch (error) {
     logError("Error in likeReview", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
 /**
  * Unlike a review
  */
-export async function unlikeReview(reviewId: string) {
+async function unlikeReview(reviewId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Delete like
     const { error: deleteError } = await supabase
@@ -370,7 +347,7 @@ export async function unlikeReview(reviewId: string) {
 
     if (deleteError) {
       logError("Error unliking review", deleteError);
-      return { error: "Failed to unlike review" };
+      return { success: false, error: "Failed to unlike review" };
     }
 
     // reviews.likes_count is updated by a trigger in the same transaction as
@@ -382,25 +359,20 @@ export async function unlikeReview(reviewId: string) {
     return { success: true };
   } catch (error) {
     logError("Error in unlikeReview", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
 /**
  * Toggle like on a review
  */
-export async function toggleReviewLike(reviewId: string) {
+export async function toggleReviewLike(reviewId: string): Promise<ActionResult<{ liked: boolean }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "You must be logged in to like reviews", liked: false };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: "You must be logged in to like reviews" };
     }
+    const { supabase, user } = auth;
 
     // Check if already liked
     const { data: existingLike } = await supabase
@@ -413,80 +385,15 @@ export async function toggleReviewLike(reviewId: string) {
     if (existingLike) {
       // Unlike
       const result = await unlikeReview(reviewId);
-      return { ...result, liked: false };
+      return result.success ? { success: true, liked: false } : result;
     } else {
       // Like
       const result = await likeReview(reviewId);
-      return { ...result, liked: true };
+      return result.success ? { success: true, liked: true } : result;
     }
   } catch (error) {
     logError("Error in toggleReviewLike", error);
-    return { error: "An unexpected error occurred", liked: false };
-  }
-}
-
-/**
- * Check if current user has liked a review
- */
-export async function hasLikedReview(reviewId: string) {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { liked: false };
-    }
-
-    const { data: like } = await supabase
-      .from("review_likes")
-      .select("id")
-      .eq("review_id", reviewId)
-      .eq("user_id", user.id)
-      .single();
-
-    return { liked: !!like };
-  } catch (error) {
-    logError("Error in hasLikedReview", error);
-    return { liked: false };
-  }
-}
-
-/**
- * Get likes for multiple reviews (for batch checking)
- */
-export async function getUserLikesForReviews(reviewIds: string[]) {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { likes: {} };
-    }
-
-    const { data: likes } = await supabase
-      .from("review_likes")
-      .select("review_id")
-      .eq("user_id", user.id)
-      .in("review_id", reviewIds);
-
-    const likesMap: Record<string, boolean> = {};
-    for (const reviewId of reviewIds) {
-      likesMap[reviewId] = false;
-    }
-    for (const like of likes || []) {
-      likesMap[like.review_id] = true;
-    }
-
-    return { likes: likesMap };
-  } catch (error) {
-    logError("Error in getUserLikesForReviews", error);
-    return { likes: {} };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 

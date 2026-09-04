@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { logger, reportError } from "@/lib/utils/log";
 import {
@@ -10,23 +10,18 @@ import {
   type UpdateTasteProfileInput,
   type OnboardingTasteProfileInput,
 } from "@/lib/validation/taste";
-import type { UserTasteProfile } from "@/types/database";
+import type { ActionResult } from "@/types/app";
 
 /**
  * Update user's taste profile (preferences only)
  */
-export async function updateTasteProfile(input: UpdateTasteProfileInput) {
+export async function updateTasteProfile(input: UpdateTasteProfileInput): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "You must be logged in to update your taste profile" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: "You must be logged in to update your taste profile" };
     }
+    const { supabase, user } = auth;
 
     // Rate limiting: 10 updates per minute
     const { allowed } = await checkRateLimit(`taste:${user.id}`, 10, 60000);
@@ -35,13 +30,14 @@ export async function updateTasteProfile(input: UpdateTasteProfileInput) {
         userId: user.id,
         action: "updateTasteProfile",
       });
-      return { error: "Too many updates. Please wait a moment and try again." };
+      return { success: false, error: "Too many updates. Please wait a moment and try again." };
     }
 
     // Validate input
     const validationResult = updateTasteProfileSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -65,6 +61,7 @@ export async function updateTasteProfile(input: UpdateTasteProfileInput) {
 
     if (error) {
       return {
+        success: false,
         error: reportError("Error updating taste profile", error, {
           userId: user.id,
         }),
@@ -86,25 +83,20 @@ export async function updateTasteProfile(input: UpdateTasteProfileInput) {
     logger.error("Unexpected error in updateTasteProfile", {
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
 /**
  * Complete taste onboarding (includes seed books)
  */
-export async function completeTasteOnboarding(input: OnboardingTasteProfileInput) {
+export async function completeTasteOnboarding(input: OnboardingTasteProfileInput): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "You must be logged in to complete onboarding" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: "You must be logged in to complete onboarding" };
     }
+    const { supabase, user } = auth;
 
     // Rate limiting: 5 onboarding completions per hour (to prevent abuse)
     const { allowed } = await checkRateLimit(`taste-onboard:${user.id}`, 5, 3600000);
@@ -113,13 +105,14 @@ export async function completeTasteOnboarding(input: OnboardingTasteProfileInput
         userId: user.id,
         action: "completeTasteOnboarding",
       });
-      return { error: "Too many attempts. Please try again later." };
+      return { success: false, error: "Too many attempts. Please try again later." };
     }
 
     // Validate input
     const validationResult = onboardingTasteProfileSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -145,6 +138,7 @@ export async function completeTasteOnboarding(input: OnboardingTasteProfileInput
 
     if (error) {
       return {
+        success: false,
         error: reportError("Error completing taste onboarding", error, {
           userId: user.id,
         }),
@@ -168,61 +162,7 @@ export async function completeTasteOnboarding(input: OnboardingTasteProfileInput
     logger.error("Unexpected error in completeTasteOnboarding", {
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return { error: "An unexpected error occurred" };
-  }
-}
-
-/**
- * Get current user's taste profile
- * Note: This is non-critical - if it fails, we just return null
- * and the app continues to work without personalization
- */
-export async function getTasteProfile() {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { profile: null };
-    }
-
-    const { data: profile, error } = await supabase
-      .from("user_taste_profiles")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-
-    // Any error (table doesn't exist, no rows, etc.) - just return null
-    // This is non-critical functionality
-    if (error) {
-      // Only log in development for debugging, and only for unexpected errors
-      if (process.env.NODE_ENV === "development") {
-        // Common expected errors - don't log these
-        const isExpectedError = 
-          error.code === "PGRST116" || // No rows found
-          error.code === "42P01" ||    // Table doesn't exist
-          String(error.message || "").includes("does not exist") ||
-          String(error.code || "").includes("PGRST");
-        
-        if (!isExpectedError) {
-          logger.debug("Non-critical error in getTasteProfile", {
-            errorCode: error.code,
-            errorMessage: error.message,
-          });
-        }
-      }
-      return { profile: null };
-    }
-
-    // DB stores pace/length as plain text; narrow to the app unions at the boundary
-    return { profile: (profile as UserTasteProfile) || null };
-  } catch {
-    // Silently fail - taste profile is optional
-    return { profile: null };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 

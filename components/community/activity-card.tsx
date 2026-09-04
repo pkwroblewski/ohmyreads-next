@@ -268,7 +268,7 @@ function ReviewCard({
 
     startTransition(async () => {
       const result = await toggleReviewLike(review.id);
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error);
         return;
       }

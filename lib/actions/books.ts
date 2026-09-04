@@ -6,7 +6,7 @@ import {
   CACHE_TAGS,
   invalidateTags,
 } from "@/lib/cache/tags";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSlug } from "@/lib/utils/slug";
 import { syncUserBadges } from "@/lib/actions/badges";
@@ -22,6 +22,7 @@ import crypto from "crypto";
 import type { Database } from "@/types/database";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logError, reportError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
 type UserBookInsert = Database["public"]["Tables"]["user_books"]["Insert"];
 
 // Types for external book data
@@ -80,7 +81,7 @@ async function insertBookWithUniqueSlug(
   supabase: SupabaseClient<Database>,
   bookData: BookInsertData,
   baseSlug: string
-): Promise<{ id: string; slug: string } | { error: string }> {
+): Promise<ActionResult<{ id: string; slug: string }>> {
   let slug = baseSlug;
   let attempt = 0;
 
@@ -93,7 +94,7 @@ async function insertBookWithUniqueSlug(
 
     if (data) {
       // Success
-      return { id: data.id, slug: data.slug };
+      return { success: true, id: data.id, slug: data.slug };
     }
 
     if (error) {
@@ -106,7 +107,7 @@ async function insertBookWithUniqueSlug(
       }
 
       // Different error - fail immediately
-      return { error: reportError("Error inserting book", error) };
+      return { success: false, error: reportError("Error inserting book", error) };
     }
   }
 
@@ -119,40 +120,36 @@ async function insertBookWithUniqueSlug(
     .single();
 
   if (data) {
-    return { id: data.id, slug: data.slug };
+    return { success: true, id: data.id, slug: data.slug };
   }
 
   return {
+    success: false,
     error: error
       ? reportError("Error inserting book (last-resort slug)", error)
       : "Failed to create book after multiple attempts",
   };
 }
 
-export async function addToShelf(bookId: string, status: string) {
+export async function addToShelf(bookId: string, status: string): Promise<ActionResult<{ newBadges: Array<{ id: string; name: string; icon: string }> }>> {
   try {
-    const supabase = await createClient();
-
-    // Get current user
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 20 shelf mutations per minute per user
     const { allowed } = await checkRateLimit(`book:${user.id}`, 20, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = addToShelfSchema.safeParse({ bookId, status });
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -180,7 +177,7 @@ export async function addToShelf(bookId: string, status: string) {
     });
 
     if (error) {
-      return { error: reportError("Error adding to shelf", error) };
+      return { success: false, error: reportError("Error adding to shelf", error) };
     }
 
     // reading_stats is maintained by a trigger on user_books (migration 057)
@@ -195,11 +192,11 @@ export async function addToShelf(bookId: string, status: string) {
     }
     const results = await Promise.allSettled(syncs);
     const badgeResult = status === "read" ? results[1] : undefined;
-    const newBadges =
+    const badgeSync =
       badgeResult?.status === "fulfilled"
-        ? ((badgeResult.value as Awaited<ReturnType<typeof syncUserBadges>>)
-            ?.newBadges ?? [])
-        : [];
+        ? (badgeResult.value as Awaited<ReturnType<typeof syncUserBadges>>)
+        : null;
+    const newBadges = badgeSync?.success ? badgeSync.newBadges : [];
 
     // A move to "reading" writes an activity_feed row via trigger, and shelf
     // adds are one of the two inputs to the trending score.
@@ -211,7 +208,7 @@ export async function addToShelf(bookId: string, status: string) {
     return { success: true, newBadges };
   } catch (error) {
     logError("Error in addToShelf", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -220,30 +217,23 @@ export async function updateReadingProgress(
   currentPage: number,
   totalPages?: number
 ): Promise<
-  | { error: string }
-  | {
-      success: true;
-      currentPage: number;
-      totalPages: number | null;
-      progressPercentage: number | null;
-    }
+  ActionResult<{
+    currentPage: number;
+    totalPages: number | null;
+    progressPercentage: number | null;
+  }>
 > {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 20 shelf mutations per minute per user
     const { allowed } = await checkRateLimit(`book:${user.id}`, 20, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
@@ -254,6 +244,7 @@ export async function updateReadingProgress(
     });
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -267,7 +258,7 @@ export async function updateReadingProgress(
       .maybeSingle();
 
     if (!row || row.status !== "reading") {
-      return { error: "Book is not in your currently-reading shelf" };
+      return { success: false, error: "Book is not in your currently-reading shelf" };
     }
 
     const bookPageCount = row.book?.page_count ?? null;
@@ -297,10 +288,10 @@ export async function updateReadingProgress(
 
     if (error) {
       logError("Error updating reading progress", error);
-      return { error: "Failed to update progress" };
+      return { success: false, error: "Failed to update progress" };
     }
     if (!updated || updated.length === 0) {
-      return { error: "Book is not in your currently-reading shelf" };
+      return { success: false, error: "Book is not in your currently-reading shelf" };
     }
 
     revalidatePath("/my-shelf");
@@ -314,33 +305,29 @@ export async function updateReadingProgress(
     };
   } catch (error) {
     logError("Error in updateReadingProgress", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
-export async function removeFromShelf(bookId: string) {
+export async function removeFromShelf(bookId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 20 shelf mutations per minute per user
     const { allowed } = await checkRateLimit(`book:${user.id}`, 20, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = bookIdSchema.safeParse(bookId);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -352,7 +339,7 @@ export async function removeFromShelf(bookId: string) {
       .eq("book_id", bookId);
 
     if (error) {
-      return { error: reportError("Error removing from shelf", error) };
+      return { success: false, error: reportError("Error removing from shelf", error) };
     }
 
     // reading_stats is maintained by a trigger on user_books (migration 057)
@@ -367,7 +354,7 @@ export async function removeFromShelf(bookId: string) {
     return { success: true };
   } catch (error) {
     logError("Error in removeFromShelf", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -378,19 +365,13 @@ export async function removeFromShelf(bookId: string) {
 export async function importAndAddToShelf(
   externalBook: ExternalBookData,
   status: ShelfStatus
-): Promise<{ success: boolean; bookId?: string; slug?: string; error?: string }> {
+): Promise<ActionResult<{ bookId: string; slug: string }>> {
   try {
-    const supabase = await createClient();
-
-    // Get current user
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 20 shelf mutations per minute per user
     const { allowed } = await checkRateLimit(`book:${user.id}`, 20, 60000);
@@ -496,7 +477,7 @@ export async function importAndAddToShelf(
         baseSlug
       );
 
-      if ("error" in result) {
+      if (!result.success) {
         return { success: false, error: result.error };
       }
 

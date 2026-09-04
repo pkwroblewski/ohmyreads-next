@@ -11,7 +11,7 @@ import { logError } from "@/lib/utils/log";
  * Get all reviews for a place
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: placeId } = await params;

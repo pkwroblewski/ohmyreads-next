@@ -131,31 +131,6 @@ export function getNeighbors(hash: string): string[] {
 }
 
 /**
- * Get the geohash prefix for a given precision
- * Lower precision = larger area = more privacy
- */
-export function getGeohashPrefix(hash: string, precision: number): string {
-  return hash.slice(0, Math.min(precision, hash.length));
-}
-
-/**
- * Convert precision level to approximate distance
- */
-export function precisionToDistance(precision: number): string {
-  const distances: Record<number, string> = {
-    1: "~2500 km",
-    2: "~630 km",
-    3: "~78 km",
-    4: "~20 km",
-    5: "~2.4 km",
-    6: "~1.2 km",
-    7: "~150 m",
-    8: "~40 m",
-  };
-  return distances[precision] || "unknown";
-}
-
-/**
  * Validate a geohash string
  */
 export function isValidGeohash(hash: string): boolean {

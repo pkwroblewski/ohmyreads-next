@@ -18,7 +18,7 @@ import {
   adminGetReviews,
   adminGetReviewStats,
   type ReviewFilters,
-} from "@/lib/actions/admin-reviews";
+} from "@/lib/queries/admin-reviews";
 import {
   toAdminParams,
   readPage,

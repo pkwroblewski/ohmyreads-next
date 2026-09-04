@@ -98,33 +98,6 @@ export async function searchOpenLibrary(
   }
 }
 
-/**
- * Get detailed book info from Open Library by work ID
- */
-export async function getOpenLibraryBookDetails(
-  workId: string
-): Promise<{ description?: string } | null> {
-  try {
-    const response = await fetch(
-      `https://openlibrary.org/works/${workId}.json`,
-      { next: { revalidate: 3600 } } // Cache for 1 hour
-    );
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-
-    return {
-      description:
-        typeof data.description === "string"
-          ? data.description
-          : data.description?.value || null,
-    };
-  } catch {
-    return null;
-  }
-}
-
 // ============================================
 // OPEN LIBRARY RATINGS
 // ============================================
@@ -170,63 +143,6 @@ export async function getOpenLibraryRatings(
     return null;
   } catch (error) {
     logError("Error fetching Open Library ratings", error, { workId });
-    return null;
-  }
-}
-
-/**
- * Fetch ratings by ISBN from Open Library
- * First looks up the work ID, then fetches ratings
- */
-export async function getOpenLibraryRatingsByIsbn(
-  isbn: string
-): Promise<OpenLibraryRatings | null> {
-  try {
-    // First, get the book info by ISBN to find the work ID
-    const bookResult = await searchOpenLibraryByIsbn(isbn);
-
-    if (!bookResult?.openLibraryId) {
-      return null;
-    }
-
-    // Then fetch ratings using the work ID
-    return getOpenLibraryRatings(bookResult.openLibraryId);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Fetch ratings by title + author from Open Library
- */
-export async function getOpenLibraryRatingsByTitleAuthor(
-  title: string,
-  author: string
-): Promise<{ ratings: OpenLibraryRatings; workId: string } | null> {
-  try {
-    const url = new URL("https://openlibrary.org/search.json");
-    url.searchParams.set("title", title);
-    url.searchParams.set("author", author);
-    url.searchParams.set("limit", "1");
-    url.searchParams.set("fields", "key");
-
-    const response = await fetch(url.toString());
-
-    if (!response.ok) return null;
-
-    const data: OpenLibrarySearchResponse = await response.json();
-
-    if (!data.docs || data.docs.length === 0) {
-      return null;
-    }
-
-    const workId = data.docs[0].key.replace("/works/", "");
-    const ratings = await getOpenLibraryRatings(workId);
-
-    if (!ratings) return null;
-
-    return { ratings, workId };
-  } catch {
     return null;
   }
 }
@@ -376,16 +292,6 @@ export async function searchExternalBooks(
 // ============================================
 // DEDUPE CHECK
 // ============================================
-
-/**
- * Check if a book already exists in the database
- */
-export interface DedupeResult {
-  exists: boolean;
-  matchedBy: "isbn" | "google_books_id" | "open_library_id" | "title_author" | null;
-  existingBookId?: string;
-  existingBookSlug?: string;
-}
 
 /**
  * Normalize title for fuzzy matching
@@ -702,34 +608,5 @@ function mergeGenres(curated: string[], fromApi: string[]): string[] {
   }
   
   return combined.slice(0, 8); // Limit to 8 genres
-}
-
-/**
- * Batch enrich multiple books with rate limiting
- */
-export async function enrichBooksWithRateLimit(
-  books: BookEnrichmentInput[],
-  delayMs: number = 200, // 200ms between requests to avoid rate limiting
-  onProgress?: (current: number, total: number, title: string) => void
-): Promise<EnrichedBookData[]> {
-  const results: EnrichedBookData[] = [];
-  
-  for (let i = 0; i < books.length; i++) {
-    const book = books[i];
-    
-    if (onProgress) {
-      onProgress(i + 1, books.length, book.title);
-    }
-    
-    const enriched = await enrichBookEntry(book);
-    results.push(enriched);
-    
-    // Rate limit delay (except for last item)
-    if (i < books.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
-  }
-  
-  return results;
 }
 

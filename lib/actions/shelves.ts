@@ -1,21 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   createShelfSchema,
   updateShelfSchema,
-  addBookToShelfSchema,
-  removeBookFromShelfSchema,
   updateBookShelvesSchema,
-  addBookToShelfByBookIdSchema,
   updateBookShelvesByBookIdSchema,
   shelfIdSchema,
   userBookIdSchema,
 } from "@/lib/validation/shelf";
 import type { UserShelf, UserShelfWithCount } from "@/types/database";
 import { logError, reportError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
+import type { createClient } from "@/lib/supabase/server";
 // The two authorization failures set_book_shelves raises deliberately. Anything
 // else coming back from the RPC is an unexpected DB error and must not reach
 // the client verbatim.
@@ -55,20 +54,13 @@ async function setBookShelves(
 /**
  * Get all shelves for the current user
  */
-export async function getUserShelves(): Promise<{
-  shelves: UserShelfWithCount[];
-  error?: string;
-}> {
+export async function getUserShelves(): Promise<ActionResult<{ shelves: UserShelfWithCount[] }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { shelves: [], error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Get shelves with book counts
     const { data: shelves, error } = await supabase
@@ -81,7 +73,7 @@ export async function getUserShelves(): Promise<{
       .order("sort_order", { ascending: true });
 
     if (error) {
-      return { shelves: [], error: reportError("Error fetching shelves", error) };
+      return { success: false, error: reportError("Error fetching shelves", error) };
     }
 
     // Transform to include book_count
@@ -92,10 +84,10 @@ export async function getUserShelves(): Promise<{
       })
     );
 
-    return { shelves: shelvesWithCount };
+    return { success: true, shelves: shelvesWithCount };
   } catch (error) {
     logError("Error in getUserShelves", error);
-    return { shelves: [], error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -108,28 +100,25 @@ export async function createShelf(input: {
   isPublic?: boolean;
   color?: string;
   icon?: string;
-}): Promise<{ shelf?: UserShelf; error?: string }> {
+}): Promise<ActionResult<{ shelf: UserShelf }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 10 shelf creations per minute per user
     const { allowed } = await checkRateLimit(`shelf:create:${user.id}`, 10, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = createShelfSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -145,7 +134,7 @@ export async function createShelf(input: {
       .single();
 
     if (existing) {
-      return { error: "You already have a shelf with this name" };
+      return { success: false, error: "You already have a shelf with this name" };
     }
 
     // Get next sort order
@@ -175,15 +164,15 @@ export async function createShelf(input: {
       .single();
 
     if (error) {
-      return { error: reportError("Error creating shelf", error) };
+      return { success: false, error: reportError("Error creating shelf", error) };
     }
 
     revalidatePath("/my-shelf");
 
-    return { shelf };
+    return { success: true, shelf };
   } catch (error) {
     logError("Error in createShelf", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -197,28 +186,25 @@ export async function updateShelf(input: {
   isPublic?: boolean;
   color?: string;
   icon?: string;
-}): Promise<{ success?: boolean; error?: string }> {
+}): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 20 shelf updates per minute per user
     const { allowed } = await checkRateLimit(`shelf:update:${user.id}`, 20, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = updateShelfSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -233,7 +219,7 @@ export async function updateShelf(input: {
       .single();
 
     if (!shelf || shelf.user_id !== user.id) {
-      return { error: "Shelf not found or not authorized" };
+      return { success: false, error: "Shelf not found or not authorized" };
     }
 
     // Build update object
@@ -269,7 +255,7 @@ export async function updateShelf(input: {
       .eq("id", data.shelfId);
 
     if (error) {
-      return { error: reportError("Error updating shelf", error) };
+      return { success: false, error: reportError("Error updating shelf", error) };
     }
 
     revalidatePath("/my-shelf");
@@ -277,7 +263,7 @@ export async function updateShelf(input: {
     return { success: true };
   } catch (error) {
     logError("Error in updateShelf", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -286,28 +272,25 @@ export async function updateShelf(input: {
  */
 export async function deleteShelf(
   shelfId: string
-): Promise<{ success?: boolean; error?: string }> {
+): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 20 shelf deletes per minute per user
     const { allowed } = await checkRateLimit(`shelf:delete:${user.id}`, 20, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = shelfIdSchema.safeParse(shelfId);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -320,7 +303,7 @@ export async function deleteShelf(
       .single();
 
     if (!shelf || shelf.user_id !== user.id) {
-      return { error: "Shelf not found or not authorized" };
+      return { success: false, error: "Shelf not found or not authorized" };
     }
 
     // Delete shelf (cascade will remove shelf_books entries)
@@ -330,7 +313,7 @@ export async function deleteShelf(
       .eq("id", shelfId);
 
     if (error) {
-      return { error: reportError("Error deleting shelf", error) };
+      return { success: false, error: reportError("Error deleting shelf", error) };
     }
 
     revalidatePath("/my-shelf");
@@ -338,7 +321,7 @@ export async function deleteShelf(
     return { success: true };
   } catch (error) {
     logError("Error in deleteShelf", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -347,171 +330,21 @@ export async function deleteShelf(
 // ============================================
 
 /**
- * Add a book to a shelf
- */
-export async function addBookToShelf(input: {
-  shelfId: string;
-  userBookId: string;
-  notes?: string;
-}): Promise<{ success?: boolean; error?: string }> {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { error: "Not authenticated" };
-    }
-
-    // Rate limit: 30 shelf-book toggles per minute per user
-    const { allowed } = await checkRateLimit(`shelf:book:${user.id}`, 30, 60000);
-    if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
-    }
-
-    // Validate input with Zod
-    const validationResult = addBookToShelfSchema.safeParse(input);
-    if (!validationResult.success) {
-      return {
-        error: validationResult.error.issues[0]?.message || "Invalid input",
-      };
-    }
-
-    const data = validationResult.data;
-
-    // Verify shelf ownership
-    const { data: shelf } = await supabase
-      .from("user_shelves")
-      .select("user_id")
-      .eq("id", data.shelfId)
-      .single();
-
-    if (!shelf || shelf.user_id !== user.id) {
-      return { error: "Shelf not found or not authorized" };
-    }
-
-    // Verify user_book ownership
-    const { data: userBook } = await supabase
-      .from("user_books")
-      .select("user_id")
-      .eq("id", data.userBookId)
-      .single();
-
-    if (!userBook || userBook.user_id !== user.id) {
-      return { error: "Book not found in your shelf" };
-    }
-
-    // Add to shelf
-    const { error } = await supabase.from("shelf_books").insert({
-      shelf_id: data.shelfId,
-      user_book_id: data.userBookId,
-      notes: data.notes || null,
-    });
-
-    if (error) {
-      if (error.code === "23505") {
-        // Unique constraint violation
-        return { error: "Book is already on this shelf" };
-      }
-      return { error: reportError("Error adding book to shelf", error) };
-    }
-
-    revalidatePath("/my-shelf");
-
-    return { success: true };
-  } catch (error) {
-    logError("Error in addBookToShelf", error);
-    return { error: "An unexpected error occurred" };
-  }
-}
-
-/**
- * Remove a book from a shelf
- */
-export async function removeBookFromShelf(input: {
-  shelfId: string;
-  userBookId: string;
-}): Promise<{ success?: boolean; error?: string }> {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { error: "Not authenticated" };
-    }
-
-    // Rate limit: 30 shelf-book toggles per minute per user
-    const { allowed } = await checkRateLimit(`shelf:book:${user.id}`, 30, 60000);
-    if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
-    }
-
-    // Validate input with Zod
-    const validationResult = removeBookFromShelfSchema.safeParse(input);
-    if (!validationResult.success) {
-      return {
-        error: validationResult.error.issues[0]?.message || "Invalid input",
-      };
-    }
-
-    const data = validationResult.data;
-
-    // Verify shelf ownership
-    const { data: shelf } = await supabase
-      .from("user_shelves")
-      .select("user_id")
-      .eq("id", data.shelfId)
-      .single();
-
-    if (!shelf || shelf.user_id !== user.id) {
-      return { error: "Shelf not found or not authorized" };
-    }
-
-    // Remove from shelf
-    const { error } = await supabase
-      .from("shelf_books")
-      .delete()
-      .eq("shelf_id", data.shelfId)
-      .eq("user_book_id", data.userBookId);
-
-    if (error) {
-      return { error: reportError("Error removing book from shelf", error) };
-    }
-
-    revalidatePath("/my-shelf");
-
-    return { success: true };
-  } catch (error) {
-    logError("Error in removeBookFromShelf", error);
-    return { error: "An unexpected error occurred" };
-  }
-}
-
-/**
  * Get shelves a specific book is on
  */
 export async function getBookShelves(
   userBookId: string
-): Promise<{ shelfIds: string[]; error?: string }> {
+): Promise<ActionResult<{ shelfIds: string[] }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { shelfIds: [], error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase } = auth;
 
     // Validate id param
     if (!userBookIdSchema.safeParse(userBookId).success) {
-      return { shelfIds: [], error: "Invalid book ID" };
+      return { success: false, error: "Invalid book ID" };
     }
 
     const { data: shelfBooks, error } = await supabase
@@ -520,15 +353,16 @@ export async function getBookShelves(
       .eq("user_book_id", userBookId);
 
     if (error) {
-      return { shelfIds: [], error: reportError("Error fetching book shelves", error) };
+      return { success: false, error: reportError("Error fetching book shelves", error) };
     }
 
     return {
+      success: true,
       shelfIds: (shelfBooks || []).map((sb) => sb.shelf_id),
     };
   } catch (error) {
     logError("Error in getBookShelves", error);
-    return { shelfIds: [], error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -538,28 +372,25 @@ export async function getBookShelves(
 export async function updateBookShelves(input: {
   userBookId: string;
   shelfIds: string[];
-}): Promise<{ success?: boolean; error?: string }> {
+}): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 30 shelf-book toggles per minute per user
     const { allowed } = await checkRateLimit(`shelf:book:${user.id}`, 30, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = updateBookShelvesSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -571,7 +402,7 @@ export async function updateBookShelves(input: {
     // the book stripped from shelves the remove had already committed.
     const rpcError = await setBookShelves(supabase, data.userBookId, data.shelfIds);
     if (rpcError) {
-      return { error: rpcError };
+      return { success: false, error: rpcError };
     }
 
     revalidatePath("/my-shelf");
@@ -579,107 +410,7 @@ export async function updateBookShelves(input: {
     return { success: true };
   } catch (error) {
     logError("Error in updateBookShelves", error);
-    return { error: "An unexpected error occurred" };
-  }
-}
-
-/**
- * Add a book to a shelf by book ID (auto-creates user_books entry if needed)
- * This allows adding books to custom shelves directly from the book page
- */
-export async function addBookToShelfByBookId(input: {
-  shelfId: string;
-  bookId: string;
-}): Promise<{ success?: boolean; userBookId?: string; error?: string }> {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { error: "Not authenticated" };
-    }
-
-    // Rate limit: 30 shelf-book toggles per minute per user
-    const { allowed } = await checkRateLimit(`shelf:book:${user.id}`, 30, 60000);
-    if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
-    }
-
-    // Validate input with Zod
-    const validationResult = addBookToShelfByBookIdSchema.safeParse(input);
-    if (!validationResult.success) {
-      return {
-        error: validationResult.error.issues[0]?.message || "Invalid input",
-      };
-    }
-
-    const data = validationResult.data;
-
-    // Verify shelf ownership
-    const { data: shelf } = await supabase
-      .from("user_shelves")
-      .select("user_id")
-      .eq("id", data.shelfId)
-      .single();
-
-    if (!shelf || shelf.user_id !== user.id) {
-      return { error: "Shelf not found or not authorized" };
-    }
-
-    // Check if user already has this book in user_books
-    let userBookId: string;
-    const { data: existingUserBook } = await supabase
-      .from("user_books")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("book_id", data.bookId)
-      .single();
-
-    if (existingUserBook) {
-      userBookId = existingUserBook.id;
-    } else {
-      // Create user_books entry with "want_to_read" status
-      const { data: newUserBook, error: createError } = await supabase
-        .from("user_books")
-        .insert({
-          user_id: user.id,
-          book_id: data.bookId,
-          status: "want_to_read",
-        })
-        .select("id")
-        .single();
-
-      if (createError) {
-        logError("Error creating user_book", createError);
-        return { error: "Failed to add book to your library" };
-      }
-
-      userBookId = newUserBook.id;
-    }
-
-    // Add to shelf (handle duplicate gracefully)
-    const { error: shelfError } = await supabase.from("shelf_books").insert({
-      shelf_id: data.shelfId,
-      user_book_id: userBookId,
-    });
-
-    if (shelfError) {
-      if (shelfError.code === "23505") {
-        // Unique constraint - already on shelf
-        return { error: "Book is already on this shelf" };
-      }
-      return { error: reportError("Error adding book to shelf", shelfError) };
-    }
-
-    revalidatePath("/my-shelf");
-
-    return { success: true, userBookId };
-  } catch (error) {
-    logError("Error in addBookToShelfByBookId", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -688,21 +419,17 @@ export async function addBookToShelfByBookId(input: {
  */
 export async function getBookShelvesByBookId(
   bookId: string
-): Promise<{ shelfIds: string[]; userBookId?: string; error?: string }> {
+): Promise<ActionResult<{ shelfIds: string[]; userBookId?: string }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { shelfIds: [], error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Validate id param
     if (!userBookIdSchema.safeParse(bookId).success) {
-      return { shelfIds: [], error: "Invalid book ID" };
+      return { success: false, error: "Invalid book ID" };
     }
 
     // Get user_book for this book
@@ -715,7 +442,7 @@ export async function getBookShelvesByBookId(
 
     if (!userBook) {
       // Book not in user's library yet
-      return { shelfIds: [] };
+      return { success: true, shelfIds: [] };
     }
 
     // Get shelf assignments
@@ -725,16 +452,17 @@ export async function getBookShelvesByBookId(
       .eq("user_book_id", userBook.id);
 
     if (error) {
-      return { shelfIds: [], userBookId: userBook.id, error: reportError("Error fetching book shelves", error) };
+      return { success: false, error: reportError("Error fetching book shelves", error) };
     }
 
     return {
+      success: true,
       shelfIds: (shelfBooks || []).map((sb) => sb.shelf_id),
       userBookId: userBook.id,
     };
   } catch (error) {
     logError("Error in getBookShelvesByBookId", error);
-    return { shelfIds: [], error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -745,28 +473,25 @@ export async function getBookShelvesByBookId(
 export async function updateBookShelvesByBookId(input: {
   bookId: string;
   shelfIds: string[];
-}): Promise<{ success?: boolean; userBookId?: string; error?: string }> {
+}): Promise<ActionResult<{ userBookId?: string }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 30 shelf-book toggles per minute per user
     const { allowed } = await checkRateLimit(`shelf:book:${user.id}`, 30, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = updateBookShelvesByBookIdSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -798,7 +523,7 @@ export async function updateBookShelvesByBookId(input: {
 
       if (createError) {
         logError("Error creating user_book", createError);
-        return { error: "Failed to add book to your library" };
+        return { success: false, error: "Failed to add book to your library" };
       }
 
       userBookId = newUserBook.id;
@@ -810,7 +535,7 @@ export async function updateBookShelvesByBookId(input: {
     // Same atomic reconciliation as updateBookShelves (migration 057)
     const rpcError = await setBookShelves(supabase, userBookId, data.shelfIds);
     if (rpcError) {
-      return { error: rpcError };
+      return { success: false, error: rpcError };
     }
 
     revalidatePath("/my-shelf");
@@ -818,87 +543,6 @@ export async function updateBookShelvesByBookId(input: {
     return { success: true, userBookId };
   } catch (error) {
     logError("Error in updateBookShelvesByBookId", error);
-    return { error: "An unexpected error occurred" };
-  }
-}
-
-/**
- * Get books in a specific shelf
- */
-export async function getShelfBooks(shelfId: string): Promise<{
-  books: Array<{
-    id: string;
-    user_book_id: string;
-    book_id: string;
-    title: string;
-    author: string;
-    slug: string;
-    cover_url: string | null;
-    status: string;
-    added_at: string;
-  }>;
-  error?: string;
-}> {
-  try {
-    const supabase = await createClient();
-
-    // Validate id param
-    if (!shelfIdSchema.safeParse(shelfId).success) {
-      return { books: [], error: "Invalid shelf ID" };
-    }
-
-    // First get shelf_books
-    const { data: shelfBooks, error } = await supabase
-      .from("shelf_books")
-      .select("id, added_at, user_book_id")
-      .eq("shelf_id", shelfId)
-      .order("added_at", { ascending: false });
-
-    if (error) {
-      return { books: [], error: reportError("Error fetching shelf books", error) };
-    }
-
-    if (!shelfBooks || shelfBooks.length === 0) {
-      return { books: [] };
-    }
-
-    // Get user_books with book details
-    const userBookIds = shelfBooks.map((sb) => sb.user_book_id);
-    const { data: userBooks } = await supabase
-      .from("user_books")
-      .select("id, status, book:books(id, title, author, slug, cover_url)")
-      .in("id", userBookIds);
-
-    // Create a map for quick lookup
-    const userBookMap = new Map(
-      (userBooks || []).map((ub) => [ub.id, ub])
-    );
-
-    // Combine the data
-    const books = shelfBooks
-      .map((sb) => {
-        const ub = userBookMap.get(sb.user_book_id);
-        if (!ub || !ub.book) return null;
-        // book comes as an array from Supabase, take first element
-        const book = Array.isArray(ub.book) ? ub.book[0] : ub.book;
-        if (!book) return null;
-        return {
-          id: sb.id,
-          user_book_id: sb.user_book_id,
-          book_id: book.id,
-          title: book.title,
-          author: book.author,
-          slug: book.slug,
-          cover_url: book.cover_url,
-          status: ub.status,
-          added_at: sb.added_at ?? "",
-        };
-      })
-      .filter((b): b is NonNullable<typeof b> => b !== null);
-
-    return { books };
-  } catch (error) {
-    logError("Error in getShelfBooks", error);
-    return { books: [], error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }

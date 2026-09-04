@@ -41,7 +41,7 @@ export default function FollowButton({
     startTransition(async () => {
       const result = await toggleFollow(targetUserId);
 
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error);
         return;
       }
@@ -56,7 +56,7 @@ export default function FollowButton({
     startTransition(async () => {
       const result = await toggleFollow(targetUserId);
 
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error);
         return;
       }

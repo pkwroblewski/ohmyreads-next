@@ -250,77 +250,10 @@ export async function getFriendshipStatus(
 // ARE FRIENDS (boolean check)
 // ============================================
 
-/**
- * Check if current user is friends with target user
- */
-export async function areFriends(targetUserId: string): Promise<boolean> {
-  const { status } = await getFriendshipStatus(targetUserId);
-  return status === "friends";
-}
-
 // ============================================
 // GET PENDING REQUESTS COUNT
 // ============================================
 
-/**
- * Get count of pending incoming friend requests (for notification badge)
- */
-export async function getPendingRequestsCount(): Promise<number> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) return 0;
-
-  const { count, error } = await supabase
-    .from("friend_requests")
-    .select("*", { count: "exact", head: true })
-    .eq("receiver_id", user.id)
-    .eq("status", "pending");
-
-  if (error) {
-    logError("Error fetching pending count", error);
-    return 0;
-  }
-
-  return count || 0;
-}
-
 // ============================================
 // GET FRIEND IDS (for filtering)
 // ============================================
-
-/**
- * Get IDs of all friends (for filtering queries)
- */
-export async function getFriendIds(userId: string): Promise<string[]> {
-  const supabase = await createClient();
-
-  // Get accepted requests where user is sender
-  const { data: sent } = await supabase
-    .from("friend_requests")
-    .select("receiver_id")
-    .eq("sender_id", userId)
-    .eq("status", "accepted");
-
-  // Get accepted requests where user is receiver
-  const { data: received } = await supabase
-    .from("friend_requests")
-    .select("sender_id")
-    .eq("receiver_id", userId)
-    .eq("status", "accepted");
-
-  const friendIds = new Set<string>();
-
-  for (const row of sent || []) {
-    friendIds.add(row.receiver_id);
-  }
-
-  for (const row of received || []) {
-    friendIds.add(row.sender_id);
-  }
-
-  return Array.from(friendIds);
-}

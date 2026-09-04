@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   updateProfileSchema,
@@ -13,32 +13,29 @@ import { sendWelcomeEmail } from "@/lib/actions/email";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import type { Database, Profile } from "@/types/database";
 import { logError, reportError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
 /**
  * Update user profile
  */
-export async function updateProfile(input: UpdateProfileInput) {
+export async function updateProfile(input: UpdateProfileInput): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 20 profile updates per minute per user
     const { allowed } = await checkRateLimit(`profile:${user.id}`, 20, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = updateProfileSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -55,7 +52,7 @@ export async function updateProfile(input: UpdateProfileInput) {
         .single();
 
       if (existing) {
-        return { error: "Username is already taken" };
+        return { success: false, error: "Username is already taken" };
       }
     }
 
@@ -79,7 +76,7 @@ export async function updateProfile(input: UpdateProfileInput) {
       .eq("id", user.id);
 
     if (error) {
-      return { error: reportError("Error updating profile", error) };
+      return { success: false, error: reportError("Error updating profile", error) };
     }
 
     revalidatePath("/profile");
@@ -91,36 +88,32 @@ export async function updateProfile(input: UpdateProfileInput) {
     return { success: true };
   } catch (error) {
     logError("Error in updateProfile", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
 /**
  * Update social links for user profile
  */
-export async function updateSocialLinks(links: SocialLinkInput[]) {
+export async function updateSocialLinks(links: SocialLinkInput[]): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 20 profile updates per minute per user
     const { allowed } = await checkRateLimit(`profile:${user.id}`, 20, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = updateSocialLinksSchema.safeParse(links);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -144,7 +137,7 @@ export async function updateSocialLinks(links: SocialLinkInput[]) {
       );
 
       if (error) {
-        return { error: reportError("Error updating social links", error) };
+        return { success: false, error: reportError("Error updating social links", error) };
       }
     }
 
@@ -154,69 +147,7 @@ export async function updateSocialLinks(links: SocialLinkInput[]) {
     return { success: true };
   } catch (error) {
     logError("Error in updateSocialLinks", error);
-    return { error: "An unexpected error occurred" };
-  }
-}
-
-/**
- * Get current user's profile
- */
-export async function getCurrentUserProfile() {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    if (!user) {
-      return { profile: null };
-    }
-
-    const { data: profile, error } = await supabase
-      .rpc("get_my_profile")
-      .single();
-
-    if (error) {
-      logError("Error fetching profile", error);
-      return { profile: null };
-    }
-
-    return { profile };
-  } catch (error) {
-    logError("Error in getCurrentUserProfile", error);
-    return { profile: null };
-  }
-}
-
-/**
- * Check if a username is available
- */
-export async function checkUsernameAvailable(username: string) {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await getUser();
-
-    let query = supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", username.toLowerCase())
-      .limit(1);
-
-    // Exclude current user if logged in
-    if (user) {
-      query = query.neq("id", user.id);
-    }
-
-    const { data } = await query;
-
-    return { available: !data || data.length === 0 };
-  } catch (error) {
-    logError("Error in checkUsernameAvailable", error);
-    return { available: false };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -224,29 +155,16 @@ export async function checkUsernameAvailable(username: string) {
  * Ensure user has a profile - creates one if missing
  * Fixes users who have auth accounts but no profile row
  */
-export async function ensureUserProfile(): Promise<{
-  profile: Profile | null;
-  error?: string;
-}> {
+export async function ensureUserProfile(): Promise<ActionResult<{ profile: Profile }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { profile: null, error: "Not authenticated" };
+    const auth = await requireUser({ withProfile: true });
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
-
-    // Check if profile already exists
-    const { data: existingProfile } = await supabase
-      .rpc("get_my_profile")
-      .maybeSingle();
+    const { supabase, user, profile: existingProfile } = auth;
 
     if (existingProfile) {
-      return { profile: existingProfile as Profile };
+      return { success: true, profile: existingProfile as Profile };
     }
 
     // Rate limit the creation path only — the existing-profile early return
@@ -257,7 +175,7 @@ export async function ensureUserProfile(): Promise<{
       60000
     );
     if (!allowed) {
-      return { profile: null, error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Create profile - same logic as callback/route.ts
@@ -315,11 +233,11 @@ export async function ensureUserProfile(): Promise<{
       const { error: retryError } = await supabase.from("profiles").insert(profileData);
       if (retryError) {
         logError("Profile insert retry error", retryError);
-        return { profile: null, error: "Failed to create profile" };
+        return { success: false, error: "Failed to create profile" };
       }
     } else if (insertError) {
       logError("Profile insert error", insertError);
-      return { profile: null, error: "Failed to create profile" };
+      return { success: false, error: "Failed to create profile" };
     }
 
     // Promote to admin via the service-role client. The protect_admin_columns
@@ -375,9 +293,9 @@ export async function ensureUserProfile(): Promise<{
       );
     }
 
-    return { profile: newProfile as Profile };
+    return { success: true, profile: newProfile as Profile };
   } catch (error) {
     logError("Error in ensureUserProfile", error);
-    return { profile: null, error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }

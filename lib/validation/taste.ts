@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ALL_VIBE_TAGS } from "@/types/database";
 
 // Vibe tag schema
-const vibeTagSchema = z.enum(ALL_VIBE_TAGS as unknown as [string, ...string[]]);
+const vibeTagSchema = z.enum(ALL_VIBE_TAGS);
 
 // Pace preference schema
 const paceSchema = z.enum(["slow", "medium", "fast"]);

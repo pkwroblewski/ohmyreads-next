@@ -1,16 +1,16 @@
 "use server";
 
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   createClubSchema,
   setCurrentBookSchema,
-  updateClubSchema,
   clubIdSchema,
 } from "@/lib/validation/club";
 import type { ClubVisibility } from "@/types/database";
 import { logError, reportError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
 interface CreateClubInput {
   name: string;
   description?: string;
@@ -19,16 +19,12 @@ interface CreateClubInput {
 
 export async function createClub(
   input: CreateClubInput
-): Promise<{ success: boolean; slug?: string; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
+): Promise<ActionResult<{ slug: string }>> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
+  const { supabase, user } = auth;
 
   // Rate limit: 10 club creations per minute per user
   const { allowed } = await checkRateLimit(`club:create:${user.id}`, 10, 60000);
@@ -97,16 +93,12 @@ export async function createClub(
 
 export async function joinClub(
   clubId: string
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
+  const { supabase, user } = auth;
 
   // Rate limit: 20 join/leave actions per minute per user
   const { allowed } = await checkRateLimit(`club:member:${user.id}`, 20, 60000);
@@ -153,16 +145,12 @@ export async function joinClub(
 
 export async function leaveClub(
   clubId: string
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
+  const { supabase, user } = auth;
 
   // Rate limit: 20 join/leave actions per minute per user
   const { allowed } = await checkRateLimit(`club:member:${user.id}`, 20, 60000);
@@ -228,16 +216,12 @@ export async function setCurrentBook(
   clubId: string,
   bookId: string,
   clubSlug?: string
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
+  const { supabase, user } = auth;
 
   // Rate limit: 20 club updates per minute per user
   const { allowed } = await checkRateLimit(`club:update:${user.id}`, 20, 60000);
@@ -300,118 +284,5 @@ export async function setCurrentBook(
   if (clubSlug) {
     revalidatePath(`/clubs/${clubSlug}`);
   }
-  return { success: true };
-}
-
-export async function updateClub(
-  clubId: string,
-  updates: { name?: string; description?: string; visibility?: ClubVisibility }
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
-  }
-
-  // Rate limit: 20 club updates per minute per user
-  const { allowed } = await checkRateLimit(`club:update:${user.id}`, 20, 60000);
-  if (!allowed) {
-    return { success: false, error: "Too many requests. Please wait a moment." };
-  }
-
-  // Validate input with Zod
-  const validationResult = updateClubSchema.safeParse({ clubId, ...updates });
-  if (!validationResult.success) {
-    return {
-      success: false,
-      error: validationResult.error.issues[0]?.message || "Invalid input",
-    };
-  }
-
-  const data = validationResult.data;
-
-  // Check if user is admin
-  const { data: membership } = await supabase
-    .from("book_club_members")
-    .select("role")
-    .eq("club_id", clubId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (!membership || membership.role !== "admin") {
-    return { success: false, error: "Only admins can update the club" };
-  }
-
-  const updateData: Record<string, unknown> = {};
-  if (data.name) updateData.name = data.name;
-  if (data.description !== undefined) updateData.description = data.description || null;
-  if (data.visibility) updateData.visibility = data.visibility;
-
-  const { error } = await supabase
-    .from("book_clubs")
-    .update(updateData)
-    .eq("id", clubId);
-
-  if (error) {
-    logError("Error updating club", error);
-    return { success: false, error: "Failed to update club" };
-  }
-
-  revalidatePath("/clubs");
-  return { success: true };
-}
-
-export async function deleteClub(
-  clubId: string
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
-  }
-
-  // Rate limit: 20 club deletes per minute per user
-  const { allowed } = await checkRateLimit(`club:delete:${user.id}`, 20, 60000);
-  if (!allowed) {
-    return { success: false, error: "Too many requests. Please wait a moment." };
-  }
-
-  // Validate input with Zod
-  const validationResult = clubIdSchema.safeParse(clubId);
-  if (!validationResult.success) {
-    return {
-      success: false,
-      error: validationResult.error.issues[0]?.message || "Invalid input",
-    };
-  }
-
-  // Check if user is admin
-  const { data: membership } = await supabase
-    .from("book_club_members")
-    .select("role")
-    .eq("club_id", clubId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (!membership || membership.role !== "admin") {
-    return { success: false, error: "Only admins can delete the club" };
-  }
-
-  const { error } = await supabase.from("book_clubs").delete().eq("id", clubId);
-
-  if (error) {
-    logError("Error deleting club", error);
-    return { success: false, error: "Failed to delete club" };
-  }
-
-  revalidatePath("/clubs");
   return { success: true };
 }

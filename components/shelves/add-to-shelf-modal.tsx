@@ -60,20 +60,20 @@ export function AddToShelfModal({
         } else if (bookId) {
           // Book may or may not be in user's library
           const result = await getBookShelvesByBookId(bookId);
-          if (result.userBookId) {
+          if (result.success && result.userBookId) {
             setResolvedUserBookId(result.userBookId);
           }
           return result;
         }
-        return { shelfIds: [] };
+        return { success: true as const, shelfIds: [] as string[] };
       };
 
       Promise.all([getUserShelves(), fetchShelfAssignments()])
         .then(([shelvesResult, bookShelvesResult]) => {
-          if (shelvesResult.shelves) {
+          if (shelvesResult.success) {
             setShelves(shelvesResult.shelves);
           }
-          if (bookShelvesResult.shelfIds) {
+          if (bookShelvesResult.success) {
             setSelectedShelfIds(new Set(bookShelvesResult.shelfIds));
           }
         })
@@ -110,7 +110,7 @@ export function AddToShelfModal({
           shelfIds: Array.from(selectedShelfIds),
         });
         // Update resolved userBookId for future operations
-        if (result.userBookId) {
+        if (result.success && result.userBookId) {
           setResolvedUserBookId(result.userBookId);
         }
       } else {
@@ -133,16 +133,16 @@ export function AddToShelfModal({
     startCreatingShelf(async () => {
       const result = await createShelf({ name: newShelfName.trim() });
 
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error);
-      } else if (result.shelf) {
+      } else {
         toast.success("Shelf created!");
         // Add new shelf to list and select it
         setShelves((prev) => [
           ...prev,
-          { ...result.shelf!, book_count: 0 },
+          { ...result.shelf, book_count: 0 },
         ]);
-        setSelectedShelfIds((prev) => new Set([...prev, result.shelf!.id]));
+        setSelectedShelfIds((prev) => new Set([...prev, result.shelf.id]));
         setNewShelfName("");
         setIsCreating(false);
       }

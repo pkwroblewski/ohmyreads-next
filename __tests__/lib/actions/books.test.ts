@@ -195,7 +195,7 @@ describe("importAndAddToShelf", () => {
     expect(adminInsertedRows[0].slug).toBe("the-new-book");
     expect(adminInsertedRows[1].slug).toMatch(/^the-new-book-[0-9a-f]{6}$/);
     expect(adminInsertedRows[2].slug).toMatch(/^the-new-book-[0-9a-f]{6}$/);
-    expect(result.slug).toBe(adminInsertedRows[2].slug);
+    expect(result.success ? result.slug : null).toBe(adminInsertedRows[2].slug);
   });
 
   it("falls back to a timestamp slug after ten collisions", async () => {

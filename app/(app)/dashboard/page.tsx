@@ -5,7 +5,7 @@ import { ArrowRight, Upload } from "lucide-react";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getChallenges } from "@/lib/actions/challenges";
+import { getChallenges } from "@/lib/queries/challenges";
 import { getPendingRequests } from "@/lib/queries/friends";
 import ActiveChallengesWidget from "@/components/challenges/active-challenges-widget";
 import { PlacesNearYou } from "@/components/dashboard/places-near-you";

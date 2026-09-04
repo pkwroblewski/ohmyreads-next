@@ -62,7 +62,7 @@ export default async function MyShelfPage({
   ]);
 
   const shelfName = shelf.data?.name ?? null;
-  const books = page.userBooks as unknown as ShelfGridItem[];
+  const books = page.userBooks as ShelfGridItem[];
   const total = page.total;
 
   return (

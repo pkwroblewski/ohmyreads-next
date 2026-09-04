@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   createChallengeSchema,
@@ -11,9 +11,10 @@ import {
 import type {
   ChallengeType,
   ReadingChallenge,
-  ChallengeWithProgress,
 } from "@/types/database";
 import { logError, reportError } from "@/lib/utils/log";
+import { getChallenges } from "@/lib/queries/challenges";
+import type { ActionResult } from "@/types/app";
 interface CreateChallengeInput {
   name: string;
   description?: string;
@@ -24,39 +25,36 @@ interface CreateChallengeInput {
   end_date: string;
 }
 
-export async function createChallenge(input: CreateChallengeInput) {
+export async function createChallenge(input: CreateChallengeInput): Promise<ActionResult<{ data: ReadingChallenge }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 10 challenge creations per minute per user
     const { allowed } = await checkRateLimit(`challenge:${user.id}`, 10, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = createChallengeSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
     const validated = validationResult.data;
 
     if (new Date(validated.end_date) <= new Date(validated.start_date)) {
-      return { error: "End date must be after start date" };
+      return { success: false, error: "End date must be after start date" };
     }
 
     if (validated.challenge_type === "genre_books" && !validated.genre) {
-      return { error: "Genre is required for genre-based challenges" };
+      return { success: false, error: "Genre is required for genre-based challenges" };
     }
 
     const { data, error } = await supabase
@@ -77,7 +75,7 @@ export async function createChallenge(input: CreateChallengeInput) {
       .single();
 
     if (error) {
-      return { error: reportError("Error creating challenge", error) };
+      return { success: false, error: reportError("Error creating challenge", error) };
     }
 
     revalidatePath("/challenges");
@@ -86,29 +84,25 @@ export async function createChallenge(input: CreateChallengeInput) {
     return { success: true, data };
   } catch (error) {
     logError("Unexpected error in createChallenge", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
-export async function updateChallenge(
+async function updateChallenge(
   challengeId: string,
   updates: Partial<Pick<ReadingChallenge, "name" | "description" | "status">>
-) {
+): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 10 challenge mutations per minute per user
     const { allowed } = await checkRateLimit(`challenge:${user.id}`, 10, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod (also strips unknown keys from the spread)
@@ -118,6 +112,7 @@ export async function updateChallenge(
     });
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -132,7 +127,7 @@ export async function updateChallenge(
       .eq("user_id", user.id);
 
     if (error) {
-      return { error: reportError("Error updating challenge", error) };
+      return { success: false, error: reportError("Error updating challenge", error) };
     }
 
     revalidatePath("/challenges");
@@ -141,32 +136,29 @@ export async function updateChallenge(
     return { success: true };
   } catch (error) {
     logError("Unexpected error in updateChallenge", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
-export async function deleteChallenge(challengeId: string) {
+export async function deleteChallenge(challengeId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit: 10 challenge mutations per minute per user
     const { allowed } = await checkRateLimit(`challenge:${user.id}`, 10, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = challengeIdSchema.safeParse(challengeId);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -178,7 +170,7 @@ export async function deleteChallenge(challengeId: string) {
       .eq("user_id", user.id);
 
     if (error) {
-      return { error: reportError("Error deleting challenge", error) };
+      return { success: false, error: reportError("Error deleting challenge", error) };
     }
 
     revalidatePath("/challenges");
@@ -187,7 +179,7 @@ export async function deleteChallenge(challengeId: string) {
     return { success: true };
   } catch (error) {
     logError("Unexpected error in deleteChallenge", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -195,156 +187,14 @@ export async function abandonChallenge(challengeId: string) {
   return updateChallenge(challengeId, { status: "abandoned" });
 }
 
-export async function getChallenges(): Promise<{
-  data: ChallengeWithProgress[] | null;
-  error: string | null;
-}> {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-    if (authError || !user) {
-      return { data: null, error: "Not authenticated" };
-    }
-
-    // Get all challenges
-    const { data: challenges, error: challengesError } = await supabase
-      .from("reading_challenges")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (challengesError) {
-      return { data: null, error: reportError("Error fetching challenges", challengesError) };
-    }
-
-    if (!challenges || challenges.length === 0) {
-      return { data: [], error: null };
-    }
-
-    // Get user's reading data for progress calculation
-    const { data: userBooks } = await supabase
-      .from("user_books")
-      .select(
-        `
-        id,
-        status,
-        finished_at,
-        book:books(
-          page_count,
-          genres
-        )
-      `
-      )
-      .eq("user_id", user.id)
-      .eq("status", "read");
-
-    const today = new Date();
-
-    // Calculate progress for each challenge
-    const challengesWithProgress: ChallengeWithProgress[] = challenges.map(
-      (challenge) => {
-        const startDate = new Date(challenge.start_date);
-        const endDate = new Date(challenge.end_date);
-        const daysRemaining = Math.max(
-          0,
-          Math.ceil(
-            (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-          )
-        );
-        const totalDays = Math.ceil(
-          (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        const daysElapsed = Math.max(0, totalDays - daysRemaining);
-
-        // Calculate current value based on challenge type
-        let currentValue = 0;
-
-        if (userBooks) {
-          const booksInPeriod = userBooks.filter((ub) => {
-            if (!ub.finished_at) return false;
-            const finishedDate = new Date(ub.finished_at);
-            return finishedDate >= startDate && finishedDate <= endDate;
-          });
-
-          switch (challenge.challenge_type) {
-            case "books_count":
-              currentValue = booksInPeriod.length;
-              break;
-
-            case "pages_count":
-              currentValue = booksInPeriod.reduce((sum, ub) => {
-                const book = Array.isArray(ub.book) ? ub.book[0] : ub.book;
-                return sum + (book?.page_count || 0);
-              }, 0);
-              break;
-
-            case "genre_books":
-              currentValue = booksInPeriod.filter((ub) => {
-                const book = Array.isArray(ub.book) ? ub.book[0] : ub.book;
-                return book?.genres?.some(
-                  (g: string) =>
-                    g.toLowerCase() === challenge.genre?.toLowerCase()
-                );
-              }).length;
-              break;
-          }
-        }
-
-        const progressPercentage = Math.min(
-          100,
-          Math.round((currentValue / challenge.target_value) * 100)
-        );
-
-        // Calculate if on track (linear progress)
-        const expectedProgress =
-          totalDays > 0 ? (daysElapsed / totalDays) * 100 : 0;
-        const isOnTrack = progressPercentage >= expectedProgress;
-
-        // Check if challenge should be marked as completed or failed
-        let status = challenge.status;
-        if (
-          status === "active" &&
-          currentValue >= challenge.target_value
-        ) {
-          status = "completed";
-        } else if (status === "active" && today > endDate) {
-          status = "failed";
-        }
-
-        return {
-          ...challenge,
-          current_value: currentValue,
-          status,
-          progress_percentage: progressPercentage,
-          days_remaining: daysRemaining,
-          is_on_track: isOnTrack,
-        } as ChallengeWithProgress;
-      }
-    );
-
-    return { data: challengesWithProgress, error: null };
-  } catch (error) {
-    logError("Unexpected error in getChallenges", error);
-    return { data: null, error: "An unexpected error occurred" };
-  }
-}
-
 // Sync challenge progress (called when books are marked as read)
-export async function syncChallengeProgress() {
+export async function syncChallengeProgress(): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     const { data: challengesWithProgress } = await getChallenges();
 
@@ -389,6 +239,6 @@ export async function syncChallengeProgress() {
     return { success: true };
   } catch (error) {
     logError("Unexpected error in syncChallengeProgress", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }

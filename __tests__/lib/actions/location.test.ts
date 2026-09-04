@@ -45,7 +45,7 @@ describe("setPresence", () => {
 
     const result = await setPresence({ type: "recommended" });
 
-    expect(result).toEqual({ error: "Not authenticated" });
+    expect(result).toEqual({ success: false, error: "Not authenticated" });
     expect(mock.update).not.toHaveBeenCalled();
   });
 
@@ -59,7 +59,7 @@ describe("setPresence", () => {
         placeGeohash: bad,
       });
 
-      expect(result, bad).toEqual({ error: "Invalid geohash" });
+      expect(result, bad).toEqual({ success: false, error: "Invalid geohash" });
     }
     expect(mock.update).not.toHaveBeenCalled();
   });
@@ -100,7 +100,7 @@ describe("updateLocation", () => {
 
   it("rejects an unauthenticated user and out-of-range coordinates", async () => {
     mock = createMockSupabase(null);
-    expect(await updateLocation(input)).toEqual({ error: "Not authenticated" });
+    expect(await updateLocation(input)).toEqual({ success: false, error: "Not authenticated" });
 
     mock = createMockSupabase({ id: userId });
     expect((await updateLocation({ ...input, lat: 91 })).error).toBeTruthy();

@@ -1,17 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { encodeGeohash, isValidGeohash } from "@/lib/utils/geohash";
 import { logError } from "@/lib/utils/log";
 import {
   updateLocationSchema,
-  updateLocationFromGeohashSchema,
   locationEnabledSchema,
   locationPrecisionSchema,
   setPresenceSchema,
 } from "@/lib/validation/location";
+import type { ActionResult } from "@/types/app";
 
 // ============================================
 // UPDATE LOCATION
@@ -27,29 +27,25 @@ interface UpdateLocationInput {
 /**
  * Update user's location (from coordinates)
  */
-export async function updateLocation(input: UpdateLocationInput) {
+export async function updateLocation(input: UpdateLocationInput): Promise<ActionResult<{ geohash: string; label: string }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit
     const { allowed } = await checkRateLimit(`location:${user.id}`, 10, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = updateLocationSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -72,7 +68,7 @@ export async function updateLocation(input: UpdateLocationInput) {
 
     if (error) {
       logError("Error updating location", error);
-      return { error: "Failed to update location" };
+      return { success: false, error: "Failed to update location" };
     }
 
     revalidatePath("/settings");
@@ -81,77 +77,7 @@ export async function updateLocation(input: UpdateLocationInput) {
     return { success: true, geohash, label: input.label };
   } catch (error) {
     logError("Error in updateLocation", error);
-    return { error: "An unexpected error occurred" };
-  }
-}
-
-/**
- * Update user's location from a geohash (for city search results)
- */
-export async function updateLocationFromGeohash(input: {
-  geohash: string;
-  label: string;
-  precision?: number;
-}) {
-  try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
-    }
-
-    // Rate limit
-    const { allowed } = await checkRateLimit(`location:${user.id}`, 10, 60000);
-    if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
-    }
-
-    // Validate input with Zod
-    const validationResult = updateLocationFromGeohashSchema.safeParse(input);
-    if (!validationResult.success) {
-      return {
-        error: validationResult.error.issues[0]?.message || "Invalid input",
-      };
-    }
-
-    // Validate geohash alphabet/format (domain check beyond shape)
-    if (!isValidGeohash(input.geohash)) {
-      return { error: "Invalid geohash" };
-    }
-
-    // Apply precision (truncate geohash)
-    const precision = Math.min(Math.max(input.precision || 6, 4), 8);
-    const geohash = input.geohash.slice(0, precision);
-
-    // Update profile
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        location_enabled: true,
-        location_geohash: geohash,
-        location_label: input.label.slice(0, 200),
-        location_precision: precision,
-        location_updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
-
-    if (error) {
-      logError("Error updating location", error);
-      return { error: "Failed to update location" };
-    }
-
-    revalidatePath("/settings");
-    revalidatePath("/profile");
-
-    return { success: true };
-  } catch (error) {
-    logError("Error in updateLocationFromGeohash", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -162,29 +88,25 @@ export async function updateLocationFromGeohash(input: {
 /**
  * Enable or disable location sharing
  */
-export async function toggleLocationSharing(enabled: boolean) {
+export async function toggleLocationSharing(enabled: boolean): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit
     const { allowed } = await checkRateLimit(`location:${user.id}`, 10, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = locationEnabledSchema.safeParse(enabled);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -208,7 +130,7 @@ export async function toggleLocationSharing(enabled: boolean) {
 
     if (error) {
       logError("Error toggling location", error);
-      return { error: "Failed to update setting" };
+      return { success: false, error: "Failed to update setting" };
     }
 
     revalidatePath("/settings");
@@ -217,7 +139,7 @@ export async function toggleLocationSharing(enabled: boolean) {
     return { success: true };
   } catch (error) {
     logError("Error in toggleLocationSharing", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -228,23 +150,19 @@ export async function toggleLocationSharing(enabled: boolean) {
 /**
  * Update location precision (how approximate the location is)
  */
-export async function updateLocationPrecision(precision: number) {
+export async function updateLocationPrecision(precision: number): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Validate input with Zod (rejects NaN/non-integers before the clamp)
     const validationResult = locationPrecisionSchema.safeParse(precision);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -274,7 +192,7 @@ export async function updateLocationPrecision(precision: number) {
 
     if (error) {
       logError("Error updating precision", error);
-      return { error: "Failed to update precision" };
+      return { success: false, error: "Failed to update precision" };
     }
 
     revalidatePath("/settings");
@@ -282,7 +200,7 @@ export async function updateLocationPrecision(precision: number) {
     return { success: true };
   } catch (error) {
     logError("Error in updateLocationPrecision", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -307,29 +225,25 @@ interface SetPresenceInput {
  * - recommended: "Great reading spot" - expires after 7 days
  * Auto-enables location_enabled when checking in.
  */
-export async function setPresence(input: SetPresenceInput) {
+export async function setPresence(input: SetPresenceInput): Promise<ActionResult<{ expiresAt: string | null; placeName?: string | null }>> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Rate limit
     const { allowed } = await checkRateLimit(`presence:${user.id}`, 10, 60000);
     if (!allowed) {
-      return { error: "Too many requests. Please wait a moment." };
+      return { success: false, error: "Too many requests. Please wait a moment." };
     }
 
     // Validate input with Zod
     const validationResult = setPresenceSchema.safeParse(input);
     if (!validationResult.success) {
       return {
+        success: false,
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
@@ -337,14 +251,14 @@ export async function setPresence(input: SetPresenceInput) {
     // Validate geohash alphabet/format (domain check beyond shape), as
     // updateLocationFromGeohash does — this value lands in location_geohash.
     if (input.placeGeohash && !isValidGeohash(input.placeGeohash)) {
-      return { error: "Invalid geohash" };
+      return { success: false, error: "Invalid geohash" };
     }
 
     // Validate duration for temporary presence
     if (input.type === "temporary") {
       const validDurations = [1, 2, 4];
       if (!input.durationHours || !validDurations.includes(input.durationHours)) {
-        return { error: "Invalid duration. Must be 1, 2, or 4 hours." };
+        return { success: false, error: "Invalid duration. Must be 1, 2, or 4 hours." };
       }
     }
 
@@ -380,7 +294,7 @@ export async function setPresence(input: SetPresenceInput) {
 
     if (error) {
       logError("Error setting presence", error);
-      return { error: "Failed to set presence" };
+      return { success: false, error: "Failed to set presence" };
     }
 
     revalidatePath("/settings");
@@ -390,25 +304,20 @@ export async function setPresence(input: SetPresenceInput) {
     return { success: true, expiresAt, placeName: input.placeName };
   } catch (error) {
     logError("Error in setPresence", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
 /**
  * Clear the user's presence (disable location sharing entirely)
  */
-export async function clearPresence() {
+export async function clearPresence(): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     const { error } = await supabase
       .from("profiles")
@@ -424,7 +333,7 @@ export async function clearPresence() {
 
     if (error) {
       logError("Error clearing presence", error);
-      return { error: "Failed to clear presence" };
+      return { success: false, error: "Failed to clear presence" };
     }
 
     revalidatePath("/settings");
@@ -434,7 +343,7 @@ export async function clearPresence() {
     return { success: true };
   } catch (error) {
     logError("Error in clearPresence", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
@@ -445,18 +354,13 @@ export async function clearPresence() {
 /**
  * Clear user's location data entirely
  */
-export async function clearLocation() {
+export async function clearLocation(): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await getUser();
-
-    if (authError || !user) {
-      return { error: "Not authenticated" };
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
+    const { supabase, user } = auth;
 
     // Update profile
     const { error } = await supabase
@@ -472,7 +376,7 @@ export async function clearLocation() {
 
     if (error) {
       logError("Error clearing location", error);
-      return { error: "Failed to clear location" };
+      return { success: false, error: "Failed to clear location" };
     }
 
     revalidatePath("/settings");
@@ -481,7 +385,7 @@ export async function clearLocation() {
     return { success: true };
   } catch (error) {
     logError("Error in clearLocation", error);
-    return { error: "An unexpected error occurred" };
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 

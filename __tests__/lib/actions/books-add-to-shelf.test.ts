@@ -53,14 +53,14 @@ beforeEach(() => {
   mock.upsert.mockResolvedValue({ error: null });
   checkRateLimit.mockResolvedValue({ allowed: true });
   syncChallengeProgress.mockResolvedValue({});
-  syncUserBadges.mockResolvedValue({ newBadges: [{ name: "First Read", icon: "📖" }] });
+  syncUserBadges.mockResolvedValue({ success: true, newBadges: [{ name: "First Read", icon: "📖" }] });
 });
 
 describe("addToShelf guards", () => {
   it("refuses an anonymous caller before the rate limiter or the database", async () => {
     mock = createMockSupabase(null);
 
-    expect(await addToShelf(BOOK, "read")).toEqual({ error: "Not authenticated" });
+    expect(await addToShelf(BOOK, "read")).toEqual({ success: false, error: "Not authenticated" });
     expect(checkRateLimit).not.toHaveBeenCalled();
     expect(mock.upsert).not.toHaveBeenCalled();
   });
@@ -141,7 +141,7 @@ describe("addToShelf write", () => {
 
     const result = await addToShelf(BOOK, "read");
 
-    expect(result).toEqual({ error: "Error adding to shelf" });
+    expect(result).toEqual({ success: false, error: "Error adding to shelf" });
     expect(invalidateTags).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
     expect(syncUserBadges).not.toHaveBeenCalled();

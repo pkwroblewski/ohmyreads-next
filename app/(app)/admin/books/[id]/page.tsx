@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import { BookForm } from "@/components/admin/book-form";
-import { adminGetBook, adminGetGenres } from "@/lib/actions/admin-books";
+import { adminGetBook, adminGetGenres } from "@/lib/queries/admin-books";
 
 export const metadata: Metadata = {
   title: "Edit Book | Admin",

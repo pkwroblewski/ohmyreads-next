@@ -1,8 +1,6 @@
 import { z } from "zod";
 
 export const friendIdSchema = z.string().uuid("Invalid friend ID");
-export const messageIdSchema = z.string().uuid("Invalid message ID");
-
 export const sendMessageSchema = z.object({
   receiverId: z.string().uuid("Invalid recipient ID"),
   content: z

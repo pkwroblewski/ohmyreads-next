@@ -42,11 +42,3 @@ export function getAffiliateLinks(book: BookForLinks): AffiliateLinks {
     bolcom: bolcomUrl,
   };
 }
-
-/**
- * Get a single affiliate link for display
- * Returns Amazon link by default
- */
-export function getPrimaryAffiliateLink(book: BookForLinks): string {
-  return getAffiliateLinks(book).amazon;
-}

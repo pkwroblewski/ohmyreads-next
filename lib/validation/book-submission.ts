@@ -44,10 +44,6 @@ export const createBookSubmissionSchema = z.object({
   coverSource: z.enum(["google", "openlibrary", "user", "other"]).optional(),
 });
 
-export const updateBookSubmissionSchema = createBookSubmissionSchema.partial();
-
-export const submissionIdSchema = z.string().uuid("Invalid submission ID");
-
 export const moderateBookSubmissionSchema = z.object({
   submissionId: z.string().uuid("Invalid submission ID"),
   action: z.enum(["approve", "reject"]),
@@ -56,9 +52,6 @@ export const moderateBookSubmissionSchema = z.object({
 
 export type CreateBookSubmissionInput = z.infer<
   typeof createBookSubmissionSchema
->;
-export type UpdateBookSubmissionInput = z.infer<
-  typeof updateBookSubmissionSchema
 >;
 export type ModerateBookSubmissionInput = z.infer<
   typeof moderateBookSubmissionSchema

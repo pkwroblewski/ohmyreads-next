@@ -13,6 +13,7 @@ import {
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { sendWelcomeEmailSchema } from "@/lib/validation/email";
 import { logger, reportError } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
 interface SendWelcomeEmailParams {
   email: string;
   username: string;
@@ -23,7 +24,7 @@ export async function sendWelcomeEmail({
   email,
   username,
   displayName,
-}: SendWelcomeEmailParams): Promise<{ success: boolean; error?: string }> {
+}: SendWelcomeEmailParams): Promise<ActionResult> {
   const resend = getResendClient();
 
   // Skip if no API key configured

@@ -118,15 +118,6 @@ export function resolveCoverUrl(book: BookCoverData): string | null {
 }
 
 /**
- * Get high-resolution cover URL (for detail pages)
- * Uses -L for Open Library, zoom=3 for Google Books
- */
-export function resolveHighResCoverUrl(book: BookCoverData): string | null {
-  // Same priority as resolveCoverUrl - Open Library first, Google Books last
-  return resolveCoverUrl(book);
-}
-
-/**
  * Determine the source of a cover URL for attribution
  */
 export function getCoverSource(
@@ -136,21 +127,6 @@ export function getCoverSource(
   if (isGoogleBooksCover(url)) return "google";
   if (isOpenLibraryCover(url)) return "openlibrary";
   return "unknown";
-}
-
-/**
- * Get attribution text for cover source
- */
-export function getCoverAttribution(url: string | null): string | null {
-  const source = getCoverSource(url);
-  switch (source) {
-    case "google":
-      return "Cover via Google Books";
-    case "openlibrary":
-      return "Cover via Open Library";
-    default:
-      return null;
-  }
 }
 
 /**

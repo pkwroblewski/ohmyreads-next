@@ -94,7 +94,7 @@ export function ReviewCard({
     setIsLiking(true);
     try {
       const result = await toggleReviewLike(review.id);
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error);
       } else {
         setHasLiked(result.liked);

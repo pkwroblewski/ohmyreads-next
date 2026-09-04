@@ -76,7 +76,7 @@ export function BookSubmissionForm() {
         pageCount: pageCount ? parseInt(pageCount, 10) : undefined,
       });
 
-      if (result.error) {
+      if (!result.success) {
         setError(result.error);
         toast.error(result.error);
       } else {

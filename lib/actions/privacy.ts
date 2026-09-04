@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient, getUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
@@ -9,17 +9,14 @@ import {
   type EmailPreferencesInput,
 } from "@/lib/validation/privacy";
 import { logError, logger } from "@/lib/utils/log";
+import type { ActionResult } from "@/types/app";
 
-export async function updateDiscoveryVisibility(visible: boolean): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
+export async function updateDiscoveryVisibility(visible: boolean): Promise<ActionResult> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
+  const { supabase, user } = auth;
 
   // Rate limit: 10 privacy updates per minute per user
   const { allowed } = await checkRateLimit(`privacy:${user.id}`, 10, 60000);
@@ -52,54 +49,6 @@ export async function updateDiscoveryVisibility(visible: boolean): Promise<{ suc
   return { success: true };
 }
 
-export async function getDiscoveryVisibility(): Promise<boolean> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return true; // Default to visible
-  }
-
-  const { data } = await supabase
-    .from("profiles")
-    .select("discovery_visible")
-    .eq("id", user.id)
-    .single();
-
-  return data?.discovery_visible ?? true;
-}
-
-export interface EmailPreferences {
-  digestEnabled: boolean;
-}
-
-/**
- * The caller's own email preferences. The email_* columns are not readable
- * through a plain select since 065; the owner RPC returns the full row.
- */
-export async function getEmailPreferences(): Promise<EmailPreferences> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { digestEnabled: true }; // column default (017)
-  }
-
-  const { data, error } = await supabase.rpc("get_my_profile").maybeSingle();
-
-  if (error) {
-    logError("Error fetching email preferences", error);
-  }
-
-  return { digestEnabled: data?.email_digest_enabled ?? true };
-}
-
 /**
  * Update the caller's own email preferences. The write goes through the
  * session client: 065 revoked SELECT on the email columns for the API roles
@@ -107,16 +56,12 @@ export async function getEmailPreferences(): Promise<EmailPreferences> {
  */
 export async function updateEmailPreferences(
   input: EmailPreferencesInput
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
+  const { supabase, user } = auth;
 
   // Rate limit: shared with the other privacy toggles
   const { allowed } = await checkRateLimit(`privacy:${user.id}`, 10, 60000);

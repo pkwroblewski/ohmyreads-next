@@ -25,7 +25,7 @@ export function MobileShelfDrawer({ activeShelfId }: MobileShelfDrawerProps) {
   const loadShelves = async () => {
     setIsLoading(true);
     const result = await getUserShelves();
-    if (result.shelves) {
+    if (result.success) {
       setShelves(result.shelves);
     }
     setIsLoading(false);

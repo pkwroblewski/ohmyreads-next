@@ -14,7 +14,7 @@ import {
   adminGetUsers,
   adminGetUserStats,
   type UserFilters,
-} from "@/lib/actions/admin-users";
+} from "@/lib/queries/admin-users";
 import {
   toAdminParams,
   readPage,

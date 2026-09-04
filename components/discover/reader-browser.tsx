@@ -54,10 +54,9 @@ export function ReaderBrowser({
       }
     }
 
-    if (showSortDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
+    if (!showSortDropdown) return;
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showSortDropdown]);
 
   // Fetch readers from API
