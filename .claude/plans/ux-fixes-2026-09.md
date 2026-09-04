@@ -32,6 +32,43 @@
 
 **Progress: 9/12 complete**
 
+### ▶ Resume here (paused 2026-09-04)
+
+**Next task: 10 — Catalog data pass.** Nothing is half-finished; Tasks 1–9 are
+committed and their Completed Notes are filled in. Start by reading Task 10
+below, in full, before touching anything.
+
+Task 10 is the only task in this plan that changes **production data**, so it
+is not a normal edit-and-verify task:
+
+- It writes `supabase/migrations/069_dedupe_books.sql`, which repoints foreign
+  keys and then **deletes** duplicate `books` rows. Follow step 1 first — the
+  rolled-back dry run under `supabase/checks/` — and read the results before
+  writing the migration.
+- Confirm the real foreign-key list from `information_schema` rather than
+  trusting the table names in step 2; the plan's list was written from memory
+  and `club_books` / `challenge_books` may not exist under those names.
+- Steps 5–6 run `npm run enrich-books`, which calls external APIs and writes
+  rows. Do the `--dry-run` first and report the counts before a real run.
+- Apply migrations with `npx supabase db query --linked -f …` (returns only
+  the last statement's result).
+
+**Then:** Task 11 (one rating per card + real Browse count) is a small
+two-file change, and Task 12 is the final QA pass. Two Out of Scope entries
+are already earmarked for those two: the Browse card action row overflowing a
+390 px viewport (Task 11), and the dashboard's pre-existing Radix hydration
+mismatch (Task 12).
+
+**Repo state:** working tree clean; **9 commits on `main` are not pushed**
+(`ccd80a0` through `156a184`, Tasks 1–9). Push before or after Task 10 as you
+prefer, but do not lose them.
+
+**Local dev notes for whoever picks this up:** the throwaway-account QA recipe
+that verified Tasks 7–9 is in the `playwright-dev-login` memory. Two known
+local-only annoyances, neither a bug in this plan: `/books` with no filters can
+show "0 books found" from a stale `unstable_cache` entry (use `?sort=newest`),
+and Supabase connect timeouts can make a Server Action take 15–30 s.
+
 **Status Options:**
 - `[ ] PENDING` - not started
 - `[x] COMPLETE` - all steps and verify checks done
