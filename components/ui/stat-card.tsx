@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +10,8 @@ interface StatCardProps {
   subtitle?: string;
   icon: LucideIcon;
   trend?: "up" | "down" | "neutral";
+  /** When set, the whole card becomes a link to the list behind the number. */
+  href?: string;
 }
 
 export function StatCard({
@@ -17,9 +20,15 @@ export function StatCard({
   subtitle,
   icon: Icon,
   trend = "neutral",
+  href,
 }: StatCardProps) {
-  return (
-    <Card>
+  const card = (
+    <Card
+      className={cn(
+        href &&
+          "h-full transition-colors hover:border-primary/40 hover:bg-muted/40"
+      )}
+    >
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
@@ -53,6 +62,18 @@ export function StatCard({
         )}
       </CardContent>
     </Card>
+  );
+
+  if (!href) return card;
+
+  return (
+    <Link
+      href={href}
+      aria-label={`${title}: ${value}. View details`}
+      className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {card}
+    </Link>
   );
 }
 

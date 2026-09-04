@@ -46,6 +46,15 @@ describe("validateOrigin", () => {
     expect(validateOrigin(req(`${SITE}/api/x`, { origin: SITE }))).toBe(true);
   });
 
+  it("tolerates a trailing line break in NEXT_PUBLIC_SITE_URL (pasted into Vercel)", async () => {
+    const { validateOrigin } = await loadCsrf("production", `${SITE}\r\n`);
+
+    expect(validateOrigin(req(`${SITE}/api/x`, { origin: SITE }))).toBe(true);
+    expect(
+      validateOrigin(req(`${SITE}/api/x`, { origin: "https://evil.example" }))
+    ).toBe(false);
+  });
+
   it("rejects a request from another site", async () => {
     const { validateOrigin } = await loadCsrf("production");
 

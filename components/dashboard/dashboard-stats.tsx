@@ -47,16 +47,19 @@ export async function DashboardStats() {
         title="Books Read"
         value={typedStats?.books_read || 0}
         icon={BookOpen}
+        href="/my-shelf?status=read"
       />
       <StatCard
         title="Pages Read"
         value={typedStats?.pages_read?.toLocaleString() || 0}
         icon={FileText}
+        href="/my-shelf?status=read"
       />
       <StatCard
         title="Reviews Written"
         value={typedStats?.reviews_count || 0}
         icon={MessageSquare}
+        href="/profile"
       />
       <StatCard
         title="Day Streak"

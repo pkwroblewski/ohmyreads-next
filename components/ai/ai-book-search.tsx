@@ -20,6 +20,7 @@ import { CoverImage } from "@/components/books/cover-image";
 import { AddToShelfButton } from "@/components/books/add-to-shelf-button";
 import { BuyLinks } from "@/components/books/buy-links";
 import { importAndAddToShelf, type ExternalBookData } from "@/lib/actions/books";
+import { chatErrorMessage } from "@/lib/ai/chat-error";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -239,7 +240,7 @@ export function AIBookSearch({ open, onOpenChange, initialQuery }: AIBookSearchP
             {error && (
               <div className="flex justify-center">
                 <div className="bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm">
-                  {error.message || "Something went wrong. Please try again."}
+                  {chatErrorMessage(error)}
                 </div>
               </div>
             )}

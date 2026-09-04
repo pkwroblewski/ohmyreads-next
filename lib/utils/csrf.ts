@@ -3,13 +3,18 @@
  * Server Actions have built-in CSRF protection; this covers raw API routes.
  */
 
+// Trimmed: a value pasted into the Vercel dashboard can carry a trailing
+// "\r\n", which `new URL()` tolerates but the strict comparison below does not
+// (it silently rejected every same-origin request in production once).
 const ALLOWED_ORIGINS = [
   process.env.NEXT_PUBLIC_SITE_URL,
   // Allow localhost in development
   ...(process.env.NODE_ENV === 'development'
     ? ['http://localhost:3000', 'http://127.0.0.1:3000']
     : []),
-].filter(Boolean) as string[];
+]
+  .map((origin) => origin?.trim())
+  .filter(Boolean) as string[];
 
 /**
  * Validate that a request originates from an allowed origin.
@@ -64,7 +69,7 @@ export function isForeignOrigin(request: Request): boolean {
   const allowedHosts = new Set([new URL(request.url).host]);
   for (const origin of ALLOWED_ORIGINS) {
     try {
-      allowedHosts.add(new URL(origin.trim()).host);
+      allowedHosts.add(new URL(origin).host);
     } catch {
       // Skip malformed configured origins
     }
