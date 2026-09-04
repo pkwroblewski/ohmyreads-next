@@ -121,8 +121,12 @@ export function ChatPanel({
           "w-full sm:w-96 max-w-full",
           "bg-card border-l border-border",
           "shadow-xl shadow-black/10 dark:shadow-black/30",
-          "transform transition-transform duration-300 ease-in-out",
-          isOpen ? "translate-x-0" : "translate-x-full"
+          // `visibility` transitions discretely at the end, so the slide-out
+          // still plays; once closed the drawer is out of layout, the tab
+          // order and the accessibility tree instead of sitting 384 px past
+          // the right edge and widening the document.
+          "transform transition-[transform,visibility] duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "translate-x-full invisible pointer-events-none"
         )}
       >
         {/* Panel Header */}

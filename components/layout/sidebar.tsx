@@ -19,10 +19,12 @@ import {
   Globe,
   TrendingUp,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "@/hooks/use-sign-out";
+import { useChatPanel } from "@/components/messages/chat-context";
 import { cn } from "@/lib/utils";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type { Profile } from "@/types/database";
@@ -83,6 +85,7 @@ const navSections: NavSection[] = [
 export function Sidebar({ user, profile }: SidebarProps) {
   const pathname = usePathname();
   const signOut = useSignOut();
+  const { openChat, unreadCount } = useChatPanel();
 
   const displayName =
     profile?.display_name ||
@@ -133,6 +136,26 @@ export function Sidebar({ user, profile }: SidebarProps) {
                   </Link>
                 );
               })}
+              {section.label === "Social" && (
+                <button
+                  type="button"
+                  onClick={() => openChat()}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg",
+                    "text-sm font-medium transition-colors",
+                    "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  <MessageSquare className="w-4.5 h-4.5 flex-shrink-0" aria-hidden="true" />
+                  Messages
+                  {unreadCount > 0 && (
+                    <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                      <span className="sr-only"> unread</span>
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         ))}

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { ChatPanel } from "./chat-panel";
 import { ChatTrigger } from "./chat-trigger";
+import { ChatPanelContext } from "./chat-context";
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages";
 import type { ConversationPreview, DirectMessage } from "@/types/database";
 
@@ -10,12 +11,15 @@ interface ChatWrapperProps {
   userId: string;
   initialConversations: ConversationPreview[];
   initialUnreadCount: number;
+  /** The shell it wraps, so nav surfaces can read `useChatPanel()`. */
+  children?: React.ReactNode;
 }
 
 export function ChatWrapper({
   userId,
   initialConversations,
   initialUnreadCount,
+  children,
 }: ChatWrapperProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [conversations, setConversations] = useState<ConversationPreview[]>(initialConversations);
@@ -93,8 +97,14 @@ export function ChatWrapper({
     };
   }, [handleOpenChat]);
 
+  const contextValue = useMemo(
+    () => ({ openChat: handleOpenChat, unreadCount }),
+    [handleOpenChat, unreadCount]
+  );
+
   return (
-    <>
+    <ChatPanelContext.Provider value={contextValue}>
+      {children}
       <ChatTrigger
         unreadCount={unreadCount}
         onClick={() => handleOpenChat()}
@@ -106,6 +116,6 @@ export function ChatWrapper({
         conversations={conversations}
         initialFriendId={openWithFriendId}
       />
-    </>
+    </ChatPanelContext.Provider>
   );
 }

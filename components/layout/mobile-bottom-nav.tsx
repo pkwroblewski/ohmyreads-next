@@ -20,9 +20,13 @@ import {
   Globe,
   TrendingUp,
   Sparkles,
+  MapPin,
+  Info,
+  MessageSquare,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useChatPanel } from "@/components/messages/chat-context";
 import { useState, useMemo } from "react";
 
 const primaryItems = [
@@ -38,16 +42,24 @@ const overflowItems = [
   { href: "/discover", label: "Find Readers", icon: UserSearch },
   { href: "/friends", label: "Friends", icon: UserPlus },
   { href: "/clubs", label: "Book Clubs", icon: Globe },
+  { href: "/community/map", label: "Map", icon: MapPin },
   { href: "/challenges", label: "Challenges", icon: Target },
   { href: "/lists", label: "Lists", icon: List },
   { href: "/stats", label: "Reading Stats", icon: BarChart3 },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/import", label: "Import", icon: Upload },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/about", label: "About", icon: Info },
 ];
+
+const sheetItemClasses = cn(
+  "flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl",
+  "text-center transition-colors"
+);
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { openChat, unreadCount } = useChatPanel();
   // Track which pathname the menu was opened on — auto-closes on navigation
   const [openOnPath, setOpenOnPath] = useState<string | null>(null);
   const showMore = openOnPath !== null && openOnPath === pathname;
@@ -74,9 +86,9 @@ export function MobileBottomNav() {
           <Dialog.Content
             aria-describedby={undefined}
             className={cn(
-              "fixed bottom-16 inset-x-0 z-50 lg:hidden focus:outline-none",
-              "pb-[env(safe-area-inset-bottom)]",
-              "animate-in slide-in-from-bottom-4 fade-in-0 duration-200"
+              // Sits on the 4rem nav bar, which itself sits on the safe area
+              "fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] inset-x-0 z-50 lg:hidden focus:outline-none",
+              "motion-safe:animate-[slide-up_200ms_ease-out]"
             )}
           >
             <div className="mx-3 mb-2 rounded-2xl bg-card border border-border shadow-xl overflow-hidden">
@@ -105,8 +117,7 @@ export function MobileBottomNav() {
                       href={item.href}
                       aria-current={isActive ? "page" : undefined}
                       className={cn(
-                        "flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl",
-                        "text-center transition-colors",
+                        sheetItemClasses,
                         isActive
                           ? "text-primary bg-primary/10"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -120,6 +131,28 @@ export function MobileBottomNav() {
                     </Link>
                   );
                 })}
+
+                {/* Messages opens the chat panel rather than navigating */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    openChat();
+                  }}
+                  className={cn(
+                    sheetItemClasses,
+                    "relative text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  <MessageSquare className="w-5 h-5" aria-hidden="true" />
+                  <span className="text-[10px] font-medium leading-tight">Messages</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-2.5 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                      <span className="sr-only"> unread</span>
+                    </span>
+                  )}
+                </button>
               </nav>
             </div>
           </Dialog.Content>

@@ -20,7 +20,7 @@
 | 1 | Shared Radix `Dialog` and `DropdownMenu` primitives | 🔴 Critical | Medium | [x] COMPLETE | `components/ui/dialog.tsx` (new), `components/ui/dropdown-menu.tsx` (new), `__tests__/components/ui/dialog.test.tsx` (new) |
 | 2 | Migrate the three menus: shelf dropdown, shelf-card actions, Browse sort | 🔴 Critical | Medium | [x] COMPLETE | `components/books/add-to-shelf-button.tsx`, `components/books/shelf-book-card.tsx`, `components/books/book-browser.tsx` |
 | 3 | Migrate the three dialogs: progress, Mood Search, custom shelves | 🔴 Critical | Medium | [x] COMPLETE | `components/books/update-progress-dialog.tsx`, `components/ai/ai-book-search.tsx`, `components/shelves/add-to-shelf-modal.tsx` |
-| 4 | Mobile chrome: clip horizontal overflow, reserve nav space, Messages into the nav | 🟠 High | Medium | [ ] PENDING | `components/messages/chat-panel.tsx`, `components/messages/chat-trigger.tsx`, `components/layout/app-shell.tsx`, `components/layout/mobile-bottom-nav.tsx`, `components/layout/sidebar.tsx`, `app/globals.css` |
+| 4 | Mobile chrome: clip horizontal overflow, reserve nav space, Messages into the nav | 🟠 High | Medium | [x] COMPLETE | `components/messages/chat-panel.tsx`, `components/messages/chat-trigger.tsx`, `components/layout/app-shell.tsx`, `components/layout/mobile-bottom-nav.tsx`, `components/layout/sidebar.tsx`, `app/globals.css` |
 | 5 | Full cover column set in feed, activity and club queries | 🟠 High | Low | [ ] PENDING | `lib/queries/community.ts`, `components/dashboard/recent-activity.tsx`, `lib/queries/clubs.ts` |
 | 6 | Muted text token passes AA | 🟠 High | Low | [ ] PENDING | `app/globals.css`, `components/layout/sidebar.tsx`, `components/reviews/quick-rating.tsx` |
 | 7 | Browse cards show the viewer's shelf status | 🔴 Critical | Medium | [ ] PENDING | `app/api/books/search/route.ts`, `components/books/book-browser.tsx`, `components/books/book-card.tsx` |
@@ -30,7 +30,7 @@
 | 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [ ] PENDING | `components/books/book-card.tsx`, `components/books/book-browser.tsx` |
 | 12 | Final QA | - | Medium | [ ] PENDING | - |
 
-**Progress: 3/12 complete**
+**Progress: 4/12 complete**
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -178,29 +178,29 @@ first-time tester's first screen is clean.
 **Context:** Every signed-in desktop page scrolls horizontally because the closed chat drawer still occupies layout width; on mobile the floating Messages bubble covers content and the bottom nav covers the last row of every page; Messages is in no navigation at all.
 
 **Steps:**
-1. [ ] `chat-panel.tsx`: while closed, add `invisible pointer-events-none` (keeps the slide-in animation) and put `overflow-x: clip` on `body` in `globals.css` as the backstop. Confirm `document.body.scrollWidth === clientWidth` at 1280.
-2. [ ] `app-shell.tsx:45`: replace `pb-20` with `pb-[calc(5rem+env(safe-area-inset-bottom))]` and add `scroll-padding-bottom` for anchor jumps; check the book page action row and the shelf card row at 390×844 no longer sit under the nav at any scroll position.
-3. [ ] Messages into the nav: `components/messages/chat-wrapper.tsx:98` owns the panel's open state (renders `ChatTrigger` + `ChatPanel`); expose `openChat` + `unreadCount` through a small context from there; add a "Messages" item with the unread badge to the sidebar's Social section and to `overflowItems` in `mobile-bottom-nav.tsx` (rendered as a button, not a link); add Map and About to `overflowItems` while there.
-4. [ ] `chat-trigger.tsx`: hide on mobile (`hidden lg:flex`) now that the sheet has the entry; on desktop keep `bottom-6`.
-5. [ ] `mobile-bottom-nav.tsx:77`: the More sheet's `bottom-16` gains the safe-area inset.
-6. [ ] Update `__tests__/components/layout/mobile-bottom-nav.test.tsx` for the new items.
-7. [ ] `npm run lint`, `npm run typecheck`, `npm run test:run`
+1. [x] `chat-panel.tsx`: while closed, add `invisible pointer-events-none` (keeps the slide-in animation) and put `overflow-x: clip` on `body` in `globals.css` as the backstop. Confirm `document.body.scrollWidth === clientWidth` at 1280.
+2. [x] `app-shell.tsx:45`: replace `pb-20` with `pb-[calc(5rem+env(safe-area-inset-bottom))]` and add `scroll-padding-bottom` for anchor jumps; check the book page action row and the shelf card row at 390×844 no longer sit under the nav at any scroll position.
+3. [x] Messages into the nav: `components/messages/chat-wrapper.tsx:98` owns the panel's open state (renders `ChatTrigger` + `ChatPanel`); expose `openChat` + `unreadCount` through a small context from there; add a "Messages" item with the unread badge to the sidebar's Social section and to `overflowItems` in `mobile-bottom-nav.tsx` (rendered as a button, not a link); add Map and About to `overflowItems` while there.
+4. [x] `chat-trigger.tsx`: hide on mobile (`hidden lg:flex`) now that the sheet has the entry; on desktop keep `bottom-6`.
+5. [x] `mobile-bottom-nav.tsx:77`: the More sheet's `bottom-16` gains the safe-area inset.
+6. [x] Update `__tests__/components/layout/mobile-bottom-nav.test.tsx` for the new items.
+7. [x] `npm run lint`, `npm run typecheck`, `npm run test:run`
 
 **Verify:**
-- [ ] Desktop 1280: no horizontal scrollbar on `/dashboard`, `/my-shelf`, `/books`; `scrollWidth === clientWidth`
-- [ ] Mobile 390×844: book page "Add to Shelf" row, shelf card "Update progress", dashboard CTAs all reachable and unobstructed; no floating bubble
-- [ ] More sheet lists Messages (with badge when unread > 0), Map, About; tapping Messages opens the panel
-- [ ] Sidebar shows Messages with the badge; existing nav test green
-- [ ] Lint 0/0, tests green
+- [x] Desktop 1280: no horizontal scrollbar on `/dashboard`, `/my-shelf`, `/books`; `scrollWidth === clientWidth`
+- [x] Mobile 390×844: book page "Add to Shelf" row, shelf card "Update progress", dashboard CTAs all reachable and unobstructed; no floating bubble
+- [x] More sheet lists Messages (with badge when unread > 0), Map, About; tapping Messages opens the panel
+- [x] Sidebar shows Messages with the badge; existing nav test green
+- [x] Lint 0/0, tests green
 
 **Completed Notes:**
-<!-- Fill in after completing -->
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `components/messages/chat-context.tsx` (new: `ChatPanelContext` + `useChatPanel()`), `components/messages/chat-wrapper.tsx` (now the provider; accepts `children`), `components/messages/index.ts`, `components/messages/chat-trigger.tsx`, `components/messages/chat-panel.tsx`, `components/layout/app-shell.tsx`, `components/layout/mobile-bottom-nav.tsx`, `components/layout/sidebar.tsx`, `app/globals.css`, `__tests__/components/layout/mobile-bottom-nav.test.tsx` (13 links, Messages button with badge and `openChat`, no-provider fallback; 6 tests).
+- Approach taken: **Overflow** — the closed drawer gets `invisible pointer-events-none` (with `transition-[transform,visibility]` so the slide-out still plays and, once closed, it leaves layout, the tab order and the accessibility tree); `body { overflow-x: clip }` is the backstop. **Nav space** — the app main's bottom padding is `calc(5rem + env(safe-area-inset-bottom))` below `lg`, and `html { scroll-padding-bottom }` (same value, `max-width: 1023px`) makes anchor jumps and `scrollIntoView` land above the nav. **Messages in the nav** — `ChatWrapper` wraps the whole `AppShell` and provides `{ openChat, unreadCount }`; the sidebar's Social section ends with a Messages button carrying the unread badge, and the More sheet has a Messages button (closes the sheet, opens the panel) plus Map (`/community/map`) and About (`/about`) links. Outside a provider the hook returns a no-op with no badge, so nothing changes for anonymous pages or tests. **Bubble** — `ChatTrigger` is `hidden lg:flex`, `bottom-6`. **Sheet** — `bottom-[calc(4rem+env(safe-area-inset-bottom))]` replaces `bottom-16` + the inner `pb-[env(...)]`; its dead `animate-in` classes became `motion-safe:animate-[slide-up_200ms_ease-out]`. `window.openChat` is still set for `friend-button.tsx`.
+- Deviations from plan: `chat-wrapper.tsx:98` no longer *renders* the trigger beside the panel only — it wraps the shell, so a context reaches the sidebar and bottom nav (they render before the chat in `AppShell`). `(public)/layout.tsx`'s anonymous-branch `ChatWrapper` is untouched (`children` is optional).
+- Issues encountered: (1) Browse at 390 px still lays out 23 px too wide (`document.body.scrollWidth` 413): the book card's action row (`flex gap-2` holding the "Buy Local" link) does not wrap. The body clip stops the sideways scroll (`scrollTo(50, 0)` leaves `scrollX` at 0) but the root cause lives in `book-card.tsx`, which Tasks 7 and 11 edit — add `flex-wrap`/`min-w-0` there. Dashboard's 8 px is its own `overflow-x-auto` rail, harmless. (2) Tailwind v4 emits `translate-x-full` as the `translate` property, so `getComputedStyle(...).transform` reads `none` — measure `getBoundingClientRect` instead. (3) `/community/map` also lights the primary Social item (`/community` prefix match) — cosmetic; the nav-manifest refactor is already deferred (I2/I4).
+- Verification (local dev, throwaway account, deleted afterwards). **Desktop 1280×800**: `/dashboard`, `/my-shelf`, `/books` all `scrollWidth === clientWidth` (1270 with the vertical scrollbar, 1280 without); closed drawer `visibility: hidden`, `pointer-events: none`, left edge at 1270 (off-screen); bubble `display: flex` 24 px from the bottom; sidebar "Messages" button opens the panel (visible, 384 px wide, document still 1270) and its ✕ hides it again. **Mobile 390×844**: bubble `display: none`; book page — content wrapper `padding-bottom: 80px`, `scroll-padding-bottom: 80px`, shelf button 15 px above the nav after `scrollIntoView({block: "end"})`, no overflow (380); shelf card — "Update progress" row 35 px above the nav at max scroll, 16 px after scroll-into-view; dashboard — lowest interactive element 60 px above the nav, none beneath it; More sheet — 13 links (… Book Clubs, Map, Challenges, … Settings, About) + "Messages" button, sheet bottom 780 px on nav top 779 px, tapping Messages closes the sheet and opens the full-width panel, ✕ hides it. `npm run lint` 0/0, `npm run typecheck` clean, `npm run test:run` 68 files / 622 passed.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -470,6 +470,7 @@ first-time tester's first screen is clean.
 | Public navbar search (L8), Mood Search welcome copy (M3), no-results pointing at Mood Search (M4), `en-US` date (M1), signup resend (M2) | Copy/IA polish | Next plan |
 | Loading skeletons for nine routes (P1) | Mechanical; no user report | Next plan |
 | Curated genre pills (D6), Open Library 404 probing (N8), unused font preloads (N9), first-login onboarding routing (N10) | Lower impact | Backlog |
+| Browse card action row (`book-card.tsx`, `flex gap-2` with "Buy Local") lays out 23 px wider than a 390 px viewport; body `overflow-x: clip` hides the symptom | Found in Task 4; the file belongs to Tasks 7/11 | Task 7 or 11 — add `flex-wrap` / `min-w-0` |
 | Shelf status on home rails (Task 7 step 4) | Rails are server-rendered and cached; needs a client island per rail | If readers ask |
 | Batching the AI blurb calls (4 + 7 requests) | Depends on the billing decision | Ops plan |
 
@@ -494,4 +495,5 @@ first-time tester's first screen is clean.
 | 2026-09-04 | 1 | COMPLETE | `Dialog` + `DropdownMenu` primitives, 8 tests; `animate-in` classes found to be no-ops under Tailwind v4 (see notes) |
 | 2026-09-04 | 2 | COMPLETE | Shelf button, shelf-card menu and Browse sort on `DropdownMenu`; trigger `disabled` → `aria-busy` so focus can return; verified signed-in at 1280 and 390 px |
 | 2026-09-04 | 3 | COMPLETE | Progress, Mood Search and custom-shelf dialogs on `Dialog`; `returnFocusTo` threaded from the three callers; reduced-motion scroll; Mood Search full-screen below `sm` |
+| 2026-09-04 | 4 | COMPLETE | Closed chat drawer invisible + `overflow-x: clip`; safe-area nav padding + `scroll-padding-bottom`; `ChatPanelContext` puts Messages (badge) in the sidebar and More sheet with Map/About; bubble desktop-only |
 | | | | |

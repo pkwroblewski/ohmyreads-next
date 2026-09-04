@@ -30,6 +30,11 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
+    <ChatWrapper
+      userId={user.id}
+      initialConversations={conversations}
+      initialUnreadCount={unreadCount}
+    >
     <div className="min-h-screen bg-background">
       {/* App Top Bar - full width, fixed at top */}
       <AppTopBar user={user} profile={profile} isAdmin={isAdmin} />
@@ -42,19 +47,17 @@ export function AppShell({
       {/* Main Content Area - padded for sidebar on desktop, starts below top bar */}
       <div className="lg:pl-64 pt-12">
         <main id="main" tabIndex={-1} className="min-h-[calc(100vh-48px)] focus:outline-none">
-          <div className="p-4 lg:p-8 pb-20 lg:pb-8">{children}</div>
+          {/* Bottom padding clears the 4rem mobile nav plus the home-indicator
+              inset, so the last row of every page is reachable. */}
+          <div className="p-4 lg:p-8 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-8">
+            {children}
+          </div>
         </main>
       </div>
 
       {/* Mobile Bottom Nav - hidden on desktop */}
       <MobileBottomNav />
-
-      {/* Chat Panel and Trigger */}
-      <ChatWrapper
-        userId={user.id}
-        initialConversations={conversations}
-        initialUnreadCount={unreadCount}
-      />
     </div>
+    </ChatWrapper>
   );
 }

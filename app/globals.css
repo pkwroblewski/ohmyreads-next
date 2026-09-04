@@ -153,6 +153,16 @@ body {
 /* Theme transition */
 body {
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* Backstop: nothing positioned past the right edge (the closed chat
+     drawer, a wide pill row) may widen the document. */
+  overflow-x: clip;
+}
+
+/* Anchor jumps and focus scrolls land above the fixed mobile bottom nav. */
+@media (max-width: 1023px) {
+  html {
+    scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
 }
 
 /* ============================================
