@@ -18,7 +18,7 @@
 | # | Task | Priority | Effort | Status | Files |
 |---|------|----------|--------|--------|-------|
 | 1 | Shared Radix `Dialog` and `DropdownMenu` primitives | 🔴 Critical | Medium | [x] COMPLETE | `components/ui/dialog.tsx` (new), `components/ui/dropdown-menu.tsx` (new), `__tests__/components/ui/dialog.test.tsx` (new) |
-| 2 | Migrate the three menus: shelf dropdown, shelf-card actions, Browse sort | 🔴 Critical | Medium | [ ] PENDING | `components/books/add-to-shelf-button.tsx`, `components/books/shelf-book-card.tsx`, `components/books/book-browser.tsx` |
+| 2 | Migrate the three menus: shelf dropdown, shelf-card actions, Browse sort | 🔴 Critical | Medium | [x] COMPLETE | `components/books/add-to-shelf-button.tsx`, `components/books/shelf-book-card.tsx`, `components/books/book-browser.tsx` |
 | 3 | Migrate the three dialogs: progress, Mood Search, custom shelves | 🔴 Critical | Medium | [ ] PENDING | `components/books/update-progress-dialog.tsx`, `components/ai/ai-book-search.tsx`, `components/shelves/add-to-shelf-modal.tsx` |
 | 4 | Mobile chrome: clip horizontal overflow, reserve nav space, Messages into the nav | 🟠 High | Medium | [ ] PENDING | `components/messages/chat-panel.tsx`, `components/messages/chat-trigger.tsx`, `components/layout/app-shell.tsx`, `components/layout/mobile-bottom-nav.tsx`, `components/layout/sidebar.tsx`, `app/globals.css` |
 | 5 | Full cover column set in feed, activity and club queries | 🟠 High | Low | [ ] PENDING | `lib/queries/community.ts`, `components/dashboard/recent-activity.tsx`, `lib/queries/clubs.ts` |
@@ -30,7 +30,7 @@
 | 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [ ] PENDING | `components/books/book-card.tsx`, `components/books/book-browser.tsx` |
 | 12 | Final QA | - | Medium | [ ] PENDING | - |
 
-**Progress: 1/12 complete**
+**Progress: 2/12 complete**
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -111,27 +111,27 @@ first-time tester's first screen is clean.
 **Context:** The shelf control is the most-used control in the app and announces "listbox" then nothing. On mobile its hand-positioned `absolute top-full` panel opened beneath the bottom nav. The shelf-card actions and the Browse sort have the same class of problem.
 
 **Steps:**
-1. [ ] `add-to-shelf-button.tsx`: replace the `isOpen`/`focusedIndex`/click-outside code with `DropdownMenu` + `DropdownMenuRadioGroup` (value = status) for Want to Read / Reading / Read, a separator, "Manage Shelves…" item, and, when shelved, a destructive "Remove from shelf" item. Keep the props (`bookId`, `bookTitle`, `currentStatus`), the optimistic status, the toasts, and the `AddToShelfModal` hand-off.
-2. [ ] `shelf-book-card.tsx:266`: the actions menu → `DropdownMenu`; trigger keeps `aria-label="Book options for {title}"`.
-3. [ ] `book-browser.tsx:250`: sort → `DropdownMenu` with `DropdownMenuRadioGroup`; trigger shows the current sort and gets `aria-expanded` from Radix.
-4. [ ] Delete the dead `handleClickOutside` / keyboard handlers.
-5. [ ] `npm run lint`, `npm run typecheck`, `npm run test:run`
+1. [x] `add-to-shelf-button.tsx`: replace the `isOpen`/`focusedIndex`/click-outside code with `DropdownMenu` + `DropdownMenuRadioGroup` (value = status) for Want to Read / Reading / Read, a separator, "Manage Shelves…" item, and, when shelved, a destructive "Remove from shelf" item. Keep the props (`bookId`, `bookTitle`, `currentStatus`), the optimistic status, the toasts, and the `AddToShelfModal` hand-off.
+2. [x] `shelf-book-card.tsx:266`: the actions menu → `DropdownMenu`; trigger keeps `aria-label="Book options for {title}"`.
+3. [x] `book-browser.tsx:250`: sort → `DropdownMenu` with `DropdownMenuRadioGroup`; trigger shows the current sort and gets `aria-expanded` from Radix.
+4. [x] Delete the dead `handleClickOutside` / keyboard handlers.
+5. [x] `npm run lint`, `npm run typecheck`, `npm run test:run`
 
 **Verify:**
-- [ ] Keyboard: Tab to the shelf button, Enter opens, ArrowDown/Up moves, Enter selects, Escape closes and focus returns to the button
-- [ ] Screen-reader tree (Playwright snapshot): `button [expanded]` → `menu` → `menuitemradio` entries, no `listbox`
-- [ ] Mobile 390×844 on the book page: the menu opens *above* the trigger when there is no room below, never under the bottom nav
-- [ ] Choosing a status still toasts "Book marked as …" and the button label updates without reload
-- [ ] Lint 0/0, tests green
+- [x] Keyboard: Tab to the shelf button, Enter opens, ArrowDown/Up moves, Enter selects, Escape closes and focus returns to the button
+- [x] Screen-reader tree (Playwright snapshot): `button [expanded]` → `menu` → `menuitemradio` entries, no `listbox`
+- [x] Mobile 390×844 on the book page: the menu opens *above* the trigger when there is no room below, never under the bottom nav
+- [x] Choosing a status still toasts "Book marked as …" and the button label updates without reload
+- [x] Lint 0/0, tests green
 
 **Completed Notes:**
-<!-- Fill in after completing -->
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `components/books/add-to-shelf-button.tsx` (rewritten around `DropdownMenu`; 281 → 170 lines), `components/books/shelf-book-card.tsx` (actions menu), `components/books/book-browser.tsx` (sort). No new files; the Task 1 primitives cover everything.
+- Approach taken: each hand-rolled panel became `DropdownMenu` → `DropdownMenuTrigger asChild` (the existing `Button`) → `DropdownMenuContent` with a `DropdownMenuRadioGroup` for the mutually exclusive choices (shelf status; sort) and plain `DropdownMenuItem`s for actions ("Manage Shelves…", "Add to Custom Shelf", destructive "Remove from Shelf"). Props, optimistic status, toasts, badge toasts, the login redirect on "Not authenticated" and the `AddToShelfModal` hand-off are unchanged. All `isOpen`/`focusedIndex`/`menuRef`/`sortDropdownRef` state, the three click-outside effects and the hand keyboard handler are gone (Radix owns open state, roving focus, typeahead, Escape, outside click, focus return). Chevron rotation now reads `group-data-[state=open]` on the trigger; the card's hover-only menu button stays visible while open via `lg:data-[state=open]:opacity-100`. Browse's sort trigger gained `aria-label="Sort by: …"`.
+- Deviations from plan: `AddToShelfButton` no longer sets `disabled={isPending}` on the trigger — it uses `aria-busy` (spinner unchanged). Found in the browser: Radix returns focus to the trigger when the menu closes, and a disabled button cannot take focus, so every keyboard selection dropped focus on `<body>`. With `aria-busy` focus lands back on the button after Enter (verified). A repeat click during the ~2–4 s server round-trip just re-runs the idempotent action.
+- Issues encountered: (1) the "Book marked as…" toast was invisible on the first probe only because the dev server's round-trip plus the Playwright call latency exceeded sonner's 4 s duration; polling from inside `page.evaluate` captured `Book marked as "Want to Read"`, `Moved to "Reading"` and the `Badge unlocked` toast. (2) Playwright's aria-snapshot yaml prints a *checked* `menuitemradio` without its name; `role=menuitemradio[name="Want to Read"]` resolves it and the DOM name is "Want to Read", so it is a snapshot rendering quirk, not a missing name. (3) One unrelated `quick-rating` test flaked at 1.1 s while the dev server was compiling; green in isolation and in the full rerun with the server stopped. (4) Cover `_next/image` proxies to Open Library timing out (504) on the dev server delayed Browse's re-fetch by ~40 s; out of scope (review N8).
+- Verification (local dev, throwaway `omr-qa-…@mailinator.com` account created with `auth.admin.createUser`, deleted afterwards): book page — Tab/focus → Enter opens `menu "Add book to shelf"` with 3 `menuitemradio` + separator + `menuitem "Manage Shelves..."`, no `listbox`; ArrowDown moves focus + `data-highlighted`; Enter selects, menu closes, label → "Reading"/"Read", `aria-label` → "Current status: …", "Remove from Shelf" appears once shelved, focus back on the trigger; Escape closes with `aria-expanded="false"` and focus on the trigger. 390×844 with the trigger 8 px above the bottom nav: menu `data-side="top"`, bottom 725 px vs nav top 779 px, `scrollWidth` 390. Shelf card — trigger keeps `aria-label="Book options for Harry Potter"`, menu tree `Move to...` label → group of 3 radios (checked = current) → separator → 2 menuitems; ArrowDown+Enter flips the badge to "Reading" immediately, toasts, progress row appears, focus returns. Browse — `Sort by: Popular` trigger, 4 radios with "Popular" checked; ArrowDown×3 + Enter → URL `?sort=title`, label "Sort by: Title A-Z", grid re-sorted ('Salem's Lot, 11/22/63, …), "714 books found". `npm run lint` 0/0, `npm run typecheck` clean, `npm run test:run` 68 files / 620 passed.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -492,4 +492,5 @@ first-time tester's first screen is clean.
 |------|--------|--------|-------|
 | 2026-09-04 | - | Plan created | From the UX review; ground truth gathered the same day (see Summary) |
 | 2026-09-04 | 1 | COMPLETE | `Dialog` + `DropdownMenu` primitives, 8 tests; `animate-in` classes found to be no-ops under Tailwind v4 (see notes) |
+| 2026-09-04 | 2 | COMPLETE | Shelf button, shelf-card menu and Browse sort on `DropdownMenu`; trigger `disabled` → `aria-busy` so focus can return; verified signed-in at 1280 and 390 px |
 | | | | |

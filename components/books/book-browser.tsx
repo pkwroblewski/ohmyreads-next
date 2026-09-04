@@ -1,9 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Loader2, Search, SlidersHorizontal, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BookCard } from "@/components/books/book-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AIBookSearch } from "@/components/ai/ai-book-search";
@@ -64,7 +71,6 @@ export function BookBrowser({
     initialTotal === undefined ? true : initialTotal > initialBooks.length
   );
   const [totalCount, setTotalCount] = useState(initialTotal ?? initialBooks.length);
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showAISearch, setShowAISearch] = useState(false);
   // A seeded genre beyond the first ten pills must be visible as selected.
   const [showAllGenres, setShowAllGenres] = useState(
@@ -72,23 +78,6 @@ export function BookBrowser({
   );
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const sortDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close sort dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        sortDropdownRef.current &&
-        !sortDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowSortDropdown(false);
-      }
-    }
-
-    if (!showSortDropdown) return;
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showSortDropdown]);
 
   // Fetch books from API
   const fetchBooks = useCallback(
@@ -159,7 +148,6 @@ export function BookBrowser({
   // Sort handler
   const handleSortChange = (sort: SortOption) => {
     setSortBy(sort);
-    setShowSortDropdown(false);
     setPage(1);
     fetchBooks(searchQuery, selectedGenre, sort, 1);
   };
@@ -237,32 +225,31 @@ export function BookBrowser({
         </div>
 
         {/* Sort Dropdown */}
-        <div className="relative flex-shrink-0" ref={sortDropdownRef}>
-          <Button
-            variant="outline"
-            onClick={() => setShowSortDropdown(!showSortDropdown)}
-            className="w-full sm:w-auto justify-between gap-2"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            <span>{sortOptions.find((o) => o.value === sortBy)?.label}</span>
-          </Button>
-
-          {showSortDropdown && (
-            <div className="absolute right-0 top-full mt-2 w-48 z-50 rounded-lg border border-border bg-card shadow-lg py-1 animate-in fade-in-0 zoom-in-95">
-              {sortOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => handleSortChange(option.value)}
-                  className={cn(
-                    "w-full px-4 py-2 text-sm text-left hover:bg-muted transition-colors",
-                    sortBy === option.value && "text-primary font-medium"
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="flex-shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto justify-between gap-2"
+                aria-label={`Sort by: ${sortOptions.find((o) => o.value === sortBy)?.label}`}
+              >
+                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                <span>{sortOptions.find((o) => o.value === sortBy)?.label}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuRadioGroup
+                value={sortBy}
+                onValueChange={(value) => handleSortChange(value as SortOption)}
+              >
+                {sortOptions.map((option) => (
+                  <DropdownMenuRadioItem key={option.value} value={option.value}>
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

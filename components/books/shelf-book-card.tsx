@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
   BookOpen,
@@ -13,6 +13,16 @@ import {
   Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { RatingDisplay } from "@/components/ui/rating-display";
 import { CoverImage } from "@/components/books/cover-image";
 import { addToShelf, removeFromShelf } from "@/lib/actions/books";
@@ -52,7 +62,6 @@ const statusConfig: Record<
 };
 
 export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [currentStatus, setCurrentStatus] = useState<ShelfStatus>(
     userBook.status as ShelfStatus
@@ -69,29 +78,12 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
     total: userBook.total_pages ?? null,
     pct: userBook.progress_percentage ?? null,
   });
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    }
-
-    if (!isMenuOpen) return;
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isMenuOpen]);
-
   if (!book) return null;
 
   const config = statusConfig[currentStatus];
   const StatusIcon = config.icon;
 
   const handleStatusChange = (newStatus: ShelfStatus) => {
-    setIsMenuOpen(false);
-
     // Optimistic update
     const previousStatus = currentStatus;
     setCurrentStatus(newStatus);
@@ -113,8 +105,6 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
   };
 
   const handleRemove = () => {
-    setIsMenuOpen(false);
-
     startTransition(async () => {
       const result = await removeFromShelf(book.id);
 
@@ -244,91 +234,53 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
       {/* Menu Button. Always visible below lg (touch has no hover); on
           desktop it appears on hover or when anything in the card has focus,
           and it never hides from its own keyboard focus. */}
-      <div className="absolute top-2 right-2 z-10" ref={menuRef}>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "h-10 w-10 bg-background/80 backdrop-blur-sm",
-            "lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100",
-            "focus-visible:opacity-100 transition-opacity",
-            isMenuOpen && "lg:opacity-100"
-          )}
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          aria-label={`Book options for ${book.title}`}
-          aria-expanded={isMenuOpen}
-          aria-haspopup="menu"
-        >
-          <MoreVertical className="h-4 w-4" aria-hidden="true" />
-        </Button>
-
-        {/* Dropdown Menu */}
-        {isMenuOpen && (
-          <div
-            role="menu"
-            aria-label="Book actions"
-            className={cn(
-              "absolute right-0 top-full mt-1 w-44 z-50",
-              "rounded-lg border border-border bg-card shadow-lg",
-              "py-1 animate-in fade-in-0 zoom-in-95"
-            )}
-          >
-            <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground" id="move-to-label">
-              Move to...
-            </p>
-            {(Object.keys(statusConfig) as ShelfStatus[]).map((status) => {
-              const { label, icon: Icon } = statusConfig[status];
-              const isSelected = currentStatus === status;
-
-              return (
-                <button
-                  key={status}
-                  role="menuitem"
-                  onClick={() => handleStatusChange(status)}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2 text-sm",
-                    "hover:bg-muted transition-colors text-left",
-                    isSelected && "text-primary"
-                  )}
-                  aria-current={isSelected ? "true" : undefined}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {label}
-                  {isSelected && <Check className="h-4 w-4 ml-auto" aria-hidden="true" />}
-                </button>
-              );
-            })}
-
-            <div className="my-1 border-t border-border" role="separator" />
-
-            <button
-              role="menuitem"
-              onClick={() => {
-                setIsMenuOpen(false);
-                setIsShelfModalOpen(true);
-              }}
+      <div className="absolute top-2 right-2 z-10">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
               className={cn(
-                "w-full flex items-center gap-2 px-3 py-2 text-sm",
-                "hover:bg-muted transition-colors text-left"
+                "h-10 w-10 bg-background/80 backdrop-blur-sm",
+                "lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100",
+                "focus-visible:opacity-100 lg:data-[state=open]:opacity-100 transition-opacity"
               )}
+              aria-label={`Book options for ${book.title}`}
             >
+              <MoreVertical className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuLabel>Move to...</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={currentStatus}
+              onValueChange={(value) => handleStatusChange(value as ShelfStatus)}
+            >
+              {(Object.keys(statusConfig) as ShelfStatus[]).map((status) => {
+                const { label, icon: Icon } = statusConfig[status];
+                return (
+                  <DropdownMenuRadioItem key={status} value={status}>
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    {label}
+                  </DropdownMenuRadioItem>
+                );
+              })}
+            </DropdownMenuRadioGroup>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem onSelect={() => setIsShelfModalOpen(true)}>
               <FolderPlus className="h-4 w-4" aria-hidden="true" />
               Add to Custom Shelf
-            </button>
+            </DropdownMenuItem>
 
-            <button
-              role="menuitem"
-              onClick={handleRemove}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2 text-sm",
-                "hover:bg-destructive/10 text-destructive transition-colors text-left"
-              )}
-            >
+            <DropdownMenuItem variant="destructive" onSelect={handleRemove}>
               <Trash2 className="h-4 w-4" aria-hidden="true" />
               Remove from Shelf
-            </button>
-          </div>
-        )}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Add to Shelf Modal */}
