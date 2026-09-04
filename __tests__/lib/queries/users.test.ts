@@ -41,7 +41,8 @@ vi.mock("next/cache", () => ({
 const logError = vi.fn();
 vi.mock("@/lib/utils/log", () => ({ logError: (...a: unknown[]) => logError(...a) }));
 
-const { getShelfCounts, getUserBooks, getUserStats, SHELF_PAGE_SIZE } = await import("@/lib/queries/users");
+const { getShelfCounts, getUserBooks, getUserStats, getFirstRunChecklist, SHELF_PAGE_SIZE } =
+  await import("@/lib/queries/users");
 
 const statusOf = (call: Call) =>
   (call.args.eq?.find((a) => (a as unknown[])[0] === "status") as unknown[] | undefined)?.[1];
@@ -118,5 +119,88 @@ describe("shelf pages", () => {
       ["shelf_books.shelf_id", "shelf-9"],
     ]);
     expect(call.args.range).toEqual([[0, 47]]);
+  });
+});
+
+/**
+ * The dashboard's first-run checklist (UX fixes Task 9). A new reader used to
+ * meet five stacked empty states; the checklist replaces them, so what counts
+ * as "done" decides whether those sections speak at all.
+ */
+describe("first-run checklist", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    logError.mockClear();
+  });
+
+  /** `answers` keyed by table; `user_books` and `follows` answer with counts. */
+  function given(answers: {
+    books?: number;
+    follows?: number;
+    taste?: Record<string, unknown> | null;
+    failCounts?: boolean;
+  }) {
+    respond = (call) => {
+      if (call.table === "user_taste_profiles") return { data: answers.taste ?? null, error: null };
+      if (answers.failCounts) return { error: { message: "boom" }, count: null };
+      if (call.table === "follows") return { count: answers.follows ?? 0 };
+      return { count: answers.books ?? 0 };
+    };
+  }
+
+  it("reads three tables in parallel and counts without fetching rows", async () => {
+    given({ books: 2, follows: 1, taste: { onboarding_completed: true } });
+
+    const checklist = await getFirstRunChecklist("u1");
+
+    expect(checklist.done).toBe(3);
+    expect(checklist.total).toBe(3);
+    expect(checklist.hasNoBooks).toBe(false);
+    expect(calls.map((c) => c.table).sort()).toEqual([
+      "follows",
+      "user_books",
+      "user_taste_profiles",
+    ]);
+    for (const call of calls.filter((c) => c.table !== "user_taste_profiles")) {
+      expect((call.args.select?.[0] as unknown[])[1]).toEqual({ count: "exact", head: true });
+    }
+    expect(calls.find((c) => c.table === "follows")?.args.eq).toContainEqual(["follower_id", "u1"]);
+  });
+
+  it("reports every step outstanding for a brand-new reader", async () => {
+    given({});
+
+    const checklist = await getFirstRunChecklist("u1");
+
+    expect(checklist.done).toBe(0);
+    expect(checklist.hasNoBooks).toBe(true);
+    expect(checklist.steps).toEqual([
+      { key: "shelf", done: false },
+      { key: "taste", done: false },
+      { key: "follow", done: false },
+    ]);
+  });
+
+  it("counts a taste profile as set up on genres or seed books, not only the flag", async () => {
+    given({ taste: { preferred_genres: ["a", "b", "c"] } });
+    expect((await getFirstRunChecklist("u1")).steps[1]).toEqual({ key: "taste", done: true });
+
+    calls.length = 0;
+    given({ taste: { seed_book_ids: ["b1", "b2"] } });
+    expect((await getFirstRunChecklist("u1")).steps[1]).toEqual({ key: "taste", done: true });
+
+    calls.length = 0;
+    given({ taste: { preferred_genres: ["a"], seed_book_ids: ["b1"] } });
+    expect((await getFirstRunChecklist("u1")).steps[1]).toEqual({ key: "taste", done: false });
+  });
+
+  it("treats a failed count as not done and logs it, rather than throwing the dashboard", async () => {
+    given({ failCounts: true });
+
+    const checklist = await getFirstRunChecklist("u1");
+
+    expect(checklist.done).toBe(0);
+    expect(checklist.hasNoBooks).toBe(true);
+    expect(logError).toHaveBeenCalledTimes(2);
   });
 });

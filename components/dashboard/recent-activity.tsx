@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { CoverImageMini } from "@/components/books/cover-image";
 import { BOOK_COVER_COLUMNS } from "@/lib/queries/columns";
 import type { BookCoverSummary, UserBook } from "@/types/database";
+import type { DashboardSectionProps } from "./section-props";
 
 interface ActivityItem extends UserBook {
   book: BookCoverSummary;
@@ -30,7 +31,13 @@ function formatStatus(status: string): string {
  * Server component that fetches and displays recent activity.
  * Wrapped in Suspense by parent for independent loading.
  */
-export async function RecentActivity() {
+/**
+ * `hideEmpty` belongs to the first-run checklist: while that is on screen
+ * it owns the calls to action, so this section says nothing rather than
+ * adding another empty state with the same buttons.
+ */
+
+export async function RecentActivity({ hideEmpty = false }: DashboardSectionProps) {
   const supabase = await createClient();
 
   const {
@@ -50,6 +57,10 @@ export async function RecentActivity() {
     .limit(5);
 
   const recentActivity = (data || []) as ActivityItem[];
+
+  if (hideEmpty && recentActivity.length === 0) {
+    return null;
+  }
 
   return (
     <section className="mb-8">

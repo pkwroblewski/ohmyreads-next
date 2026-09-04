@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowRight, Upload } from "lucide-react";
 import { createClient, getUser } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { getChallenges } from "@/lib/queries/challenges";
 import { getPendingRequests } from "@/lib/queries/friends";
+import { getFirstRunChecklist } from "@/lib/queries/users";
 import ActiveChallengesWidget from "@/components/challenges/active-challenges-widget";
 import { PlacesNearYou } from "@/components/dashboard/places-near-you";
 import { FriendRequestsNotification } from "@/components/dashboard/friend-requests-notification";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
+import { FirstRunChecklist } from "@/components/dashboard/first-run-checklist";
 import { CurrentlyReading } from "@/components/dashboard/currently-reading";
 import { FriendsActivitySection } from "@/components/dashboard/friends-activity-section";
 import { RecommendationsSection } from "@/components/dashboard/recommendations-section";
@@ -50,12 +48,23 @@ export default async function DashboardPage() {
   // Fetch critical data that blocks initial render
   // (These are fast and needed for personalized header/quick actions)
   const supabase = await createClient();
-  const [profileResult, challengesResult, pendingFriendRequests] =
+  const [profileResult, challengesResult, pendingFriendRequests, checklist] =
     await Promise.all([
       supabase.rpc("get_my_profile").maybeSingle(),
       getChallenges(),
       getPendingRequests(),
+      getFirstRunChecklist(user.id),
     ]);
+
+  // While anything on the checklist is outstanding it owns the calls to
+  // action, and the sections below it stay quiet when they have nothing to
+  // show. A reader who has finished it sees the dashboard exactly as before.
+  const showChecklist = checklist.done < checklist.total;
+
+  // Both of these read `user_books` and nothing else, so an empty shelf makes
+  // them certainly empty. Skipping them outright spares a reader with nothing
+  // on their shelf two skeletons that resolve to nothing.
+  const showShelfSections = !checklist.hasNoBooks;
 
   const profile = profileResult.data as Profile | null;
   const challenges = challengesResult.data || [];
@@ -94,6 +103,12 @@ export default async function DashboardPage() {
       </Suspense>
 
       {/* ========================================
+          First-run checklist (replaces the old trailing "quick actions"
+          card, and the empty states it used to repeat)
+          ======================================== */}
+      {showChecklist && <FirstRunChecklist checklist={checklist} />}
+
+      {/* ========================================
           Active Challenges Section
           ======================================== */}
       <ActiveChallengesWidget challenges={challenges} />
@@ -101,9 +116,11 @@ export default async function DashboardPage() {
       {/* ========================================
           Currently Reading Section - Independent Loading
           ======================================== */}
-      <Suspense fallback={<CurrentlyReadingSkeleton />}>
-        <CurrentlyReading />
-      </Suspense>
+      {showShelfSections && (
+        <Suspense fallback={<CurrentlyReadingSkeleton />}>
+          <CurrentlyReading hideEmpty={showChecklist} />
+        </Suspense>
+      )}
 
       {/* ========================================
           Places Near You Section
@@ -115,103 +132,24 @@ export default async function DashboardPage() {
           Friends Activity Section - Independent Loading
           ======================================== */}
       <Suspense fallback={<FriendsActivitySkeleton />}>
-        <FriendsActivitySection />
+        <FriendsActivitySection hideEmpty={showChecklist} />
       </Suspense>
 
       {/* ========================================
           Personalized Recommendations - Independent Loading
           ======================================== */}
       <Suspense fallback={<RecommendationsSkeleton />}>
-        <RecommendationsSection />
+        <RecommendationsSection hideEmpty={showChecklist} />
       </Suspense>
 
       {/* ========================================
           Recent Activity Section - Independent Loading
           ======================================== */}
-      <Suspense fallback={<RecentActivitySkeleton />}>
-        <RecentActivity />
-      </Suspense>
-
-      {/* ========================================
-          Quick Actions (for new users)
-          This shows when there's no activity - keeping inline since
-          it depends on the recent activity state which we'd need to
-          track separately. Will be hidden once user has activity.
-          ======================================== */}
-      <Suspense fallback={null}>
-        <QuickActionsForNewUsers />
-      </Suspense>
+      {showShelfSections && (
+        <Suspense fallback={<RecentActivitySkeleton />}>
+          <RecentActivity hideEmpty={showChecklist} />
+        </Suspense>
+      )}
     </div>
-  );
-}
-
-/**
- * Server component for quick actions shown to new users
- */
-async function QuickActionsForNewUsers() {
-  // Request-memoized — reuses the auth call from layout (no extra round-trip)
-  const {
-    data: { user },
-  } = await getUser();
-
-  if (!user) {
-    return null;
-  }
-
-  // Check if user has stats or currently reading books
-  const supabase = await createClient();
-  const [statsResult, currentlyReadingResult] = await Promise.all([
-    supabase
-      .from("reading_stats")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("user_books")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("status", "reading")
-      .limit(1),
-  ]);
-
-  const hasStats = !!statsResult.data;
-  const hasCurrentlyReading = (currentlyReadingResult.data || []).length > 0;
-
-  // Only show for new users without activity
-  if (hasStats || hasCurrentlyReading) {
-    return null;
-  }
-
-  return (
-    <section className="mb-8">
-      <div
-        className={cn(
-          "p-6 rounded-xl text-center",
-          "bg-gradient-to-br from-primary/10 via-accent/5 to-primary/5",
-          "border border-primary/20"
-        )}
-      >
-        <h3 className="text-lg font-semibold mb-2">
-          Ready to start your reading journey?
-        </h3>
-        <p className="text-muted-foreground mb-4">
-          Discover books, track your progress, and connect with other readers.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link href="/books">
-            <Button>
-              Browse Books
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
-          <Link href="/import">
-            <Button variant="outline">
-              <Upload className="w-4 h-4 mr-2" />
-              Import from Goodreads
-            </Button>
-          </Link>
-        </div>
-      </div>
-    </section>
   );
 }

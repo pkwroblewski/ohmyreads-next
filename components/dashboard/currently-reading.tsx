@@ -5,6 +5,7 @@ import {
 } from "@/components/books/book-list-horizontal";
 import { BOOK_CARD_COLUMNS } from "@/lib/queries/columns";
 import type { BookSummary, UserBook } from "@/types/database";
+import type { DashboardSectionProps } from "./section-props";
 
 interface UserBookWithBook extends UserBook {
   book: BookSummary;
@@ -14,7 +15,13 @@ interface UserBookWithBook extends UserBook {
  * Server component that fetches and displays currently reading books.
  * Wrapped in Suspense by parent for independent loading.
  */
-export async function CurrentlyReading() {
+/**
+ * `hideEmpty` belongs to the first-run checklist: while that is on screen
+ * it owns the calls to action, so this section says nothing rather than
+ * adding another empty state with the same buttons.
+ */
+
+export async function CurrentlyReading({ hideEmpty = false }: DashboardSectionProps) {
   const supabase = await createClient();
 
   const {
@@ -35,6 +42,10 @@ export async function CurrentlyReading() {
     .limit(10);
 
   const currentlyReading = (data || []) as UserBookWithBook[];
+
+  if (hideEmpty && currentlyReading.length === 0) {
+    return null;
+  }
 
   // Extract book objects for the horizontal list
   const books = currentlyReading.filter((item) => item.book).map((item) => item.book);

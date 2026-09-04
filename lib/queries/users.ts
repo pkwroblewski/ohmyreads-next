@@ -95,6 +95,78 @@ export async function getShelfCounts(userId: string): Promise<ShelfCounts> {
   return { all: reading + read + want_to_read, reading, read, want_to_read };
 }
 
+/** One step of the dashboard's first-run checklist. */
+export interface FirstRunStep {
+  key: "shelf" | "taste" | "follow";
+  done: boolean;
+}
+
+export interface FirstRunChecklist {
+  steps: FirstRunStep[];
+  done: number;
+  total: number;
+  /** No books on the shelf at all: the dashboard has nothing to show yet. */
+  hasNoBooks: boolean;
+}
+
+/**
+ * How far a reader has got with the three things that make the dashboard
+ * worth looking at: a book on the shelf, a taste profile, someone to follow.
+ *
+ * A new reader used to land on a greeting, four zero stat cards and five
+ * stacked empty states offering "Browse Books" three times and "Import from
+ * Goodreads" twice. While any step is outstanding the checklist owns those
+ * calls to action and the sections stay quiet, so each one is asked for once.
+ *
+ * Three HEAD-style reads in parallel; none of them fetches rows it will not
+ * count.
+ */
+export async function getFirstRunChecklist(
+  userId: string
+): Promise<FirstRunChecklist> {
+  const supabase = await createClient();
+
+  const [books, taste, follows] = await Promise.all([
+    supabase
+      .from("user_books")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+    supabase
+      .from("user_taste_profiles")
+      .select("onboarding_completed, preferred_genres, seed_book_ids")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("follows")
+      .select("id", { count: "exact", head: true })
+      .eq("follower_id", userId),
+  ]);
+
+  if (books.error) logError("Error counting shelf for checklist", books.error);
+  if (follows.error) logError("Error counting follows for checklist", follows.error);
+
+  const profile = taste.data;
+  // The same bar the recommendation engine uses for "we know your taste".
+  const tasteDone =
+    profile?.onboarding_completed === true ||
+    (profile?.preferred_genres?.length ?? 0) >= 3 ||
+    (profile?.seed_book_ids?.length ?? 0) >= 2;
+
+  const bookCount = books.count ?? 0;
+  const steps: FirstRunStep[] = [
+    { key: "shelf", done: bookCount > 0 },
+    { key: "taste", done: tasteDone },
+    { key: "follow", done: (follows.count ?? 0) > 0 },
+  ];
+
+  return {
+    steps,
+    done: steps.filter((step) => step.done).length,
+    total: steps.length,
+    hasNoBooks: bookCount === 0,
+  };
+}
+
 /** Rows per page on /my-shelf and its "Load more" route. */
 export const SHELF_PAGE_SIZE = 48;
 

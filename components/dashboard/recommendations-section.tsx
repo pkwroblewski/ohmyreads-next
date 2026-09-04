@@ -8,12 +8,21 @@ import {
   hasEnoughSignals,
 } from "@/lib/queries/recommendations";
 import { cn } from "@/lib/utils";
+import type { DashboardSectionProps } from "./section-props";
 
 /**
  * Server component that fetches and displays personalized recommendations.
  * Wrapped in Suspense by parent for independent loading.
  */
-export async function RecommendationsSection() {
+/**
+ * `hideEmpty` belongs to the first-run checklist: while that is on screen
+ * it owns the calls to action, so this section says nothing rather than
+ * adding another empty state with the same buttons.
+ */
+
+export async function RecommendationsSection({
+  hideEmpty = false,
+}: DashboardSectionProps) {
 
   const {
     data: { user },
@@ -43,7 +52,7 @@ export async function RecommendationsSection() {
   }
 
   // Show onboarding prompt if user lacks signals
-  if (!hasSignals) {
+  if (!hasSignals && !hideEmpty) {
     return (
       <section className="mb-8">
         <div

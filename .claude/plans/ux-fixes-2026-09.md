@@ -25,12 +25,12 @@
 | 6 | Muted text token passes AA | 🟠 High | Low | [x] COMPLETE | `app/globals.css`, `components/layout/sidebar.tsx`, `components/reviews/quick-rating.tsx` |
 | 7 | Browse cards show the viewer's shelf status | 🔴 Critical | Medium | [x] COMPLETE | `app/api/books/search/route.ts`, `app/(public)/books/(index)/page.tsx`, `lib/queries/users.ts`, `components/books/book-browser.tsx`, `components/books/book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `__tests__/app/api/books-search.test.ts` |
 | 8 | Progress from the book page and dashboard, percent + "finished" | 🟠 High | High | [x] COMPLETE | `components/books/update-progress-dialog.tsx`, `components/books/reading-progress-card.tsx` (new), `components/books/book-list-horizontal.tsx`, `components/books/shelf-book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `app/(public)/books/[slug]/page.tsx`, `components/dashboard/currently-reading.tsx`, `lib/actions/books.ts`, `lib/validation/book-action.ts`, `types/app.ts`, `__tests__/lib/actions/books-reading-progress.test.ts` (new) |
-| 9 | One first-run checklist instead of five empty states | 🟡 Medium | Medium | [ ] PENDING | `app/(app)/dashboard/page.tsx`, `components/dashboard/first-run-checklist.tsx` (new), `components/dashboard/recent-activity.tsx`, `components/dashboard/friends-activity-section.tsx`, `components/dashboard/recommendations-section.tsx` |
+| 9 | One first-run checklist instead of five empty states | 🟡 Medium | Medium | [x] COMPLETE | `app/(app)/dashboard/page.tsx`, `components/dashboard/first-run-checklist.tsx` (new), `components/dashboard/section-props.ts` (new), `components/dashboard/recent-activity.tsx`, `components/dashboard/friends-activity-section.tsx`, `components/dashboard/recommendations-section.tsx`, `components/dashboard/currently-reading.tsx`, `lib/queries/users.ts`, `__tests__/lib/queries/users.test.ts` |
 | 10 | Catalog data pass: dedupe, enrich, fix broken records | 🟠 High | High | [ ] PENDING | `supabase/migrations/069_dedupe_books.sql` (new), `scripts/enrich-books.ts`, data only |
 | 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [ ] PENDING | `components/books/book-card.tsx`, `components/books/book-browser.tsx` |
 | 12 | Final QA | - | Medium | [ ] PENDING | - |
 
-**Progress: 8/12 complete**
+**Progress: 9/12 complete**
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -352,30 +352,35 @@ first-time tester's first screen is clean.
 **Source:** UX review 2026-09-04 > L4 (agent A4)
 **Priority:** 🟡 Medium
 **Effort:** Medium
-**File(s):** `app/(app)/dashboard/page.tsx`, `components/dashboard/first-run-checklist.tsx` (new), `components/dashboard/recent-activity.tsx`, `components/dashboard/friends-activity-section.tsx`, `components/dashboard/recommendations-section.tsx`, `components/dashboard/currently-reading.tsx`
+**File(s):** `app/(app)/dashboard/page.tsx`, `components/dashboard/first-run-checklist.tsx` (new), `components/dashboard/section-props.ts` (new), `components/dashboard/recent-activity.tsx`, `components/dashboard/friends-activity-section.tsx`, `components/dashboard/recommendations-section.tsx`, `components/dashboard/currently-reading.tsx`, `lib/queries/users.ts`, `__tests__/lib/queries/users.test.ts`
 
 **Context:** A brand-new reader sees a greeting, four zero stat cards, then five stacked empty states with "Browse Books" three times and "Import from Goodreads" twice.
 
 **Steps:**
-1. [ ] `first-run-checklist.tsx` (server component): one card, four rows with done/undone state — Add your first book (`/books`), Set up your taste profile (`/onboarding/taste` or settings), Follow a reader (`/discover`), Import from Goodreads (`/import`); done = `user_books` count > 0, taste profile row exists, `follows` count > 0, any imported book. Progress "1 of 4".
-2. [ ] Dashboard page: compute `isFirstRun = user_books count === 0` once (one HEAD count query) and pass `hideEmpty` to `CurrentlyReading`, `FriendsActivitySection`, `RecommendationsSection`, `RecentActivity`; they return `null` instead of their `EmptyState` when told to. Replace `QuickActionsForNewUsers` with the checklist.
-3. [ ] Keep the stats grid (zeros are fine) and Places Near You.
-4. [ ] `npm run lint`, `npm run typecheck`, `npm run test:run`
+1. [x] `first-run-checklist.tsx` (server component): one card, three checkable rows — Add your first book (`/books`), Set up your taste profile (`/onboarding/taste`), Follow a reader (`/community`) — plus an "Import from Goodreads" shortcut in the card footer. Progress reads "1 of 3 done". Data comes from `getFirstRunChecklist()` in `lib/queries/users.ts`.
+2. [x] Dashboard page: fetches the checklist alongside the profile, challenges and friend requests; `showChecklist` (any step outstanding) is passed as `hideEmpty` to `CurrentlyReading`, `FriendsActivitySection`, `RecommendationsSection` and `RecentActivity`, which return `null` instead of their empty state. `QuickActionsForNewUsers` is gone.
+3. [x] Stats grid, challenges widget and Places Near You untouched.
+4. [x] `npm run lint`, `npm run typecheck`, `npm run test:run`
 
 **Verify:**
-- [ ] Throwaway account: dashboard shows greeting, stats, the checklist, Places — nothing else; no duplicate CTAs
-- [ ] After adding one book: checklist shows 1 of 4 and Currently Reading appears; after the fourth item the checklist disappears
-- [ ] Existing readers (books > 0) see no change
-- [ ] Lint 0/0, tests green
+- [x] Throwaway account: dashboard shows greeting, stats, the checklist ("0 of 3 done"), Places — nothing else; each call to action appears exactly once and no empty state renders
+- [x] After adding one book: checklist reads "1 of 3 done" with the first row struck through, and Currently Reading and Recent Activity appear; after the third item the checklist disappears and Friends Activity and Recommended for You come back with real content
+- [x] Existing readers (all three done) see the dashboard exactly as before
+- [x] Lint 0/0, typecheck clean, 646 tests green (4 new)
 
 **Completed Notes:**
-<!-- Fill in after completing -->
 - Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+  - `lib/queries/users.ts` — `getFirstRunChecklist(userId)`: three parallel reads (a `user_books` count, the taste profile row, a `follows` count) returning the steps, the done tally and `hasNoBooks`
+  - `components/dashboard/first-run-checklist.tsx` (new) — the card: a done/undone row per step with its own single call to action, a progress line, and the import shortcut in the footer
+  - `components/dashboard/section-props.ts` (new) — the shared `hideEmpty` prop shape for the four sections
+  - `components/dashboard/{currently-reading,recent-activity,friends-activity-section,recommendations-section}.tsx` — each returns null instead of its empty state when `hideEmpty` is set
+  - `app/(app)/dashboard/page.tsx` — fetches the checklist, renders it under the stats grid, passes `hideEmpty`, and drops `QuickActionsForNewUsers` entirely
+  - `__tests__/lib/queries/users.test.ts` — 4 tests for the new query
+- Approach taken: the checklist owns the calls to action while any step is outstanding, and the sections below it stay quiet when they have nothing to show. That is what removes the duplication rather than merely relocating it: a new reader now meets one card with three buttons instead of five cards with six. The dashboard also skips the Currently Reading and Recent Activity boundaries outright when the shelf is empty, since both read `user_books` alone and would only flash a skeleton on the way to nothing.
+- Deviations from plan: three rows, not four. The plan wanted "Import from Goodreads" as a fourth checkable item done when the reader has "any imported book", but nothing records where a book came from — `user_books` has no source column and the import inserts plain rows — so that state cannot be computed without a migration. Import is instead a footer shortcut in the same card, which still gives it exactly one place on the page. Progress and the disappearance rule therefore run to 3, not 4. `currently-reading.tsx` and a small shared props file joined the file list, and the `follow` row points at `/community` (the app's reader-discovery page) rather than `/discover`. One consequence worth naming: an established reader who never set a taste profile or followed anyone now sees the checklist in place of the recommendations onboarding card and the friends empty state — one card rather than the two prompts they saw before.
+- Issues encountered: none blocking. A hydration mismatch warning on the dashboard (Radix generated ids on the user menu and the mobile More trigger) turned up during QA; it reproduces unchanged at HEAD with the old dashboard, so it is pre-existing and belongs to the final QA task rather than this one. Verified signed-in with a throwaway `omr-qa-task9@mailinator.com` account (deleted afterwards) through all four states: nothing, one book, everything done, and one step undone again.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -490,6 +495,7 @@ first-time tester's first screen is clean.
 | `review-form.tsx:146` unrated stars of the rating *input* at `/30` (non-text contrast < 3:1) | Same class as quick-rating; file not in Task 6 | a11y polish batch — `/80` like quick-rating |
 | Shelf status on home rails (Task 7 step 4) | Rails are server-rendered and cached; needs a client island per rail | If readers ask |
 | Batching the AI blurb calls (4 + 7 requests) | Depends on the billing decision | Ops plan |
+| Dashboard hydration mismatch: Radix generated ids differ between the server and client render for the user menu and the mobile More trigger | Found in Task 9; reproduces unchanged at HEAD, so it predates the checklist. Layout-level, and only on the dashboard's many Suspense boundaries | Task 12 QA — confirm on prod, then chase the id instability |
 
 ---
 
@@ -517,4 +523,5 @@ first-time tester's first screen is clean.
 | 2026-09-04 | 6 | COMPLETE | `--muted-foreground` 48 % → 42 % (4.96 / 5.13 / 4.55); every text-bearing `/xx` variant → solid token; quick-rating unrated stars `/80` (3.35 non-text) |
 | 2026-09-04 | 7 | COMPLETE | Browse cards show the viewer's shelf status: server-seeded map + `shelfStatuses` on the search API (private, no-store when signed in), merged on Load More |
 | 2026-09-04 | 8 | COMPLETE | Progress in one tap from the book page and dashboard; pages-or-percent dialog with "Mark as finished" and "Clear progress"; action reconciles both sides |
+| 2026-09-04 | 9 | COMPLETE | One first-run checklist replaces five stacked empty states; sections stay quiet while it is on screen; import is a footer shortcut because no column records a book's source |
 | | | | |
