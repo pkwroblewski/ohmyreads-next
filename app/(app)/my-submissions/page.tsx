@@ -91,6 +91,7 @@ export default async function MySubmissionsPage() {
                   {/* Cover placeholder */}
                   <div className="w-16 h-24 rounded bg-muted flex items-center justify-center flex-shrink-0">
                     {submission.cover_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
                       <img
                         src={submission.cover_url}
                         alt={submission.title}

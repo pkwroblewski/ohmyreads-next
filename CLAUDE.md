@@ -73,7 +73,15 @@ Never assume deferred verification carries over to subsequent tasks.
 
 ## Commands
 ```bash
-npm run dev      # Development server
-npm run build    # Production build
-npm run lint     # ESLint
+npm run dev            # Development server
+npm run build          # Production build (never while `next dev` runs)
+npm run lint           # ESLint — 0 errors, 0 warnings
+npm run typecheck      # tsc --noEmit
+npm run test           # Vitest (watch)
+npm run test:run       # Vitest once (CI)
+npm run test:coverage  # Vitest with coverage
+npm run types:gen      # Regenerate types/database.generated.ts (never hand-edit)
+npm run enrich-books   # Fill missing book metadata (-- --dry-run --limit N)
+npm run import-ratings # Refresh Open Library ratings
 ```
+Migrations: `npx supabase db query --linked -f supabase/migrations/NNN_name.sql`.

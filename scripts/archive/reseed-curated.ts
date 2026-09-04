@@ -16,9 +16,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
-import { curatedBooks, type CuratedBookEntry } from "../lib/data/seed-curated-books";
-import { enrichBookEntry, type EnrichedBookData } from "../lib/utils/external-book-search";
-import { getOpenLibraryCoverByIsbn } from "../lib/utils/covers";
+import { curatedBooks, type CuratedBookEntry } from "../../lib/data/seed-curated-books";
+import { enrichBookEntry, type EnrichedBookData } from "../../lib/utils/external-book-search";
+import { getOpenLibraryCoverByIsbn } from "../../lib/utils/covers";
 
 // Load environment variables
 config({ path: ".env.local" });

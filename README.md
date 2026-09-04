@@ -1,56 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OhMyReads
 
-## Authentication Setup
+Book tracking with shelves, reviews, reading challenges, friends, direct
+messages and a map of nearby readers and bookish places. Next.js 16 (App
+Router) on Vercel, Supabase (Postgres, Auth, Realtime, Storage), Vercel AI SDK
+for the place-search assistant, Mapbox for the map.
 
-### Supabase Configuration
+## Setup
 
-1. **URL Configuration** (Authentication → URL Configuration):
-   - Site URL: `https://ohmyreads-next.vercel.app`
-   - Redirect URLs: `https://ohmyreads-next.vercel.app/callback`
+1. Install dependencies: `npm install` (Node 20+).
+2. Copy `.env.example` to `.env.local` and fill in at least the Supabase keys.
+   Every other variable is documented inline in `.env.example`, with what
+   degrades when it is unset.
+3. Link the Supabase CLI to the project so migrations and type generation
+   work: `npx supabase link --project-ref bgczdbmqievfilvdzlgl`.
+4. Generate the database types: `npm run types:gen`. This overwrites
+   `types/database.generated.ts`, which is never edited by hand.
+5. Start the dev server: `npm run dev` and open http://localhost:3000.
 
-2. **Google Provider** (Authentication → Providers → Google):
-   - Enable Google provider
-   - Add Client ID and Client Secret from Google Cloud Console
+Local sign-in uses email + password. Google OAuth redirects to the production
+Site URL configured in Supabase, so it does not land on localhost.
 
-### Google Cloud Console
+## Commands
 
-1. Create OAuth 2.0 Client ID (APIs & Services → Credentials)
-2. Add authorized redirect URI: `https://bgczdbmqievfilvdzlgl.supabase.co/auth/v1/callback`
-3. **Important**: OAuth consent screen → Either:
-   - Publish the app (allows any Google account), OR
-   - Add test users manually (Testing mode)
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Development server on port 3000. |
+| `npm run build` | Production build. Do not run it while `next dev` is running: both write to `.next`. |
+| `npm run start` | Serve the production build. |
+| `npm run lint` | ESLint (`eslint.config.mjs`). CI requires 0 errors; warnings are tracked at 0. |
+| `npm run typecheck` | `tsc --noEmit` with `noUnusedLocals` / `noUnusedParameters`. |
+| `npm run test` | Vitest in watch mode. |
+| `npm run test:run` | Vitest once (what CI runs). |
+| `npm run test:coverage` | Vitest with coverage. |
+| `npm run types:gen` | Regenerate `types/database.generated.ts` from the linked Supabase project. |
+| `npm run enrich-books` | Fill missing book metadata from Google Books / Open Library. Accepts `-- --dry-run --limit 10 --verbose`. |
+| `npm run import-ratings` | Refresh `average_rating` / `ratings_count` from Open Library. |
 
-## Getting Started
+CI (`.github/workflows`) runs `typecheck`, `lint` and `test:run`.
 
-First, run the development server:
+## Database migrations
+
+Migrations live in `supabase/migrations/NNN_name.sql` and are applied to the
+linked project with the Supabase CLI:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npx supabase db query --linked -f supabase/migrations/068_example.sql
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Only the last statement's result is printed. Checks that verify a migration
+after the fact live in `supabase/checks/`. Pushing a migration does not need
+Docker; `db dump` / `db diff` do.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Conventions: `SECURITY DEFINER` functions set `search_path = public`;
+`current_role` is reserved in Postgres, use `db_role`; after a schema change
+run `npm run types:gen` and commit the generated file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project layout
 
-## Learn More
+| Path | Contents |
+| --- | --- |
+| `app/` | Routes. `(app)` is signed-in, `(public)` is anonymous, `api/` holds route handlers (OG images, cron, webhooks, geo). |
+| `components/` | UI, grouped by feature. Client components may use `console`; `lib/` and `app/` must log through `lib/utils/log.ts`. |
+| `lib/actions/` | Server Actions (`"use server"`). Every action returns `ActionResult` and authenticates with `requireUser` / `requireAdmin`. |
+| `lib/queries/` | Read-only data access called from Server Components. |
+| `lib/validation/` | Zod schemas shared by actions and route handlers. |
+| `hooks/` | Client hooks (covers, realtime messages, sign-out). |
+| `supabase/` | Migrations and post-migration checks. |
+| `types/` | `database.generated.ts` (generated), `database.ts` (alias shim), `app.ts` (app-only types). |
+| `scripts/` | Maintenance scripts; already-applied one-offs are in `scripts/archive/`. |
+| `__tests__/` | Vitest suites mirroring `lib/` and `app/api/`. |
 
-To learn more about Next.js, take a look at the following resources:
+`proxy.ts` at the repository root is the Next.js 16 request proxy (the file
+that used to be `middleware.ts`). The build fails if both exist.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Authentication setup
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Supabase, Authentication → URL Configuration:
 
-## Deploy on Vercel
+- Site URL: `https://ohmyreads-next.vercel.app`
+- Redirect URLs: `https://ohmyreads-next.vercel.app/callback`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Supabase, Authentication → Providers → Google: enable it and paste the client
+ID and secret from Google Cloud Console.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Google Cloud Console, APIs & Services → Credentials:
+
+1. Create an OAuth 2.0 Client ID.
+2. Add the authorised redirect URI
+   `https://bgczdbmqievfilvdzlgl.supabase.co/auth/v1/callback`.
+3. On the OAuth consent screen either publish the app or add test users.
+
+## Deployment
+
+Pushes to `main` deploy to Vercel. Production environment variables are
+managed with `vercel env` (see `.env.example` for the full list and which
+features each one gates).

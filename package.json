@@ -11,7 +11,9 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "types:gen": "npx supabase gen types typescript --project-id bgczdbmqievfilvdzlgl --schema public > types/database.generated.ts"
+    "types:gen": "npx supabase gen types typescript --project-id bgczdbmqievfilvdzlgl --schema public > types/database.generated.ts",
+    "enrich-books": "npx --yes tsx scripts/enrich-books.ts",
+    "import-ratings": "npx --yes tsx scripts/import-ratings.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.56",

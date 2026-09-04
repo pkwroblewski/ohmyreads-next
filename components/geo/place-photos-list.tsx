@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { Camera, Loader2, Trash2, X, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -34,7 +34,7 @@ export function PlacePhotosList({ placeId, currentUserId }: PlacePhotosListProps
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchPhotos = async () => {
+  const fetchPhotos = useCallback(async () => {
     try {
       const response = await fetch(`/api/geo/places/${placeId}/photos`);
       if (response.ok) {
@@ -46,11 +46,11 @@ export function PlacePhotosList({ placeId, currentUserId }: PlacePhotosListProps
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [placeId]);
 
   useEffect(() => {
     fetchPhotos();
-  }, [placeId]);
+  }, [fetchPhotos]);
 
   const handleUploadSuccess = () => {
     setShowUpload(false);

@@ -199,6 +199,7 @@ export function BookForm({ book, genres = [] }: BookFormProps) {
         {coverUrl && (
           <div className="flex items-start gap-4">
             <div className="w-24 h-36 rounded-md overflow-hidden bg-muted border">
+              {/* eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS */}
               <img
                 src={coverUrl}
                 alt="Cover preview"

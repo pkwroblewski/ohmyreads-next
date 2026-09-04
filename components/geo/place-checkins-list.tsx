@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { MapPin, Loader2, User, BookOpen } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -38,7 +38,7 @@ export function PlaceCheckinsList({ placeId, currentUserId }: PlaceCheckinsListP
   const [checkins, setCheckins] = useState<Checkin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchCheckins = async () => {
+  const fetchCheckins = useCallback(async () => {
     try {
       const result = await getPlaceCheckins(placeId, 20);
       setCheckins(result.checkins as Checkin[]);
@@ -47,11 +47,11 @@ export function PlaceCheckinsList({ placeId, currentUserId }: PlaceCheckinsListP
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [placeId]);
 
   useEffect(() => {
     fetchCheckins();
-  }, [placeId]);
+  }, [fetchCheckins]);
 
   if (isLoading) {
     return (
@@ -158,6 +158,7 @@ function CheckinCard({
           className="flex items-center gap-3 pl-12 group"
         >
           {checkin.book.cover_url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
             <img
               src={checkin.book.cover_url}
               alt={checkin.book.title}

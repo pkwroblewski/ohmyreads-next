@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Star, Loader2, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ export function PlaceReviewsList({ placeId, currentUserId }: PlaceReviewsListPro
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [userReview, setUserReview] = useState<Review | null>(null);
 
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     try {
       const response = await fetch(`/api/geo/places/${placeId}/reviews`);
       if (response.ok) {
@@ -56,11 +56,11 @@ export function PlaceReviewsList({ placeId, currentUserId }: PlaceReviewsListPro
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [placeId, currentUserId]);
 
   useEffect(() => {
     fetchReviews();
-  }, [placeId, currentUserId]);
+  }, [fetchReviews]);
 
   const handleReviewSuccess = () => {
     setShowReviewForm(false);

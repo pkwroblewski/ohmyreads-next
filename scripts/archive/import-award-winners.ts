@@ -19,8 +19,8 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
-import { enrichBookEntry, normalizeTitle, normalizeAuthor } from "../lib/utils/external-book-search";
-import { generateSlug } from "../lib/utils/slug";
+import { enrichBookEntry, normalizeTitle, normalizeAuthor } from "../../lib/utils/external-book-search";
+import { generateSlug } from "../../lib/utils/slug";
 
 // Load environment variables
 config({ path: ".env.local" });

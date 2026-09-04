@@ -36,6 +36,9 @@ export function SocialLinksEditor({ links, onChange }: SocialLinksEditorProps) {
     onChange([
       ...links,
       {
+        // Client-only key so React tracks the row through reorders and
+        // removals; the server assigns the real id and this one is not sent.
+        id: crypto.randomUUID(),
         platform: "twitter",
         url: "",
         display_order: links.length,
@@ -73,7 +76,7 @@ export function SocialLinksEditor({ links, onChange }: SocialLinksEditorProps) {
     <div className="space-y-3">
       {links.map((link, index) => (
         <div
-          key={index}
+          key={link.id ?? `unsaved-${index}`}
           className={cn(
             "flex items-center gap-2 p-3 rounded-lg",
             "bg-muted/50 border border-border"

@@ -468,9 +468,9 @@ export function LocationSection({ initialLocation }: LocationSectionProps) {
               {/* Search Results */}
               {searchResults.length > 0 && (
                 <div className="border rounded-xl overflow-hidden divide-y">
-                  {searchResults.map((result, index) => (
+                  {searchResults.map((result) => (
                     <button
-                      key={index}
+                      key={`${result.place_name}:${result.center.join(",")}`}
                       onClick={() => handleSelectResult(result)}
                       className="w-full text-left p-3 hover:bg-muted/50 transition-colors flex items-center gap-3"
                     >

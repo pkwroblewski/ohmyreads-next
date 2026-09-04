@@ -277,6 +277,7 @@ function ReaderContent({ reader, currentUserId, onClearPresence }: {
           </div>
           <div className="flex items-center gap-3">
             {reader.currentlyReading.coverUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
               <img
                 src={reader.currentlyReading.coverUrl}
                 alt={reader.currentlyReading.title}
@@ -513,6 +514,7 @@ function PlaceContent({ place, currentUserId, onMarkSpotAtPlace }: {
       {/* Photo section - smaller */}
       {photoUrl && (
         <div className="relative rounded-lg overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS */}
           <img
             src={photoUrl}
             alt={place.name}

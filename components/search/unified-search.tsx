@@ -368,6 +368,7 @@ export function UnifiedSearch({
                             {/* Cover thumbnail */}
                             <div className="w-8 h-12 flex-shrink-0 rounded overflow-hidden bg-muted">
                               {book.coverUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
                                 <img
                                   src={book.coverUrl}
                                   alt={book.title}

@@ -131,6 +131,7 @@ export default async function ClubPage({ params }: ClubPageProps) {
                 <Link href={`/books/${club.current_read.book.slug}`}>
                   <div className="flex gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                     {club.current_read.book.cover_url && (
+                      // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
                       <img
                         src={club.current_read.book.cover_url}
                         alt={club.current_read.book.title}
@@ -180,6 +181,7 @@ export default async function ClubPage({ params }: ClubPageProps) {
                     <Link key={read.id} href={`/books/${read.book.slug}`}>
                       <div className="flex gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
                         {read.book.cover_url && (
+                          // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
                           <img
                             src={read.book.cover_url}
                             alt={read.book.title}

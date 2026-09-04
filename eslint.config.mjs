@@ -40,6 +40,17 @@ const eslintConfig = defineConfig([
       "no-console": "off",
     },
   },
+
+  // Open Graph images are rendered by Satori (`next/og`), which only
+  // understands a plain <img> and produces a PNG, so `next/image` and
+  // `alt` text have no meaning there.
+  {
+    files: ["app/api/og/**/*.tsx"],
+    rules: {
+      "@next/next/no-img-element": "off",
+      "jsx-a11y/alt-text": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

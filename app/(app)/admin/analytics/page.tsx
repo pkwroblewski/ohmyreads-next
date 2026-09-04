@@ -202,6 +202,7 @@ export default async function AdminAnalyticsPage() {
                     {i + 1}
                   </span>
                   {book.cover_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
                     <img
                       src={book.cover_url}
                       alt={`Cover of ${book.title}`}

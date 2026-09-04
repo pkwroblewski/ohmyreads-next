@@ -240,6 +240,7 @@ export default async function AdminReviewsPage({ searchParams }: PageProps) {
                   {/* Book Cover */}
                   <Link href={`/books/${review.book.slug}`} className="shrink-0">
                     {review.book.cover_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
                       <img
                         src={review.book.cover_url}
                         alt={`Cover of ${review.book.title}`}

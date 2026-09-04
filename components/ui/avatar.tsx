@@ -38,6 +38,7 @@ const AvatarImage = React.forwardRef<
   HTMLImageElement,
   React.ImgHTMLAttributes<HTMLImageElement>
 >(({ className, alt, ...props }, ref) => (
+  // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
   <img
     ref={ref}
     alt={alt}

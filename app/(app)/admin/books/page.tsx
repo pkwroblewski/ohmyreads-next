@@ -183,6 +183,7 @@ export default async function AdminBooksPage({ searchParams }: PageProps) {
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         {book.cover_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
                           <img
                             src={book.cover_url}
                             alt={`Cover of ${book.title}`}

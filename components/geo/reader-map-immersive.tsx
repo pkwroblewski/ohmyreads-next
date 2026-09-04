@@ -1069,7 +1069,7 @@ export function ReaderMapImmersive({
             >
               {searchResults.map((result, index) => (
                 <button
-                  key={index}
+                  key={`${result.place_name}:${result.center.join(",")}`}
                   id={`search-result-${index}`}
                   role="option"
                   aria-selected={index === selectedSearchIndex}
