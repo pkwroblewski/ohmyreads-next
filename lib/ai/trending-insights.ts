@@ -2,6 +2,7 @@ import "server-only";
 
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { trendingInsightSchema } from "@/lib/ai/schemas";
@@ -19,7 +20,7 @@ const MAX_INSIGHT_TOKENS = 150;
 
 function getModel() {
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    return google("gemini-2.0-flash");
+    return google(GEMINI_MODEL);
   }
   return null;
 }

@@ -1,5 +1,6 @@
 import { generateText, stepCountIs, UIMessage, CoreMessage } from "ai";
 import { google } from "@ai-sdk/google";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { NextRequest } from "next/server";
@@ -44,7 +45,7 @@ const MAX_REPLY_TOKENS = 800;
 // Select the AI model
 function getModel() {
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    return google("gemini-2.0-flash");
+    return google(GEMINI_MODEL);
   }
   if (process.env.OPENAI_API_KEY) {
     return openai("gpt-4o-mini");

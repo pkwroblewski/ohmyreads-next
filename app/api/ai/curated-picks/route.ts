@@ -1,5 +1,6 @@
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 import { unstable_cache } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
@@ -20,7 +21,7 @@ const MAX_PICK_TOKENS = 120;
 
 function getModel() {
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    return google("gemini-2.0-flash");
+    return google(GEMINI_MODEL);
   }
   return null;
 }

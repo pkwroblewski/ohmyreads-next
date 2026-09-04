@@ -1,5 +1,6 @@
 import { streamText, createUIMessageStreamResponse, UIMessage, stepCountIs } from "ai";
 import { google } from "@ai-sdk/google";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { NextRequest } from "next/server";
@@ -18,7 +19,7 @@ const MAX_REPLY_TOKENS = 800;
 function getModel() {
   // Priority: Gemini (cheapest) > OpenAI > Anthropic
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    return google("gemini-2.0-flash");
+    return google(GEMINI_MODEL);
   }
   if (process.env.OPENAI_API_KEY) {
     return openai("gpt-4o-mini");

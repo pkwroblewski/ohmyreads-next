@@ -1,7 +1,10 @@
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  // Whitespace stripped: the value pasted into Vercel carried a line break in
+  // the middle of the host, which made the DSN invalid and silently disabled
+  // error reporting for months.
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN?.replace(/\s+/g, ""),
 
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 0.1,
