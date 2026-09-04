@@ -5,10 +5,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { CoverImageMini } from "@/components/books/cover-image";
-import type { Book, UserBook } from "@/types/database";
+import { BOOK_COVER_COLUMNS } from "@/lib/queries/columns";
+import type { BookCoverSummary, UserBook } from "@/types/database";
 
 interface ActivityItem extends UserBook {
-  book: Pick<Book, "id" | "title" | "slug" | "cover_url">;
+  book: BookCoverSummary;
 }
 
 // Format book status for display
@@ -43,7 +44,7 @@ export async function RecentActivity() {
   // Fetch recent activity
   const { data } = await supabase
     .from("user_books")
-    .select("*, book:books(id, title, slug, cover_url)")
+    .select(`*, book:books(${BOOK_COVER_COLUMNS})`)
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(5);

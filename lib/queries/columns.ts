@@ -28,6 +28,17 @@ export const BOOK_CARD_COLUMNS =
   "id, title, author, slug, cover_url, isbn, published_date, page_count, genres, google_books_id, average_rating, ratings_count, local_average_rating, local_ratings_count, created_at, open_library_id, open_library_cover_id, cover_source, updated_at, author_slug" as const;
 
 /**
+ * The smallest projection that can still render a cover: identity plus every
+ * field the `CoverImage` fallback chain reads (Open Library cover id → ISBN →
+ * `cover_url` → Google Books). Embedded `book:books(...)` joins in feeds and
+ * club reads used to select `cover_url` alone, so any book whose `cover_url`
+ * was null showed "image not available" there and a real cover everywhere
+ * else.
+ */
+export const BOOK_COVER_COLUMNS =
+  "id, title, author, slug, cover_url, isbn, google_books_id, open_library_cover_id, cover_source" as const;
+
+/**
  * The `profiles` columns that migration 065 leaves readable through the anon
  * and authenticated roles. `select("*")` on profiles now fails with a
  * permission error for those roles; a user's own full row (location,

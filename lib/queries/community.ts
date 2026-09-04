@@ -1,7 +1,8 @@
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { createPublicClient, createClient } from "@/lib/supabase/server";
-import type { ActivityFeedItemWithRelations } from "@/types/database";
+import type { ActivityFeedItemWithRelations, BookCoverSummary } from "@/types/database";
+import { BOOK_COVER_COLUMNS } from "./columns";
 import { getFollowingIds } from "./follows";
 import { logError } from "@/lib/utils/log";
 // ============================================
@@ -15,14 +16,7 @@ export interface CommunityFeedPage {
 }
 
 export interface CommunitySidebarData {
-  popularBooks: Array<{
-    id: string;
-    title: string;
-    author: string;
-    slug: string;
-    cover_url: string | null;
-    average_rating: number | null;
-  }>;
+  popularBooks: Array<BookCoverSummary & { average_rating: number | null }>;
   activeReaders: Array<{
     id: string;
     username: string | null;
@@ -90,7 +84,7 @@ export async function getCommunityFeedPage(options: {
         checkin_id,
         created_at,
         user:profiles!activity_feed_user_id_profiles_fkey(id, username, display_name, avatar_url),
-        book:books!activity_feed_book_id_fkey(id, title, author, slug, cover_url),
+        book:books!activity_feed_book_id_fkey(${BOOK_COVER_COLUMNS}),
         review:reviews!activity_feed_review_id_fkey(id, rating, content, likes_count),
         place:places!activity_feed_place_id_fkey(id, name, place_type),
         checkin:place_checkins!activity_feed_checkin_id_fkey(id, note)
@@ -211,7 +205,7 @@ export async function getFollowingFeedPage(options: {
       checkin_id,
       created_at,
       user:profiles!activity_feed_user_id_profiles_fkey(id, username, display_name, avatar_url),
-      book:books!activity_feed_book_id_fkey(id, title, author, slug, cover_url),
+      book:books!activity_feed_book_id_fkey(${BOOK_COVER_COLUMNS}),
       review:reviews!activity_feed_review_id_fkey(id, rating, content, likes_count),
       place:places!activity_feed_place_id_fkey(id, name, place_type),
       checkin:place_checkins!activity_feed_checkin_id_fkey(id, note)
@@ -298,7 +292,7 @@ export const getCommunitySidebar = unstable_cache(
     // Fetch popular books (by ratings_count, last 7 days of activity not tracked yet, so use all-time)
     const { data: popularBooks } = await supabase
       .from("books")
-      .select("id, title, author, slug, cover_url, average_rating")
+      .select(`${BOOK_COVER_COLUMNS}, average_rating`)
       .order("ratings_count", { ascending: false, nullsFirst: false })
       .limit(5);
 

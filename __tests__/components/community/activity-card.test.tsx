@@ -39,7 +39,17 @@ const base = {
   place_id: null,
   checkin_id: null,
   user: { id: AUTHOR, username: "ada", display_name: "Ada", avatar_url: null },
-  book: { id: "b1", title: "Dune", author: "Frank Herbert", slug: "dune", cover_url: null },
+  book: {
+    id: "b1",
+    title: "Dune",
+    author: "Frank Herbert",
+    slug: "dune",
+    cover_url: null,
+    isbn: null,
+    google_books_id: null,
+    open_library_cover_id: null,
+    cover_source: null,
+  },
 };
 
 const reviewItem: ActivityFeedItemWithRelations = {

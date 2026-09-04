@@ -1,5 +1,6 @@
 import { createClient, getUser } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
+import { BOOK_COVER_COLUMNS } from "./columns";
 import type {
   BookClubWithDetails,
   BookClubMemberWithProfile,
@@ -67,7 +68,7 @@ export async function getClubs(options: GetClubsOptions = {}): Promise<{
     .select(
       `
       *,
-      book:books(id, title, author, slug, cover_url)
+      book:books(${BOOK_COVER_COLUMNS})
     `
     )
     .in("club_id", clubIds)
@@ -164,7 +165,7 @@ export async function getClubBySlug(slug: string): Promise<BookClubWithDetails |
     .select(
       `
       *,
-      book:books(id, title, author, slug, cover_url)
+      book:books(${BOOK_COVER_COLUMNS})
     `
     )
     .eq("club_id", club.id)
@@ -290,7 +291,7 @@ export async function getUserClubs(): Promise<BookClubWithDetails[]> {
     .select(
       `
       *,
-      book:books(id, title, author, slug, cover_url)
+      book:books(${BOOK_COVER_COLUMNS})
     `
     )
     .in("club_id", clubIds)
@@ -326,7 +327,7 @@ export async function getClubPastReads(clubId: string): Promise<BookClubReadWith
     .select(
       `
       *,
-      book:books(id, title, author, slug, cover_url)
+      book:books(${BOOK_COVER_COLUMNS})
     `
     )
     .eq("club_id", clubId)

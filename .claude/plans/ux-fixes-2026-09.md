@@ -21,7 +21,7 @@
 | 2 | Migrate the three menus: shelf dropdown, shelf-card actions, Browse sort | 🔴 Critical | Medium | [x] COMPLETE | `components/books/add-to-shelf-button.tsx`, `components/books/shelf-book-card.tsx`, `components/books/book-browser.tsx` |
 | 3 | Migrate the three dialogs: progress, Mood Search, custom shelves | 🔴 Critical | Medium | [x] COMPLETE | `components/books/update-progress-dialog.tsx`, `components/ai/ai-book-search.tsx`, `components/shelves/add-to-shelf-modal.tsx` |
 | 4 | Mobile chrome: clip horizontal overflow, reserve nav space, Messages into the nav | 🟠 High | Medium | [x] COMPLETE | `components/messages/chat-panel.tsx`, `components/messages/chat-trigger.tsx`, `components/layout/app-shell.tsx`, `components/layout/mobile-bottom-nav.tsx`, `components/layout/sidebar.tsx`, `app/globals.css` |
-| 5 | Full cover column set in feed, activity and club queries | 🟠 High | Low | [ ] PENDING | `lib/queries/community.ts`, `components/dashboard/recent-activity.tsx`, `lib/queries/clubs.ts` |
+| 5 | Full cover column set in feed, activity and club queries | 🟠 High | Low | [x] COMPLETE | `lib/queries/community.ts`, `components/dashboard/recent-activity.tsx`, `lib/queries/clubs.ts` |
 | 6 | Muted text token passes AA | 🟠 High | Low | [ ] PENDING | `app/globals.css`, `components/layout/sidebar.tsx`, `components/reviews/quick-rating.tsx` |
 | 7 | Browse cards show the viewer's shelf status | 🔴 Critical | Medium | [ ] PENDING | `app/api/books/search/route.ts`, `components/books/book-browser.tsx`, `components/books/book-card.tsx` |
 | 8 | Progress from the book page and dashboard, percent + "finished" | 🟠 High | High | [ ] PENDING | `components/books/update-progress-dialog.tsx`, `app/(public)/books/[slug]/page.tsx`, `components/dashboard/currently-reading.tsx`, `lib/actions/books.ts`, `lib/validation/book-action.ts` |
@@ -30,7 +30,7 @@
 | 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [ ] PENDING | `components/books/book-card.tsx`, `components/books/book-browser.tsx` |
 | 12 | Final QA | - | Medium | [ ] PENDING | - |
 
-**Progress: 4/12 complete**
+**Progress: 5/12 complete**
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -214,22 +214,22 @@ first-time tester's first screen is clean.
 **Context:** "image not available" appears for books that render fine everywhere else, because these queries select only `cover_url` and the fallback chain has nothing to fall back to.
 
 **Steps:**
-1. [ ] Add `COVER_COLUMNS = "id, title, author, slug, cover_url, isbn, google_books_id, open_library_cover_id, cover_source"` to `lib/queries/columns.ts` (or reuse `BOOK_CARD_COLUMNS` where the payload size does not matter).
-2. [ ] `community.ts:93` and `:214`, `clubs.ts:70/167/293/329`, `recent-activity.tsx:46`: select it; widen the `book` types in those files and in `types/app.ts` accordingly.
-3. [ ] `npm run typecheck`, `npm run test:run`
+1. [x] Add `COVER_COLUMNS = "id, title, author, slug, cover_url, isbn, google_books_id, open_library_cover_id, cover_source"` to `lib/queries/columns.ts` (or reuse `BOOK_CARD_COLUMNS` where the payload size does not matter).
+2. [x] `community.ts:93` and `:214`, `clubs.ts:70/167/293/329`, `recent-activity.tsx:46`: select it; widen the `book` types in those files and in `types/app.ts` accordingly.
+3. [x] `npm run typecheck`, `npm run test:run`
 
 **Verify:**
-- [ ] Dashboard Recent Activity and `/community` show covers for The Hobbit / Harry Potter (books whose `cover_url` is null)
-- [ ] Club pages still render; typecheck clean; tests green
+- [x] Dashboard Recent Activity and `/community` show covers for The Hobbit / Harry Potter (books whose `cover_url` is null)
+- [x] Club pages still render; typecheck clean; tests green
 
 **Completed Notes:**
-<!-- Fill in after completing -->
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `lib/queries/columns.ts` (new `BOOK_COVER_COLUMNS`), `lib/queries/community.ts` (both feed joins + the popular-books select), `lib/queries/clubs.ts` (all four `book:books(...)` joins), `components/dashboard/recent-activity.tsx`, `types/app.ts` (new `BookCoverSummary`; `ActivityFeedItemWithRelations.book` and `BookClubReadWithBook.book` use it), `components/clubs/club-card.tsx`, `app/(public)/clubs/[slug]/page.tsx`, `__tests__/components/community/activity-card.test.tsx` (fixture widened).
+- Approach taken: one projection, `BOOK_COVER_COLUMNS = "id, title, author, slug, cover_url, isbn, google_books_id, open_library_cover_id, cover_source"`, interpolated into every embedded join that used to select `cover_url` alone; one shared `BookCoverSummary` type instead of four inline copies. Two consumers were throwing the new fields away, so they were fixed too: `club-card.tsx` built `{ title, cover_url }` by hand for `CoverImageMini` and now passes the whole book, and the club page rendered a raw `<img src={cover_url}>` (nothing at all when null) for the current read and past reads — both are `CoverImage` now, sized as before (64×96, 40×60), so the club page gets the fallback chain as well.
+- Deviations from plan: `types/app.ts` — only the two types the changed queries feed were widened; `CheckinWithRelations.book` and `ReadingListBookWithBook.book` keep their `cover_url`-only shape because their queries were not in scope. `club-card.tsx` and the club page were not in the file list but were needed for the new columns to reach the screen.
+- Issues encountered: (1) The review's premise was slightly stale: `harry-potter-1` and `the-hobbit` both *have* a `cover_url` now (checked with `supabase db query`). The real failure is a `cover_url` whose image 404s/500s (Open Library ISBN covers do that regularly, and the dev image proxy adds 504s) — with `cover_url` alone the chain had one candidate and fell to the placeholder; now it continues to Google Books. (2) `useCoverSrc` orders candidates OL-cover-id → ISBN → `cover_url` → Google Books, so the rendered `src` reveals which columns the component received.
+- Verification (local dev, throwaway account, deleted afterwards): shelved Harry Potter as Reading. **Dashboard Recent Activity** — the ISBN cover came back 500 from the dev proxy, the chain moved on and the mini cover loaded from `books.google.com/books/content?id=fmc00AEACAAJ` (`naturalWidth` 40, no placeholder). **`/community`** — 48 images, 0 failed; Harry Potter entries resolved to the ISBN URL (loaded) or Google Books, The Hobbit to Google Books. **`/clubs/readers-paradise`** — page renders, current read *Atomic Habits* cover loads through `CoverImage` from Google Books (the club has no past reads). `npm run typecheck` clean, `npm run lint` 0/0, `npm run test:run` 68 files / 622 passed.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -496,4 +496,5 @@ first-time tester's first screen is clean.
 | 2026-09-04 | 2 | COMPLETE | Shelf button, shelf-card menu and Browse sort on `DropdownMenu`; trigger `disabled` → `aria-busy` so focus can return; verified signed-in at 1280 and 390 px |
 | 2026-09-04 | 3 | COMPLETE | Progress, Mood Search and custom-shelf dialogs on `Dialog`; `returnFocusTo` threaded from the three callers; reduced-motion scroll; Mood Search full-screen below `sm` |
 | 2026-09-04 | 4 | COMPLETE | Closed chat drawer invisible + `overflow-x: clip`; safe-area nav padding + `scroll-padding-bottom`; `ChatPanelContext` puts Messages (badge) in the sidebar and More sheet with Map/About; bubble desktop-only |
+| 2026-09-04 | 5 | COMPLETE | `BOOK_COVER_COLUMNS` + `BookCoverSummary` in feed, activity and club queries; club card and club page hand the whole book to `CoverImage` |
 | | | | |

@@ -52,10 +52,7 @@ export function ClubCard({ club }: ClubCardProps) {
                 </p>
               </div>
               <CoverImageMini
-                book={{
-                  title: club.current_read.book.title,
-                  cover_url: club.current_read.book.cover_url,
-                }}
+                book={club.current_read.book}
                 className="w-8 h-12 shrink-0"
               />
             </div>

@@ -10,6 +10,7 @@ import { getClubBySlug, getClubMembers, getClubPastReads } from "@/lib/queries/c
 import { getUser } from "@/lib/supabase/server";
 import { JoinButton } from "@/components/clubs/join-button";
 import { SetCurrentBookDialog } from "@/components/clubs/set-current-book-dialog";
+import { CoverImage } from "@/components/books/cover-image";
 
 interface ClubPageProps {
   params: Promise<{ slug: string }>;
@@ -130,14 +131,13 @@ export default async function ClubPage({ params }: ClubPageProps) {
               {club.current_read ? (
                 <Link href={`/books/${club.current_read.book.slug}`}>
                   <div className="flex gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                    {club.current_read.book.cover_url && (
-                      // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
-                      <img
-                        src={club.current_read.book.cover_url}
-                        alt={club.current_read.book.title}
-                        className="w-16 h-24 object-cover rounded shadow-sm"
-                      />
-                    )}
+                    <CoverImage
+                      book={club.current_read.book}
+                      width={64}
+                      height={96}
+                      hover={false}
+                      className="shrink-0"
+                    />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold">{club.current_read.book.title}</h3>
                       <p className="text-sm text-muted-foreground">
@@ -180,14 +180,13 @@ export default async function ClubPage({ params }: ClubPageProps) {
                   {pastReads.map((read) => (
                     <Link key={read.id} href={`/books/${read.book.slug}`}>
                       <div className="flex gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                        {read.book.cover_url && (
-                          // eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS
-                          <img
-                            src={read.book.cover_url}
-                            alt={read.book.title}
-                            className="w-10 h-15 object-cover rounded"
-                          />
-                        )}
+                        <CoverImage
+                          book={read.book}
+                          width={40}
+                          height={60}
+                          hover={false}
+                          className="shrink-0"
+                        />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{read.book.title}</p>
                           <p className="text-xs text-muted-foreground">{read.book.author}</p>

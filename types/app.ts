@@ -275,6 +275,22 @@ export interface CheckinWithRelations extends PlaceCheckin {
   };
 }
 
+/**
+ * A book joined into a feed or club row: identity plus the fields the cover
+ * fallback chain needs (`BOOK_COVER_COLUMNS` in lib/queries/columns.ts).
+ */
+export interface BookCoverSummary {
+  id: string;
+  title: string;
+  author: string;
+  slug: string;
+  cover_url: string | null;
+  isbn: string | null;
+  google_books_id: string | null;
+  open_library_cover_id: number | null;
+  cover_source: string | null;
+}
+
 // Activity Feed Item with relations (for display)
 export interface ActivityFeedItemWithRelations extends ActivityFeedItem {
   user: {
@@ -283,13 +299,7 @@ export interface ActivityFeedItemWithRelations extends ActivityFeedItem {
     display_name: string | null;
     avatar_url: string | null;
   };
-  book?: {
-    id: string;
-    title: string;
-    author: string;
-    slug: string;
-    cover_url: string | null;
-  } | null;
+  book?: BookCoverSummary | null;
   review?: {
     id: string;
     rating: number | null;
@@ -375,13 +385,7 @@ export interface BookClubMemberWithProfile extends BookClubMember {
 
 // Book club read with book details
 export interface BookClubReadWithBook extends BookClubRead {
-  book: {
-    id: string;
-    title: string;
-    author: string;
-    slug: string;
-    cover_url: string | null;
-  };
+  book: BookCoverSummary;
 }
 
 // Book club with current read and creator
