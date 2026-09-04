@@ -535,30 +535,6 @@ export type Database = {
         }
         Relationships: []
       }
-      books_external_id_dedupe_backup: {
-        Row: {
-          backed_up_at: string
-          book_id: string
-          book_title: string | null
-          id_kind: string
-          id_value: string
-        }
-        Insert: {
-          backed_up_at?: string
-          book_id: string
-          book_title?: string | null
-          id_kind: string
-          id_value: string
-        }
-        Update: {
-          backed_up_at?: string
-          book_id?: string
-          book_title?: string | null
-          id_kind?: string
-          id_value?: string
-        }
-        Relationships: []
-      }
       comments: {
         Row: {
           content: string
@@ -1944,8 +1920,6 @@ export type Database = {
         Args: { p_shelf_ids: string[]; p_user_book_id: string }
         Returns: undefined
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       sync_book_local_ratings: {
         Args: { p_book_ids: string[] }
         Returns: undefined

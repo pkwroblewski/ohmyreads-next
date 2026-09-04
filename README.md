@@ -44,7 +44,7 @@ Migrations live in `supabase/migrations/NNN_name.sql` and are applied to the
 linked project with the Supabase CLI:
 
 ```bash
-npx supabase db query --linked -f supabase/migrations/068_example.sql
+npx supabase db query --linked -f supabase/migrations/069_example.sql
 ```
 
 Only the last statement's result is printed. Checks that verify a migration

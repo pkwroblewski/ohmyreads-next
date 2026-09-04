@@ -34,6 +34,11 @@ BEGIN
     RAISE EXCEPTION 'FIXTURES: need three non-admin profiles plus one more';
   END IF;
 
+  -- Since 066 protect_admin_columns() reverts disabled_at unless the JWT role
+  -- is service_role, so the fixture writes need that claim (D would otherwise
+  -- stay enabled and C5d fails). Reset by the "As anon" section below.
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
+
   UPDATE public.profiles SET location_enabled = true, location_geohash = 'u33dc1', location_label = 'Dry Run A',
     presence_type = 'temporary', presence_expires_at = now() + interval '1 hour', presence_note = 'dry-run-a',
     discovery_visible = true, disabled_at = NULL WHERE id = v_a;
