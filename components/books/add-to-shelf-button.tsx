@@ -33,6 +33,8 @@ interface AddToShelfButtonProps {
   bookId: string;
   bookTitle?: string;  // For custom shelf modal
   currentStatus?: ShelfStatus | null;
+  /** Lets a list owning several cards keep its own status map in step. */
+  onStatusChange?: (status: ShelfStatus | null) => void;
 }
 
 const statusConfig: Record<
@@ -48,6 +50,7 @@ export function AddToShelfButton({
   bookId,
   bookTitle,
   currentStatus,
+  onStatusChange,
 }: AddToShelfButtonProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -71,6 +74,7 @@ export function AddToShelfButton({
       }
 
       setStatus(newStatus);
+      onStatusChange?.(newStatus);
       toast.success(`Book marked as "${statusConfig[newStatus].label}"`);
       result.newBadges?.forEach((badge) => {
         toast.success(`Badge unlocked: ${badge.icon ?? "🏅"} ${badge.name}`);
@@ -88,6 +92,7 @@ export function AddToShelfButton({
       }
 
       setStatus(null);
+      onStatusChange?.(null);
       toast.success("Book removed from your shelf");
     });
   };

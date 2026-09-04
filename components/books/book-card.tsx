@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useCoverSrc } from "@/hooks/use-cover-src";
 import { AddToShelfButton } from "./add-to-shelf-button";
 import { buttonVariants } from "@/components/ui/button";
+import type { BookStatus } from "@/types/app";
 
 interface BookCardProps {
   book: {
@@ -30,6 +31,10 @@ interface BookCardProps {
   variant?: "grid" | "rail";
   /** Priority loading for above-the-fold images */
   priority?: boolean;
+  /** The viewer's shelf status for this book, when the list knows it. */
+  currentStatus?: BookStatus | null;
+  /** Called when the reader shelves, re-shelves or unshelves from the card. */
+  onStatusChange?: (bookId: string, status: BookStatus | null) => void;
 }
 
 const sizeClasses = {
@@ -131,6 +136,8 @@ export function BookCard({
   size = "md",
   variant = "rail",
   priority = false,
+  currentStatus = null,
+  onStatusChange,
 }: BookCardProps) {
   const classes = sizeClasses[size];
   const isGrid = variant === "grid";
@@ -215,7 +222,12 @@ export function BookCard({
 
         {/* Actions - anchored at bottom */}
         <div className="mt-auto pt-3 space-y-2">
-          <AddToShelfButton bookId={book.id} />
+          <AddToShelfButton
+            bookId={book.id}
+            bookTitle={book.title}
+            currentStatus={currentStatus}
+            onStatusChange={(status) => onStatusChange?.(book.id, status)}
+          />
           <div className="flex gap-2">
             <a
               href={amazonSearchUrl}
@@ -314,7 +326,12 @@ export function BookCard({
         {picked && <CardRating picked={picked} className={cn("mt-1", classes.rating)} />}
 
         <div className="mt-3 space-y-2">
-          <AddToShelfButton bookId={book.id} />
+          <AddToShelfButton
+            bookId={book.id}
+            bookTitle={book.title}
+            currentStatus={currentStatus}
+            onStatusChange={(status) => onStatusChange?.(book.id, status)}
+          />
           <div className="flex gap-2">
             <a
               href={amazonSearchUrl}

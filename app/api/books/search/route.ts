@@ -1,10 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { parseSearchParams } from "@/lib/validation/search";
 import { logger, extractErrorInfo, extractSupabaseErrorInfo } from "@/lib/utils/log";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import { BOOK_CARD_COLUMNS } from "@/lib/queries/columns";
+import { getShelfStatuses } from "@/lib/queries/users";
 
 export async function GET(request: NextRequest) {
   // Rate limit by IP (60 requests per minute for search)
@@ -85,6 +86,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // The viewer's own shelf status per result, so a card that is already on
+    // the shelf says so instead of "Add to Shelf". Anonymous callers get `{}`
+    // and keep the shared cache; a signed-in response carries per-user data,
+    // so it must never sit in a CDN cache.
+    const {
+      data: { user },
+    } = await getUser();
+
+    const shelfStatuses = user
+      ? await getShelfStatuses(user.id, (books ?? []).map((book) => book.id))
+      : {};
+
     return NextResponse.json(
       {
         books: books || [],
@@ -92,10 +105,13 @@ export async function GET(request: NextRequest) {
         page,
         totalPages: Math.ceil((count || 0) / limit),
         hasMore: offset + limit < (count || 0),
+        shelfStatuses,
       },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+          "Cache-Control": user
+            ? "private, no-store"
+            : "public, s-maxage=60, stale-while-revalidate=300",
         },
       }
     );

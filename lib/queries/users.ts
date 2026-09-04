@@ -4,6 +4,7 @@ import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { BOOK_CARD_COLUMNS, PROFILE_PUBLIC_COLUMNS } from "./columns";
 import type { Profile, ReviewWithUser, UserBookWithBook } from "@/types/database";
+import type { BookStatus } from "@/types/app";
 import { logError } from "@/lib/utils/log";
 
 /**
@@ -157,6 +158,38 @@ type ReviewWithBook = ReviewWithUser & {
     author: string;
   };
 };
+
+/**
+ * The viewer's own shelf status for a batch of books, as a `bookId -> status`
+ * map. Browse renders `AddToShelfButton` per card, and without this every
+ * card reads "Add to Shelf" even for books already on the shelf. One indexed
+ * `(user_id, book_id)` lookup covers a whole page of cards.
+ */
+export async function getShelfStatuses(
+  userId: string,
+  bookIds: string[]
+): Promise<Record<string, BookStatus>> {
+  if (bookIds.length === 0) return {};
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("user_books")
+    .select("book_id, status")
+    .eq("user_id", userId)
+    .in("book_id", bookIds);
+
+  if (error) {
+    logError("Error fetching shelf statuses", error);
+    return {};
+  }
+
+  const statuses: Record<string, BookStatus> = {};
+  for (const row of data ?? []) {
+    statuses[row.book_id] = row.status as BookStatus;
+  }
+  return statuses;
+}
 
 /**
  * Get user's reviews (simple, for profile page)

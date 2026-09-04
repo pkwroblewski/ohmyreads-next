@@ -23,14 +23,14 @@
 | 4 | Mobile chrome: clip horizontal overflow, reserve nav space, Messages into the nav | 🟠 High | Medium | [x] COMPLETE | `components/messages/chat-panel.tsx`, `components/messages/chat-trigger.tsx`, `components/layout/app-shell.tsx`, `components/layout/mobile-bottom-nav.tsx`, `components/layout/sidebar.tsx`, `app/globals.css` |
 | 5 | Full cover column set in feed, activity and club queries | 🟠 High | Low | [x] COMPLETE | `lib/queries/community.ts`, `components/dashboard/recent-activity.tsx`, `lib/queries/clubs.ts` |
 | 6 | Muted text token passes AA | 🟠 High | Low | [x] COMPLETE | `app/globals.css`, `components/layout/sidebar.tsx`, `components/reviews/quick-rating.tsx` |
-| 7 | Browse cards show the viewer's shelf status | 🔴 Critical | Medium | [ ] PENDING | `app/api/books/search/route.ts`, `components/books/book-browser.tsx`, `components/books/book-card.tsx` |
+| 7 | Browse cards show the viewer's shelf status | 🔴 Critical | Medium | [x] COMPLETE | `app/api/books/search/route.ts`, `app/(public)/books/(index)/page.tsx`, `lib/queries/users.ts`, `components/books/book-browser.tsx`, `components/books/book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `__tests__/app/api/books-search.test.ts` |
 | 8 | Progress from the book page and dashboard, percent + "finished" | 🟠 High | High | [ ] PENDING | `components/books/update-progress-dialog.tsx`, `app/(public)/books/[slug]/page.tsx`, `components/dashboard/currently-reading.tsx`, `lib/actions/books.ts`, `lib/validation/book-action.ts` |
 | 9 | One first-run checklist instead of five empty states | 🟡 Medium | Medium | [ ] PENDING | `app/(app)/dashboard/page.tsx`, `components/dashboard/first-run-checklist.tsx` (new), `components/dashboard/recent-activity.tsx`, `components/dashboard/friends-activity-section.tsx`, `components/dashboard/recommendations-section.tsx` |
 | 10 | Catalog data pass: dedupe, enrich, fix broken records | 🟠 High | High | [ ] PENDING | `supabase/migrations/069_dedupe_books.sql` (new), `scripts/enrich-books.ts`, data only |
 | 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [ ] PENDING | `components/books/book-card.tsx`, `components/books/book-browser.tsx` |
 | 12 | Final QA | - | Medium | [ ] PENDING | - |
 
-**Progress: 6/12 complete**
+**Progress: 7/12 complete**
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -268,32 +268,38 @@ first-time tester's first screen is clean.
 **Source:** UX review 2026-09-04 > L1 (agent B1)
 **Priority:** 🔴 Critical
 **Effort:** Medium
-**File(s):** `app/api/books/search/route.ts`, `components/books/book-browser.tsx`, `components/books/book-card.tsx`
+**File(s):** `app/api/books/search/route.ts`, `app/(public)/books/(index)/page.tsx`, `lib/queries/users.ts`, `components/books/book-browser.tsx`, `components/books/book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `__tests__/app/api/books-search.test.ts`
 
 **Context:** A reader adds a book from Browse, gets a toast, and the card still says "Add to Shelf". `AddToShelfButton` supports `currentStatus`; the grid never passes it.
 
 **Steps:**
-1. [ ] Search route: after the books query, if `getUser()` returns a user, fetch `user_books.select("book_id, status").eq("user_id", user.id).in("book_id", ids)` and return `shelfStatuses: Record<bookId, status>` alongside `books`/`count`. Anonymous callers get `{}`; the response stays cacheable per-user only via the existing dynamic route (no `Cache-Control: public`).
-2. [ ] `book-browser.tsx`: keep `shelfStatuses` in state (merge on Load More), pass `currentStatus={shelfStatuses[book.id] ?? null}` to `BookCard`; when `AddToShelfButton` changes status, update the map through an `onStatusChange` callback.
-3. [ ] `book-card.tsx`: add `currentStatus?: ShelfStatus | null` and `onStatusChange?` props; forward to both `AddToShelfButton` sites (`:218`, `:317`).
-4. [ ] Home rails (`BookListHorizontal`, curated/trending) are Out of Scope unless trivial — note the decision.
-5. [ ] Extend `__tests__/app/api/route-gates.test.ts` (or a new search test) for the anonymous vs signed-in shape.
-6. [ ] `npm run lint`, `npm run typecheck`, `npm run test:run`
+1. [x] Search route: after the books query, if `getUser()` returns a user, fetch `user_books.select("book_id, status").eq("user_id", user.id).in("book_id", ids)` and return `shelfStatuses: Record<bookId, status>` alongside `books`/`count`. Anonymous callers get `{}` and keep the shared cache; a signed-in response answers `Cache-Control: private, no-store`.
+2. [x] `book-browser.tsx`: keep `shelfStatuses` in state (merge on Load More), pass `currentStatus={shelfStatuses[book.id] ?? null}` to `BookCard`; when `AddToShelfButton` changes status, update the map through an `onStatusChange` callback.
+3. [x] `book-card.tsx`: add `currentStatus?: BookStatus | null` and `onStatusChange?` props; forward to both `AddToShelfButton` sites.
+4. [x] Home rails (`BookListHorizontal`, curated/trending) left Out of Scope — they render `BookCard` without `showActions`, so no shelf button appears there at all.
+5. [x] New `__tests__/app/api/books-search.test.ts` covers the anonymous vs signed-in shape and the cache header.
+6. [x] `npm run lint`, `npm run typecheck`, `npm run test:run`
 
 **Verify:**
-- [ ] Signed in: shelve a book from Browse → card label becomes the status immediately; reload → still shows it; other cards unaffected
-- [ ] Signed out: cards still say "Add to Shelf" and the API returns `shelfStatuses: {}`
-- [ ] Search response time unchanged within noise (one extra indexed `IN` query)
-- [ ] Lint 0/0, tests green
+- [x] Signed in: shelve a book from Browse → card label becomes the status in place; reload → still shows it; other cards unaffected
+- [x] Signed out: cards still say "Add to Shelf" and the API returns `shelfStatuses: {}` with `Cache-Control: public`
+- [x] Search response time unchanged within noise (one extra indexed `IN` query)
+- [x] Lint 0/0, typecheck clean, 625 tests green
 
 **Completed Notes:**
-<!-- Fill in after completing -->
 - Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+  - `lib/queries/users.ts` — new `getShelfStatuses(userId, bookIds)` returning a `bookId → status` map from one `(user_id, book_id)` lookup
+  - `app/api/books/search/route.ts` — `shelfStatuses` in the payload; `private, no-store` for a signed-in caller, the old public CDN header for an anonymous one
+  - `app/(public)/books/(index)/page.tsx` — seeds `initialShelfStatuses` server-side for the SSR'd first page
+  - `components/books/book-browser.tsx` — `shelfStatuses` state, replaced on search, merged on Load More, updated by the cards
+  - `components/books/book-card.tsx` — `currentStatus` / `onStatusChange` props forwarded to both `AddToShelfButton` sites (also passes `bookTitle`, which the custom-shelf modal wanted)
+  - `components/books/add-to-shelf-button.tsx` — optional `onStatusChange` fired on shelve and on remove
+  - `__tests__/app/api/books-search.test.ts` — 3 route tests
+- Approach taken: the status map travels two ways. The browse page reads it during the server render so a reload never flashes "Add to Shelf" on a shelved book, and the search route returns it so every client-side search and Load More stays correct. The cached book list itself is untouched; only the per-viewer labels are dynamic.
+- Deviations from plan: three files beyond the plan's list. The page had to seed the map (step 2 alone leaves the SSR'd first page wrong until the reader searches), which needed the shared query in `lib/queries/users.ts`, and the callback needed a prop on `AddToShelfButton`. The plan's `ShelfStatus` name is the existing `BookStatus` union in `types/app.ts`, reused rather than duplicated. The public cache header had to become conditional — leaving it would have put one reader's shelf into a shared CDN entry.
+- Issues encountered: local network to Supabase was degraded during the browser QA (repeated 10s `UND_ERR_CONNECT_TIMEOUT`), so each Server Action took 15–32s; the behaviour is correct, just slow to observe. Verified signed-in with a throwaway `omr-qa-task7@mailinator.com` account (deleted afterwards): shelved a card → label flipped in place, reload kept it, `/api/books/search` returned the map with `private, no-store`, Load More appended 20 more cards and kept the shelved label. Unrelated pre-existing dev artifact: the unfiltered `/books` view showed "0 books found" from a stale `unstable_cache` entry for `getPopularBooks`; `?sort=newest` (714 books) was used instead.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -500,4 +506,5 @@ first-time tester's first screen is clean.
 | 2026-09-04 | 4 | COMPLETE | Closed chat drawer invisible + `overflow-x: clip`; safe-area nav padding + `scroll-padding-bottom`; `ChatPanelContext` puts Messages (badge) in the sidebar and More sheet with Map/About; bubble desktop-only |
 | 2026-09-04 | 5 | COMPLETE | `BOOK_COVER_COLUMNS` + `BookCoverSummary` in feed, activity and club queries; club card and club page hand the whole book to `CoverImage` |
 | 2026-09-04 | 6 | COMPLETE | `--muted-foreground` 48 % → 42 % (4.96 / 5.13 / 4.55); every text-bearing `/xx` variant → solid token; quick-rating unrated stars `/80` (3.35 non-text) |
+| 2026-09-04 | 7 | COMPLETE | Browse cards show the viewer's shelf status: server-seeded map + `shelfStatuses` on the search API (private, no-store when signed in), merged on Load More |
 | | | | |

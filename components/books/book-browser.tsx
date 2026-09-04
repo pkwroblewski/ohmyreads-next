@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AIBookSearch } from "@/components/ai/ai-book-search";
 import { cn } from "@/lib/utils";
 import type { BookSummary } from "@/types/database";
+import type { BookStatus } from "@/types/app";
 
 interface BookBrowserProps {
   initialBooks: BookSummary[];
@@ -24,6 +25,8 @@ interface BookBrowserProps {
   initialQuery?: string;
   initialGenre?: string | null;
   initialSort?: SortOption;
+  /** The viewer's shelf status per seeded book id; `{}` when signed out. */
+  initialShelfStatuses?: Record<string, BookStatus>;
   genres: string[];
 }
 
@@ -59,6 +62,7 @@ export function BookBrowser({
   initialQuery = "",
   initialGenre = null,
   initialSort = "popular",
+  initialShelfStatuses = {},
   genres,
 }: BookBrowserProps) {
   const [books, setBooks] = useState<BookSummary[]>(initialBooks);
@@ -71,6 +75,11 @@ export function BookBrowser({
     initialTotal === undefined ? true : initialTotal > initialBooks.length
   );
   const [totalCount, setTotalCount] = useState(initialTotal ?? initialBooks.length);
+  // bookId -> the viewer's shelf status, so a card already on the shelf says
+  // so instead of "Add to Shelf". Seeded server-side, refreshed by every
+  // search, merged (never replaced) on Load More.
+  const [shelfStatuses, setShelfStatuses] =
+    useState<Record<string, BookStatus>>(initialShelfStatuses);
   const [showAISearch, setShowAISearch] = useState(false);
   // A seeded genre beyond the first ten pills must be visible as selected.
   const [showAllGenres, setShowAllGenres] = useState(
@@ -108,10 +117,14 @@ export function BookBrowser({
           return;
         }
 
+        const statuses: Record<string, BookStatus> = data.shelfStatuses ?? {};
+
         if (append) {
           setBooks((prev) => [...prev, ...data.books]);
+          setShelfStatuses((prev) => ({ ...prev, ...statuses }));
         } else {
           setBooks(data.books);
+          setShelfStatuses(statuses);
         }
 
         setTotalCount(data.total);
@@ -152,6 +165,20 @@ export function BookBrowser({
     setPage(1);
     fetchBooks(searchQuery, selectedGenre, sort, 1);
   };
+
+  // A card shelved (or unshelved) from the grid updates the map, so the label
+  // survives the next search or Load More.
+  const handleStatusChange = useCallback(
+    (bookId: string, status: BookStatus | null) => {
+      setShelfStatuses((prev) => {
+        const next = { ...prev };
+        if (status) next[bookId] = status;
+        else delete next[bookId];
+        return next;
+      });
+    },
+    []
+  );
 
   // Load more handler
   const handleLoadMore = () => {
@@ -300,7 +327,14 @@ export function BookBrowser({
         // Book grid - items-stretch ensures uniform height
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6 items-stretch">
           {books.map((book) => (
-            <BookCard key={book.id} book={book} variant="grid" showActions />
+            <BookCard
+              key={book.id}
+              book={book}
+              variant="grid"
+              showActions
+              currentStatus={shelfStatuses[book.id] ?? null}
+              onStatusChange={handleStatusChange}
+            />
           ))}
         </div>
       )}

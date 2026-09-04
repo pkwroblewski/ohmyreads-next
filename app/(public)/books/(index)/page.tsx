@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getPopularBooks, getAllGenres, searchBooks } from "@/lib/queries/books";
 import { parseBrowseParams } from "@/lib/validation/search";
+import { getShelfStatuses } from "@/lib/queries/users";
+import { getUser } from "@/lib/supabase/server";
 import { BookBrowser } from "@/components/books/book-browser";
 
 interface Props {
@@ -75,6 +77,19 @@ export default async function BrowseBooksPage({ searchParams }: Props) {
     ? await searchBooks(q, { genre: genre ?? undefined, sort, limit: PAGE_SIZE })
     : { books: await getPopularBooks(PAGE_SIZE), total: undefined };
 
+  // The book list itself stays cached and identical for everyone; only the
+  // shelf labels are per-viewer, so they are read here rather than after
+  // hydration — a reload must not flash "Add to Shelf" on a shelved book.
+  const {
+    data: { user },
+  } = await getUser();
+  const shelfStatuses = user
+    ? await getShelfStatuses(
+        user.id,
+        initial.books.map((book) => book.id)
+      )
+    : {};
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -94,6 +109,7 @@ export default async function BrowseBooksPage({ searchParams }: Props) {
         initialQuery={q}
         initialGenre={genre}
         initialSort={sort}
+        initialShelfStatuses={shelfStatuses}
         genres={genres}
       />
     </div>
