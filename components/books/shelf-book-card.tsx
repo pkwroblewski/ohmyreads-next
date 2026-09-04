@@ -301,10 +301,12 @@ export function ShelfBookCard({ userBook, book }: ShelfBookCardProps) {
         bookId={book.id}
         bookTitle={book.title}
         currentPage={progress.page}
-        totalPages={progress.total}
+        totalPages={progress.total ?? book.page_count ?? null}
+        percent={progress.pct}
         open={isProgressOpen}
         onOpenChange={setIsProgressOpen}
         onUpdated={(page, total, pct) => setProgress({ page, total, pct })}
+        onFinished={() => setCurrentStatus("read")}
         returnFocusTo={progressButtonRef}
       />
     </div>

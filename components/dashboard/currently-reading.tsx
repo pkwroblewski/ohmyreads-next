@@ -1,5 +1,8 @@
 import { createClient, getUser } from "@/lib/supabase/server";
-import { BookListHorizontal } from "@/components/books/book-list-horizontal";
+import {
+  BookListHorizontal,
+  type RailProgress,
+} from "@/components/books/book-list-horizontal";
 import { BOOK_CARD_COLUMNS } from "@/lib/queries/columns";
 import type { BookSummary, UserBook } from "@/types/database";
 
@@ -36,10 +39,23 @@ export async function CurrentlyReading() {
   // Extract book objects for the horizontal list
   const books = currentlyReading.filter((item) => item.book).map((item) => item.book);
 
+  // Every book in this rail is being read right now, so each one carries its
+  // own bar and its own one-tap way into the progress dialog.
+  const progressByBookId: Record<string, RailProgress> = {};
+  for (const item of currentlyReading) {
+    if (!item.book) continue;
+    progressByBookId[item.book.id] = {
+      currentPage: item.current_page,
+      totalPages: item.total_pages,
+      percent: item.progress_percentage,
+    };
+  }
+
   return (
     <BookListHorizontal
       title="Currently Reading"
       books={books}
+      progressByBookId={progressByBookId}
       emptyTitle="Start your reading journey"
       emptyMessage="You're not reading anything yet. Add a book to get started!"
       emptyAction={{

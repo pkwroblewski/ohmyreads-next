@@ -18,6 +18,7 @@ import {
   importAndAddToShelfSchema,
   bookIdSchema,
 } from "@/lib/validation/book-action";
+import type { UpdateReadingProgressInput } from "@/lib/validation/book-action";
 import crypto from "crypto";
 import type { Database } from "@/types/database";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -212,17 +213,26 @@ export async function addToShelf(bookId: string, status: string): Promise<Action
   }
 }
 
+/**
+ * Write a reader's position in a book they are currently reading.
+ *
+ * Progress comes in as a page number or as a percentage: an audiobook or an
+ * e-reader leaves a reader with no page to type. `percent` wins when both are
+ * given, and whichever side is missing is derived from the effective total
+ * (the total passed in, then the one already stored, then `books.page_count`).
+ * With no total at all, a percentage is stored on its own and a page number
+ * is stored without one.
+ */
 export async function updateReadingProgress(
-  bookId: string,
-  currentPage: number,
-  totalPages?: number
+  input: UpdateReadingProgressInput
 ): Promise<
   ActionResult<{
-    currentPage: number;
+    currentPage: number | null;
     totalPages: number | null;
     progressPercentage: number | null;
   }>
 > {
+  const { bookId, currentPage, totalPages, percent } = input;
   try {
     const auth = await requireUser();
     if (!auth.ok) {
@@ -237,11 +247,7 @@ export async function updateReadingProgress(
     }
 
     // Validate input with Zod
-    const validationResult = updateReadingProgressSchema.safeParse({
-      bookId,
-      currentPage,
-      totalPages,
-    });
+    const validationResult = updateReadingProgressSchema.safeParse(input);
     if (!validationResult.success) {
       return {
         success: false,
@@ -263,14 +269,25 @@ export async function updateReadingProgress(
 
     const bookPageCount = row.book?.page_count ?? null;
     const effectiveTotal = totalPages ?? row.total_pages ?? bookPageCount;
-    const clampedPage =
-      effectiveTotal !== null
-        ? Math.min(currentPage, effectiveTotal)
-        : currentPage;
-    const progressPercentage =
-      effectiveTotal !== null
-        ? Math.min(100, Math.round((clampedPage / effectiveTotal) * 100))
-        : null;
+
+    let clampedPage: number | null;
+    let progressPercentage: number | null;
+
+    if (percent !== undefined) {
+      progressPercentage = percent;
+      clampedPage =
+        effectiveTotal !== null
+          ? Math.round((effectiveTotal * percent) / 100)
+          : (currentPage ?? null);
+    } else {
+      // The refinement guarantees a page when there is no percentage.
+      const page = currentPage as number;
+      clampedPage = effectiveTotal !== null ? Math.min(page, effectiveTotal) : page;
+      progressPercentage =
+        effectiveTotal !== null
+          ? Math.min(100, Math.round((clampedPage / effectiveTotal) * 100))
+          : null;
+    }
 
     // status filter prevents scribbling on want-to-read/read rows
     const { data: updated, error } = await supabase

@@ -127,26 +127,6 @@ export const ALL_VIBE_TAGS = [
 export type VibeTag = (typeof ALL_VIBE_TAGS)[number];
 
 // ============================================
-// Types without a backing table
-// ============================================
-
-// Reading Progress History (for analytics)
-// TODO: NO backing table exists in the DB (and no migration in the repo) —
-// `user_books` also lacks current_page/total_pages/progress_percentage.
-// Reading-progress storage is deferred to the feature-wireups plan.
-export interface ReadingProgressHistory {
-  id: string;
-  user_id: string;
-  user_book_id: string;
-  book_id: string;
-  current_page: number;
-  total_pages: number;
-  progress_percentage: number;
-  pages_read_in_session: number;
-  created_at: string;
-}
-
-// ============================================
 // Helper Types (with relations)
 // ============================================
 

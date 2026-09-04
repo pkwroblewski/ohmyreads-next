@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BookCard } from "./book-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReadingProgressCard } from "./reading-progress-card";
 import { cn } from "@/lib/utils";
 import type { BookSummary } from "@/types/database";
 
@@ -12,6 +13,13 @@ interface EmptyStateAction {
   icon?: LucideIcon;
 }
 
+/** One reader's position in one book, as the rail needs it. */
+export interface RailProgress {
+  currentPage: number | null;
+  totalPages: number | null;
+  percent: number | null;
+}
+
 interface BookListHorizontalProps {
   title: string;
   books: BookSummary[];
@@ -19,6 +27,12 @@ interface BookListHorizontalProps {
   emptyTitle?: string;
   emptyAction?: EmptyStateAction;
   viewAllHref?: string;
+  /**
+   * Book id to the viewer's progress. A book with an entry gets the bar and
+   * the "update progress" control under its cover; every other rail passes
+   * nothing and is unchanged.
+   */
+  progressByBookId?: Record<string, RailProgress>;
 }
 
 export function BookListHorizontal({
@@ -28,6 +42,7 @@ export function BookListHorizontal({
   emptyTitle = "Nothing here yet",
   emptyAction,
   viewAllHref,
+  progressByBookId,
 }: BookListHorizontalProps) {
   return (
     <section className="mb-8">
@@ -59,25 +74,40 @@ export function BookListHorizontal({
             "-mx-6 px-6 sm:-mx-10 sm:px-10 lg:-mx-16 lg:px-16" // Extend to edges with padding
           )}
         >
-          {books.map((book, index) => (
-            <div key={book.id} className="snap-start flex-shrink-0">
-              <BookCard
-                book={{
-                  id: book.id,
-                  title: book.title,
-                  author: book.author,
-                  slug: book.slug,
-                  cover_url: book.cover_url,
-                  google_books_id: book.google_books_id,
-                  isbn: book.isbn,
-                  open_library_cover_id: book.open_library_cover_id,
-                  average_rating: book.average_rating,
-                }}
-                size="md"
-                priority={index < 3}
-              />
-            </div>
-          ))}
+          {books.map((book, index) => {
+            const progress = progressByBookId?.[book.id];
+            return (
+              <div key={book.id} className="snap-start flex-shrink-0 w-36">
+                <BookCard
+                  book={{
+                    id: book.id,
+                    title: book.title,
+                    author: book.author,
+                    slug: book.slug,
+                    cover_url: book.cover_url,
+                    google_books_id: book.google_books_id,
+                    isbn: book.isbn,
+                    open_library_cover_id: book.open_library_cover_id,
+                    average_rating: book.average_rating,
+                  }}
+                  size="md"
+                  priority={index < 3}
+                />
+                {progress && (
+                  <ReadingProgressCard
+                    bookId={book.id}
+                    bookTitle={book.title}
+                    currentPage={progress.currentPage}
+                    totalPages={progress.totalPages}
+                    percent={progress.percent}
+                    pageCount={book.page_count}
+                    variant="compact"
+                    className="mt-2"
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <EmptyState

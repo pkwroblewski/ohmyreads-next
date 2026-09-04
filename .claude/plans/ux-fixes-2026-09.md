@@ -24,13 +24,13 @@
 | 5 | Full cover column set in feed, activity and club queries | 🟠 High | Low | [x] COMPLETE | `lib/queries/community.ts`, `components/dashboard/recent-activity.tsx`, `lib/queries/clubs.ts` |
 | 6 | Muted text token passes AA | 🟠 High | Low | [x] COMPLETE | `app/globals.css`, `components/layout/sidebar.tsx`, `components/reviews/quick-rating.tsx` |
 | 7 | Browse cards show the viewer's shelf status | 🔴 Critical | Medium | [x] COMPLETE | `app/api/books/search/route.ts`, `app/(public)/books/(index)/page.tsx`, `lib/queries/users.ts`, `components/books/book-browser.tsx`, `components/books/book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `__tests__/app/api/books-search.test.ts` |
-| 8 | Progress from the book page and dashboard, percent + "finished" | 🟠 High | High | [ ] PENDING | `components/books/update-progress-dialog.tsx`, `app/(public)/books/[slug]/page.tsx`, `components/dashboard/currently-reading.tsx`, `lib/actions/books.ts`, `lib/validation/book-action.ts` |
+| 8 | Progress from the book page and dashboard, percent + "finished" | 🟠 High | High | [x] COMPLETE | `components/books/update-progress-dialog.tsx`, `components/books/reading-progress-card.tsx` (new), `components/books/book-list-horizontal.tsx`, `components/books/shelf-book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `app/(public)/books/[slug]/page.tsx`, `components/dashboard/currently-reading.tsx`, `lib/actions/books.ts`, `lib/validation/book-action.ts`, `types/app.ts`, `__tests__/lib/actions/books-reading-progress.test.ts` (new) |
 | 9 | One first-run checklist instead of five empty states | 🟡 Medium | Medium | [ ] PENDING | `app/(app)/dashboard/page.tsx`, `components/dashboard/first-run-checklist.tsx` (new), `components/dashboard/recent-activity.tsx`, `components/dashboard/friends-activity-section.tsx`, `components/dashboard/recommendations-section.tsx` |
 | 10 | Catalog data pass: dedupe, enrich, fix broken records | 🟠 High | High | [ ] PENDING | `supabase/migrations/069_dedupe_books.sql` (new), `scripts/enrich-books.ts`, data only |
 | 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [ ] PENDING | `components/books/book-card.tsx`, `components/books/book-browser.tsx` |
 | 12 | Final QA | - | Medium | [ ] PENDING | - |
 
-**Progress: 7/12 complete**
+**Progress: 8/12 complete**
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -308,33 +308,42 @@ first-time tester's first screen is clean.
 **Source:** UX review 2026-09-04 > L2, L3 (agent B2)
 **Priority:** 🟠 High
 **Effort:** High
-**File(s):** `components/books/update-progress-dialog.tsx`, `app/(public)/books/[slug]/page.tsx`, `components/dashboard/currently-reading.tsx`, `components/books/book-list-horizontal.tsx` or a new `components/books/reading-progress-card.tsx`, `lib/actions/books.ts`, `lib/validation/book-action.ts`
+**File(s):** `components/books/update-progress-dialog.tsx`, `components/books/reading-progress-card.tsx` (new), `components/books/book-list-horizontal.tsx`, `components/books/shelf-book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `app/(public)/books/[slug]/page.tsx`, `components/dashboard/currently-reading.tsx`, `lib/actions/books.ts`, `lib/validation/book-action.ts`, `types/app.ts`, `__tests__/lib/actions/books-reading-progress.test.ts` (new)
 
 **Context:** Progress is only reachable from the shelf card (dashboard → Shelf → card → dialog), is page-numbers only, and has no "finished" shortcut. StoryGraph and Fable treat percent as first-class; audiobook readers have no page number.
 
 **Steps:**
-1. [ ] Dialog: add a Pages / Percent toggle (percent stores `progress_percentage` and, when `total_pages` is known, derives `current_page`); prefill `totalPages` from `books.page_count`; add a "Mark as finished" button that calls `addToShelf(bookId, "read")` and closes; "Clear progress" resets to 0.
-2. [ ] `updateReadingProgress`: accept `{ currentPage?, totalPages?, percent? }` (validation in `book-action.ts`); keep the old positional signature working for the shelf card or update that caller.
-3. [ ] Book page: the `userBookStatus` query also selects `current_page, total_pages, progress_percentage`; when status is `reading`, render a slim progress row under the action buttons (bar + "p. 120 of 310 · 39%" + "Update progress" opening the dialog). Client island; the page stays server-rendered.
-4. [ ] Dashboard `CurrentlyReading`: the card shows the bar and an "Update progress" button (new `ReadingProgressCard` client component receiving the `user_books` row); "View All" unchanged.
-5. [ ] Delete the stale comment at `types/app.ts:135` that says the columns do not exist.
-6. [ ] Tests: validation schema (pages vs percent, bounds) and the action's derived fields.
-7. [ ] `npm run lint`, `npm run typecheck`, `npm run test:run`
+1. [x] Dialog: Pages / Percent toggle (percent stores `progress_percentage` and, when a total is known, derives `current_page`); `totalPages` prefilled from `books.page_count` by the callers; "Mark as finished" calls `addToShelf(bookId, "read")` and closes; "Clear progress" sends percent 0.
+2. [x] `updateReadingProgress` now takes `{ bookId, currentPage?, totalPages?, percent? }` (validated in `book-action.ts`); the one caller, the dialog, was updated with it.
+3. [x] Book page: `getUserBookStatus` already selects `*`, so the row carried the three columns; when status is `reading` the page renders the progress row under the action buttons.
+4. [x] Dashboard `CurrentlyReading`: passes a `progressByBookId` map to `BookListHorizontal`, which renders `ReadingProgressCard` under each cover; "View All" unchanged.
+5. [x] Deleted the stale comment (and the dead `ReadingProgressHistory` interface it described) at `types/app.ts`.
+6. [x] 17 tests: the schema (pages vs percent, bounds, refinement) and the action's derived fields.
+7. [x] `npm run lint`, `npm run typecheck`, `npm run test:run`
 
 **Verify:**
-- [ ] From the dashboard: one tap opens the dialog, saving updates the bar without reload
-- [ ] From the book page: same; "Mark as finished" moves the book to Read, toast confirms, stats card increments after refresh
-- [ ] Percent entry without a page count stores the percent and shows "39%" only
-- [ ] Shelf card path still works; lint 0/0, tests green
+- [x] From the dashboard: one tap opens the dialog, saving updates the bar without reload (`p. 120 of 449 · 27%`, bar 27%)
+- [x] From the book page: same; "Mark as finished" moves the book to Read, the row retires and the shelf button next to it becomes "Read"; the dashboard stats card read 2 books / 449 pages afterwards
+- [x] Percent entry without a page count stores the percent and shows "39%" only (`current_page` null, `progress_percentage` 39)
+- [x] Shelf card path still works (page 300 → 67%, then "Clear progress" → 0%); lint 0/0, typecheck clean, 642 tests green
 
 **Completed Notes:**
-<!-- Fill in after completing -->
 - Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+  - `lib/validation/book-action.ts` — `updateReadingProgressSchema` takes an optional page, total and percent, refined to require at least one of page or percent
+  - `lib/actions/books.ts` — `updateReadingProgress` takes one input object; percent wins when both arrive; the missing side is derived from the effective total (passed in, then stored, then `books.page_count`); `currentPage` can now come back null
+  - `components/books/update-progress-dialog.tsx` — Pages / Percent toggle, derived-page hint, "Mark as finished", "Clear progress", `percent` and `onFinished` props
+  - `components/books/reading-progress-card.tsx` (new) — the bar, the position line and the dialog trigger, in `row` (book page) and `compact` (dashboard rail) variants
+  - `components/books/book-list-horizontal.tsx` — optional `progressByBookId`; rails that pass nothing are unchanged
+  - `components/dashboard/currently-reading.tsx` — builds that map from the rows it already fetched
+  - `app/(public)/books/[slug]/page.tsx` — the progress row under the action buttons for a book being read
+  - `components/books/shelf-book-card.tsx` — passes `percent` and the `books.page_count` fallback, and follows "Mark as finished"
+  - `components/books/add-to-shelf-button.tsx` — status is now derived state, so a refreshed server render wins over a stale local choice
+  - `types/app.ts` — dropped the stale comment and the dead `ReadingProgressHistory` interface
+- Approach taken: one client island, `ReadingProgressCard`, is the whole feature wherever a currently-reading book appears, so the book page and the dashboard rail each reach the dialog in one tap and the shelf card keeps the bar it already had. The action became the single place that reconciles pages and percent, which is what let the dialog offer both without either caller doing arithmetic.
+- Deviations from plan: five files beyond the plan list. Step 3 query change was unnecessary (`getUserBookStatus` already selects `*`). The positional action signature was dropped rather than kept, which the plan allowed, since the dialog was its only caller. `BookListHorizontal` takes a data map rather than being rewritten, so the book page related-books rail is untouched. Two additions the plan did not anticipate: `AddToShelfButton` had to derive its status from props, and the progress card calls `router.refresh()` after finishing — without both, "Mark as finished" on the book page left the shelf button next to it still reading "Reading" until a manual reload (found in QA, fixed, re-verified). The dead `ReadingProgressHistory` interface went with its stale comment.
+- Issues encountered: none blocking. The action test needed the per-query `thenableQuery` double rather than the flat `createMockSupabase`, because the action reads and then writes through `from("user_books")` and the two need different answers; the write is identified by the recorded `update` call. Verified signed-in with a throwaway `omr-qa-task8@mailinator.com` account (deleted afterwards) against two seeded books, one with a page count and one without.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -507,4 +516,5 @@ first-time tester's first screen is clean.
 | 2026-09-04 | 5 | COMPLETE | `BOOK_COVER_COLUMNS` + `BookCoverSummary` in feed, activity and club queries; club card and club page hand the whole book to `CoverImage` |
 | 2026-09-04 | 6 | COMPLETE | `--muted-foreground` 48 % → 42 % (4.96 / 5.13 / 4.55); every text-bearing `/xx` variant → solid token; quick-rating unrated stars `/80` (3.35 non-text) |
 | 2026-09-04 | 7 | COMPLETE | Browse cards show the viewer's shelf status: server-seeded map + `shelfStatuses` on the search API (private, no-store when signed in), merged on Load More |
+| 2026-09-04 | 8 | COMPLETE | Progress in one tap from the book page and dashboard; pages-or-percent dialog with "Mark as finished" and "Clear progress"; action reconciles both sides |
 | | | | |

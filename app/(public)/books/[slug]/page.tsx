@@ -17,6 +17,7 @@ import { getSimilarBookRecommendations } from "@/lib/queries/recommendations";
 import { BookListHorizontal } from "@/components/books/book-list-horizontal";
 import { RecommendedBooksRow } from "@/components/books/recommended-books-row";
 import { AddToShelfButton } from "@/components/books/add-to-shelf-button";
+import { ReadingProgressCard } from "@/components/books/reading-progress-card";
 import { ShareButton } from "@/components/books/share-button";
 import { RatingDisplay } from "@/components/ui/rating-display";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -379,6 +380,21 @@ export default async function BookPage({ params, searchParams }: Props) {
                 />
               )}
             </div>
+
+            {/* Reading progress, for a book the viewer is reading right now.
+                One tap from here rather than dashboard → shelf → card. */}
+            {user && userBookStatus?.status === "reading" && (
+              <div className="mt-4 max-w-sm">
+                <ReadingProgressCard
+                  bookId={book.id}
+                  bookTitle={book.title}
+                  currentPage={userBookStatus.current_page}
+                  totalPages={userBookStatus.total_pages}
+                  percent={userBookStatus.progress_percentage}
+                  pageCount={book.page_count}
+                />
+              </div>
+            )}
           </div>
         </section>
 

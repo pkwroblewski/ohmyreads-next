@@ -10,20 +10,37 @@ export const addToShelfSchema = z.object({
   status: shelfStatusSchema,
 });
 
-export const updateReadingProgressSchema = z.object({
-  bookId: z.string().uuid("Invalid book"),
-  currentPage: z
-    .number()
-    .int("Invalid page number")
-    .min(0, "Invalid page number")
-    .max(50000, "Invalid page number"),
-  totalPages: z
-    .number()
-    .int("Invalid total pages")
-    .positive("Invalid total pages")
-    .max(50000, "Invalid total pages")
-    .optional(),
-});
+/**
+ * Progress arrives as a page number or as a percentage — an audiobook or an
+ * e-reader gives a reader no page to type. At least one of the two must be
+ * present; `percent` wins when both are, and the action derives the other
+ * side whenever a total page count is known.
+ */
+export const updateReadingProgressSchema = z
+  .object({
+    bookId: z.string().uuid("Invalid book"),
+    currentPage: z
+      .number()
+      .int("Invalid page number")
+      .min(0, "Invalid page number")
+      .max(50000, "Invalid page number")
+      .optional(),
+    totalPages: z
+      .number()
+      .int("Invalid total pages")
+      .positive("Invalid total pages")
+      .max(50000, "Invalid total pages")
+      .optional(),
+    percent: z
+      .number()
+      .int("Invalid percentage")
+      .min(0, "Invalid percentage")
+      .max(100, "Invalid percentage")
+      .optional(),
+  })
+  .refine((value) => value.currentPage !== undefined || value.percent !== undefined, {
+    message: "Enter a page number or a percentage",
+  });
 
 export const importAndAddToShelfSchema = z.object({
   externalBook: z.object({

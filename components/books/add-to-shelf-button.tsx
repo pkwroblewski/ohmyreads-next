@@ -55,7 +55,16 @@ export function AddToShelfButton({
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
-  const [status, setStatus] = useState<ShelfStatus | null>(currentStatus ?? null);
+  // Derived state, not an effect: the local choice wins while the prop stays
+  // put, and a changed prop (a refreshed server render after "Mark as
+  // finished", say) wins over a local value seeded from the old one.
+  const seed = currentStatus ?? null;
+  const [chosen, setChosen] = useState<{ status: ShelfStatus | null; seed: ShelfStatus | null }>({
+    status: seed,
+    seed,
+  });
+  const status = chosen.seed === seed ? chosen.status : seed;
+  const setStatus = (next: ShelfStatus | null) => setChosen({ status: next, seed });
   const [shelfModalOpen, setShelfModalOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
