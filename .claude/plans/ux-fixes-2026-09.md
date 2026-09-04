@@ -59,9 +59,8 @@ are already earmarked for those two: the Browse card action row overflowing a
 390 px viewport (Task 11), and the dashboard's pre-existing Radix hydration
 mismatch (Task 12).
 
-**Repo state:** working tree clean; **9 commits on `main` are not pushed**
-(`ccd80a0` through `156a184`, Tasks 1–9). Push before or after Task 10 as you
-prefer, but do not lose them.
+**Repo state:** working tree clean; everything is pushed to `origin/main`
+through `d5c2eaa` (Tasks 1–9 are `ccd80a0`..`156a184`).
 
 **Local dev notes for whoever picks this up:** the throwaway-account QA recipe
 that verified Tasks 7–9 is in the `playwright-dev-login` memory. Two known
