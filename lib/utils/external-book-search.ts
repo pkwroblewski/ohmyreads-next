@@ -513,22 +513,43 @@ export async function searchOpenLibraryByIsbn(
 
     const doc = data.docs[0];
     const coverId = doc.cover_i || null;
+    const workId = doc.key.replace("/works/", "");
 
     return {
       source: "openlibrary" as const,
-      externalId: doc.key.replace("/works/", ""),
+      externalId: workId,
       title: doc.title,
       author: doc.author_name?.[0] || "Unknown Author",
       isbn: doc.isbn?.[0] || isbn,
-      description: null,
+      description: await getOpenLibraryDescription(workId),
       coverUrl: coverId ? getOpenLibraryCoverById(coverId, "L") : null,
       publishedDate: doc.first_publish_year ? `${doc.first_publish_year}-01-01` : null,
       pageCount: doc.number_of_pages_median || null,
       genres: (doc.subject || []).slice(0, 5),
       googleBooksId: null,
-      openLibraryId: doc.key.replace("/works/", ""),
+      openLibraryId: workId,
       openLibraryCoverId: coverId,
     };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch a work's description from Open Library.
+ * API: https://openlibrary.org/works/{work_id}.json — `description` is either
+ * a string or `{ type, value }`. The search endpoint never returns it.
+ */
+async function getOpenLibraryDescription(workId: string): Promise<string | null> {
+  try {
+    const response = await fetch(`https://openlibrary.org/works/${workId}.json`);
+    if (!response.ok) {
+      return null;
+    }
+    const data: { description?: string | { value?: string } } = await response.json();
+    const text =
+      typeof data.description === "string" ? data.description : data.description?.value;
+    return text?.trim() || null;
   } catch {
     return null;
   }

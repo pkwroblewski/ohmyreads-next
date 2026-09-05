@@ -65,8 +65,10 @@ interface BookToEnrich {
   description: string | null;
   cover_url: string | null;
   page_count: number | null;
+  published_date: string | null;
   google_books_id: string | null;
   open_library_id: string | null;
+  open_library_cover_id: number | null;
 }
 
 interface EnrichmentResult {
@@ -145,7 +147,7 @@ async function fetchBooksNeedingEnrichment(
 
   const { data: books, error } = await supabase
     .from("books")
-    .select("id, title, author, isbn, genres, description, cover_url, page_count, google_books_id, open_library_id")
+    .select("id, title, author, isbn, genres, description, cover_url, page_count, published_date, google_books_id, open_library_id, open_library_cover_id")
     .order("created_at", { ascending: false })
     .limit(maxCount * 2); // Fetch extra to account for filtering
 
@@ -255,12 +257,13 @@ async function enrichSingleBook(book: BookToEnrich): Promise<EnrichmentResult> {
       result.fieldsUpdated.push("open_library_id");
     }
 
-    if (enriched.openLibraryCoverId) {
+    // Cover id: fill only when missing, so a good cover is never swapped for a mismatched one
+    if (!book.open_library_cover_id && enriched.openLibraryCoverId) {
       updates.open_library_cover_id = enriched.openLibraryCoverId;
     }
 
     // Published date: update if missing and we have it
-    if (enriched.publishedDate) {
+    if (!book.published_date && enriched.publishedDate) {
       const normalizedDate = normalizeDate(enriched.publishedDate);
       if (normalizedDate) {
         updates.published_date = normalizedDate;

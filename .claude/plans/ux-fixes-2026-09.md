@@ -26,41 +26,25 @@
 | 7 | Browse cards show the viewer's shelf status | 🔴 Critical | Medium | [x] COMPLETE | `app/api/books/search/route.ts`, `app/(public)/books/(index)/page.tsx`, `lib/queries/users.ts`, `components/books/book-browser.tsx`, `components/books/book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `__tests__/app/api/books-search.test.ts` |
 | 8 | Progress from the book page and dashboard, percent + "finished" | 🟠 High | High | [x] COMPLETE | `components/books/update-progress-dialog.tsx`, `components/books/reading-progress-card.tsx` (new), `components/books/book-list-horizontal.tsx`, `components/books/shelf-book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `app/(public)/books/[slug]/page.tsx`, `components/dashboard/currently-reading.tsx`, `lib/actions/books.ts`, `lib/validation/book-action.ts`, `types/app.ts`, `__tests__/lib/actions/books-reading-progress.test.ts` (new) |
 | 9 | One first-run checklist instead of five empty states | 🟡 Medium | Medium | [x] COMPLETE | `app/(app)/dashboard/page.tsx`, `components/dashboard/first-run-checklist.tsx` (new), `components/dashboard/section-props.ts` (new), `components/dashboard/recent-activity.tsx`, `components/dashboard/friends-activity-section.tsx`, `components/dashboard/recommendations-section.tsx`, `components/dashboard/currently-reading.tsx`, `lib/queries/users.ts`, `__tests__/lib/queries/users.test.ts` |
-| 10 | Catalog data pass: dedupe, enrich, fix broken records | 🟠 High | High | [ ] PENDING | `supabase/migrations/069_dedupe_books.sql` (new), `scripts/enrich-books.ts`, data only |
+| 10 | Catalog data pass: dedupe, enrich, fix broken records | 🟠 High | High | [x] COMPLETE | `supabase/migrations/069_dedupe_books.sql` (new), `supabase/checks/069_dedupe_books.dryrun.sql` (new), `supabase/checks/069_dedupe_books.check.sql` (new), `scripts/enrich-books.ts`, `lib/utils/external-book-search.ts`, production data |
 | 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [ ] PENDING | `components/books/book-card.tsx`, `components/books/book-browser.tsx` |
 | 12 | Final QA | - | Medium | [ ] PENDING | - |
 
-**Progress: 9/12 complete**
+**Progress: 10/12 complete**
 
-### ▶ Resume here (paused 2026-09-04)
+### ▶ Resume here (updated 2026-09-05)
 
-**Next task: 10 — Catalog data pass.** Nothing is half-finished; Tasks 1–9 are
-committed and their Completed Notes are filled in. Start by reading Task 10
-below, in full, before touching anything.
+**Next task: 11 — One rating per card + real result count on Browse.** A
+small two-file change (`book-card.tsx`, `book-browser.tsx`) plus a unit test;
+the Out of Scope row about the Browse card action row overflowing a 390 px
+viewport is earmarked for it. Then Task 12 is the final QA pass (the
+dashboard's pre-existing Radix hydration mismatch is earmarked there).
 
-Task 10 is the only task in this plan that changes **production data**, so it
-is not a normal edit-and-verify task:
+Task 10 (the production-data pass) is done and applied: migration 069 is live
+(714 → 699 books, 0 duplicate groups), the enrichment ran three times, and
+the numbers are in its Completed Notes. Nothing in it is half-finished.
 
-- It writes `supabase/migrations/069_dedupe_books.sql`, which repoints foreign
-  keys and then **deletes** duplicate `books` rows. Follow step 1 first — the
-  rolled-back dry run under `supabase/checks/` — and read the results before
-  writing the migration.
-- Confirm the real foreign-key list from `information_schema` rather than
-  trusting the table names in step 2; the plan's list was written from memory
-  and `club_books` / `challenge_books` may not exist under those names.
-- Steps 5–6 run `npm run enrich-books`, which calls external APIs and writes
-  rows. Do the `--dry-run` first and report the counts before a real run.
-- Apply migrations with `npx supabase db query --linked -f …` (returns only
-  the last statement's result).
-
-**Then:** Task 11 (one rating per card + real Browse count) is a small
-two-file change, and Task 12 is the final QA pass. Two Out of Scope entries
-are already earmarked for those two: the Browse card action row overflowing a
-390 px viewport (Task 11), and the dashboard's pre-existing Radix hydration
-mismatch (Task 12).
-
-**Repo state:** working tree clean; everything is pushed to `origin/main`
-through `d5c2eaa` (Tasks 1–9 are `ccd80a0`..`156a184`).
+**Repo state:** everything through Task 10 is committed on `main`.
 
 **Local dev notes for whoever picks this up:** the throwaway-account QA recipe
 that verified Tasks 7–9 is in the `playwright-dev-login` memory. Two known
@@ -430,27 +414,26 @@ first-time tester's first screen is clean.
 **Context:** 14 duplicate title+author groups (slugs ending `-1`, one triple), 55 books without a description, 155 without a page count, and `harry-potter-1` carries the *Order of the Phoenix* cover, a 2008 date and a "complete series" blurb.
 
 **Steps:**
-1. [ ] Dry-run SQL (rolled back, `supabase/checks/` pattern): for each duplicate group pick the canonical row (most `user_books` + reviews, then oldest), list what would move.
-2. [ ] Migration 069: for each group, repoint `user_books`, `reviews`, `activity_feed`, `reading_list_books`, `club_books`, `challenge_books` (verify the full FK list with `information_schema`) to the canonical `book_id`, handling `(user_id, book_id)` unique collisions by keeping the canonical row's entry; delete the duplicates; insert `book_redirects(old_slug → new_slug)` if a redirect table exists, otherwise note the 404s as accepted (the `-1` slugs were never linked externally).
-3. [ ] Apply with `npx supabase db query --linked -f …`; run the check script; `SELECT count(*)` for the duplicate query returns 0.
-4. [ ] `harry-potter-1`: set title "Harry Potter and the Philosopher's Stone", ISBN 9780747532699, clear `open_library_cover_id`/`cover_url`, then let enrichment refill description, cover, page count and date; verify on the page.
-5. [ ] `npm run enrich-books -- --dry-run --limit 60` then a real run for the 55 no-description and 155 no-page-count rows (script args as documented in its header); log counts before/after.
-6. [ ] Re-check `books` for rows that still have no description or pages; list the top-20 by `ratings_count` that remain and hand-fix those.
+1. [x] Dry-run SQL (rolled back, `supabase/checks/` pattern): for each duplicate group pick the canonical row (most `user_books` + reviews, then oldest), list what would move.
+2. [x] Migration 069: for each group, repoint `user_books`, `reviews`, `activity_feed`, `reading_list_books`, `club_books`, `challenge_books` (verify the full FK list with `information_schema`) to the canonical `book_id`, handling `(user_id, book_id)` unique collisions by keeping the canonical row's entry; delete the duplicates; insert `book_redirects(old_slug → new_slug)` if a redirect table exists, otherwise note the 404s as accepted (the `-1` slugs were never linked externally).
+3. [x] Apply with `npx supabase db query --linked -f …`; run the check script; `SELECT count(*)` for the duplicate query returns 0.
+4. [x] `harry-potter-1`: set title "Harry Potter and the Philosopher's Stone", ISBN 9780747532699, clear `open_library_cover_id`/`cover_url`, then let enrichment refill description, cover, page count and date; verify on the page. *(Done as Order of the Phoenix — see deviations.)*
+5. [x] `npm run enrich-books -- --dry-run --limit 60` then a real run for the 55 no-description and 155 no-page-count rows (script args as documented in its header); log counts before/after.
+6. [x] Re-check `books` for rows that still have no description or pages; list the top-20 by `ratings_count` that remain and hand-fix those.
 
 **Verify:**
-- [ ] Duplicate query returns 0 groups; no orphaned `user_books`/`reviews` (`LEFT JOIN books IS NULL` = 0)
-- [ ] `/books` shows one Charlotte's Web; `/books/harry-potter-1` shows the right cover, date and blurb
-- [ ] No-description count and no-page-count count materially lower (record the numbers)
-- [ ] Type regeneration not needed (no schema change) — confirm
+- [x] Duplicate query returns 0 groups; no orphaned `user_books`/`reviews` (`LEFT JOIN books IS NULL` = 0) — check script C1–C3 pass; also 0 orphans in `reading_list_books`, `book_club_reads`, `activity_feed`
+- [x] `/books` shows one Charlotte's Web; `/books/harry-potter-1` shows the right cover, date and blurb — live search `q=Charlotte` returns one `charlotte-s-web`; the record now lives at `/books/harry-potter-and-the-order-of-the-phoenix` (200, title + "Dementors" blurb + OL cover 15158666 + 870 pages in the HTML); `harry-potter-1` and `charlotte-s-web-1` are 404
+- [x] No-description count and no-page-count count materially lower (record the numbers) — descriptions **55 → 16**, page counts **155 → 11**, no-cover 0 → 0 (699 books)
+- [x] Type regeneration not needed (no schema change) — confirm — 069 is data-only (`DELETE`/`UPDATE`); `types/database.generated.ts` untouched
 
 **Completed Notes:**
-<!-- Fill in after completing -->
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `supabase/migrations/069_dedupe_books.sql` (new, applied 2026-09-05), `supabase/checks/069_dedupe_books.dryrun.sql` (new — the rolled-back preview, run before applying), `supabase/checks/069_dedupe_books.check.sql` (new — C1 no duplicate groups, C2 no `-N` slug shadowing a same-author sibling, C3 no orphans in the 5 child tables, C4 the Harry Potter row), `scripts/enrich-books.ts` (two guards), `lib/utils/external-book-search.ts` (Open Library description lookup). Production data: 15 `books` rows deleted, 1 retitled, ~180 rows enriched.
+- Approach taken: **FK list read from `pg_constraint`, not the plan** — the real children of `books` are `activity_feed`, `book_club_reads`, `book_submissions` (ON DELETE NO ACTION, so it *must* be repointed before the delete), `place_checkins`, `reading_list_books`, `reviews`, `user_books`; `club_books` / `challenge_books` do not exist. The migration is one `DO` block over a temp `_dedupe_map`: canonical = most `user_books`+`reviews`, then most other child rows, then the unsuffixed slug, then the fuller record, then oldest; child rows with a unique key (`user_books`, `reviews`, `reading_list_books`, `book_club_reads`) drop the duplicate's entry when the canonical one exists, everything else is a plain repoint, then the duplicates are deleted. In practice **every one of the 15 duplicate rows had zero child rows**, so nothing moved. The dry run (rolled back via `RAISE EXCEPTION`, listing every `dup → canonical` pair, 0 groups / 0 orphans / 699 after) was run and read before the real apply. The 16 rows about to change were also dumped to the session scratchpad as JSON first. Enrichment: `--dry-run --limit 60` (21 candidates, 6 updatable), then `--limit 400` for real (the script only scans the newest `2 × limit` rows, so 400 is what makes it sweep all 699): **140 page counts, 37 dates, 7 OL ids, 1 cover, 0 descriptions**. Root cause of the 0: Google Books answers **HTTP 429 "Queries per day" quota exceeded** for the shared anonymous project, so every Google call failed silently and the script fell through to Open Library's search endpoint, which never returns a description. Fixed at the source: `searchOpenLibraryByIsbn` now fetches `/works/{id}.json` for the blurb (`description` is a string or `{value}`); second dry run 37 descriptions, real run 37 descriptions. Step 6 hand-fix: the two ISBN-less well-known stragglers (`where-the-wild-things-are`, `startide-rising`) were given an ISBN from Open Library's own edition list after eyeballing the work match, and a third run filled both (description + page count); the remaining 16/11 are prize anthologies, French fairy tales, a teaching kit and a handful of ≤27-rating titles Open Library has no blurb for.
+- Deviations from plan: (1) `harry-potter-1` became **Order of the Phoenix**, not Philosopher's Stone — its existing ISBN 9780439358071 *is* the Scholastic Order of the Phoenix (which is why it carried that cover), and the catalog already has `harry-potter-and-the-sorcerer-s-stone`, so the plan's retitle would have created the very duplicate this task removes. The slug was renamed too (`harry-potter-and-the-order-of-the-phoenix`) so the URL matches the book; no child rows pointed at it. Reversible with one `UPDATE` if you disagree. (2) Two small code fixes outside "run the script": `enrich-books.ts` overwrote `published_date` and `open_library_cover_id` unconditionally on every touched row, which would have clobbered good dates catalog-wide during this run — both now fill only when missing (two columns added to the select); and the Open Library description lookup in `external-book-search.ts`, which also benefits the app's own enrichment path. (3) `--limit 400` instead of a targeted run, for the window reason above.
+- Issues encountered: the first cut of check C2 flagged `the-deep-1` — "The Deep" by Alma Katsu next to "The Deep" by Nick Cutter — two different books, so C2 now requires the same author (the migration itself never touched them). `units-of-study-for-teaching-reading-grade-4` cannot be enriched: Open Library maps its ISBN to a work id already held by another row (`books_open_library_id_unique_idx`), and the script logs the failure but counts it as skipped. Google Books quota resets daily (Pacific); a plain `npm run enrich-books -- --limit 400` on another day is safe to rerun (it only fills missing fields) and may pick up a few more of the 16.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -532,6 +515,9 @@ first-time tester's first screen is clean.
 | Shelf status on home rails (Task 7 step 4) | Rails are server-rendered and cached; needs a client island per rail | If readers ask |
 | Batching the AI blurb calls (4 + 7 requests) | Depends on the billing decision | Ops plan |
 | Dashboard hydration mismatch: Radix generated ids differ between the server and client render for the user menu and the mobile More trigger | Found in Task 9; reproduces unchanged at HEAD, so it predates the checklist. Layout-level, and only on the dashboard's many Suspense boundaries | Task 12 QA — confirm on prod, then chase the id instability |
+| Google Books API key: unauthenticated calls share a global daily quota and answered 429 for the whole of Task 10, so the app's own enrichment (book submissions) silently degrades to Open Library on busy days | Provisioning is a user action (Google Cloud key, Books API enabled) and the helper has no key plumbing yet | Ops plan — add `GOOGLE_BOOKS_API_KEY` to the three Google Books fetches, then rerun `npm run enrich-books -- --limit 400` |
+| 16 books still without a description and 11 without a page count after Task 10 (`where-the-wild-things-are` and `startide-rising` were hand-fixed; the rest are prize anthologies, two French Perrault tales, a teaching kit and ≤27-rating titles Open Library has no blurb for; `units-of-study-for-teaching-reading-grade-4` collides on `books_open_library_id_unique_idx`) | Diminishing returns; nothing in the top-50 by ratings | Rerun the script once a Google key exists, or hand-write the handful that matter |
+| `scripts/enrich-books.ts` only scans the newest `2 × --limit` rows, so `--limit 60` looks at 120 books — a targeted "rows missing X" query would be more honest | Script ergonomics; the `--limit 400` sweep works for a 699-book catalog | When the catalog outgrows one sweep |
 
 ---
 
@@ -560,4 +546,5 @@ first-time tester's first screen is clean.
 | 2026-09-04 | 7 | COMPLETE | Browse cards show the viewer's shelf status: server-seeded map + `shelfStatuses` on the search API (private, no-store when signed in), merged on Load More |
 | 2026-09-04 | 8 | COMPLETE | Progress in one tap from the book page and dashboard; pages-or-percent dialog with "Mark as finished" and "Clear progress"; action reconciles both sides |
 | 2026-09-04 | 9 | COMPLETE | One first-run checklist replaces five stacked empty states; sections stay quiet while it is on screen; import is a footer shortcut because no column records a book's source |
+| 2026-09-05 | 10 | COMPLETE | Migration 069 applied: 15 duplicates gone (714 → 699, none had readers), `harry-potter-1` → Order of the Phoenix (its ISBN); enrichment ×3: pages 155 → 11, descriptions 55 → 16 after adding an Open Library blurb lookup because Google Books was 429 all day; two overwrite guards in the script |
 | | | | |
