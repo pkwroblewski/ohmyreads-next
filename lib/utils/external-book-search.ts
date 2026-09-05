@@ -547,9 +547,20 @@ async function getOpenLibraryDescription(workId: string): Promise<string | null>
       return null;
     }
     const data: { description?: string | { value?: string } } = await response.json();
-    const text =
+    const raw =
       typeof data.description === "string" ? data.description : data.description?.value;
-    return text?.trim() || null;
+    if (!raw) return null;
+    // Open Library blurbs are wiki text: a "---" rule introduces "also
+    // published as" boilerplate, links are markdown, and "[source](…)" /
+    // "[**PDF**](…)" links are noise rather than prose.
+    const text = raw
+      .split(/\n-{3,}\s*(?:\n|$)/)[0]
+      .replace(/\(?\[[^\]]*(?:source|pdf)[^\]]*\]\([^)]*\)\)?/gi, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/\*\*/g, "")
+      .replace(/\(?\s*source:?\s*\)?\s*$/i, "")
+      .trim();
+    return text || null;
   } catch {
     return null;
   }

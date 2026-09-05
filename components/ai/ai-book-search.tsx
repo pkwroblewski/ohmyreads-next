@@ -178,8 +178,11 @@ export function AIBookSearch({
     >
       <DialogContent
         returnFocusTo={returnFocusTo}
-        // Full-screen sheet on phones, a 700 px panel from `sm` up
-        className="inset-x-0 top-0 translate-y-0 h-dvh max-h-dvh rounded-none sm:inset-x-auto sm:top-1/2 sm:-translate-y-1/2 sm:h-[700px] sm:max-h-[85vh] sm:max-w-3xl sm:rounded-xl p-0 flex flex-col overflow-hidden"
+        // Full-screen sheet on phones, a 700 px panel from `sm` up. Do not
+        // repeat `sm:inset-x-auto` here: tailwind-merge treats it as a later
+        // `inset-x` and drops the base `sm:left-1/2`, which left the panel
+        // half off-screen on desktop.
+        className="inset-x-0 top-0 translate-y-0 h-dvh max-h-dvh rounded-none sm:top-1/2 sm:-translate-y-1/2 sm:h-[700px] sm:max-h-[85vh] sm:max-w-3xl sm:rounded-xl p-0 flex flex-col overflow-hidden"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           inputRef.current?.focus();
