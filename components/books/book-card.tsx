@@ -62,17 +62,24 @@ const sizeClasses = {
 const BLUR_DATA_URL =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyYTJhMmEiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxYTFhMWEiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2cpIi8+PC9zdmc+";
 
+/** Local ratings needed before a card trusts them over Open Library's figure. */
+export const LOCAL_RATING_THRESHOLD = 5;
+
 /**
- * The rating a card shows. This site's own average wins when readers here
- * have rated the book; otherwise the Open Library figure, flagged as such so
- * the card and the detail page (which labels both) tell the same story.
+ * The rating a card shows. This site's own average wins once enough readers
+ * here have rated the book (one 5★ must not outrank a thousand Open Library
+ * votes); otherwise the Open Library figure, flagged as such so the card and
+ * the detail page (which labels both) tell the same story.
  */
-function pickRating(book: BookCardProps["book"]): {
+export function pickRating(book: BookCardProps["book"]): {
   rating: number;
   count: number | null;
   external: boolean;
 } | null {
-  if (book.local_average_rating != null && (book.local_ratings_count ?? 0) > 0) {
+  if (
+    book.local_average_rating != null &&
+    (book.local_ratings_count ?? 0) >= LOCAL_RATING_THRESHOLD
+  ) {
     return {
       rating: book.local_average_rating,
       count: book.local_ratings_count ?? null,
@@ -228,7 +235,7 @@ export function BookCard({
             currentStatus={currentStatus}
             onStatusChange={(status) => onStatusChange?.(book.id, status)}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <a
               href={amazonSearchUrl}
               target="_blank"
@@ -332,7 +339,7 @@ export function BookCard({
             currentStatus={currentStatus}
             onStatusChange={(status) => onStatusChange?.(book.id, status)}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <a
               href={amazonSearchUrl}
               target="_blank"

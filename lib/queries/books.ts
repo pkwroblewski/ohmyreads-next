@@ -234,6 +234,28 @@ export const getPopularBooks = unstable_cache(
   { revalidate: 3600, tags: [CACHE_TAGS.books] } // 1 hour, or until a book changes
 );
 
+/** How many books the catalog holds, for the Browse header's default load. */
+async function fetchBookCount(): Promise<number> {
+  const supabase = createPublicClient();
+
+  const { count, error } = await supabase
+    .from("books")
+    .select("id", { count: "exact", head: true });
+
+  if (error) {
+    logError("Error counting books", error);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
+export const getBookCount = unstable_cache(
+  fetchBookCount,
+  ["book-count"],
+  { revalidate: 3600, tags: [CACHE_TAGS.books] } // 1 hour, or until a book changes
+);
+
 /**
  * Get all unique genres from books - cached for 1 hour
  */

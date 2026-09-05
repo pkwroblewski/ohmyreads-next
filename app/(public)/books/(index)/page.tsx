@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getPopularBooks, getAllGenres, searchBooks } from "@/lib/queries/books";
+import { getPopularBooks, getAllGenres, getBookCount, searchBooks } from "@/lib/queries/books";
 import { parseBrowseParams } from "@/lib/validation/search";
 import { getShelfStatuses } from "@/lib/queries/users";
 import { getUser } from "@/lib/supabase/server";
@@ -75,7 +75,9 @@ export default async function BrowseBooksPage({ searchParams }: Props) {
   const filtered = q !== "" || genre !== null || sort !== "popular";
   const initial = filtered
     ? await searchBooks(q, { genre: genre ?? undefined, sort, limit: PAGE_SIZE })
-    : { books: await getPopularBooks(PAGE_SIZE), total: undefined };
+    : await Promise.all([getPopularBooks(PAGE_SIZE), getBookCount()]).then(
+        ([books, total]) => ({ books, total })
+      );
 
   // The book list itself stays cached and identical for everyone; only the
   // shelf labels are per-viewer, so they are read here rather than after

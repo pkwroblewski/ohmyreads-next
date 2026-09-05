@@ -52,7 +52,7 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/utils/log", () => ({ logError: vi.fn() }));
 
-const { getBookBySlug, getBookReviews, getRelatedBooks, REVIEWS_PAGE_SIZE } = await import(
+const { getBookBySlug, getBookCount, getBookReviews, getRelatedBooks, REVIEWS_PAGE_SIZE } = await import(
   "@/lib/queries/books"
 );
 
@@ -126,5 +126,29 @@ describe("book page caches", () => {
     expect(call?.args.neq).toEqual([["id", "b1"]]);
     expect(call?.args.limit).toEqual([[6]]);
     expect(createClient).not.toHaveBeenCalled();
+  });
+});
+
+describe("getBookCount", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    response = { data: null, error: null, count: 312 };
+  });
+
+  it("is a HEAD count on the public client, cached under the books tag", async () => {
+    const total = await getBookCount();
+
+    expect(total).toBe(312);
+    expect(createClient).not.toHaveBeenCalled();
+    expect(calls[0]?.table).toBe("books");
+    expect((calls[0]?.args.select?.[0] as unknown[])[1]).toEqual({ count: "exact", head: true });
+    expect(entry("book-count")?.options.tags).toEqual(["books"]);
+    expect(entry("book-count")?.options.revalidate).toBe(3600);
+  });
+
+  it("reports 0 rather than throwing when the count fails", async () => {
+    response = { data: null, error: { message: "boom" }, count: null };
+
+    expect(await getBookCount()).toBe(0);
   });
 });

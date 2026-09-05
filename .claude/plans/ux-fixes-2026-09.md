@@ -27,24 +27,26 @@
 | 8 | Progress from the book page and dashboard, percent + "finished" | 🟠 High | High | [x] COMPLETE | `components/books/update-progress-dialog.tsx`, `components/books/reading-progress-card.tsx` (new), `components/books/book-list-horizontal.tsx`, `components/books/shelf-book-card.tsx`, `components/books/add-to-shelf-button.tsx`, `app/(public)/books/[slug]/page.tsx`, `components/dashboard/currently-reading.tsx`, `lib/actions/books.ts`, `lib/validation/book-action.ts`, `types/app.ts`, `__tests__/lib/actions/books-reading-progress.test.ts` (new) |
 | 9 | One first-run checklist instead of five empty states | 🟡 Medium | Medium | [x] COMPLETE | `app/(app)/dashboard/page.tsx`, `components/dashboard/first-run-checklist.tsx` (new), `components/dashboard/section-props.ts` (new), `components/dashboard/recent-activity.tsx`, `components/dashboard/friends-activity-section.tsx`, `components/dashboard/recommendations-section.tsx`, `components/dashboard/currently-reading.tsx`, `lib/queries/users.ts`, `__tests__/lib/queries/users.test.ts` |
 | 10 | Catalog data pass: dedupe, enrich, fix broken records | 🟠 High | High | [x] COMPLETE | `supabase/migrations/069_dedupe_books.sql` (new), `supabase/checks/069_dedupe_books.dryrun.sql` (new), `supabase/checks/069_dedupe_books.check.sql` (new), `scripts/enrich-books.ts`, `lib/utils/external-book-search.ts`, production data |
-| 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [ ] PENDING | `components/books/book-card.tsx`, `components/books/book-browser.tsx` |
+| 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [x] COMPLETE | `components/books/book-card.tsx`, `components/books/book-browser.tsx`, `lib/queries/books.ts`, `app/(public)/books/(index)/page.tsx`, `__tests__/components/books/book-card-rating.test.ts` (new), `__tests__/lib/queries/books.test.ts` |
 | 12 | Final QA | - | Medium | [ ] PENDING | - |
 
-**Progress: 10/12 complete**
+**Progress: 11/12 complete**
 
 ### ▶ Resume here (updated 2026-09-05)
 
-**Next task: 11 — One rating per card + real result count on Browse.** A
-small two-file change (`book-card.tsx`, `book-browser.tsx`) plus a unit test;
-the Out of Scope row about the Browse card action row overflowing a 390 px
-viewport is earmarked for it. Then Task 12 is the final QA pass (the
-dashboard's pre-existing Radix hydration mismatch is earmarked there).
+**Next task: 12 — Final QA.** Build (dev server stopped), lint, tests,
+commit + push, deployment Ready, then the production walk with a throwaway
+account at 1280×800 and 390×844 (recipe in the `playwright-dev-login`
+memory). The dashboard's pre-existing Radix hydration mismatch is earmarked
+for it (Out of Scope table), and the 390 px card-row overflow fixed in Task
+11 should be re-measured on production (`document.body.scrollWidth` on
+`/books`).
 
 Task 10 (the production-data pass) is done and applied: migration 069 is live
 (714 → 699 books, 0 duplicate groups), the enrichment ran three times, and
 the numbers are in its Completed Notes. Nothing in it is half-finished.
 
-**Repo state:** everything through Task 10 is committed on `main`.
+**Repo state:** everything through Task 11 is committed on `main`; 28c8134 (Task 10) and the Task 11 commit are local until pushed.
 
 **Local dev notes for whoever picks this up:** the throwaway-account QA recipe
 that verified Tasks 7–9 is in the `playwright-dev-login` memory. Two known
@@ -447,24 +449,23 @@ first-time tester's first screen is clean.
 **Context:** Cards prefer the local average as soon as one reader has rated, so Rich Dad Poor Dad shows "5.0 · 1" on Browse and "4.0" on the home rail; "20 books found" is the page size, not the total.
 
 **Steps:**
-1. [ ] `pickRating` (`book-card.tsx:70`): local wins only when `local_ratings_count >= 5`; otherwise Open Library with the "OL" tag; the detail page keeps showing both.
-2. [ ] `book-browser.tsx:66` already tracks `totalCount` from the API's `total`, but the unfiltered first render gets no `initialTotal` and falls back to `initialBooks.length` (20). Pass the exact count from the server page for the default load (one `count: "exact"` HEAD query in `app/(public)/books/(index)/page.tsx`) and show "312 books · showing 20".
-3. [ ] Unit test for `pickRating` thresholds.
-4. [ ] `npm run lint`, `npm run typecheck`, `npm run test:run`
+1. [x] `pickRating` (`book-card.tsx:70`): local wins only when `local_ratings_count >= 5`; otherwise Open Library with the "OL" tag; the detail page keeps showing both.
+2. [x] `book-browser.tsx:66` already tracks `totalCount` from the API's `total`, but the unfiltered first render gets no `initialTotal` and falls back to `initialBooks.length` (20). Pass the exact count from the server page for the default load (one `count: "exact"` HEAD query in `app/(public)/books/(index)/page.tsx`) and show "312 books · showing 20".
+3. [x] Unit test for `pickRating` thresholds.
+4. [x] `npm run lint`, `npm run typecheck`, `npm run test:run`
 
 **Verify:**
-- [ ] Atomic Habits shows the same figure on home, Browse and trending
-- [ ] Browse header shows the real total from `count: "exact"`
-- [ ] Tests green
+- [x] Atomic Habits shows the same figure on home, Browse and trending — Browse now renders "4.0 · 1.4k OL" for Atomic Habits and "4.0 · 1.2k OL" for Rich Dad Poor Dad (was "5.0 · 1"); the home mini-grid (`curated-mini-grid.tsx:134`) and `TrendingBookCard` (`:65`) only ever show `average_rating`, so the three agree by construction until a book collects 5 local ratings
+- [x] Browse header shows the real total from `count: "exact"` — local `/books` renders "699 books · showing 20"
+- [x] Tests green — 72 files / 652 tests (6 new), lint 0/0, typecheck clean
 
 **Completed Notes:**
-<!-- Fill in after completing -->
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `components/books/book-card.tsx` (`LOCAL_RATING_THRESHOLD = 5`, `pickRating` exported and gated on it; both action rows `flex-wrap`), `components/books/book-browser.tsx` (count line), `lib/queries/books.ts` (`getBookCount`, a HEAD `count: "exact"` on the public client, cached 1 h under the `books` tag), `app/(public)/books/(index)/page.tsx` (default load fetches popular books and the count in parallel and passes `initialTotal`), `__tests__/components/books/book-card-rating.test.ts` (new, 4 tests), `__tests__/lib/queries/books.test.ts` (2 tests for `getBookCount`).
+- Approach taken: the count line reads "N books · showing M" whenever fewer than the total are on screen (default load *and* filtered results before Load More reaches the end) and "N books found" otherwise, so one string covers both paths. The count is cached with the popular list under the `books` tag, so it moves when the catalog does.
+- Deviations from plan: also took the earmarked Out of Scope item — the Browse card's Amazon / Buy Local row (`flex gap-2`, 23 px wider than a 390 px viewport, hidden since Task 4 by `overflow-x: clip`) now wraps (`flex-wrap`) on both card variants; re-measure `document.body.scrollWidth` on production in Task 12.
+- Issues encountered: none in code. Local check only (dev server, then stopped): the home section I sampled rendered no rating badge at all for those two books — not a regression from this task (the mini-grid's badge is unchanged), but worth a glance in the Task 12 walk.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -509,7 +510,7 @@ first-time tester's first screen is clean.
 | Public navbar search (L8), Mood Search welcome copy (M3), no-results pointing at Mood Search (M4), `en-US` date (M1), signup resend (M2) | Copy/IA polish | Next plan |
 | Loading skeletons for nine routes (P1) | Mechanical; no user report | Next plan |
 | Curated genre pills (D6), Open Library 404 probing (N8), unused font preloads (N9), first-login onboarding routing (N10) | Lower impact | Backlog |
-| Browse card action row (`book-card.tsx`, `flex gap-2` with "Buy Local") lays out 23 px wider than a 390 px viewport; body `overflow-x: clip` hides the symptom | Found in Task 4; the file belongs to Tasks 7/11 | Task 7 or 11 — add `flex-wrap` / `min-w-0` |
+| ~~Browse card action row (`book-card.tsx`, `flex gap-2` with "Buy Local") lays out 23 px wider than a 390 px viewport; body `overflow-x: clip` hides the symptom~~ | Found in Task 4; the file belongs to Tasks 7/11 | Done in Task 11 (`flex-wrap` on both rows) — re-measure on production in Task 12 |
 | `getPopularBooks` / `getAllGenres` (`lib/queries/books.ts`) return `[]` on a Supabase error and `unstable_cache` keeps it for 1 h — one connect timeout blanks Browse's default load and its genre pills | Found in Task 6; caching layer, not UX | Ops plan: throw from the fetchers on error (uncached) and let the page fall back per request, or cache only non-empty results |
 | `review-form.tsx:146` unrated stars of the rating *input* at `/30` (non-text contrast < 3:1) | Same class as quick-rating; file not in Task 6 | a11y polish batch — `/80` like quick-rating |
 | Shelf status on home rails (Task 7 step 4) | Rails are server-rendered and cached; needs a client island per rail | If readers ask |
@@ -546,5 +547,6 @@ first-time tester's first screen is clean.
 | 2026-09-04 | 7 | COMPLETE | Browse cards show the viewer's shelf status: server-seeded map + `shelfStatuses` on the search API (private, no-store when signed in), merged on Load More |
 | 2026-09-04 | 8 | COMPLETE | Progress in one tap from the book page and dashboard; pages-or-percent dialog with "Mark as finished" and "Clear progress"; action reconciles both sides |
 | 2026-09-04 | 9 | COMPLETE | One first-run checklist replaces five stacked empty states; sections stay quiet while it is on screen; import is a footer shortcut because no column records a book's source |
+| 2026-09-05 | 11 | COMPLETE | Cards trust the local average only from 5 ratings (`LOCAL_RATING_THRESHOLD`), otherwise Open Library with the OL tag; Browse's default load gets a cached HEAD count and reads "699 books · showing 20"; the card action row wraps at 390 px; 6 new tests |
 | 2026-09-05 | 10 | COMPLETE | Migration 069 applied: 15 duplicates gone (714 → 699, none had readers), `harry-potter-1` → Order of the Phoenix (its ISBN); enrichment ×3: pages 155 → 11, descriptions 55 → 16 after adding an Open Library blurb lookup because Google Books was 429 all day; two overwrite guards in the script |
 | | | | |

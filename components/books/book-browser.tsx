@@ -286,7 +286,9 @@ export function BookBrowser({
       <p className="text-sm text-muted-foreground">
         {isLoading && page === 1
           ? "Searching..."
-          : `${totalCount} book${totalCount !== 1 ? "s" : ""} found`}
+          : `${totalCount} book${totalCount !== 1 ? "s" : ""}${
+              books.length < totalCount ? ` · showing ${books.length}` : " found"
+            }`}
       </p>
 
       {/* Book Grid */}
