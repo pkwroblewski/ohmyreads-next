@@ -28,35 +28,21 @@
 | 9 | One first-run checklist instead of five empty states | 🟡 Medium | Medium | [x] COMPLETE | `app/(app)/dashboard/page.tsx`, `components/dashboard/first-run-checklist.tsx` (new), `components/dashboard/section-props.ts` (new), `components/dashboard/recent-activity.tsx`, `components/dashboard/friends-activity-section.tsx`, `components/dashboard/recommendations-section.tsx`, `components/dashboard/currently-reading.tsx`, `lib/queries/users.ts`, `__tests__/lib/queries/users.test.ts` |
 | 10 | Catalog data pass: dedupe, enrich, fix broken records | 🟠 High | High | [x] COMPLETE | `supabase/migrations/069_dedupe_books.sql` (new), `supabase/checks/069_dedupe_books.dryrun.sql` (new), `supabase/checks/069_dedupe_books.check.sql` (new), `scripts/enrich-books.ts`, `lib/utils/external-book-search.ts`, production data |
 | 11 | One rating per card + real result count on Browse | 🟡 Medium | Low | [x] COMPLETE | `components/books/book-card.tsx`, `components/books/book-browser.tsx`, `lib/queries/books.ts`, `app/(public)/books/(index)/page.tsx`, `__tests__/components/books/book-card-rating.test.ts` (new), `__tests__/lib/queries/books.test.ts` |
-| 12 | Final QA | - | Medium | [ ] PENDING — signed-in walk needs the user (see notes) | `components/ai/ai-book-search.tsx`, `lib/utils/external-book-search.ts`, `supabase/migrations/070_clean_ol_descriptions.sql` (new), `.claude/plans/ux-review-2026-09-04.md` |
+| 12 | Final QA | - | Medium | [x] CODE COMPLETE - Verification blocked | `components/ai/ai-book-search.tsx`, `lib/utils/external-book-search.ts`, `supabase/migrations/070_clean_ol_descriptions.sql` (new), `.claude/plans/ux-review-2026-09-04.md` |
 
-**Progress: 11/12 complete**
+**Progress: 12/12 complete — PLAN FINISHED 2026-09-05**
 
-### ▶ Resume here (updated 2026-09-05)
+### ▶ Plan finished (2026-09-05)
 
-**Task 12 is in progress and paused on a decision.** Build / lint /
-typecheck / tests are green, two production findings are fixed and pushed
-(Mood Search dialog clipped on desktop; Open Library wiki markup in blurbs,
-migration 070 applied), the review doc has its "Resolved by" column, and the
-signed-out desktop walk is recorded in the Task 12 notes. What is left needs
-the user: the **signed-in** walk (the magic-link session cannot be stored —
-the app's browser client is PKCE-only and the Claude-in-Chrome extension
-denies JS on the site, so no cookie can be written without typing a
-password, which Claude will not do) and the **390 px** pass (Chrome refuses
-a window that narrow and device emulation needs JS). Options are in the
-Task 12 notes; pick one and the remaining Verify boxes can be closed.
-
-Task 10 (the production-data pass) is done and applied: migration 069 is live
-(714 → 699 books, 0 duplicate groups), the enrichment ran three times, and
-the numbers are in its Completed Notes. Nothing in it is half-finished.
-
-**Repo state:** everything is pushed to `origin/main` (Tasks 10–11 = 28c8134, 832f1b4; Task 12 fixes follow).
-
-**Local dev notes for whoever picks this up:** the throwaway-account QA recipe
-that verified Tasks 7–9 is in the `playwright-dev-login` memory. Two known
-local-only annoyances, neither a bug in this plan: `/books` with no filters can
-show "0 books found" from a stale `unstable_cache` entry (use `?sort=newest`),
-and Supabase connect timeouts can make a Server Action take 15–30 s.
+All twelve tasks are done and pushed to `origin/main`. Task 12 carries
+`CODE COMPLETE - Verification blocked` by the user's decision (option c on
+2026-09-05): the signed-in production walk and the 390 px pass could not be
+driven from this tooling, and the user accepted Tasks 7–9's throwaway-account
+checks and Tasks 4/7/11's local 390 px checks in their place. Two production
+findings from the signed-out walk were fixed on the way (Mood Search dialog
+centred on desktop — verified live after deploy; Open Library wiki markup out
+of the blurbs, migration 070). What is left for a future plan is the Out of
+Scope table below and the "Not scheduled" findings in the review doc.
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -483,14 +469,14 @@ first-time tester's first screen is clean.
 **Steps:**
 1. [x] `npm run build` (dev server stopped), `npm run lint`, `npm run typecheck`, `npm run test:run` — build clean (0 warnings), lint 0/0, tsc clean, 72 files / 652 tests
 2. [x] Commit + push; deployment Ready — 832f1b4 deployed READY (`dpl_FqgSmoWzma8S8uMewiNiWc2HwTpu`, aliased to ohmyreads-next.vercel.app); the Task 12 fixes are pushed on top
-3. [ ] Production walk with a throwaway account (delete afterwards) at 1280×800 and 390×844: home, Browse (shelve a book, check the card), book page (menu, progress, finished), dashboard (checklist → currently reading → progress), shelf card menu + dialog, community feed covers, More sheet with Messages/Map/About, no horizontal scroll — **signed-out desktop half done** (Browse, book page, trending, community feed at 1280×800: no horizontal scrollbar, covers present, counts and ratings right); **signed-in half and 390 px blocked**, see Issues
-4. [ ] Accessibility snapshot of the shelf menu and the three dialogs — Mood Search: `dialog "Mood Search"`; Browse sort: `menu` › `menuitemradio` ×4 with the checked state; **shelf menu, progress dialog and custom-shelf dialog need a signed-in session** (blocked with step 3)
+3. [x] Production walk with a throwaway account (delete afterwards) at 1280×800 and 390×844: home, Browse (shelve a book, check the card), book page (menu, progress, finished), dashboard (checklist → currently reading → progress), shelf card menu + dialog, community feed covers, More sheet with Messages/Map/About, no horizontal scroll — **signed-out desktop half done** (Browse, book page, trending, community feed at 1280×800: no horizontal scrollbar, covers present, counts and ratings right; Mood Search dialog re-checked centred after cfd8298 deployed); **signed-in half and 390 px accepted as verified by the earlier per-task checks** (user decision, see Issues)
+4. [x] Accessibility snapshot of the shelf menu and the three dialogs — Mood Search: `dialog "Mood Search"`; Browse sort: `menu` › `menuitemradio` ×4 with the checked state; shelf menu, progress dialog and custom-shelf dialog were snapshotted signed-in on 2026-09-04 in Tasks 2 and 3 (accepted in place of a repeat)
 5. [x] Update `.claude/plans/ux-review-2026-09-04.md` with a "Resolved by" column for the items covered — every one of the 46 findings carries a task + commit, an Out of Scope row, or "Not scheduled" (N6, L5, L6, L9, I3, X11); a "Resolution" section closes the doc
 
 **Verify:**
 - [x] Build passes; lint 0/0; tests green
 - [x] Every Verify item in Tasks 1–11 checked, or the task carries a CODE COMPLETE status with the reason — all eleven are COMPLETE with every box checked
-- [ ] No regressions on the pages not touched (login, settings, clubs, admin list pages) — login renders (seen while the magic link bounced); settings / clubs / admin need the signed-in session
+- [ ] No regressions on the pages not touched (login, settings, clubs, admin list pages) — login renders (seen while the magic link bounced); settings / clubs / admin need a signed-in session — **verification blocked**, accepted by the user (option c)
 
 **Completed Notes:**
 - Files modified: `components/ai/ai-book-search.tsx` (one class removed), `lib/utils/external-book-search.ts` (`getOpenLibraryDescription` strips OL wiki markup), `supabase/migrations/070_clean_ol_descriptions.sql` (new, applied 2026-09-05, 8 rows), `.claude/plans/ux-review-2026-09-04.md` ("Resolved by" column + Resolution section). `qa-account.mjs` in the project root is the throwaway-account helper (create / cleanup) and is deliberately uncommitted — delete it when the walk is done.
@@ -498,7 +484,7 @@ first-time tester's first screen is clean.
 - Deviations from plan: none in scope; two extra fixes came out of the walk (above).
 - Issues encountered: **(a) Signed-in walk blocked.** `generateLink({ type: "magiclink" })` lands on the site with implicit-flow tokens in the URL hash; the app's `createBrowserClient` is PKCE-only and rejects them, so no session cookie is written and `/dashboard` bounces to `/login`. The Claude-in-Chrome extension denies JavaScript on ohmyreads-next.vercel.app, so the cookie cannot be written by hand either, and typing a password is off-limits for Claude. Ways out: (1) grant JS for the site in the extension (then Claude runs `verifyOtp({ token_hash })` through `@supabase/ssr` in the tab — no password); (2) the user signs in inside the MCP tab (own account, or a QA account from `node qa-account.mjs create`); (3) accept the signed-in half as verified by Tasks 7–9's own throwaway-account checks on 2026-09-04 and close the task as CODE COMPLETE. **(b) 390 px blocked.** Chrome will not resize below ~500 px and device emulation needs JS; no Playwright is installed locally (the Playwright MCP failed to connect this session). Same options — JS in the extension unlocks a `matchMedia`-free measurement via an iframe, or Playwright, or accept Task 4/7/11's local 390 px checks. **(c) Not a bug:** the community "Popular this Week" rail showed a blank Order of the Phoenix cover — its `unstable_cache` entry (1 h, tag `books`) predates the enrichment, which wrote straight to the DB; it self-heals within the hour.
 
-**Status:** [ ] PENDING — waiting on the user's choice for the signed-in walk and the 390 px pass
+**Status:** [x] CODE COMPLETE - Verification blocked — the signed-in walk and the 390 px pass could not be driven (PKCE-only browser client rejects magic-link tokens; the Chrome extension denies JS on the site; Chrome will not resize below ~500 px; no local Playwright). The user chose on 2026-09-05 to accept the per-task checks from Tasks 4/7/8/9/11 in their place. `qa-account.mjs` deleted.
 
 ---
 
@@ -527,12 +513,12 @@ first-time tester's first screen is clean.
 
 ## Final QA Checklist
 
-- [ ] All files created/modified exist
-- [ ] No broken imports or references
-- [ ] Build passes (`npm run build`)
-- [ ] Lint passes (`npm run lint`)
-- [ ] Tests pass (`npm run test:run`)
-- [ ] Production walk (Task 12 step 3) done and recorded
+- [x] All files created/modified exist
+- [x] No broken imports or references (tsc clean)
+- [x] Build passes (`npm run build`) — 2026-09-05, 0 warnings
+- [x] Lint passes (`npm run lint`) — 0/0
+- [x] Tests pass (`npm run test:run`) — 72 files / 652 tests
+- [x] Production walk (Task 12 step 3) done and recorded — signed-out half live; signed-in half accepted from the per-task checks (user decision)
 
 ---
 
@@ -550,7 +536,7 @@ first-time tester's first screen is clean.
 | 2026-09-04 | 7 | COMPLETE | Browse cards show the viewer's shelf status: server-seeded map + `shelfStatuses` on the search API (private, no-store when signed in), merged on Load More |
 | 2026-09-04 | 8 | COMPLETE | Progress in one tap from the book page and dashboard; pages-or-percent dialog with "Mark as finished" and "Clear progress"; action reconciles both sides |
 | 2026-09-04 | 9 | COMPLETE | One first-run checklist replaces five stacked empty states; sections stay quiet while it is on screen; import is a footer shortcut because no column records a book's source |
-| 2026-09-05 | 12 | IN PROGRESS | Build/lint/tests green; fixed on the production walk: Mood Search dialog half off-screen (tailwind-merge dropped `sm:left-1/2`) and Open Library wiki markup in 8 blurbs (migration 070); review doc has "Resolved by"; signed-in walk + 390 px blocked on tooling — user to choose |
+| 2026-09-05 | 12 | CODE COMPLETE - Verification blocked | Build/lint/tests green; fixed on the production walk: Mood Search dialog half off-screen (tailwind-merge dropped `sm:left-1/2`) and Open Library wiki markup in 8 blurbs (migration 070); review doc has "Resolved by"; signed-in walk + 390 px blocked on tooling — user accepted the per-task checks (option c); Mood Search fix verified live; **plan finished** |
 | 2026-09-05 | 11 | COMPLETE | Cards trust the local average only from 5 ratings (`LOCAL_RATING_THRESHOLD`), otherwise Open Library with the OL tag; Browse's default load gets a cached HEAD count and reads "699 books · showing 20"; the card action row wraps at 390 px; 6 new tests |
 | 2026-09-05 | 10 | COMPLETE | Migration 069 applied: 15 duplicates gone (714 → 699, none had readers), `harry-potter-1` → Order of the Phoenix (its ISBN); enrichment ×3: pages 155 → 11, descriptions 55 → 16 after adding an Open Library blurb lookup because Google Books was 429 all day; two overwrite guards in the script |
 | | | | |
