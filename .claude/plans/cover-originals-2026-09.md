@@ -19,9 +19,9 @@
 |---|------|----------|--------|--------|-------|
 | 1 | Pipeline: original-size Open Library candidates, stop once a winner is ≥ 800 px | 🟠 High | Medium | [x] COMPLETE | `lib/covers/pipeline.ts`, `__tests__/lib/covers/pipeline.test.ts` |
 | 2 | `covers:process --source` filter + forced re-run over the Open Library covers | 🟠 High | Medium | [x] COMPLETE | `scripts/process-covers.ts`, `lib/covers/pipeline.ts`, `__tests__/lib/covers/pipeline.test.ts` |
-| 3 | Final QA: checks, DPR-2 re-measure, commit, deploy | - | Low | [ ] PENDING | - |
+| 3 | Final QA: checks, DPR-2 re-measure, commit, deploy | - | Low | [x] COMPLETE | `.claude/plans/cover-originals-2026-09.md` |
 
-**Progress: 2/3 complete**
+**Progress: 3/3 complete — PLAN FINISHED 2026-09-07**
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -111,24 +111,23 @@ Constraints: Open Library ≤ 2 req/s with the existing User-Agent; never touch 
 **File(s):** -
 
 **Steps:**
-1. [ ] `npm run lint`, `npm run typecheck`, `npm run test:run`, `npm run build` (no dev server running)
-2. [ ] DPR-2 measurement (scratchpad Playwright + system Chrome, `createImageBitmap` on `currentSrc`) on production `/`, `/books`, `/trending`, the three detail pages from the launch QA — production serves the new files immediately because the data changed, the code deploy only matters for future runs
-3. [ ] Commit (pipeline + script + plan), push, confirm the Vercel deployment READY
-4. [ ] Record bucket size and object count
+1. [x] `npm run lint`, `npm run typecheck`, `npm run test:run`, `npm run build` (no dev server running)
+2. [x] DPR-2 measurement (scratchpad Playwright + system Chrome, `createImageBitmap` on `currentSrc`) on production `/`, `/books`, `/trending`, the three detail pages from the launch QA — production serves the new files immediately because the data changed, the code deploy only matters for future runs
+3. [x] Commit (pipeline + script + plan), push, confirm the Vercel deployment READY
+4. [x] Record bucket size and object count
 
 **Verify:**
-- [ ] Lint, typecheck, tests, build green
-- [ ] `/books` first 20 cards: ≥ 16 at 2× (was 6); detail covers ≥ 2× for the sampled books (was 1.08–1.14×)
-- [ ] No grey / broken covers on the checked pages; console errors unchanged (only the known Sentry 403)
+- [x] Lint, typecheck, tests, build green
+- [x] `/books` first 20 cards: ≥ 16 at 2× (was 6); detail covers ≥ 2× for the sampled books (was 1.08–1.14×)
+- [x] No grey / broken covers on the checked pages; console errors unchanged (only the known Sentry 403)
 
 **Completed Notes:**
-<!-- Fill in after completing -->
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: none beyond this plan; the code went out as `3c867d6` (pipeline, script, tests, plan) plus this close-out docs commit.
+- Approach taken: no dev server running; lint and typecheck clean, `npm run test:run` 709 passed / 1 skipped (74 files), `npm run build` clean. DPR-2 measurement on production (scratchpad Playwright + system Chrome, decoded `currentSrc` bitmaps): `/books` 17/20 cards ≥ 2× (was 6/20; the 3 below are 322–333 px originals no larger than `-L`), `/trending` 24/24, home 20/21 (hero webp unchanged), Harry Potter detail cover 7/7 ≥ 2× (was 1.14×), Think and Grow Rich 7/7, Talons of Power main cover still 1.08× — its stored file is an NYT-sourced `other` cover, outside this plan (see Out of Scope). Pushed `3c867d6` 15:30 local; Vercel `dpl_B6P3YeM9p8TGz2z4RMxeFk9KmdDq` READY 15:32:48. Bucket after the plan: 5,191 objects, 365 MB.
+- Deviations from plan: none.
+- Issues encountered: the only console errors on production are the known Sentry ingest 403s (two on the Talons page, one elsewhere), unrelated.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -146,14 +145,14 @@ Constraints: Open Library ≤ 2 req/s with the existing User-Agent; never touch 
 
 ## Final QA Checklist
 
-- [ ] All files created/modified exist
-- [ ] No broken imports or references
-- [ ] Build passes (`npm run build`)
-- [ ] Lint passes (`npm run lint`)
-- [ ] Typecheck passes (`npm run typecheck`)
-- [ ] Tests pass (`npm run test:run`)
-- [ ] Feature works as expected (DPR-2 measurement on production)
-- [ ] No console errors beyond the known Sentry 403
+- [x] All files created/modified exist
+- [x] No broken imports or references
+- [x] Build passes (`npm run build`)
+- [x] Lint passes (`npm run lint`)
+- [x] Typecheck passes (`npm run typecheck`)
+- [x] Tests pass (`npm run test:run`)
+- [x] Feature works as expected (DPR-2 measurement on production)
+- [x] No console errors beyond the known Sentry 403
 
 ---
 
@@ -163,3 +162,4 @@ Constraints: Open Library ≤ 2 req/s with the existing User-Agent; never touch 
 |------|--------|--------|-------|
 | 2026-09-07 | 1 | ✅ Complete | Originals (`/b/id/{id}.jpg`, `/b/isbn/{isbn}.jpg`) precede every Open Library `-L` candidate; cover id read off the unsuffixed form; run stops at the first passing ≥ 800 px candidate. 4 new tests; lint/typecheck clean; dry run shows 736×1104 beating 333×500. |
 | 2026-09-07 | 2 | ✅ Complete | `--source` + `--skip-newer-than` flags; low-detail guard measured at the stored size (Catcher in the Rye 1998 px original was being rejected); forced run over 3,455 Open Library rows in ~4.7 h, 0 failed; 23 transient losses restored with two `--ids` retries; totals unchanged (352 null / 5,191 stored), bucket 179 → 365 MB; sample median width 333 → 800. |
+| 2026-09-07 | 3 | ✅ Complete | Lint, typecheck, 709 tests, build green; production at DPR 2: `/books` 17/20 cards ≥ 2× (was 6/20), Harry Potter detail 2× (was 1.14×); `3c867d6` pushed, Vercel READY; bucket 365 MB / 5,191 objects. PLAN FINISHED. |
