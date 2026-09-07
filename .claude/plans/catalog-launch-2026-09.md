@@ -26,11 +26,11 @@
 | 6 | Ratings and metadata gaps for new rows | 🟡 Medium | Low | [x] COMPLETE | `scripts/import-ratings.ts`, `scripts/enrich-books.ts` |
 | 7 | Search-to-add runs the cover pipeline | 🟡 Medium | Low | [x] COMPLETE | `lib/actions/books.ts`, `lib/covers/pipeline.ts`, `__tests__/lib/actions/books.test.ts`, `__tests__/lib/covers/pipeline.test.ts` |
 | 8 | Genre vocabulary clean-up (Browse chips) | 🟠 High | Medium | [x] COMPLETE | `lib/data/genres.ts`, `supabase/migrations/072_genre_vocabulary.sql`, `lib/validation/search.ts`, `lib/actions/books.ts`, `lib/import/nyt.ts`, `lib/ai/prompts.ts`, `scripts/lib/import-core.ts`, `scripts/enrich-books.ts`, `__tests__/lib/data/genres.test.ts`, `__tests__/lib/validation/search.test.ts` |
-| 9 | Final QA | - | Low | [ ] PENDING | - |
+| 9 | Final QA | - | Low | [x] COMPLETE | `.claude/plans/catalog-launch-2026-09.md` |
 
-**Progress: 9/10 complete**
+**Progress: 10/10 complete — PLAN FINISHED 2026-09-07**
 
-> **Resume note (2026-09-07, after Task 8):** Tasks 0–8 COMPLETE, nothing committed yet (Task 9 makes the first commit; `git status` shows the whole catalog work in the working tree, now including migration 072 which is already applied to production). **Next: Task 9** Final QA + commit + deploy. To restart: `/clear`, say "continue the catalog plan"; re-read this file, take Task 9. The dev server was stopped at wrap-up (Task 9 step 1 runs the build, never while `next dev` runs). Live numbers at wrap-up: 5,568 books, 5,191 stored covers, 90.9 % rated, 51 distinct genre strings (was 7,141), 0 rows without a genre. Task 9 should also drop the safety copy `public.books_genres_backup_072` (5,568 rows of pre-072 genres, RLS on, no policies) once the Browse pages look right on production.
+> **Plan finished 2026-09-07.** Everything is committed and deployed: `09660c2` (Tasks 0–8, 34 files) and the closing docs commit; production deployment `dpl_9M3uFek5Rnn9fKp1xKy9FLVgvuvt` READY at 06:47 UTC, `ohmyreads-next.vercel.app` re-checked. Live numbers: 5,568 books, 5,191 stored covers (93.2 %), 0 duplicates, 416 titles published since 2024, 90.9 % rated, 51 genre strings, bucket 179 MB / 5,191 objects. **Recommended next task:** the Open Library original-size cover pass (see Out of Scope, first row) — it is the one thing that would make the Browse grid crisp on Retina screens.
 
 **Status Options:**
 - `[ ] PENDING` - not started
@@ -351,25 +351,24 @@ Live facts at start (2026-09-05): 699 books, 691 Google covers stored (576 at `z
 **File(s):** -
 
 **Steps:**
-1. [ ] Stop `next dev`; run `npm run lint`, `npm run typecheck`, `npm run test:run`, `npm run build`
-2. [ ] Playwright at `deviceScaleFactor: 2`: home, `/books`, `/trending`, one 2025 bestseller, one award winner, one classic; check `naturalWidth ≥ 2 × clientWidth` for the first 40 cover `<img>`s
-3. [ ] SQL: total ≈ 5,000; stored-cover share ≥ 90 %; duplicates 0; `published_date >= '2024-01-01'` ≥ 300
-4. [ ] Supabase dashboard: Storage size for `book-covers` and month-to-date egress; record both
-5. [ ] Commit, push, confirm production deployment Ready; re-check the same pages on production
+1. [x] Stop `next dev`; run `npm run lint`, `npm run typecheck`, `npm run test:run`, `npm run build`
+2. [x] Playwright at `deviceScaleFactor: 2`: home, `/books`, `/trending`, one 2025 bestseller, one award winner, one classic; check `naturalWidth ≥ 2 × clientWidth` for the first 40 cover `<img>`s
+3. [x] SQL: total ≈ 5,000; stored-cover share ≥ 90 %; duplicates 0; `published_date >= '2024-01-01'` ≥ 300
+4. [x] Supabase dashboard: Storage size for `book-covers` and month-to-date egress; record both
+5. [x] Commit, push, confirm production deployment Ready; re-check the same pages on production
 
 **Verify:**
-- [ ] Build, lint, typecheck, tests green
-- [ ] No blurry or grey covers in the first 40 cards on `/books` and `/trending`
-- [ ] Production shows the new catalog
+- [x] Build, lint, typecheck, tests green
+- [x] No blurry or grey covers in the first 40 cards on `/books` and `/trending`
+- [x] Production shows the new catalog
 
 **Completed Notes:**
-<!-- Fill in after completing -->
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: none beyond this plan file; the catalog work went out as `09660c2` (34 files, +4,864/−806) and this close-out as a docs commit.
+- Approach taken: dev server stopped; `npm run lint`, `npm run typecheck` clean; `npm run test:run` 704 passed / 1 skipped (74 files); `npm run build` clean. Cover check with Playwright (installed in the session scratchpad, driving the installed Chrome at `deviceScaleFactor: 2`, 1440 px viewport) first against `npm run start` on the fresh build, then against production: home, `/books`, `/trending`, `/books/talons-of-power` (2025 bestseller), `/books/harry-potter-and-the-order-of-the-phoenix` (award-tagged), `/books/think-and-grow-rich` (classic). SQL: 5,568 books, 5,191 stored covers (93.2 %), 0 title+author and 0 ISBN duplicates, 416 rows with `published_date >= 2024-01-01`, 90.9 % rated, 428 without a description (accepted in Task 6). Storage: 5,191 objects, 179 MB in `book-covers` (from `storage.objects`). Commit `09660c2` pushed 06:45 UTC; Vercel `dpl_9M3uFek5Rnn9fKp1xKy9FLVgvuvt` READY 06:47; production confirmed by `/api/books/search?genre=Essays` flipping from 400 (old code) to 200, the six-page cover check re-run on production, and a DPR-2 screenshot of the Browse grid (Atomic Habits, 48 Laws, Rich Dad, It Ends with Us, Philosopher's Stone — all crisp, none grey). `public.books_genres_backup_072` dropped after the production check.
+- Deviations from plan: (1) The plan's `naturalWidth ≥ 2 × clientWidth` test is not a valid measure with `next/image` srcsets — Chrome reports `naturalWidth` divided by the chosen candidate's density, so every card read "under 2×" even though the served file was untouched. The check was redone by fetching each card's `currentSrc` and decoding it with `createImageBitmap`. Real result: `/trending` (100 px slots) 24/24 ≥ 2×; home 20/21 (the hero webp is 1.39×, pre-existing static asset); `/books` (224 px slots at 1440 px) 6/20 ≥ 2×, 2 at 1.5–2×, 12 at 1.44–1.49×; detail pages' 288 px main cover 1.08–1.14× on two of three books. Cause: most stored covers are Open Library "-L" files, ~333 px wide (a 40-object sample: 30 between 287 and 351 px, 4 at 575 px from Google). Nothing is grey or visibly blurry, so the verify item is ticked, but the grid is ~1.5× rather than 2× on Retina. Open Library's unsuffixed original (`/b/id/{id}.jpg`) is far larger for the same ids (736–2,592 px wide in a 6-cover probe) — recorded as the recommended next task. (2) Month-to-date egress is only visible in the Supabase dashboard (no SQL/CLI surface); storage size was recorded, egress is for the user to read off. (3) Playwright MCP failed to connect this session; the check ran through a scratchpad Playwright install + system Chrome instead.
+- Issues encountered: every production page logs one console 403 — the Sentry envelope POST to `ingest.de.sentry.io`, the known DSN/ingest issue on the user's list (see memory `vercel-env-pasted-newlines`), unrelated to this plan. First full-suite run of the session had one flaky `quick-rating.test.tsx` timeout under parallel load; the Task 9 run was fully green.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -377,6 +376,7 @@ Live facts at start (2026-09-05): 699 books, 691 Google covers stored (576 at `z
 
 | Item | Reason | Revisit |
 |------|--------|---------|
+| **Open Library original-size covers (recommended next)** | The pipeline fetches Open Library's `-L.jpg` (max 500 px tall, ~333 px wide), so 3,454 stored covers render at ~1.5× in the 224 px Browse grid and ~1.1× on the 288 px detail cover at DPR 2. The unsuffixed original `covers.openlibrary.org/b/id/{id}.jpg` is 736–2,592 px wide for the same ids. Fix: add the original as the first Open Library candidate in `lib/covers/pipeline.ts` (keep the ≤ 800 px resize), then `covers:process --force` limited to `cover_source = 'openlibrary'` (~3,454 rows, ≤ 2 req/s ≈ 30–40 min, ~1 GB of Open Library downloads, bucket grows from 179 MB towards ~350 MB — still under the 1 GB free tier). Re-run the DPR-2 check afterwards | Next task, before public launch |
 | Goodreads / Amazon data | No public API since 2020; scraping breaks ToS | Never |
 | NYT cover re-sourcing (1,323 rows with `cover_source = 'other'`) | The NYT API terms (read 2026-09-06) are non-commercial only, forbid deriving income from the APIs and forbid caching API content beyond 24 h; the importer offered the NYT `book_image` as the first candidate and it won for 1,323 books, so those stored covers are copies of NYT CDN images. Fix: a `covers:process --force` pass limited to `cover_source = 'other'` (needs a `--source` filter flag) with the NYT URL excluded from the candidate list, so Open Library / Google supply the replacement; rows with no passing replacement drop to NULL. Also stop calling the NYT API from any future refresh job and keep the NYT name out of the UI (the rows carry only a generic "Bestseller" tag) | Before public launch, after Task 9 |
 | 20k+ broad Open Library dump | Tried Dec 2025 (`scripts/archive/seed-books.ts`), replaced for quality; user chose 5k curated | If users ask for missing titles often |
@@ -429,3 +429,4 @@ Live facts at start (2026-09-05): 699 books, 691 Google covers stored (576 at `z
 | 2026-09-06 | 6 | ✅ Complete | Leftover cover pass finished (46 more stored, 5,191 total). `import-ratings` ×2 and `enrich-books` patched to page past PostgREST's 1,000-row cap (enrichment no longer writes remote `cover_url`s); 4,416 rows rated → 90.9 % of the catalog; 338 rows enriched (230 descriptions). Browse popular order verified on the dev server. Description gap 7.7 % vs 5 % (Google anonymous quota exhausted; Open Library has nothing) — accepted by the user and deferred to Out of Scope. Task 8 (genre clean-up) added, Final QA renumbered to Task 9. Lint, typecheck green. |
 | 2026-09-06 | 7 | ✅ Complete | `importAndAddToShelf` schedules `processBook` via `after()` for new rows only (3 new action tests). Live check with a throwaway account exposed a real bug: the pipeline's User-Agent embedded `NEXT_PUBLIC_SITE_URL` with its pasted CR-LF, so undici rejected every candidate fetch inside Next (`fetch-failed` in 5 ms) — fixed with `headerSafeEnv()` + regression test; second run stored the cover in 20 s. Lint, typecheck green. |
 | 2026-09-07 | 8 | ✅ Complete | `lib/data/genres.ts` vocabulary (52 entries, 322 aliases, `normalizeGenres`) shared by migration 072 (generated alias table; 7,141 → 51 distinct strings, 0 empty rows, backup table kept), the importers, enrichment, search-to-add, the API search schema and the AI prompt; `get_distinct_genres()` orders by count. Fixed the pre-existing 400 on every chip outside the old 20-genre list. 9 new tests; lint, typecheck, suite green; Browse verified on dev. |
+| 2026-09-07 | 9 | ✅ Complete | Lint, typecheck, 704 tests, build green; SQL totals (5,568 / 93.2 % stored / 0 dups / 416 since 2024); 179 MB bucket; `09660c2` pushed, Vercel READY, production re-checked at DPR 2 (crisp, none grey; grid is ~1.5× because Open Library `-L` covers are ~333 px — original-size pass recorded as the next task); backup table dropped. PLAN FINISHED. |
