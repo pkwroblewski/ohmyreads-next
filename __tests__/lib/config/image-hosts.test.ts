@@ -40,6 +40,24 @@ describe("isAllowedImageHost", () => {
     ).toBe(true);
   });
 
+  it("accepts the project's public book-covers bucket and nothing that only looks like it", () => {
+    expect(
+      isAllowedImageHost(
+        "https://bgczdbmqievfilvdzlgl.supabase.co/storage/v1/object/public/book-covers/550e8400-e29b-41d4-a716-446655440000.jpg?v=1757000000"
+      )
+    ).toBe(true);
+    expect(
+      isAllowedImageHost(
+        "https://bgczdbmqievfilvdzlgl.supabase.co.evil.example/storage/v1/object/public/book-covers/x.jpg"
+      )
+    ).toBe(false);
+    expect(
+      isAllowedImageHost(
+        "https://other-project.supabase.co/storage/v1/object/public/book-covers/x.jpg"
+      )
+    ).toBe(false);
+  });
+
   it("refuses internal and metadata addresses", () => {
     expect(isAllowedImageHost("http://169.254.169.254/latest/meta-data/")).toBe(
       false

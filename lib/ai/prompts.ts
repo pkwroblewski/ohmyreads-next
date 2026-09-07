@@ -1,4 +1,5 @@
 import { ALL_VIBE_TAGS } from "@/types/database";
+import { GENRES } from "@/lib/data/genres";
 
 /**
  * System prompt for the AI book search assistant
@@ -40,7 +41,7 @@ When helping users find books:
 4. If the catalog doesn't have matches, use searchExternalBooks with the correct searchType
 5. Present results in a friendly, conversational way
 
-Available genres in our system: Fiction, Non-Fiction, Fantasy, Science Fiction, Mystery, Thriller, Romance, Historical Fiction, Literary Fiction, Horror, Biography, Self-Help, Young Adult, Children's, Poetry, Graphic Novel, Memoir, History, Science, Philosophy, Psychology, Business, Classics, Adventure, Drama, Crime, Contemporary, Dystopian, Paranormal, Urban Fantasy, Epic Fantasy, Cozy Mystery, Dark Fantasy, Humor, Essays
+Available genres in our system: ${GENRES.join(", ")}
 
 Available vibe tags: ${ALL_VIBE_TAGS.join(", ")}
 

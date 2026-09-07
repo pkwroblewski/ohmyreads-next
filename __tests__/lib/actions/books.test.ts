@@ -13,6 +13,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const revalidatePath = vi.fn();
 const invalidateTags = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath: (...a: unknown[]) => revalidatePath(...a) }));
+
+// `after()` schedules work for once the response is sent; the test collects
+// the callbacks and runs them by hand so ordering can be asserted.
+const afterCallbacks: Array<() => unknown> = [];
+vi.mock("next/server", () => ({ after: (fn: () => unknown) => afterCallbacks.push(fn) }));
+
+// The cover pipeline pulls in sharp; it is mocked so the action test stays
+// pure and its call pattern can be checked.
+const processBook = vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ status: "stored" }));
+vi.mock("@/lib/covers/pipeline", () => ({ processBook: (...a: unknown[]) => processBook(...a) }));
 vi.mock("@/lib/cache/tags", () => ({
   invalidateTags: (...a: unknown[]) => invalidateTags(...a),
   CACHE_TAGS: { activity: "activity", trending: "trending" },
@@ -20,8 +30,9 @@ vi.mock("@/lib/cache/tags", () => ({
 }));
 vi.mock("@/lib/actions/badges", () => ({ syncUserBadges: vi.fn(async () => ({ newBadges: [] })) }));
 vi.mock("@/lib/actions/challenges", () => ({ syncChallengeProgress: vi.fn(async () => ({})) }));
+const logError = vi.fn();
 vi.mock("@/lib/utils/log", () => ({
-  logError: vi.fn(),
+  logError: (...a: unknown[]) => logError(...a),
   reportError: (msg: string) => msg,
 }));
 
@@ -109,6 +120,55 @@ describe("importAndAddToShelf", () => {
     checkRateLimit.mockResolvedValue({ allowed: true });
     revalidatePath.mockClear();
     invalidateTags.mockClear();
+    afterCallbacks.length = 0;
+    processBook.mockClear();
+    processBook.mockResolvedValue({ status: "stored" });
+    logError.mockClear();
+  });
+
+  it("schedules the cover pipeline for a new row after the response, on the admin client", async () => {
+    const result = await importAndAddToShelf(NEW_BOOK, "want_to_read");
+
+    expect(result).toEqual({ success: true, bookId: "book-1", slug: "the-new-book" });
+    // Scheduled, not run: the action returned without waiting for it.
+    expect(afterCallbacks).toHaveLength(1);
+    expect(processBook).not.toHaveBeenCalled();
+
+    await afterCallbacks[0]();
+
+    expect(processBook).toHaveBeenCalledTimes(1);
+    const [client, row] = processBook.mock.calls[0];
+    expect(client).toMatchObject({ from: adminFrom });
+    expect(row).toEqual({
+      id: "book-1",
+      cover_url: "https://covers.example/1.jpg",
+      isbn: "9780000000001",
+      google_books_id: null,
+      open_library_cover_id: null,
+    });
+  });
+
+  it("does not run the cover pipeline when the book already exists", async () => {
+    existingBook = { id: "book-existing", slug: "the-new-book" };
+
+    await importAndAddToShelf(NEW_BOOK, "want_to_read");
+
+    expect(afterCallbacks).toHaveLength(0);
+    expect(processBook).not.toHaveBeenCalled();
+  });
+
+  it("logs and swallows a cover pipeline failure instead of failing the action", async () => {
+    processBook.mockRejectedValue(new Error("sharp exploded"));
+
+    const result = await importAndAddToShelf(NEW_BOOK, "want_to_read");
+    expect(result).toEqual({ success: true, bookId: "book-1", slug: "the-new-book" });
+
+    await expect(afterCallbacks[0]()).resolves.toBeUndefined();
+    expect(logError).toHaveBeenCalledWith(
+      "Cover pipeline failed for a user-added book",
+      expect.any(Error),
+      { bookId: "book-1" }
+    );
   });
 
   it("refuses an unauthenticated caller before touching either client", async () => {

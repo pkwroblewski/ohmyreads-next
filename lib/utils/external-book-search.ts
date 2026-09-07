@@ -184,7 +184,7 @@ export async function searchGoogleBooks(
   query: string,
   limit: number = 10
 ): Promise<ExternalBookResult[]> {
-  const url = new URL("https://www.googleapis.com/books/v1/volumes");
+  const url = googleBooksUrl();
   url.searchParams.set("q", query);
   url.searchParams.set("maxResults", String(Math.min(limit * 2, 20))); // Fetch more to filter
   url.searchParams.set("printType", "books");
@@ -342,12 +342,23 @@ export interface EnrichedBookData {
 }
 
 /**
+ * Anonymous Google Books calls share a small per-IP quota; a key
+ * (`GOOGLE_BOOKS_API_KEY`, script-only) raises it to 1,000/day.
+ */
+function googleBooksUrl(): URL {
+  const url = new URL("https://www.googleapis.com/books/v1/volumes");
+  const key = process.env.GOOGLE_BOOKS_API_KEY;
+  if (key) url.searchParams.set("key", key);
+  return url;
+}
+
+/**
  * Search Google Books by ISBN (most precise)
  */
 export async function searchGoogleBooksByIsbn(
   isbn: string
 ): Promise<ExternalBookResult | null> {
-  const url = new URL("https://www.googleapis.com/books/v1/volumes");
+  const url = googleBooksUrl();
   url.searchParams.set("q", `isbn:${isbn}`);
   url.searchParams.set("maxResults", "1");
   url.searchParams.set("printType", "books");
@@ -399,7 +410,7 @@ export async function searchGoogleBooksByTitleAuthor(
   title: string,
   author: string
 ): Promise<ExternalBookResult | null> {
-  const url = new URL("https://www.googleapis.com/books/v1/volumes");
+  const url = googleBooksUrl();
   // Use intitle: and inauthor: for more precise matching
   url.searchParams.set("q", `intitle:${title} inauthor:${author}`);
   url.searchParams.set("maxResults", "5");
@@ -540,7 +551,7 @@ export async function searchOpenLibraryByIsbn(
  * API: https://openlibrary.org/works/{work_id}.json — `description` is either
  * a string or `{ type, value }`. The search endpoint never returns it.
  */
-async function getOpenLibraryDescription(workId: string): Promise<string | null> {
+export async function getOpenLibraryDescription(workId: string): Promise<string | null> {
   try {
     const response = await fetch(`https://openlibrary.org/works/${workId}.json`);
     if (!response.ok) {

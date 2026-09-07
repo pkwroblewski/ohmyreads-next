@@ -17,6 +17,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 import { enrichBookEntry } from "../lib/utils/external-book-search";
+import { normalizeGenres } from "../lib/data/genres";
 
 // Load environment variables
 config({ path: ".env.local" });
@@ -37,6 +38,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const ENRICH_DELAY_MS = 200; // Delay between API calls to avoid rate limiting
 const DEFAULT_LIMIT = 100; // Default batch size if not specified
+const PAGE_SIZE = 500; // Rows per DB page
 
 // ============================================
 // CLI ARGUMENTS
@@ -145,30 +147,30 @@ async function fetchBooksNeedingEnrichment(
   // Use RPC or raw query since Supabase JS client doesn't support complex OR with array checks
   // We'll fetch books and filter in application code for simplicity
 
-  const { data: books, error } = await supabase
-    .from("books")
-    .select("id, title, author, isbn, genres, description, cover_url, page_count, published_date, google_books_id, open_library_id, open_library_cover_id")
-    .order("created_at", { ascending: false })
-    .limit(maxCount * 2); // Fetch extra to account for filtering
+  // Paged, because PostgREST caps a single select at 1,000 rows. The gap
+  // filter runs server-side so the window only ever holds rows still to do.
+  // Covers are not a gap here: `covers:process` owns `cover_url` and the
+  // catalog invariant is "stored on the bucket or NULL", never a remote URL.
+  const books: BookToEnrich[] = [];
+  for (let from = 0; books.length < maxCount; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("books")
+      .select("id, title, author, isbn, genres, description, cover_url, page_count, published_date, google_books_id, open_library_id, open_library_cover_id")
+      .or("description.is.null,description.eq.,page_count.is.null,genres.is.null,genres.eq.{}")
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1);
 
-  if (error) {
-    console.error("Failed to fetch books:", error.message);
-    throw error;
+    if (error) {
+      console.error("Failed to fetch books:", error.message);
+      throw error;
+    }
+    if (!data || data.length === 0) break;
+    books.push(...(data as BookToEnrich[]));
+    if (data.length < PAGE_SIZE) break;
   }
 
-  if (!books) return [];
-
-  // Filter to books needing enrichment
-  const needsEnrichment = books.filter((book) => {
-    const missingDescription = !book.description;
-    const missingCover = !book.cover_url;
-    const missingPageCount = !book.page_count;
-    const missingGenres = !book.genres || book.genres.length === 0;
-
-    return missingDescription || missingCover || missingPageCount || missingGenres;
-  });
-
-  return needsEnrichment.slice(0, maxCount) as BookToEnrich[];
+  return books.slice(0, maxCount);
 }
 
 /**
@@ -221,12 +223,9 @@ async function enrichSingleBook(book: BookToEnrich): Promise<EnrichmentResult> {
       result.fieldsUpdated.push("description");
     }
 
-    // Cover URL: update if missing
-    if (!book.cover_url && enriched.coverUrl) {
-      updates.cover_url = enriched.coverUrl;
-      updates.cover_source = enriched.coverSource;
-      result.fieldsUpdated.push("cover_url");
-    }
+    // Cover URL: deliberately not written. Covers are stored on the bucket by
+    // the cover pipeline (`npm run covers:process`); a raw remote URL here
+    // would bypass its size/placeholder checks.
 
     // Page count: update if missing
     if (!book.page_count && enriched.pageCount) {
@@ -234,9 +233,10 @@ async function enrichSingleBook(book: BookToEnrich): Promise<EnrichmentResult> {
       result.fieldsUpdated.push("page_count");
     }
 
-    // Genres: update if empty
-    if ((!book.genres || book.genres.length === 0) && enriched.genres.length > 0) {
-      updates.genres = enriched.genres;
+    // Genres: update if empty (vocabulary only, see lib/data/genres.ts)
+    const genres = normalizeGenres(enriched.genres);
+    if ((!book.genres || book.genres.length === 0) && genres.length > 0) {
+      updates.genres = genres;
       result.fieldsUpdated.push("genres");
     }
 
@@ -315,14 +315,12 @@ async function runEnrichment(): Promise<void> {
   // Show what's missing
   const missingStats = {
     description: books.filter((b) => !b.description).length,
-    cover_url: books.filter((b) => !b.cover_url).length,
     page_count: books.filter((b) => !b.page_count).length,
     genres: books.filter((b) => !b.genres || b.genres.length === 0).length,
   };
 
   console.log("\n   Missing data breakdown:");
   console.log(`   - No description: ${missingStats.description}`);
-  console.log(`   - No cover: ${missingStats.cover_url}`);
   console.log(`   - No page count: ${missingStats.page_count}`);
   console.log(`   - No genres: ${missingStats.genres}`);
 

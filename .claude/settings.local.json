@@ -80,7 +80,8 @@
       "mcp__plugin_playwright_playwright__browser_run_code",
       "Bash(if not exist \"C:\\\\Users\\\\bitpk\\\\Desktop\\\\Projects\\\\nextjs-vercel\\\\ohmyreads-next\\\\docs\\\\plans\" mkdir \"C:\\\\Users\\\\bitpk\\\\Desktop\\\\Projects\\\\nextjs-vercel\\\\ohmyreads-next\\\\docs\\\\plans\")",
       "Bash(done)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "mcp__plugin_supabase_supabase__execute_sql"
     ]
   }
 }

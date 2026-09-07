@@ -267,6 +267,8 @@ describe("constants", () => {
     expect(GENRE_OPTIONS).toContain("Non-Fiction");
     expect(GENRE_OPTIONS).toContain("Science Fiction");
     expect(GENRE_OPTIONS).toContain("Fantasy");
-    expect(GENRE_OPTIONS.length).toBe(20);
+    expect(GENRE_OPTIONS).toContain("Bestseller");
+    expect(GENRE_OPTIONS).toContain("Pulitzer Prize");
+    expect(GENRE_OPTIONS.length).toBe(52);
   });
 });

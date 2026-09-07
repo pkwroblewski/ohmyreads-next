@@ -1,7 +1,11 @@
 /**
  * Centralized book cover URL resolution
  *
- * Priority order (Open Library first - more reliable, Google Books has placeholder issues):
+ * A cover the server-side pipeline (`lib/covers/pipeline.ts`) has verified
+ * and stored in the `book-covers` bucket is the only candidate: it was
+ * measured and picked from all of the sources below. Otherwise the priority
+ * order is (Open Library first - more reliable, Google Books has placeholder
+ * issues):
  * 1. Open Library by cover ID (most reliable)
  * 2. Open Library by ISBN
  * 3. Existing cover_url
@@ -14,6 +18,29 @@ const GOOGLE_BOOKS_COVER_URL = "https://books.google.com/books/content";
 // Open Library cover URL templates
 const OPEN_LIBRARY_COVER_BY_ID = "https://covers.openlibrary.org/b/id";
 const OPEN_LIBRARY_COVER_BY_ISBN = "https://covers.openlibrary.org/b/isbn";
+
+/** Public Supabase Storage bucket the cover pipeline writes to. */
+export const COVER_BUCKET = "book-covers";
+
+/**
+ * True when the URL is a cover the pipeline stored in the public bucket
+ * (`https://<ref>.supabase.co/storage/v1/object/public/book-covers/...`).
+ * Tolerates the `?v=` cache-busting query the pipeline appends.
+ */
+export function isStoredCover(url: string | null | undefined): boolean {
+  if (!url) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return (
+    parsed.protocol === "https:" &&
+    parsed.hostname.endsWith(".supabase.co") &&
+    parsed.pathname.startsWith(`/storage/v1/object/public/${COVER_BUCKET}/`)
+  );
+}
 
 export interface BookCoverData {
   cover_url?: string | null;
@@ -93,6 +120,11 @@ export function isGoogleBooksCover(url: string): boolean {
  * Returns null if no cover is available (caller should show placeholder)
  */
 export function resolveCoverUrl(book: BookCoverData): string | null {
+  // 0. A verified, stored cover needs no fallbacks
+  if (isStoredCover(book.cover_url)) {
+    return book.cover_url as string;
+  }
+
   // 1. Open Library by cover ID (most reliable - returns 404 for missing)
   if (book.open_library_cover_id) {
     return getOpenLibraryCoverById(book.open_library_cover_id, "L");
@@ -136,6 +168,11 @@ export function getCoverSource(
  * Order: Open Library first (reliable 404 for missing), Google Books last (placeholder issues)
  */
 export function getCoverUrlsWithFallbacks(book: BookCoverData): string[] {
+  // 0. A verified, stored cover is the only candidate
+  if (isStoredCover(book.cover_url)) {
+    return [book.cover_url as string];
+  }
+
   const urls: string[] = [];
 
   // 1. Open Library by cover ID (most reliable - returns 404 for missing)

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GENRE_VOCABULARY } from "@/lib/data/genres";
 
 /**
  * Valid sort options for book search
@@ -7,31 +8,10 @@ export const SORT_OPTIONS = ["popular", "newest", "rating", "title"] as const;
 export type SortOption = (typeof SORT_OPTIONS)[number];
 
 /**
- * Valid genre options for filtering
- * These match the genres available in the book submission form and UI
+ * Valid genre options for filtering: the whole genre vocabulary (genres,
+ * "Bestseller", award tags), which is exactly what the Browse chips offer.
  */
-export const GENRE_OPTIONS = [
-  "Fiction",
-  "Non-Fiction",
-  "Mystery",
-  "Thriller",
-  "Romance",
-  "Science Fiction",
-  "Fantasy",
-  "Horror",
-  "Biography",
-  "History",
-  "Self-Help",
-  "Business",
-  "Science",
-  "Philosophy",
-  "Poetry",
-  "Classics",
-  "Young Adult",
-  "Children",
-  "Graphic Novel",
-  "Memoir",
-] as const;
+export const GENRE_OPTIONS = GENRE_VOCABULARY;
 export type GenreOption = (typeof GENRE_OPTIONS)[number];
 
 /**

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import {
   BOOK_CATALOG_TAGS,
   CACHE_TAGS,
@@ -19,10 +20,11 @@ import {
   bookIdSchema,
 } from "@/lib/validation/book-action";
 import type { UpdateReadingProgressInput } from "@/lib/validation/book-action";
-import crypto from "crypto";
 import type { Database } from "@/types/database";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { logError, reportError } from "@/lib/utils/log";
+import { insertBookWithUniqueSlug } from "@/lib/import/insert-book";
+import { processBook } from "@/lib/covers/pipeline";
+import { normalizeGenres } from "@/lib/data/genres";
 import type { ActionResult } from "@/types/app";
 type UserBookInsert = Database["public"]["Tables"]["user_books"]["Insert"];
 
@@ -41,96 +43,6 @@ export interface ExternalBookData {
 }
 
 type ShelfStatus = "want_to_read" | "reading" | "read";
-
-// PostgreSQL unique violation error code
-const UNIQUE_VIOLATION = "23505";
-const MAX_SLUG_RETRIES = 10;
-
-// Generate a short random suffix using crypto
-function generateRandomSuffix(): string {
-  const bytes = crypto.randomBytes(4);
-  return bytes.toString("hex").slice(0, 6);
-}
-
-// Book data for insertion (without id/created_at which are auto-generated)
-interface BookInsertData {
-  title: string;
-  author: string;
-  description?: string | null;
-  cover_url?: string | null;
-  isbn?: string | null;
-  google_books_id?: string | null;
-  open_library_id?: string | null;
-  genres?: string[];
-  page_count?: number | null;
-  published_date?: string | null;
-  average_rating?: number | null;
-  ratings_count?: number;
-  local_average_rating?: number | null;
-  local_ratings_count?: number;
-}
-
-/**
- * Insert a book with automatic slug collision handling.
- * Uses database unique constraint instead of check-then-insert to avoid race conditions.
- * On collision, retries with random suffix until success or max retries reached.
- *
- * Pass the service-role client: the books INSERT policy is admin-only, and the
- * caller is responsible for authenticating, rate-limiting and validating first.
- */
-async function insertBookWithUniqueSlug(
-  supabase: SupabaseClient<Database>,
-  bookData: BookInsertData,
-  baseSlug: string
-): Promise<ActionResult<{ id: string; slug: string }>> {
-  let slug = baseSlug;
-  let attempt = 0;
-
-  while (attempt < MAX_SLUG_RETRIES) {
-    const { data, error } = await supabase
-      .from("books")
-      .insert({ ...bookData, slug })
-      .select("id, slug")
-      .single();
-
-    if (data) {
-      // Success
-      return { success: true, id: data.id, slug: data.slug };
-    }
-
-    if (error) {
-      // Check if this is a unique constraint violation on slug
-      if (error.code === UNIQUE_VIOLATION && error.message?.includes("slug")) {
-        // Collision - retry with random suffix
-        attempt++;
-        slug = `${baseSlug}-${generateRandomSuffix()}`;
-        continue;
-      }
-
-      // Different error - fail immediately
-      return { success: false, error: reportError("Error inserting book", error) };
-    }
-  }
-
-  // Exhausted retries - use timestamp as last resort
-  const lastResortSlug = `${baseSlug}-${Date.now()}`;
-  const { data, error } = await supabase
-    .from("books")
-    .insert({ ...bookData, slug: lastResortSlug })
-    .select("id, slug")
-    .single();
-
-  if (data) {
-    return { success: true, id: data.id, slug: data.slug };
-  }
-
-  return {
-    success: false,
-    error: error
-      ? reportError("Error inserting book (last-resort slug)", error)
-      : "Failed to create book after multiple attempts",
-  };
-}
 
 export async function addToShelf(bookId: string, status: string): Promise<ActionResult<{ newBadges: Array<{ id: string; name: string; icon: string }> }>> {
   try {
@@ -471,9 +383,10 @@ export async function importAndAddToShelf(
       // service-role client — after the auth, rate-limit and Zod checks above,
       // and only for this insert; every other query stays on the session client.
       const baseSlug = generateSlug(externalBook.title);
+      const admin = createAdminClient();
 
       const result = await insertBookWithUniqueSlug(
-        createAdminClient(),
+        admin,
         {
           title: externalBook.title,
           author: externalBook.author,
@@ -482,7 +395,7 @@ export async function importAndAddToShelf(
           isbn: externalBook.isbn || null,
           google_books_id: externalBook.googleBooksId || null,
           open_library_id: externalBook.openLibraryId || null,
-          genres: externalBook.genres || [],
+          genres: normalizeGenres(externalBook.genres || []),
           page_count: externalBook.pageCount || null,
           published_date: externalBook.publishedDate || null,
           // User-submitted books start with no ratings, external or local
@@ -500,6 +413,25 @@ export async function importAndAddToShelf(
 
       bookId = result.id;
       bookSlug = result.slug;
+
+      // Pick and store a verified cover for the new row once the response has
+      // been sent. The row was inserted with the search result's remote
+      // cover_url; the pipeline swaps it for a bucket copy, or leaves it when
+      // no candidate passes. It must never delay or fail the action.
+      const newRow = {
+        id: bookId,
+        cover_url: externalBook.coverUrl || null,
+        isbn: externalBook.isbn || null,
+        google_books_id: externalBook.googleBooksId || null,
+        open_library_cover_id: null,
+      };
+      after(() =>
+        processBook(admin, newRow).catch((error) =>
+          logError("Cover pipeline failed for a user-added book", error, {
+            bookId: newRow.id,
+          })
+        )
+      );
     }
 
     // Now add to user's shelf

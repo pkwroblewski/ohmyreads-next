@@ -24,6 +24,12 @@ export const ALLOWED_IMAGE_HOSTS: AllowedImageHost[] = [
   { protocol: "https", hostname: "*.googleusercontent.com" },
   { protocol: "https", hostname: "archive.org", pathname: "/download/**" },
   { protocol: "https", hostname: "*.us.archive.org", pathname: "/**" },
+  // Covers verified and stored by `lib/covers/pipeline.ts` (catalog Task 2).
+  {
+    protocol: "https",
+    hostname: "bgczdbmqievfilvdzlgl.supabase.co",
+    pathname: "/storage/v1/object/public/book-covers/**",
+  },
 ];
 
 /**

@@ -13,7 +13,11 @@
     "test:coverage": "vitest run --coverage",
     "types:gen": "npx supabase gen types typescript --project-id bgczdbmqievfilvdzlgl --schema public > types/database.generated.ts",
     "enrich-books": "npx --yes tsx scripts/enrich-books.ts",
-    "import-ratings": "npx --yes tsx scripts/import-ratings.ts"
+    "import-ratings": "npx --yes tsx scripts/import-ratings.ts",
+    "covers:process": "npx --yes tsx scripts/process-covers.ts",
+    "import:nyt": "npx --yes tsx scripts/import-nyt-bestsellers.ts",
+    "import:subjects": "npx --yes tsx scripts/import-popular-subjects.ts",
+    "import:awards": "npx --yes tsx scripts/import-award-winners.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.56",
@@ -45,6 +49,7 @@
     "recharts": "^3.5.1",
     "resend": "^6.6.0",
     "server-only": "^0.0.1",
+    "sharp": "^0.34.5",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "zod": "4.1.13"

@@ -27,6 +27,10 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+const PAGE_SIZE = 500; // Rows per DB page
+const USER_AGENT = "OhMyReads/1.0 (https://ohmyreads-next.vercel.app; ratings import)";
+const OL_HEADERS = { "User-Agent": USER_AGENT };
+
 // ============================================
 // TYPES
 // ============================================
@@ -67,7 +71,8 @@ async function getOpenLibraryRatings(
     }
 
     const response = await fetch(
-      `https://openlibrary.org/works/${fullWorkId}/ratings.json`
+      `https://openlibrary.org/works/${fullWorkId}/ratings.json`,
+      { headers: OL_HEADERS }
     );
 
     if (!response.ok) {
@@ -108,7 +113,7 @@ async function searchOpenLibraryForRatings(
     url.searchParams.set("limit", "5");
     url.searchParams.set("fields", "key,ratings_average,ratings_count");
 
-    const response = await fetch(url.toString());
+    const response = await fetch(url.toString(), { headers: OL_HEADERS });
 
     if (!response.ok) return null;
 
@@ -164,15 +169,27 @@ async function searchOpenLibraryForRatings(
 async function importRatings() {
   console.log("📚 Starting Open Library ratings import...\n");
 
-  // Fetch all books from the database
-  const { data: books, error } = await supabase
-    .from("books")
-    .select("id, title, author, isbn, open_library_id, average_rating, ratings_count")
-    .order("title");
+  // Fetch every book still without an external rating. Paged, because
+  // PostgREST caps a single select at 1,000 rows and the catalog is 5,000+.
+  // Rows that already carry a rating are excluded server-side so the
+  // paging window never shifts underneath the loop.
+  const books: Book[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("books")
+      .select("id, title, author, isbn, open_library_id, average_rating, ratings_count")
+      .or("average_rating.is.null,ratings_count.eq.0")
+      .order("title")
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1);
 
-  if (error) {
-    console.error("Error fetching books:", error);
-    process.exit(1);
+    if (error) {
+      console.error("Error fetching books:", error);
+      process.exit(1);
+    }
+    if (!data || data.length === 0) break;
+    books.push(...(data as Book[]));
+    if (data.length < PAGE_SIZE) break;
   }
 
   if (!books || books.length === 0) {

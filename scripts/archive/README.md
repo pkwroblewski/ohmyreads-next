@@ -10,7 +10,9 @@ would duplicate or overwrite catalog data. Run one deliberately with
 | `seed-books.ts` | Initial ~2000-book seed from Open Library subjects. | Applied (Dec 2025). Superseded by `reseed-curated.ts`. |
 | `reseed-curated.ts` | Replaced the seed with the curated ~1000-book list plus Google Books enrichment. | Applied (Jan 2026). |
 | `fix-duplicate-books.ts` | Audited and merged duplicate titles (`--audit` / `--fix`). | Applied (Jan 2026). Safe to re-run with `--audit`. |
-| `import-award-winners.ts` | Imported award-winning books with award tags. | Applied (Feb 2026). |
+| `import-award-winners.ts` | Imported award-winning books with award tags. | Applied (Feb 2026). Restored to `scripts/` as `npm run import:awards` (Sep 2026, resumable). |
 
-The live maintenance scripts (`enrich-books.ts`, `import-ratings.ts`) stay in
-`scripts/` and are exposed as `npm run enrich-books` / `npm run import-ratings`.
+The live maintenance scripts (`enrich-books.ts`, `import-ratings.ts`,
+`process-covers.ts`) and the resumable catalog importers (`import:nyt`,
+`import:subjects`, `import:awards`, sharing `scripts/lib/`) stay in `scripts/`
+and are exposed through `npm run`.
