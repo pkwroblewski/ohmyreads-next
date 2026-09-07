@@ -13,6 +13,14 @@
  *   npm run covers:process -- --force          # re-process books already on the bucket
  *   npm run covers:process -- --only-missing   # only books with no cover_url at all
  *   npm run covers:process -- --ids a,b,c      # only these book ids (implies --force)
+ *   npm run covers:process -- --source openlibrary --force
+ *                                              # only rows whose stored cover came from
+ *                                              # that source (openlibrary|google|other);
+ *                                              # they are on the bucket, so pair with --force
+ *   npm run covers:process -- --source openlibrary --force --skip-newer-than 1788757900
+ *                                              # resume: skip rows whose stored cover already
+ *                                              # carries a ?v= stamp at/after that unix time
+ *                                              # (the start of the interrupted run)
  *   npm run covers:process -- --verbose        # per-candidate verdicts
  *
  * Environment:
@@ -71,6 +79,28 @@ const isDryRun = args.includes("--dry-run");
 const isVerbose = args.includes("--verbose");
 const isForce = args.includes("--force");
 const onlyMissing = args.includes("--only-missing");
+
+const sourceIndex = args.indexOf("--source");
+const onlySource =
+  sourceIndex !== -1 && args[sourceIndex + 1] ? args[sourceIndex + 1].trim() : null;
+if (onlySource && !["openlibrary", "google", "other"].includes(onlySource)) {
+  console.error(`Unknown --source "${onlySource}". Use openlibrary, google or other.`);
+  process.exit(1);
+}
+
+const skipIndex = args.indexOf("--skip-newer-than");
+const skipNewerThan =
+  skipIndex !== -1 && args[skipIndex + 1] ? parseInt(args[skipIndex + 1], 10) : null;
+if (skipNewerThan !== null && !Number.isFinite(skipNewerThan)) {
+  console.error("--skip-newer-than expects unix seconds, e.g. 1788757900");
+  process.exit(1);
+}
+
+/** The `?v=` stamp `storeCover()` appends (unix seconds), if the row has one. */
+function coverVersion(coverUrl: string | null): number | null {
+  const match = coverUrl ? /[?&]v=(\d+)/.exec(coverUrl) : null;
+  return match ? Number(match[1]) : null;
+}
 
 const idsIndex = args.indexOf("--ids");
 const onlyIds =
@@ -186,6 +216,9 @@ async function fetchBooksToProcess(maxCount: number): Promise<BookRow[]> {
     if (onlyIds) {
       query = query.in("id", onlyIds);
     }
+    if (onlySource) {
+      query = query.eq("cover_source", onlySource);
+    }
 
     const { data, error } = await query;
     if (error) {
@@ -196,6 +229,7 @@ async function fetchBooksToProcess(maxCount: number): Promise<BookRow[]> {
 
     for (const book of data) {
       if (!isForce && !onlyIds && isStoredCover(book.cover_url)) continue;
+      if (skipNewerThan !== null && (coverVersion(book.cover_url) ?? 0) >= skipNewerThan) continue;
       selected.push(book);
       if (selected.length >= maxCount) break;
     }
@@ -222,6 +256,8 @@ async function run(): Promise<void> {
   if (onlyIds) console.log(`
 🎯 IDS - restricted to ${onlyIds.length} given book id(s), re-processed even if already stored
 `);
+  if (skipNewerThan !== null) console.log(`⏭️  RESUME - skipping rows whose stored cover is stamped v >= ${skipNewerThan}`);
+  if (onlySource) console.log(`🎯 SOURCE - restricted to rows with cover_source = ${onlySource}${isForce ? "" : " (they are already stored; add --force to re-process)"}`);
 
   const limitLabel = Number.isFinite(limit) ? String(limit) : "all";
   console.log(`\n📚 Selecting books (limit: ${limitLabel})...`);

@@ -63,7 +63,11 @@ export const PLACEHOLDER_MD5 = new Set([
 /**
  * Encoded bytes per pixel below which a JPEG is a logo or placeholder, not
  * cover art: the grey placeholders sit at 0.02, the Penguin logo at 0.03,
- * while real covers measured 0.1 (small Open Library scans) to 0.6.
+ * while real covers measured 0.1 (small Open Library scans) to 0.6. Those
+ * numbers hold at the stored size: a 2,000 px original of a flat-design
+ * cover encodes at 0.049 (text and edges are cheap per pixel at that scale)
+ * but 0.10 once resized to 800 px, so anything wider than the stored width
+ * is measured after the same resize + re-encode `storeCover()` applies.
  */
 export const MIN_BYTES_PER_PIXEL = 0.05;
 
@@ -160,7 +164,11 @@ export type ProcessResult =
  * Candidate URLs in priority order. Order only breaks ties on width:
  * importer extras (the current edition), then the existing chain from
  * `lib/utils/covers.ts` (Open Library by id, by ISBN, the stored remote URL,
- * Google at zoom 3). A `cover_url` already on the bucket is not a candidate.
+ * Google at zoom 3). Every Open Library `-L` URL is preceded by its
+ * unsuffixed original: `-L` caps the long side at 500 px (~333 px wide),
+ * the original is whatever was uploaded (736–2,592 px wide in a probe), and
+ * the same `?default=false` makes a missing one a 404. A `cover_url`
+ * already on the bucket is not a candidate.
  */
 export function collectCandidates(
   book: BookCoverData,
@@ -173,19 +181,49 @@ export function collectCandidates(
     seen.add(url);
     out.push({ url });
   };
-  extraUrls.forEach(push);
+  const pushWithOriginal = (url: string) => {
+    const original = openLibraryOriginal(url);
+    if (original) push(original);
+    push(url);
+  };
+  extraUrls.forEach(pushWithOriginal);
   // The renderer's chain collapses to the stored URL once a book has one;
   // the pipeline must still see the real sources when re-processing.
   const unstored = isStoredCover(book.cover_url)
     ? { ...book, cover_url: null }
     : book;
-  getCoverUrlsWithFallbacks(unstored).forEach(push);
+  getCoverUrlsWithFallbacks(unstored).forEach(pushWithOriginal);
   return out;
 }
 
+/** `…/b/id/42-L.jpg?x` → `…/b/id/42.jpg?x`; undefined for anything else. */
+function openLibraryOriginal(url: string): string | undefined {
+  const match =
+    /^(https:\/\/covers\.openlibrary\.org\/b\/(?:id|isbn)\/[^/?-]+)-[SML]\.jpg(\?.*)?$/i.exec(url);
+  return match ? `${match[1]}.jpg${match[2] ?? ""}` : undefined;
+}
+
 function coverIdFromUrl(url: string): number | undefined {
-  const match = /covers\.openlibrary\.org\/b\/id\/(\d+)-[SML]\.jpg/i.exec(url);
+  const match = /covers\.openlibrary\.org\/b\/id\/(\d+)(?:-[SML])?\.jpg/i.exec(url);
   return match ? Number(match[1]) : undefined;
+}
+
+/**
+ * Detail density of the image as it would be stored: raw bytes for anything
+ * already at or under the stored width, otherwise the bytes of the same
+ * resize + JPEG re-encode `storeCover()` performs.
+ */
+async function bytesPerPixelAtStoredSize(
+  buffer: Buffer,
+  width: number,
+  height: number
+): Promise<number> {
+  if (width <= STORED_COVER_WIDTH) return buffer.byteLength / (width * height);
+  const resized = await sharp(buffer)
+    .resize({ width: STORED_COVER_WIDTH, withoutEnlargement: true })
+    .jpeg({ quality: STORED_COVER_QUALITY, mozjpeg: true })
+    .toBuffer({ resolveWithObject: true });
+  return resized.data.byteLength / (resized.info.width * resized.info.height);
 }
 
 /**
@@ -254,7 +292,7 @@ export async function fetchAndScore(
   }
 
   const dims = { finalUrl, width, height, bytes: buffer.byteLength };
-  if (buffer.byteLength / (width * height) < MIN_BYTES_PER_PIXEL) {
+  if ((await bytesPerPixelAtStoredSize(buffer, width, height)) < MIN_BYTES_PER_PIXEL) {
     return reject("low-detail", dims);
   }
   if (width < MIN_COVER_WIDTH && height < MIN_COVER_HEIGHT) {
@@ -369,7 +407,11 @@ export async function processBook(
   const candidates = collectCandidates(book, opts.extraUrls);
   const scored: ScoredCandidate[] = [];
   for (const candidate of candidates) {
-    scored.push(await fetchAndScore(candidate.url, opts));
+    const result = await fetchAndScore(candidate.url, opts);
+    scored.push(result);
+    // Anything wider than the stored size is resized down to it, and an
+    // earlier candidate wins a tie, so nothing later can beat this one.
+    if (result.ok && (result.width ?? 0) >= STORED_COVER_WIDTH) break;
   }
 
   const winner = pickBest(scored);

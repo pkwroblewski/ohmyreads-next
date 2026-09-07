@@ -124,12 +124,28 @@ describe("collectCandidates", () => {
 
     expect(urls).toEqual([
       "https://static01.nyt.com/cover.jpg",
+      "https://covers.openlibrary.org/b/id/42.jpg?default=false",
       "https://covers.openlibrary.org/b/id/42-L.jpg?default=false",
+      "https://covers.openlibrary.org/b/isbn/9780735211292.jpg?default=false",
       "https://covers.openlibrary.org/b/isbn/9780735211292-L.jpg?default=false",
       "https://books.google.com/books/content?id=abc&printsec=frontcover&img=1&zoom=3&source=gbs_api",
     ]);
   });
+
+  it("puts the original before an Open Library -M extra too, never before a non-OL URL", () => {
+    const urls = collectCandidates({ cover_url: null }, [
+      "https://covers.openlibrary.org/b/id/7-M.jpg",
+      "https://books.google.com/books/content?id=x&zoom=3",
+    ]).map((c) => c.url);
+    expect(urls).toEqual([
+      "https://covers.openlibrary.org/b/id/7.jpg",
+      "https://covers.openlibrary.org/b/id/7-M.jpg",
+      "https://books.google.com/books/content?id=x&zoom=3",
+    ]);
+  });
 });
+
+const originalFixture = await image(400, 600);
 
 describe("fetchAndScore", () => {
   it("knows both Google placeholders: the 128 px zoom-1 and the 575 px zoom-3 one", () => {
@@ -154,6 +170,31 @@ describe("fetchAndScore", () => {
     });
     expect(result).toMatchObject({ ok: false, reason: "low-detail", width: 575 });
     expect((result.bytes ?? 0) / (575 * 863)).toBeLessThan(0.05);
+  });
+
+  it("measures detail at the stored size, so a 2,000 px flat-design original is not 'low-detail'", async () => {
+    // Solid field plus a few hundred text-like strokes: 0.027 bytes/px at
+    // 2000x3000 (under the 0.05 floor), 0.07 once resized to 800 px.
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    let strokes = "";
+    for (let i = 0; i < 400; i++) {
+      strokes += `<rect x="${(rnd() * 1900) | 0}" y="${(rnd() * 2900) | 0}" width="${(20 + rnd() * 120) | 0}" height="${(6 + rnd() * 14) | 0}" fill="#f2c94c"/>`;
+    }
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="3000"><rect width="2000" height="3000" fill="#7a1f1f"/>${strokes}</svg>`;
+    const original = await sharp(Buffer.from(svg)).jpeg().toBuffer();
+    expect(original.byteLength / (2000 * 3000)).toBeLessThan(0.05);
+
+    const result = await fetchAndScore("https://x/original", {
+      fetchImpl: fakeFetch({ "https://x/original": () => imageResponse(original) }),
+    });
+    expect(result).toMatchObject({ ok: true, width: 2000, height: 3000 });
+
+    const flat = await flatImage(2000, 3000);
+    const rejected = await fetchAndScore("https://x/flat-large", {
+      fetchImpl: fakeFetch({ "https://x/flat-large": () => imageResponse(flat) }),
+    });
+    expect(rejected).toMatchObject({ ok: false, reason: "low-detail", width: 2000 });
   });
 
   it("accepts a narrow Open Library scan that is 500 px tall", async () => {
@@ -191,6 +232,20 @@ describe("fetchAndScore", () => {
       ok: false,
       reason: "http-error",
     });
+  });
+
+  it("reads the Open Library cover id off an unsuffixed original URL", async () => {
+    const result = await fetchAndScore(
+      "https://covers.openlibrary.org/b/isbn/9780735211292.jpg?default=false",
+      {
+        fetchImpl: fakeFetch({
+          "https://covers.openlibrary.org/b/isbn/9780735211292.jpg?default=false": () =>
+            imageResponse(originalFixture, "https://covers.openlibrary.org/b/id/15239979.jpg"),
+        }),
+      }
+    );
+    expect(result.ok).toBe(true);
+    expect(result.openLibraryCoverId).toBe(15239979);
   });
 
   it("reads the Open Library cover id off the redirected URL", async () => {
@@ -256,8 +311,59 @@ describe("pickBest", () => {
 describe("processBook", () => {
   const OL_ISBN =
     "https://covers.openlibrary.org/b/isbn/9780735211292-L.jpg?default=false";
+  const OL_ISBN_ORIGINAL =
+    "https://covers.openlibrary.org/b/isbn/9780735211292.jpg?default=false";
   const GOOGLE =
     "https://books.google.com/books/content?id=abc&printsec=frontcover&img=1&zoom=3&source=gbs_api";
+
+  it("stops fetching once a passing candidate is at least the stored width", async () => {
+    const original = await image(1600, 2400);
+    const fetchImpl = fakeFetch({
+      [OL_ISBN_ORIGINAL]: () => imageResponse(original),
+      [OL_ISBN]: () => imageResponse(original),
+      [GOOGLE]: () => imageResponse(original),
+    });
+    const { admin, update } = fakeAdmin();
+
+    const result = await processBook(
+      admin,
+      { id: BOOK_ID, isbn: "9780735211292", google_books_id: "abc", cover_url: null },
+      { fetchImpl }
+    );
+
+    expect(result.status).toBe("stored");
+    if (result.status !== "stored") return;
+    expect(result.width).toBe(1600);
+    expect(result.source).toBe("openlibrary");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result.candidates.map((c) => c.url)).toEqual([OL_ISBN_ORIGINAL]);
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ cover_source: "openlibrary" }));
+  });
+
+  it("falls through to -L and Google when the original is too small", async () => {
+    const tiny = await image(200, 300);
+    const large = await image(500, 750);
+    const google = await image(800, 1200);
+    const fetchImpl = fakeFetch({
+      [OL_ISBN_ORIGINAL]: () => imageResponse(tiny),
+      [OL_ISBN]: () => imageResponse(large),
+      [GOOGLE]: () => imageResponse(google),
+    });
+    const { admin } = fakeAdmin();
+
+    const result = await processBook(
+      admin,
+      { id: BOOK_ID, isbn: "9780735211292", google_books_id: "abc", cover_url: null },
+      { fetchImpl }
+    );
+
+    expect(result.status).toBe("stored");
+    if (result.status !== "stored") return;
+    expect(result.source).toBe("google");
+    expect(result.width).toBe(800);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(result.candidates[0]).toMatchObject({ url: OL_ISBN_ORIGINAL, ok: false });
+  });
 
   it("stores the sharpest candidate and writes url, source and discovered cover id", async () => {
     const olCover = await image(500, 750);
