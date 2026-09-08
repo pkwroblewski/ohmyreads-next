@@ -5,7 +5,9 @@
  * deduplicates the entries against each other and against the catalog,
  * enriches each new title from Open Library (and Google Books when a key
  * exists), inserts it with the shared slug-safe helper, then runs the cover
- * pipeline with NYT's own cover image as the first candidate.
+ * pipeline (Open Library / Google only: the NYT `book_image` is never a
+ * candidate, the NYT API terms forbid caching its content beyond 24 hours;
+ * see .claude/plans/nyt-covers-2026-09.md).
  *
  * Usage:
  *   npm run import:nyt                              # 2016-01 → this month
@@ -112,7 +114,6 @@ interface Candidate {
   title: string; // NYT title, edition suffix stripped, still ALL CAPS
   author: string; // cleaned
   description: string | null;
-  bookImage: string | null;
   lists: Set<string>;
   firstSeen: string;
   lastSeen: string;
@@ -185,13 +186,12 @@ function collect(snapshots: NytEntry[][]): {
         existing.maxWeeks = Math.max(existing.maxWeeks, entry.weeksOnList);
         if (entry.publishedDate >= existing.lastSeen) {
           existing.lastSeen = entry.publishedDate;
-          // Newest edition wins the ISBN and the cover image
+          // Newest edition wins the ISBN
           if (existing.isbn !== entry.primaryIsbn13) {
             byIsbn.delete(existing.isbn);
             existing.isbn = entry.primaryIsbn13;
             byIsbn.set(existing.isbn, existing);
           }
-          existing.bookImage = entry.bookImage ?? existing.bookImage;
           existing.description = entry.description ?? existing.description;
         }
         if (entry.publishedDate < existing.firstSeen) existing.firstSeen = entry.publishedDate;
@@ -202,7 +202,6 @@ function collect(snapshots: NytEntry[][]): {
         title,
         author,
         description: entry.description,
-        bookImage: entry.bookImage,
         lists: new Set([entry.listName]),
         firstSeen: entry.publishedDate,
         lastSeen: entry.publishedDate,
@@ -224,7 +223,6 @@ function toImportCandidate(c: Candidate): ImportCandidate {
     isbn: c.isbn,
     description: c.description,
     genres: [...[...c.lists].flatMap(listGenres), "Bestseller"],
-    coverUrls: c.bookImage ? [c.bookImage] : [],
   };
 }
 

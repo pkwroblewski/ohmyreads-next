@@ -119,16 +119,29 @@ describe("collectCandidates", () => {
         google_books_id: "abc",
         open_library_cover_id: 42,
       },
-      ["https://static01.nyt.com/cover.jpg", "https://static01.nyt.com/cover.jpg"]
+      ["https://cdn.example.com/cover.jpg", "https://cdn.example.com/cover.jpg"]
     ).map((c) => c.url);
 
     expect(urls).toEqual([
-      "https://static01.nyt.com/cover.jpg",
+      "https://cdn.example.com/cover.jpg",
       "https://covers.openlibrary.org/b/id/42.jpg?default=false",
       "https://covers.openlibrary.org/b/id/42-L.jpg?default=false",
       "https://covers.openlibrary.org/b/isbn/9780735211292.jpg?default=false",
       "https://covers.openlibrary.org/b/isbn/9780735211292-L.jpg?default=false",
       "https://books.google.com/books/content?id=abc&printsec=frontcover&img=1&zoom=3&source=gbs_api",
+    ]);
+  });
+
+  it("refuses nyt.com hosts even when an importer offers them first", () => {
+    const urls = collectCandidates({ cover_url: null, isbn: "9780735211292" }, [
+      "https://static01.nyt.com/bestsellers/images/9780735211292.jpg",
+      "https://nyt.com/x.jpg",
+      "https://notnyt.com/x.jpg",
+    ]).map((c) => c.url);
+    expect(urls).toEqual([
+      "https://notnyt.com/x.jpg",
+      "https://covers.openlibrary.org/b/isbn/9780735211292.jpg?default=false",
+      "https://covers.openlibrary.org/b/isbn/9780735211292-L.jpg?default=false",
     ]);
   });
 
@@ -315,6 +328,19 @@ describe("processBook", () => {
     "https://covers.openlibrary.org/b/isbn/9780735211292.jpg?default=false";
   const GOOGLE =
     "https://books.google.com/books/content?id=abc&printsec=frontcover&img=1&zoom=3&source=gbs_api";
+
+  it("keeps the stored cover on a forced run with keepExisting when nothing passes", async () => {
+    const { admin, remove, update } = fakeAdmin();
+    const result = await processBook(
+      admin,
+      { id: BOOK_ID, isbn: "9780735211292", cover_url: `${BUCKET_URL}/${BOOK_ID}.jpg?v=1` },
+      { force: true, keepExisting: true, fetchImpl: fakeFetch({}) }
+    );
+    expect(result).toMatchObject({ status: "no-candidate", kept: true });
+    expect(result.status === "no-candidate" && result.cleared).toBeFalsy();
+    expect(remove).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
 
   it("stops fetching once a passing candidate is at least the stored width", async () => {
     const original = await image(1600, 2400);

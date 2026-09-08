@@ -17,6 +17,10 @@
  *                                              # only rows whose stored cover came from
  *                                              # that source (openlibrary|google|other);
  *                                              # they are on the bucket, so pair with --force
+ *   npm run covers:process -- --source other --force --keep-existing
+ *                                              # replacement pass: a row whose candidates all
+ *                                              # fail keeps its stored cover (listed at the end)
+ *                                              # instead of being cleared
  *   npm run covers:process -- --source openlibrary --force --skip-newer-than 1788757900
  *                                              # resume: skip rows whose stored cover already
  *                                              # carries a ?v= stamp at/after that unix time
@@ -34,6 +38,12 @@
  * Library search API for the work-level `cover_i` and retries with it. That
  * cover belongs to whichever edition Open Library chose for the work, so it
  * is only used as a last resort, never to replace a passing candidate.
+ *
+ * Third pass (needs GOOGLE_BOOKS_API_KEY; `--no-google` disables it): when a
+ * book with an ISBN and no `google_books_id` still has no candidate, look the
+ * ISBN up on Google Books and retry with its zoom-3 cover; the pipeline still
+ * rejects Google's grey placeholder by hash. A hit persists `google_books_id`.
+ * Capped at 950 lookups per run (the key's quota is 1,000/day).
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -43,7 +53,8 @@ import {
   processBook,
   type ProcessResult,
 } from "../lib/covers/pipeline";
-import { getOpenLibraryCoverById } from "../lib/utils/covers";
+import { getGoogleBooksCoverUrl, getOpenLibraryCoverById } from "../lib/utils/covers";
+import { searchGoogleBooksByIsbn } from "../lib/utils/external-book-search";
 import type { Database } from "../types/database";
 
 // Load environment variables
@@ -79,6 +90,12 @@ const isDryRun = args.includes("--dry-run");
 const isVerbose = args.includes("--verbose");
 const isForce = args.includes("--force");
 const onlyMissing = args.includes("--only-missing");
+const keepExisting = args.includes("--keep-existing");
+const noGoogle = args.includes("--no-google");
+const googleEnabled = !noGoogle && !!process.env.GOOGLE_BOOKS_API_KEY?.trim();
+const GOOGLE_LOOKUP_BUDGET = 950; // the key's quota is 1,000/day
+let googleLookups = 0;
+let googleBudgetHit = false;
 
 const sourceIndex = args.indexOf("--source");
 const onlySource =
@@ -257,6 +274,8 @@ async function run(): Promise<void> {
 🎯 IDS - restricted to ${onlyIds.length} given book id(s), re-processed even if already stored
 `);
   if (skipNewerThan !== null) console.log(`⏭️  RESUME - skipping rows whose stored cover is stamped v >= ${skipNewerThan}`);
+  if (googleEnabled) console.log("🔎 GOOGLE - ISBN lookups enabled for books with no candidate (third pass)");
+  if (keepExisting) console.log("🛡️  KEEP EXISTING - a forced run leaves a stored cover in place when nothing passes");
   if (onlySource) console.log(`🎯 SOURCE - restricted to rows with cover_source = ${onlySource}${isForce ? "" : " (they are already stored; add --force to re-process)"}`);
 
   const limitLabel = Number.isFinite(limit) ? String(limit) : "all";
@@ -276,7 +295,7 @@ async function run(): Promise<void> {
   );
 
   const outcomes: Outcome[] = [];
-  const counts = { stored: 0, skipped: 0, noCandidate: 0, failed: 0, secondPass: 0 };
+  const counts = { stored: 0, skipped: 0, noCandidate: 0, failed: 0, secondPass: 0, googleRescue: 0 };
   const rejectionReasons: Record<string, number> = {};
 
   for (let i = 0; i < books.length; i++) {
@@ -285,7 +304,7 @@ async function run(): Promise<void> {
       `\r   ${formatProgress(i + 1, books.length)} - "${book.title.substring(0, 35)}"`
     );
 
-    const opts = { force: isForce || !!onlyIds, dryRun: isDryRun };
+    const opts = { force: isForce || !!onlyIds, dryRun: isDryRun, keepExisting };
     let result = await processBook(supabase, book, opts);
     let secondPassCoverId: number | null = null;
 
@@ -297,6 +316,39 @@ async function run(): Promise<void> {
           extraUrls: [getOpenLibraryCoverById(secondPassCoverId, "L")],
         });
         if (result.status !== "no-candidate") counts.secondPass++;
+      }
+    }
+
+    let googleRescueId: string | null = null;
+    if (
+      result.status === "no-candidate" &&
+      googleEnabled &&
+      book.isbn &&
+      !book.google_books_id
+    ) {
+      if (googleLookups >= GOOGLE_LOOKUP_BUDGET) {
+        googleBudgetHit = true;
+      } else {
+        googleLookups++;
+        const found = await searchGoogleBooksByIsbn(book.isbn);
+        if (found?.googleBooksId) {
+          googleRescueId = found.googleBooksId;
+          result = await processBook(supabase, book, {
+            ...opts,
+            extraUrls: [getGoogleBooksCoverUrl(googleRescueId, 3)],
+          });
+          if (result.status === "stored") {
+            counts.googleRescue++;
+            if (!isDryRun) {
+              const { error } = await supabase
+                .from("books")
+                .update({ google_books_id: googleRescueId })
+                .eq("id", book.id);
+              if (error) console.log(`\n      could not save google_books_id: ${error.message}`);
+            }
+          }
+        }
+        await sleep(BOOK_DELAY_MS);
       }
     }
     outcomes.push({ book, result });
@@ -328,6 +380,9 @@ async function run(): Promise<void> {
       if (secondPassCoverId) {
         console.log(`\n      second pass: Open Library work cover id ${secondPassCoverId}`);
       }
+      if (googleRescueId) {
+        console.log(`\n      third pass: Google Books id ${googleRescueId}`);
+      }
       console.log(`\n      ${result.status}${
         result.status === "stored"
           ? ` ← ${result.source} ${result.width}×${result.height}`
@@ -357,6 +412,14 @@ async function run(): Promise<void> {
   console.log(`\n   📊 Results:`);
   console.log(`   - Processed (stored): ${counts.stored}`);
   console.log(`   - ...of which rescued by the Open Library work cover: ${counts.secondPass}`);
+  console.log(
+    `   - ...of which rescued by Google Books (ISBN lookup): ${counts.googleRescue}${
+      googleEnabled ? ` (${googleLookups} lookups)` : " (disabled: no GOOGLE_BOOKS_API_KEY or --no-google)"
+    }`
+  );
+  if (googleBudgetHit) {
+    console.log(`   ⚠️  Google lookup budget (${GOOGLE_LOOKUP_BUDGET}) reached; re-run tomorrow for the rest`);
+  }
   console.log(`   - Skipped (already stored): ${counts.skipped}`);
   console.log(`   - No candidate passed: ${counts.noCandidate}`);
   console.log(`   - Failed: ${counts.failed}`);
@@ -377,7 +440,9 @@ async function run(): Promise<void> {
       const cleared =
         result.status === "no-candidate" && result.cleared
           ? " [stored cover removed]"
-          : "";
+          : result.status === "no-candidate" && result.kept
+            ? " [stored cover kept: no passing replacement]"
+            : "";
       console.log(`   - ${book.title} — ${book.author} (/books/${book.slug})${cleared}`);
     }
   }

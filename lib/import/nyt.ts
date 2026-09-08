@@ -25,7 +25,6 @@ export interface NytEntry {
   author: string;
   primaryIsbn13: string | null;
   description: string | null;
-  bookImage: string | null;
   weeksOnList: number;
 }
 
@@ -57,6 +56,7 @@ interface RawBook {
   primary_isbn13?: string;
   isbns?: Array<{ isbn13?: string }>;
   description?: string;
+  /** Ignored on purpose: the NYT API terms forbid caching its content, so it is never a cover candidate. */
   book_image?: string;
   rank?: number;
   weeks_on_list?: number;
@@ -101,7 +101,6 @@ export function parseOverview(json: unknown): NytOverview {
         author: book.author.trim(),
         primaryIsbn13: isbn13Of(book),
         description: book.description?.trim() || null,
-        bookImage: book.book_image?.trim() || null,
         weeksOnList: book.weeks_on_list ?? 0,
       });
     }

@@ -133,10 +133,16 @@ export interface PipelineBook extends BookCoverData {
 export interface ProcessOptions {
   /** Re-process even when `cover_url` already points at the bucket. */
   force?: boolean;
-  /** Extra candidate URLs from an importer (e.g. NYT `book_image`). Tried first. */
+  /** Extra candidate URLs from an importer (the current edition's cover). Tried first. */
   extraUrls?: string[];
   /** Do everything except upload and update the row. */
   dryRun?: boolean;
+  /**
+   * With `force`: when nothing passes, leave the stored cover and the row
+   * alone (report `kept`) instead of removing them. For replacement passes
+   * where the leftovers are reviewed before anything is deleted.
+   */
+  keepExisting?: boolean;
   /** Overrides the placeholder hash set (tests). */
   placeholderHashes?: Set<string>;
   fetchImpl?: typeof fetch;
@@ -157,6 +163,8 @@ export type ProcessResult =
       candidates: CandidateReport[];
       /** A forced re-run found nothing valid, so the stored cover was removed. */
       cleared?: boolean;
+      /** A forced re-run found nothing valid but `keepExisting` left the stored cover in place. */
+      kept?: boolean;
     }
   | { status: "failed"; error: string; candidates: CandidateReport[] };
 
@@ -177,7 +185,7 @@ export function collectCandidates(
   const seen = new Set<string>();
   const out: CoverCandidate[] = [];
   const push = (url: string) => {
-    if (!url || seen.has(url) || isStoredCover(url)) return;
+    if (!url || seen.has(url) || isStoredCover(url) || isRefusedHost(url)) return;
     seen.add(url);
     out.push({ url });
   };
@@ -194,6 +202,24 @@ export function collectCandidates(
     : book;
   getCoverUrlsWithFallbacks(unstored).forEach(pushWithOriginal);
   return out;
+}
+
+/**
+ * Hosts whose images may never be stored. NYT: the Books API terms are
+ * non-commercial only and forbid caching its content beyond 24 hours; the
+ * bestseller importer used to offer `book_image` as a candidate (removed in
+ * the nyt-covers plan, 2026-09-07), this keeps it out for good.
+ */
+export const REFUSED_COVER_HOSTS = ["nyt.com"];
+
+function isRefusedHost(url: string): boolean {
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return REFUSED_COVER_HOSTS.some((d) => host === d || host.endsWith(`.${d}`));
 }
 
 /** `…/b/id/42-L.jpg?x` → `…/b/id/42.jpg?x`; undefined for anything else. */
@@ -418,6 +444,9 @@ export async function processBook(
   // Strip buffers before handing results back; callers only need the verdicts.
   const report = scored.map(toReport);
   if (!winner || !winner.buffer) {
+    if (opts.force && opts.keepExisting && isStoredCover(book.cover_url)) {
+      return { status: "no-candidate", candidates: report, kept: true };
+    }
     if (opts.force && !opts.dryRun && isStoredCover(book.cover_url)) {
       try {
         await clearStoredCover(admin, book.id);

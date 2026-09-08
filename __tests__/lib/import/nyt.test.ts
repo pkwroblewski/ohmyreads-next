@@ -61,7 +61,8 @@ describe("parseOverview", () => {
     });
     expect(entries[1].primaryIsbn13).toBe("9781111111111");
     expect(entries[1].description).toBeNull();
-    expect(entries[1].bookImage).toBeNull();
+    // The NYT image is never carried over (API terms); the fixture still sends one.
+    expect(entries[0]).not.toHaveProperty("bookImage");
   });
 
   it("tolerates an empty or malformed body", () => {
