@@ -10,7 +10,11 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import { LOGIN_ERROR_MESSAGES, loginErrorMessage } from "@/lib/auth/login-errors";
+import {
+  LOGIN_ERROR_MESSAGES,
+  loginErrorMessage,
+  signInErrorMessage,
+} from "@/lib/auth/login-errors";
 
 let search = new URLSearchParams();
 
@@ -75,5 +79,20 @@ describe("/login?error=", () => {
     render(<LoginPage />);
 
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("signInErrorMessage", () => {
+  it("replaces Supabase's raw ban message with the disabled-account copy", () => {
+    expect(signInErrorMessage("User is banned")).toBe(
+      LOGIN_ERROR_MESSAGES.account_disabled
+    );
+  });
+
+  it("passes every other sign-in error through unchanged", () => {
+    expect(signInErrorMessage("Invalid login credentials")).toBe(
+      "Invalid login credentials"
+    );
+    expect(signInErrorMessage("Email not confirmed")).toBe("Email not confirmed");
   });
 });

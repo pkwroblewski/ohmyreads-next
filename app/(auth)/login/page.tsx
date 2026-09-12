@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { loginErrorMessage } from "@/lib/auth/login-errors";
+import { loginErrorMessage, signInErrorMessage } from "@/lib/auth/login-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -97,7 +97,7 @@ function LoginForm() {
       });
 
       if (signInError) {
-        setError(signInError.message);
+        setError(signInErrorMessage(signInError.message));
         return;
       }
 

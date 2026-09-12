@@ -24,3 +24,14 @@ export function loginErrorMessage(code: string | null): string | null {
   if (!code || !Object.hasOwn(LOGIN_ERROR_MESSAGES, code)) return null;
   return LOGIN_ERROR_MESSAGES[code as LoginErrorCode];
 }
+
+/**
+ * The copy for a failed password sign-in. Supabase answers a disabled account
+ * (adminDisableUser sets a ban) with the raw "User is banned"; everything else
+ * ("Invalid login credentials", "Email not confirmed") reads fine as is.
+ */
+export function signInErrorMessage(message: string): string {
+  return /\bbanned\b/i.test(message)
+    ? LOGIN_ERROR_MESSAGES.account_disabled
+    : message;
+}

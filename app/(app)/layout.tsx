@@ -1,5 +1,6 @@
 import { createClient, getUser } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { AppShell } from "@/components/layout/app-shell";
 import { getConversations, getUnreadCount } from "@/lib/queries/messages";
 import type { Profile } from "@/types/database";
@@ -23,6 +24,9 @@ export default async function AppLayout({
     const { data: authData, error: authError } = await getUser();
 
     if (authError) {
+      // No session at all (just signed out, account deleted) is the normal
+      // path to /login, not an error worth a Sentry event.
+      if (/session missing/i.test(authError.message)) redirect("/login");
       logError("Auth error in layout", authError.message);
       redirect("/login?error=auth_error");
     }
@@ -73,6 +77,10 @@ export default async function AppLayout({
       // Continue with empty defaults
     }
   } catch (error) {
+    // redirect() works by throwing; the redirects above must leave this block
+    // untouched, or every one of them would be logged as an error and then
+    // replaced by the generic layout_error target.
+    if (isRedirectError(error)) throw error;
     logError("Layout error", error);
     redirect("/login?error=layout_error");
   }
