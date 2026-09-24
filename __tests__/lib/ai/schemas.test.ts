@@ -17,6 +17,8 @@ import type { LanguageModelV2 } from "@ai-sdk/provider";
 import {
   curatedPickSchema,
   trendingInsightSchema,
+  chatRequestSchema,
+  chatMessageText,
 } from "@/lib/ai/schemas";
 
 describe("curatedPickSchema", () => {
@@ -206,5 +208,46 @@ describe("generateObject enforces the schemas at runtime", () => {
         prompt: "irrelevant",
       })
     ).rejects.toThrow();
+  });
+});
+
+describe("chatRequestSchema", () => {
+  const text = (role: string, t: string) => ({ role, parts: [{ type: "text", text: t }] });
+
+  it("accepts a useChat body with extra fields and tool parts", () => {
+    const result = chatRequestSchema.safeParse({
+      id: "chat-1",
+      trigger: "submit-message",
+      messages: [
+        { id: "m1", ...text("assistant", "Welcome!") },
+        {
+          id: "m2",
+          role: "assistant",
+          parts: [{ type: "tool-searchBooks", state: "output-available", output: { books: [] } }],
+        },
+        text("user", "cozy mysteries"),
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("allows a longer assistant reply than a user message", () => {
+    expect(chatRequestSchema.safeParse({ messages: [text("user", "x".repeat(2_001))] }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ messages: [text("assistant", "x".repeat(2_001))] }).success).toBe(true);
+    expect(chatRequestSchema.safeParse({ messages: [text("assistant", "x".repeat(8_001))] }).success).toBe(false);
+  });
+
+  it("rejects out-of-range coordinates", () => {
+    const messages = [text("user", "hi")];
+    expect(chatRequestSchema.safeParse({ messages, location: { lat: 0, lng: 181 } }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ messages, location: { lat: -90, lng: 180 } }).success).toBe(true);
+  });
+
+  it("joins only the text parts", () => {
+    expect(
+      chatMessageText({
+        parts: [{ type: "text", text: "a" }, { type: "tool-x" }, { type: "text", text: "b" }],
+      })
+    ).toBe("ab");
   });
 });

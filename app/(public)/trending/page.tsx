@@ -57,6 +57,8 @@ export default async function TrendingPage({ searchParams }: TrendingPageProps) 
 
         {/* Trending Grid with Filters */}
         <TrendingGrid
+          // Filters are seeded once; remount on back/forward to new params
+          key={`${period}|${genre ?? ""}`}
           initialBooks={trendingBooks}
           initialPeriod={period}
           initialGenre={genre}

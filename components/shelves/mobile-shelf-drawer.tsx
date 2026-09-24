@@ -11,9 +11,11 @@ import type { UserShelfWithCount } from "@/types/database";
 
 interface MobileShelfDrawerProps {
   activeShelfId?: string;
+  /** From the server, since shelves only load once the drawer opens. */
+  activeShelfName?: string | null;
 }
 
-export function MobileShelfDrawer({ activeShelfId }: MobileShelfDrawerProps) {
+export function MobileShelfDrawer({ activeShelfId, activeShelfName }: MobileShelfDrawerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [shelves, setShelves] = useState<UserShelfWithCount[]>([]);
@@ -51,8 +53,6 @@ export function MobileShelfDrawer({ activeShelfId }: MobileShelfDrawerProps) {
     setIsOpen(false);
   };
 
-  const activeShelf = shelves.find((s) => s.id === activeShelfId);
-
   return (
     <>
       {/* Trigger Button */}
@@ -63,7 +63,7 @@ export function MobileShelfDrawer({ activeShelfId }: MobileShelfDrawerProps) {
         className="gap-2"
       >
         <Folder className="h-4 w-4" />
-        {activeShelf ? activeShelf.name : "Shelves"}
+        {activeShelfName ?? "Shelves"}
         <ChevronDown className="h-3 w-3" />
       </Button>
 

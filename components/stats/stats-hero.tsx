@@ -38,7 +38,7 @@ export default function StatsHero({ stats }: StatsHeroProps) {
           <ShareDropdown
             url="/"
             title={`My ${currentYear} Reading Stats`}
-            text={`I've read ${stats.booksThisYear} books and ${stats.pagesThisYear.toLocaleString()} pages in ${currentYear}! Track your reading on OhMyReads.`}
+            text={`I've read ${stats.booksThisYear} books and ${stats.pagesThisYear.toLocaleString("en-US")} pages in ${currentYear}! Track your reading on OhMyReads.`}
             variant="outline"
             size="sm"
           />
@@ -187,6 +187,6 @@ function formatNumber(num: number): string {
   if (num >= 10000) {
     return `${(num / 1000).toFixed(1)}k`;
   }
-  return num.toLocaleString();
+  return num.toLocaleString("en-US");
 }
 

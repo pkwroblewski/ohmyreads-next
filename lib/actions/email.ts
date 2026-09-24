@@ -1,9 +1,9 @@
 // NOT a "use server" module. This was previously a server action, which exposed
 // it as an unauthenticated POST endpoint: any anonymous caller could send mail
-// to an arbitrary recipient from our verified Resend domain. It is only ever
-// invoked from trusted server-side contexts (the OAuth callback, the Supabase
-// signup webhook, and ensureUserProfile), so it is now a plain server module —
-// reachable by our own code, not by the network.
+// to an arbitrary recipient from our verified Resend domain. Its only caller is
+// the Supabase webhook on public.profiles INSERT (every sign-up path creates
+// exactly one profile row), so it is now a plain server module — reachable by
+// our own code, not by the network.
 import { getResendClient, FROM_EMAIL } from "@/lib/email/resend";
 import {
   getWelcomeEmailSubject,
@@ -15,12 +15,15 @@ import { sendWelcomeEmailSchema } from "@/lib/validation/email";
 import { logger, reportError } from "@/lib/utils/log";
 import type { ActionResult } from "@/types/app";
 interface SendWelcomeEmailParams {
+  /** Keys Resend's idempotency check, so a retried webhook sends once. */
+  userId: string;
   email: string;
   username: string;
   displayName?: string;
 }
 
 export async function sendWelcomeEmail({
+  userId,
   email,
   username,
   displayName,
@@ -71,7 +74,7 @@ export async function sendWelcomeEmail({
         username: validated.username,
         displayName: validated.displayName,
       }),
-    });
+    }, { idempotencyKey: `welcome/${userId}` });
 
     if (error) {
       return { success: false, error: reportError("Failed to send welcome email", error) };

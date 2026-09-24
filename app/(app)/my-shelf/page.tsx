@@ -98,7 +98,7 @@ export default async function MyShelfPage({
           </div>
           {/* Mobile Custom Shelves Button */}
           <div className="lg:hidden">
-            <MobileShelfDrawer activeShelfId={shelfFilter} />
+            <MobileShelfDrawer activeShelfId={shelfFilter} activeShelfName={shelfName} />
           </div>
         </div>
 

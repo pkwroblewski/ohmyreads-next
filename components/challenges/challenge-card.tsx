@@ -118,6 +118,9 @@ export default function ChallengeCard({ challenge }: ChallengeCardProps) {
     return new Date(date).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
+      // DATE strings parse as UTC midnight; format in UTC so the day
+      // doesn't shift west of UTC or differ between server and browser
+      timeZone: "UTC",
     });
   };
 

@@ -29,7 +29,6 @@ export function BookForm({ book, genres = [] }: BookFormProps) {
   const [author, setAuthor] = useState(book?.author || "");
   const [description, setDescription] = useState(book?.description || "");
   const [isbn, setIsbn] = useState(book?.isbn || "");
-  const [isbn13, setIsbn13] = useState("");
   const [coverUrl, setCoverUrl] = useState(book?.cover_url || "");
   const [pageCount, setPageCount] = useState<string>(book?.page_count?.toString() || "");
   const [publishedDate, setPublishedDate] = useState(book?.published_date || "");
@@ -53,15 +52,16 @@ export function BookForm({ book, genres = [] }: BookFormProps) {
     setLoading(true);
     setError(null);
 
+    // Send blanks as "" / null (not undefined) so clearing a field on edit
+    // reaches the action, which stores them as null.
     const input: AdminBookInput = {
       title,
       author,
-      description: description || undefined,
-      isbn: isbn || undefined,
-      isbn13: isbn13 || undefined,
-      cover_url: coverUrl || undefined,
-      page_count: pageCount ? parseInt(pageCount, 10) : undefined,
-      published_date: publishedDate || undefined,
+      description,
+      isbn,
+      cover_url: coverUrl,
+      page_count: pageCount ? parseInt(pageCount, 10) : null,
+      published_date: publishedDate,
       genres: selectedGenres,
     };
 
@@ -136,24 +136,13 @@ export function BookForm({ book, genres = [] }: BookFormProps) {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Publishing Details</h2>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="isbn">ISBN-10</Label>
+            <Label htmlFor="isbn">ISBN</Label>
             <Input
               id="isbn"
               value={isbn}
               onChange={(e) => setIsbn(e.target.value)}
-              placeholder="0123456789"
-              maxLength={10}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="isbn13">ISBN-13</Label>
-            <Input
-              id="isbn13"
-              value={isbn13}
-              onChange={(e) => setIsbn13(e.target.value)}
               placeholder="978-0123456789"
               maxLength={17}
             />

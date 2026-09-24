@@ -92,7 +92,9 @@ export const searchBooksTool = tool({
     "Search for books in the OhMyReads catalog. Use this to find books matching user criteria like genres, vibes, or text search.",
   inputSchema: searchBooksSchema,
   execute: async (params) => {
-    const { query, genres, vibes, minRating, limit = 10 } = params;
+    const { query, genres, vibes, minRating } = params;
+    // The model picks `limit`; keep it to a sane whole number of rows.
+    const limit = Math.min(Math.max(Math.trunc(params.limit ?? 10) || 10, 1), 20);
     const supabase = createPublicClient();
 
     let bookQuery = supabase
@@ -184,6 +186,7 @@ export const searchExternalBooksTool = tool({
 
       const response = await fetch(googleUrl, {
         headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(8000),
       });
 
       if (!response.ok) {

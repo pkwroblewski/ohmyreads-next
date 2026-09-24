@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import { CACHE_TAGS } from "@/lib/cache/tags";
+import { UncachedResult, serveUncachedResult } from "@/lib/cache/uncached-result";
 import { curatedPickSchema } from "@/lib/ai/schemas";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { isForeignOrigin } from "@/lib/utils/csrf";
@@ -121,7 +122,8 @@ async function generateCuratedPicks(userId: string): Promise<CuratedPick[]> {
 
   // One request per book, in parallel: they share no state, and run serially
   // the reader waited on four sequential round-trips for a single grid.
-  return Promise.all(
+  let aiFailed = false;
+  const picks = await Promise.all(
     recommendedBooks.map(async (book) => {
       try {
         const { object } = await generateObject({
@@ -146,10 +148,15 @@ Description: ${book.description?.slice(0, 200) || "No description"}`,
         // Covers both a provider failure and NoObjectGeneratedError (model
         // returned something the schema rejects).
         logError("AI generation failed for book", aiError, { bookId: book.id });
+        aiFailed = true;
         return fallbackPick(book);
       }
     })
   );
+
+  // Don't pin fallback blurbs for the hour because Gemini blipped once.
+  if (aiFailed) throw new UncachedResult(picks);
+  return picks;
 }
 
 /**
@@ -158,10 +165,11 @@ Description: ${book.description?.slice(0, 200) || "No description"}`,
  * instance, so that `Map` was near-always empty: it never returned a hit worth
  * having, while growing without bound on any instance that did stay warm.
  */
-const getCachedCuratedPicks = unstable_cache(
-  generateCuratedPicks,
-  ["curated-picks"],
-  { revalidate: 3600, tags: [CACHE_TAGS.books] }
+const getCachedCuratedPicks = serveUncachedResult(
+  unstable_cache(generateCuratedPicks, ["curated-picks"], {
+    revalidate: 3600,
+    tags: [CACHE_TAGS.books],
+  })
 );
 
 export async function GET(request: NextRequest) {

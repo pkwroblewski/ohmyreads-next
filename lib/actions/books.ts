@@ -25,21 +25,19 @@ import { logError, reportError } from "@/lib/utils/log";
 import { insertBookWithUniqueSlug } from "@/lib/import/insert-book";
 import { processBook } from "@/lib/covers/pipeline";
 import { normalizeGenres } from "@/lib/data/genres";
+import {
+  getGoogleBookById,
+  getOpenLibraryWorkById,
+  normalizeDate,
+} from "@/lib/utils/external-book-search";
 import type { ActionResult } from "@/types/app";
 type UserBookInsert = Database["public"]["Tables"]["user_books"]["Insert"];
 
 // Types for external book data
+/** Only the id travels: the action re-fetches the record server-side. */
 export interface ExternalBookData {
-  title: string;
-  author: string;
-  description?: string;
-  coverUrl?: string | null;
-  isbn?: string;
-  googleBooksId?: string;
-  openLibraryId?: string;
-  genres?: string[];
-  pageCount?: number;
-  publishedDate?: string;
+  googleBooksId?: string | null;
+  openLibraryId?: string | null;
 }
 
 type ShelfStatus = "want_to_read" | "reading" | "read";
@@ -289,7 +287,9 @@ export async function removeFromShelf(bookId: string): Promise<ActionResult> {
 
 /**
  * Import an external book to catalog and add to user's shelf
- * Used when user wants to add a book from Google Books/Open Library that's not in catalog
+ * Used when user wants to add a book from Google Books/Open Library that's not in catalog.
+ * The catalog row is built from Google / Open Library's own response for the
+ * given id, never from client-supplied fields.
  */
 export async function importAndAddToShelf(
   externalBook: ExternalBookData,
@@ -319,39 +319,49 @@ export async function importAndAddToShelf(
         error: validationResult.error.issues[0]?.message || "Invalid input",
       };
     }
-    externalBook = validationResult.data.externalBook;
+    const { googleBooksId, openLibraryId } = validationResult.data.externalBook;
     status = validationResult.data.status;
 
-    // Check if book already exists by ISBN, Google Books ID, or Open Library ID
+    // Check if book already exists by Google Books ID or Open Library ID
     let existingBook = null;
 
-    if (externalBook.isbn) {
+    if (googleBooksId) {
       const { data } = await supabase
         .from("books")
         .select("id, slug")
-        .eq("isbn", externalBook.isbn)
+        .eq("google_books_id", googleBooksId)
         .limit(1)
-        .single();
+        .maybeSingle();
       existingBook = data;
     }
 
-    if (!existingBook && externalBook.googleBooksId) {
+    if (!existingBook && openLibraryId) {
       const { data } = await supabase
         .from("books")
         .select("id, slug")
-        .eq("google_books_id", externalBook.googleBooksId)
+        .eq("open_library_id", openLibraryId)
         .limit(1)
-        .single();
+        .maybeSingle();
       existingBook = data;
     }
 
-    if (!existingBook && externalBook.openLibraryId) {
+    // Not in the catalog under that id: load the record from its source.
+    const record = existingBook
+      ? null
+      : googleBooksId
+        ? await getGoogleBookById(googleBooksId)
+        : openLibraryId
+          ? await getOpenLibraryWorkById(openLibraryId)
+          : null;
+
+    // The same edition may already be in the catalog under another source
+    if (!existingBook && record?.isbn) {
       const { data } = await supabase
         .from("books")
         .select("id, slug")
-        .eq("open_library_id", externalBook.openLibraryId)
+        .eq("isbn", record.isbn)
         .limit(1)
-        .single();
+        .maybeSingle();
       existingBook = data;
     }
 
@@ -364,6 +374,11 @@ export async function importAndAddToShelf(
       // Book already exists, use it
       bookId = existingBook.id;
       bookSlug = existingBook.slug;
+    } else if (!record) {
+      return {
+        success: false,
+        error: "Couldn't load this book's details. Please try again later.",
+      };
     } else {
       // Catalog inserts are rarer and heavier than shelf moves: 10 per hour
       const { allowed: catalogAllowed } = await checkRateLimit(
@@ -382,22 +397,23 @@ export async function importAndAddToShelf(
       // The books INSERT policy is admin-only, so the write goes through the
       // service-role client — after the auth, rate-limit and Zod checks above,
       // and only for this insert; every other query stays on the session client.
-      const baseSlug = generateSlug(externalBook.title);
+      const baseSlug = generateSlug(record.title);
       const admin = createAdminClient();
 
       const result = await insertBookWithUniqueSlug(
         admin,
         {
-          title: externalBook.title,
-          author: externalBook.author,
-          description: externalBook.description || null,
-          cover_url: externalBook.coverUrl || null,
-          isbn: externalBook.isbn || null,
-          google_books_id: externalBook.googleBooksId || null,
-          open_library_id: externalBook.openLibraryId || null,
-          genres: normalizeGenres(externalBook.genres || []),
-          page_count: externalBook.pageCount || null,
-          published_date: externalBook.publishedDate || null,
+          title: record.title.slice(0, 500),
+          author: record.author.slice(0, 200),
+          description: record.description,
+          cover_url: record.coverUrl,
+          isbn: record.isbn,
+          google_books_id: record.googleBooksId,
+          open_library_id: record.openLibraryId,
+          open_library_cover_id: record.openLibraryCoverId,
+          genres: normalizeGenres(record.genres),
+          page_count: record.pageCount,
+          published_date: normalizeDate(record.publishedDate),
           // User-submitted books start with no ratings, external or local
           average_rating: null,
           ratings_count: 0,
@@ -420,10 +436,10 @@ export async function importAndAddToShelf(
       // no candidate passes. It must never delay or fail the action.
       const newRow = {
         id: bookId,
-        cover_url: externalBook.coverUrl || null,
-        isbn: externalBook.isbn || null,
-        google_books_id: externalBook.googleBooksId || null,
-        open_library_cover_id: null,
+        cover_url: record.coverUrl,
+        isbn: record.isbn,
+        google_books_id: record.googleBooksId,
+        open_library_cover_id: record.openLibraryCoverId,
       };
       after(() =>
         processBook(admin, newRow).catch((error) =>

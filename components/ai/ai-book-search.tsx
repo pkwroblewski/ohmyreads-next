@@ -368,16 +368,8 @@ function BookResultCard({ book }: { book: BookResult }) {
   const handleAddExternalToShelf = () => {
     startTransition(async () => {
       const externalBookData: ExternalBookData = {
-        title: book.title,
-        author: book.author,
-        description: book.description,
-        coverUrl: book.coverUrl,
-        isbn: book.isbn,
         googleBooksId: book.source === "google_books" ? book.externalId : undefined,
         openLibraryId: book.source === "openlibrary" ? book.externalId : undefined,
-        genres: book.genres,
-        pageCount: book.pageCount,
-        publishedDate: book.publishedDate,
       };
 
       const result = await importAndAddToShelf(externalBookData, "want_to_read");

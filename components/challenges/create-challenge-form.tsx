@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { createChallenge } from "@/lib/actions/challenges";
 import type { ChallengeType } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { toLocalDateString } from "@/lib/utils/dates";
 
 const GENRES = [
   "Fiction",
@@ -84,15 +85,15 @@ export default function CreateChallengeForm({
       const start = new Date(today.getFullYear(), today.getMonth(), 1);
       const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       return {
-        start: start.toISOString().split("T")[0],
-        end: end.toISOString().split("T")[0],
+        start: toLocalDateString(start),
+        end: toLocalDateString(end),
       };
     } else if (duration === "year") {
       const start = new Date(today.getFullYear(), 0, 1);
       const end = new Date(today.getFullYear(), 11, 31);
       return {
-        start: start.toISOString().split("T")[0],
-        end: end.toISOString().split("T")[0],
+        start: toLocalDateString(start),
+        end: toLocalDateString(end),
       };
     }
     return { start: startDate, end: endDate };

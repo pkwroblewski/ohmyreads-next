@@ -28,6 +28,9 @@ export function SetCurrentBookDialog({
 }: SetCurrentBookDialogProps) {
   const router = useRouter();
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Bumped per search (and on clear); a response only applies if it is
+  // still the latest, so a slow earlier query can't overwrite a newer one
+  const requestIdRef = useRef(0);
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -37,6 +40,7 @@ export function SetCurrentBookDialog({
   const [isPending, startTransition] = useTransition();
 
   const performSearch = useCallback(async (searchQuery: string) => {
+    const requestId = ++requestIdRef.current;
     if (searchQuery.length < 2) {
       setSuggestions([]);
       setIsLoading(false);
@@ -48,8 +52,10 @@ export function SetCurrentBookDialog({
       const response = await fetch(
         `/api/books/autocomplete?q=${encodeURIComponent(searchQuery)}`
       );
+      if (requestId !== requestIdRef.current) return;
       if (response.ok) {
         const data: AutocompleteResponse = await response.json();
+        if (requestId !== requestIdRef.current) return;
         setSuggestions(data.books || []);
         setHasSearched(true);
       } else {
@@ -59,7 +65,7 @@ export function SetCurrentBookDialog({
       console.error("Search error:", error);
       toast.error("Search failed — try again");
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) setIsLoading(false);
     }
   }, []);
 
@@ -76,6 +82,7 @@ export function SetCurrentBookDialog({
         performSearch(value.trim());
       }, 300);
     } else {
+      requestIdRef.current++;
       setSuggestions([]);
       setHasSearched(false);
       setIsLoading(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ChatPanel } from "./chat-panel";
 import { ChatTrigger } from "./chat-trigger";
 import { ChatPanelContext } from "./chat-context";
@@ -25,6 +25,17 @@ export function ChatWrapper({
   const [conversations, setConversations] = useState<ConversationPreview[]>(initialConversations);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
   const [openWithFriendId, setOpenWithFriendId] = useState<string | null>(null);
+  // The chat on screen marks incoming messages read, so they don't count.
+  const activeFriendIdRef = useRef<string | null>(null);
+
+  const handleActiveFriendChange = useCallback((friendId: string | null) => {
+    activeFriendIdRef.current = friendId;
+    if (friendId) {
+      setConversations((prev) =>
+        prev.map((c) => (c.friend_id === friendId ? { ...c, unread_count: 0 } : c))
+      );
+    }
+  }, []);
 
   // Handle new messages for badge update
   const handleNewMessage = useCallback((message: DirectMessage) => {
@@ -47,7 +58,7 @@ export function ChatWrapper({
           ...existing,
           last_message: message.content,
           last_message_at: message.created_at,
-          unread_count: message.receiver_id === userId && !isOpen
+          unread_count: message.receiver_id === userId && friendId !== activeFriendIdRef.current
             ? existing.unread_count + 1
             : existing.unread_count,
         }, ...updated];
@@ -115,6 +126,7 @@ export function ChatWrapper({
         userId={userId}
         conversations={conversations}
         initialFriendId={openWithFriendId}
+        onActiveFriendChange={handleActiveFriendChange}
       />
     </ChatPanelContext.Provider>
   );

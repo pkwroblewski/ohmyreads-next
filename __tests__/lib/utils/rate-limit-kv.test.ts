@@ -23,6 +23,7 @@ const expire = vi.fn();
 const loggerError = vi.fn();
 
 vi.mock("@/lib/utils/log", () => ({
+  logError: (...args: unknown[]) => loggerError(...args),
   logger: {
     error: (...args: unknown[]) => loggerError(...args),
     warn: vi.fn(),

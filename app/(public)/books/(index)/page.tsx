@@ -106,6 +106,9 @@ export default async function BrowseBooksPage({ searchParams }: Props) {
 
       {/* Client-side browser component */}
       <BookBrowser
+        // The browser seeds its state from these props once; remount when a
+        // navigation (not its own replaceState) changes the filters
+        key={`${q ?? ""}|${genre ?? ""}|${sort ?? ""}`}
         initialBooks={initial.books}
         initialTotal={initial.total}
         initialQuery={q}

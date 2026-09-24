@@ -81,6 +81,23 @@ describe("parseGoodreadsCSV", () => {
     expect(rows[0]).toMatchObject({ title: "Real", myRating: 0, averageRating: 0, numberOfPages: 0 });
   });
 
+  it("keeps a quoted multi-line review inside one row", () => {
+    const rows = parseGoodreadsCSV(
+      [
+        `${HEADER},My Review`,
+        `1,Dune,Frank Herbert,,,5,0,0,,2024/01/01,,read,"Loved it.\r\n\r\nSecond paragraph, with a comma."`,
+        `2,Emma,Jane Austen,,,0,0,0,,2024/01/02,,to-read,`,
+      ].join("\r\n")
+    );
+    expect(rows.map((r) => r.title)).toEqual(["Dune", "Emma"]);
+    expect(rows[0].exclusiveShelf).toBe("read");
+  });
+
+  it("strips a byte order mark before the first header", () => {
+    const rows = parseGoodreadsCSV(`﻿${HEADER}\n7,Dune,Frank Herbert,,,0,0,0,,2024/01/01,,read`);
+    expect(rows[0]).toMatchObject({ bookId: "7", title: "Dune" });
+  });
+
   it("throws on a header-only file", () => {
     expect(() => parseGoodreadsCSV(HEADER)).toThrow(/empty|no data/i);
   });

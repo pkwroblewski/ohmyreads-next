@@ -169,8 +169,8 @@ describe("fetchAndScore", () => {
   it("rejects the Google placeholder by hash even though it is a valid image", async () => {
     const placeholder = await image(400, 600);
     const md5 = createHash("md5").update(placeholder).digest("hex");
-    const result = await fetchAndScore("https://x/placeholder", {
-      fetchImpl: fakeFetch({ "https://x/placeholder": () => imageResponse(placeholder) }),
+    const result = await fetchAndScore("https://books.google.com/books/x/placeholder", {
+      fetchImpl: fakeFetch({ "https://books.google.com/books/x/placeholder": () => imageResponse(placeholder) }),
       placeholderHashes: new Set([md5]),
     });
     expect(result).toMatchObject({ ok: false, reason: "placeholder" });
@@ -178,8 +178,8 @@ describe("fetchAndScore", () => {
 
   it("rejects a flat, near-empty image as low-detail even at full size", async () => {
     const flat = await flatImage(575, 863);
-    const result = await fetchAndScore("https://x/flat", {
-      fetchImpl: fakeFetch({ "https://x/flat": () => imageResponse(flat) }),
+    const result = await fetchAndScore("https://books.google.com/books/x/flat", {
+      fetchImpl: fakeFetch({ "https://books.google.com/books/x/flat": () => imageResponse(flat) }),
     });
     expect(result).toMatchObject({ ok: false, reason: "low-detail", width: 575 });
     expect((result.bytes ?? 0) / (575 * 863)).toBeLessThan(0.05);
@@ -198,30 +198,30 @@ describe("fetchAndScore", () => {
     const original = await sharp(Buffer.from(svg)).jpeg().toBuffer();
     expect(original.byteLength / (2000 * 3000)).toBeLessThan(0.05);
 
-    const result = await fetchAndScore("https://x/original", {
-      fetchImpl: fakeFetch({ "https://x/original": () => imageResponse(original) }),
+    const result = await fetchAndScore("https://books.google.com/books/x/original", {
+      fetchImpl: fakeFetch({ "https://books.google.com/books/x/original": () => imageResponse(original) }),
     });
     expect(result).toMatchObject({ ok: true, width: 2000, height: 3000 });
 
     const flat = await flatImage(2000, 3000);
-    const rejected = await fetchAndScore("https://x/flat-large", {
-      fetchImpl: fakeFetch({ "https://x/flat-large": () => imageResponse(flat) }),
+    const rejected = await fetchAndScore("https://books.google.com/books/x/flat-large", {
+      fetchImpl: fakeFetch({ "https://books.google.com/books/x/flat-large": () => imageResponse(flat) }),
     });
     expect(rejected).toMatchObject({ ok: false, reason: "low-detail", width: 2000 });
   });
 
   it("accepts a narrow Open Library scan that is 500 px tall", async () => {
     const narrow = await image(295, 500);
-    const result = await fetchAndScore("https://x/narrow", {
-      fetchImpl: fakeFetch({ "https://x/narrow": () => imageResponse(narrow) }),
+    const result = await fetchAndScore("https://books.google.com/books/x/narrow", {
+      fetchImpl: fakeFetch({ "https://books.google.com/books/x/narrow": () => imageResponse(narrow) }),
     });
     expect(result).toMatchObject({ ok: true, width: 295, height: 500 });
   });
 
   it("rejects a 128 px image as too small", async () => {
     const tiny = await image(128, 170);
-    const result = await fetchAndScore("https://x/tiny", {
-      fetchImpl: fakeFetch({ "https://x/tiny": () => imageResponse(tiny) }),
+    const result = await fetchAndScore("https://books.google.com/books/x/tiny", {
+      fetchImpl: fakeFetch({ "https://books.google.com/books/x/tiny": () => imageResponse(tiny) }),
     });
     expect(result).toMatchObject({ ok: false, reason: "too-small", width: 128 });
   });
@@ -229,19 +229,19 @@ describe("fetchAndScore", () => {
   it("rejects landscape shapes, 404s and non-images", async () => {
     const wide = await image(800, 400);
     const fetchImpl = fakeFetch({
-      "https://x/wide": () => imageResponse(wide),
-      "https://x/html": () =>
+      "https://books.google.com/books/x/wide": () => imageResponse(wide),
+      "https://books.google.com/books/x/html": () =>
         new Response("<html/>", { status: 200, headers: { "content-type": "text/html" } }),
     });
-    expect(await fetchAndScore("https://x/wide", { fetchImpl })).toMatchObject({
+    expect(await fetchAndScore("https://books.google.com/books/x/wide", { fetchImpl })).toMatchObject({
       ok: false,
       reason: "bad-aspect",
     });
-    expect(await fetchAndScore("https://x/html", { fetchImpl })).toMatchObject({
+    expect(await fetchAndScore("https://books.google.com/books/x/html", { fetchImpl })).toMatchObject({
       ok: false,
       reason: "not-image",
     });
-    expect(await fetchAndScore("https://x/missing", { fetchImpl })).toMatchObject({
+    expect(await fetchAndScore("https://books.google.com/books/x/missing", { fetchImpl })).toMatchObject({
       ok: false,
       reason: "http-error",
     });
@@ -273,6 +273,45 @@ describe("fetchAndScore", () => {
       }
     );
     expect(result).toMatchObject({ ok: true, width: 500, height: 750, openLibraryCoverId: 8771 });
+  });
+
+  it.each([
+    "http://169.254.169.254/latest/meta-data/",
+    "https://169.254.169.254/latest/meta-data/",
+    "http://books.google.com/books/content?id=x",
+    "https://localhost/cover.jpg",
+    "https://evil.example/cover.jpg",
+  ])("never fetches a candidate off the image-host allow-list: %s", async (url) => {
+    const fetchImpl = fakeFetch({});
+    expect(await fetchAndScore(url, { fetchImpl })).toMatchObject({ ok: false, reason: "fetch-failed" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("follows a redirect to an allowed host and reports where the bytes came from", async () => {
+    const cover = await image(500, 750);
+    const archiveUrl = "https://ia800100.us.archive.org/view_archive.php?file=1.jpg";
+    const fetchImpl = fakeFetch({
+      "https://covers.openlibrary.org/b/id/1-L.jpg": () =>
+        new Response(null, { status: 302, headers: { location: archiveUrl } }),
+      [archiveUrl]: () => imageResponse(cover),
+    });
+
+    const result = await fetchAndScore("https://covers.openlibrary.org/b/id/1-L.jpg", { fetchImpl });
+
+    expect(result).toMatchObject({ ok: true, finalUrl: archiveUrl });
+    expect(vi.mocked(fetchImpl).mock.calls[0][1]).toMatchObject({ redirect: "manual" });
+  });
+
+  it("refuses a redirect to an internal address without fetching it", async () => {
+    const fetchImpl = fakeFetch({
+      "https://books.google.com/books/content?id=x": () =>
+        new Response(null, { status: 302, headers: { location: "http://169.254.169.254/" } }),
+    });
+
+    const result = await fetchAndScore("https://books.google.com/books/content?id=x", { fetchImpl });
+
+    expect(result).toMatchObject({ ok: false, reason: "fetch-failed" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -492,7 +531,7 @@ describe("processBook", () => {
 
     expect(result.status).toBe("no-candidate");
     if (result.status !== "no-candidate") return;
-    expect(result.candidates.map((c) => c.reason)).toEqual(["http-error", "too-small"]);
+    expect(result.candidates.map((c) => c.reason)).toEqual(["fetch-failed", "too-small"]); // example.com is off the allow-list
     expect(upload).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
   });

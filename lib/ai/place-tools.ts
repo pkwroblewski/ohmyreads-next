@@ -296,6 +296,20 @@ export const placeSearchTools = {
   getDirections: getDirectionsToPlaceTool,
 };
 
+/**
+ * The places every searchNearbyPlaces call returned, for the map pins.
+ * ai@5 puts a tool's return value on `output` (v4 called it `result`, which
+ * this read before — so the map never got a pin).
+ */
+export function extractPlaces(
+  steps: { toolResults: { toolName: string; output: unknown }[] }[]
+): unknown[] {
+  return steps
+    .flatMap((step) => step.toolResults)
+    .filter((tr) => tr.toolName === "searchNearbyPlaces")
+    .flatMap((tr) => (tr.output as { places?: unknown[] } | undefined)?.places ?? []);
+}
+
 // Helper functions
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;

@@ -5,6 +5,7 @@
 import { createClient, getUser } from "@/lib/supabase/server";
 import type { ChallengeWithProgress } from "@/types/database";
 import { logError, reportError } from "@/lib/utils/log";
+import { challengeWindow } from "@/lib/utils/dates";
 
 export async function getChallenges(): Promise<{
   data: ChallengeWithProgress[] | null;
@@ -58,27 +59,15 @@ export async function getChallenges(): Promise<{
     // Calculate progress for each challenge
     const challengesWithProgress: ChallengeWithProgress[] = challenges.map(
       (challenge) => {
-        const startDate = new Date(challenge.start_date);
-        const endDate = new Date(challenge.end_date);
-        const daysRemaining = Math.max(
-          0,
-          Math.ceil(
-            (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-          )
-        );
-        const totalDays = Math.ceil(
-          (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        const daysElapsed = Math.max(0, totalDays - daysRemaining);
+        const { contains, totalDays, daysRemaining, daysElapsed, isOver } =
+          challengeWindow(challenge.start_date, challenge.end_date, today);
 
         // Calculate current value based on challenge type
         let currentValue = 0;
 
         if (userBooks) {
           const booksInPeriod = userBooks.filter((ub) => {
-            if (!ub.finished_at) return false;
-            const finishedDate = new Date(ub.finished_at);
-            return finishedDate >= startDate && finishedDate <= endDate;
+            return ub.finished_at ? contains(ub.finished_at) : false;
           });
 
           switch (challenge.challenge_type) {
@@ -122,7 +111,7 @@ export async function getChallenges(): Promise<{
           currentValue >= challenge.target_value
         ) {
           status = "completed";
-        } else if (status === "active" && today > endDate) {
+        } else if (status === "active" && isOver) {
           status = "failed";
         }
 

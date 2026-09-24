@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/nextjs";
+
 /**
  * Centralized logging utility
  * Provides structured logging with different levels
@@ -203,7 +205,15 @@ export function logError(
   context?: LogContext
 ): void {
   const info = describeError(error);
-  logger.error(message, context ? { ...info, ...context } : info);
+  const extra = context ? { ...info, ...context } : info;
+  logger.error(message, extra);
+
+  // Callers catch and return, so nothing reaches Sentry unless sent here.
+  // Supabase errors are plain objects: wrap them so the event has a title.
+  Sentry.captureException(
+    error instanceof Error ? error : new Error(message),
+    { extra: { message, ...extra } }
+  );
 }
 
 /**

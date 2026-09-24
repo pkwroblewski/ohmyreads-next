@@ -120,7 +120,7 @@ export async function markMessagesAsRead(friendId: string): Promise<ActionResult
     }
 
     // Recalculate unread count
-    const { count } = await supabase
+    const { count, error: countError } = await supabase
       .from("direct_messages")
       .select("id", { count: "exact", head: true })
       .eq("receiver_id", user.id)
@@ -128,10 +128,15 @@ export async function markMessagesAsRead(friendId: string): Promise<ActionResult
 
     // profiles.unread_messages_count is trigger-owned: migration 064 reverts
     // direct API writes to it, so this reconcile goes through the service role.
-    await createAdminClient()
-      .from("profiles")
-      .update({ unread_messages_count: count || 0 })
-      .eq("id", user.id);
+    // A failed count must not zero the badge; the messages are read either way.
+    if (countError || count === null) {
+      logError("Error recounting unread messages", countError);
+    } else {
+      await createAdminClient()
+        .from("profiles")
+        .update({ unread_messages_count: count })
+        .eq("id", user.id);
+    }
 
     revalidatePath("/");
 

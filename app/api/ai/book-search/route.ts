@@ -1,4 +1,4 @@
-import { streamText, createUIMessageStreamResponse, UIMessage, stepCountIs } from "ai";
+import { streamText, createUIMessageStreamResponse, stepCountIs } from "ai";
 import { google } from "@ai-sdk/google";
 import { GEMINI_MODEL, GEMINI_CALL_OPTIONS } from "@/lib/ai/models";
 import { openai } from "@ai-sdk/openai";
@@ -6,6 +6,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { NextRequest } from "next/server";
 import { BOOK_SEARCH_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { bookSearchTools } from "@/lib/ai/tools";
+import { chatRequestSchema, chatMessageText, CHAT_HISTORY_LIMIT } from "@/lib/ai/schemas";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { getUser } from "@/lib/supabase/server";
 import { validateOrigin } from "@/lib/utils/csrf";
@@ -61,11 +62,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages } = (await request.json()) as { messages: UIMessage[] };
+    const parsed = chatRequestSchema.safeParse(await request.json().catch(() => null));
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!parsed.success) {
       return new Response(
-        JSON.stringify({ error: "Messages array is required" }),
+        JSON.stringify({ error: "Invalid messages" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -73,14 +74,9 @@ export async function POST(request: NextRequest) {
     const model = getModel();
 
     // Convert UI messages to model messages format
-    const modelMessages = messages.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content:
-        typeof m.parts === "string"
-          ? m.parts
-          : m.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") ||
-            "",
-    }));
+    const modelMessages = parsed.data.messages
+      .slice(-CHAT_HISTORY_LIMIT)
+      .map((m) => ({ role: m.role, content: chatMessageText(m) }));
 
     const result = streamText({
       model,
@@ -91,6 +87,8 @@ export async function POST(request: NextRequest) {
       stopWhen: stepCountIs(3), // Allow tool call + follow-up response with results
       maxOutputTokens: MAX_REPLY_TOKENS,
       ...GEMINI_CALL_OPTIONS,
+      // Stop generating (and billing) when the reader closes the dialog.
+      abortSignal: request.signal,
     });
 
     // Return as UI message stream for the DefaultChatTransport

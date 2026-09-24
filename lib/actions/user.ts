@@ -9,7 +9,6 @@ import {
   type UpdateProfileInput,
   type SocialLinkInput,
 } from "@/lib/validation/profile";
-import { sendWelcomeEmail } from "@/lib/actions/email";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import type { Database, Profile } from "@/types/database";
 import { logError, reportError } from "@/lib/utils/log";
@@ -282,16 +281,7 @@ export async function ensureUserProfile(): Promise<ActionResult<{ profile: Profi
       .rpc("get_my_profile")
       .single();
 
-    // Send welcome email (non-blocking)
-    if (user.email) {
-      sendWelcomeEmail({
-        email: user.email,
-        username: username,
-        displayName: displayName || undefined,
-      }).catch((error) =>
-        logError("Failed to send welcome email", error, { userId: user.id })
-      );
-    }
+    // The welcome email is sent by the profiles INSERT webhook.
 
     return { success: true, profile: newProfile as Profile };
   } catch (error) {

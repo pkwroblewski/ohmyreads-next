@@ -6,6 +6,10 @@
  * the service-role client, and only after auth, rate limiting and validation.
  * Everything else — the duplicate lookups and the shelf upsert — must stay on
  * the session client so RLS still applies to the user's own rows.
+ *
+ * The client sends only an external id; the row is built from the record the
+ * server fetches for that id (full-audit Task 4), so nothing the browser
+ * fabricates reaches the public catalog.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -36,6 +40,31 @@ vi.mock("@/lib/utils/log", () => ({
   reportError: (msg: string) => msg,
 }));
 
+// The by-id lookups hit Google / Open Library; the id patterns and
+// normalizeDate stay real.
+const GOOGLE_RECORD = {
+  source: "google" as const,
+  externalId: "gbVolume1",
+  title: "The New Book",
+  author: "Someone New",
+  isbn: "9780000000001",
+  description: "A real description.",
+  coverUrl: "https://books.google.com/books/content?id=gbVolume1&zoom=3",
+  publishedDate: "2004",
+  pageCount: null,
+  genres: ["Fiction"],
+  googleBooksId: "gbVolume1",
+  openLibraryId: null,
+  openLibraryCoverId: null,
+};
+const getGoogleBookById = vi.fn<(id: string) => Promise<unknown>>();
+const getOpenLibraryWorkById = vi.fn<(id: string) => Promise<unknown>>();
+vi.mock("@/lib/utils/external-book-search", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/utils/external-book-search")>()),
+  getGoogleBookById: (id: string) => getGoogleBookById(id),
+  getOpenLibraryWorkById: (id: string) => getOpenLibraryWorkById(id),
+}));
+
 const checkRateLimit = vi.fn();
 vi.mock("@/lib/utils/rate-limit", () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
@@ -54,7 +83,7 @@ function sessionFrom(table: string) {
       select: () => lookup,
       eq: () => lookup,
       limit: () => lookup,
-      single: async () => ({ data: existingBook, error: null }),
+      maybeSingle: async () => ({ data: existingBook, error: null }),
       insert: sessionBooksInsert,
     };
     return lookup;
@@ -99,12 +128,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 const { importAndAddToShelf } = await import("@/lib/actions/books");
 
 const SLUG_COLLISION = { code: "23505", message: 'duplicate key value violates unique constraint "books_slug_key"' };
-const NEW_BOOK = {
-  title: "The New Book",
-  author: "Someone New",
-  isbn: "9780000000001",
-  coverUrl: "https://covers.example/1.jpg",
-};
+const NEW_BOOK = { googleBooksId: "gbVolume1" };
 
 describe("importAndAddToShelf", () => {
   beforeEach(() => {
@@ -124,6 +148,9 @@ describe("importAndAddToShelf", () => {
     processBook.mockClear();
     processBook.mockResolvedValue({ status: "stored" });
     logError.mockClear();
+    getGoogleBookById.mockReset();
+    getGoogleBookById.mockResolvedValue(GOOGLE_RECORD);
+    getOpenLibraryWorkById.mockReset();
   });
 
   it("schedules the cover pipeline for a new row after the response, on the admin client", async () => {
@@ -141,9 +168,9 @@ describe("importAndAddToShelf", () => {
     expect(client).toMatchObject({ from: adminFrom });
     expect(row).toEqual({
       id: "book-1",
-      cover_url: "https://covers.example/1.jpg",
+      cover_url: "https://books.google.com/books/content?id=gbVolume1&zoom=3",
       isbn: "9780000000001",
-      google_books_id: null,
+      google_books_id: "gbVolume1",
       open_library_cover_id: null,
     });
   });
@@ -278,5 +305,83 @@ describe("importAndAddToShelf", () => {
     expect(shelfUpsert).not.toHaveBeenCalled();
     expect(invalidateTags).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("builds the row from the fetched record, ignoring fabricated client fields", async () => {
+    const forged = {
+      googleBooksId: "gbVolume1",
+      title: "Buy cheap pills",
+      coverUrl: "http://169.254.169.254/latest/meta-data/",
+      description: "<script>spam</script>",
+    } as unknown as Parameters<typeof importAndAddToShelf>[0];
+
+    const result = await importAndAddToShelf(forged, "want_to_read");
+
+    expect(result.success).toBe(true);
+    expect(getGoogleBookById).toHaveBeenCalledWith("gbVolume1");
+    expect(adminInsertedRows[0]).toMatchObject({
+      title: "The New Book",
+      author: "Someone New",
+      description: "A real description.",
+      cover_url: "https://books.google.com/books/content?id=gbVolume1&zoom=3",
+      google_books_id: "gbVolume1",
+    });
+    await afterCallbacks[0]();
+    expect(processBook.mock.calls[0][1]).toMatchObject({
+      cover_url: "https://books.google.com/books/content?id=gbVolume1&zoom=3",
+    });
+  });
+
+  it("accepts a record with no page count and a year-only date", async () => {
+    const result = await importAndAddToShelf(NEW_BOOK, "want_to_read");
+
+    expect(result.success).toBe(true);
+    expect(adminInsertedRows[0]).toMatchObject({ page_count: null, published_date: "2004-01-01" });
+  });
+
+  it("accepts the null fields the search UI sends for the other source", async () => {
+    const result = await importAndAddToShelf({ googleBooksId: "gbVolume1", openLibraryId: null }, "want_to_read");
+
+    expect(result.success).toBe(true);
+  });
+
+  it("looks up an Open Library work by id", async () => {
+    getOpenLibraryWorkById.mockResolvedValue({
+      ...GOOGLE_RECORD,
+      source: "openlibrary",
+      googleBooksId: null,
+      openLibraryId: "OL468431W",
+      openLibraryCoverId: 42,
+    });
+
+    const result = await importAndAddToShelf({ openLibraryId: "OL468431W" }, "want_to_read");
+
+    expect(result.success).toBe(true);
+    expect(getGoogleBookById).not.toHaveBeenCalled();
+    expect(adminInsertedRows[0]).toMatchObject({ open_library_id: "OL468431W", open_library_cover_id: 42 });
+  });
+
+  it("fails without inserting when the source has no record for the id", async () => {
+    getGoogleBookById.mockResolvedValue(null);
+
+    const result = await importAndAddToShelf(NEW_BOOK, "want_to_read");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/couldn't load/i);
+    expect(adminInsert).not.toHaveBeenCalled();
+    expect(shelfUpsert).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{}],
+    [{ googleBooksId: "../../admin" }],
+    [{ openLibraryId: "OL1A" }],
+  ])("rejects a missing or malformed id %j before any lookup", async (input) => {
+    const result = await importAndAddToShelf(input, "want_to_read");
+
+    expect(result.success).toBe(false);
+    expect(getGoogleBookById).not.toHaveBeenCalled();
+    expect(getOpenLibraryWorkById).not.toHaveBeenCalled();
+    expect(adminInsert).not.toHaveBeenCalled();
   });
 });

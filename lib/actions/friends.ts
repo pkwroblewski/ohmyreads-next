@@ -13,7 +13,9 @@ import type { ActionResult } from "@/types/app";
 // SEND FRIEND REQUEST
 // ============================================
 
-export async function sendFriendRequest(targetUserId: string): Promise<ActionResult> {
+export async function sendFriendRequest(
+  targetUserId: string
+): Promise<ActionResult<{ requestId: string }>> {
   try {
     const auth = await requireUser();
     if (!auth.ok) {
@@ -58,24 +60,45 @@ export async function sendFriendRequest(targetUserId: string): Promise<ActionRes
         // They sent us a request - accept it instead
         return { success: false, error: "This user has already sent you a friend request" };
       }
-      // Status is rejected - allow resending
+      // Rejected: the pair index (064) allows one row per pair, so clear it
+      // before the new request. Either party may delete a rejected row (075).
+      const { data: cleared, error: clearError } = await supabase
+        .from("friend_requests")
+        .delete()
+        .eq("id", existing.id)
+        .eq("status", "rejected")
+        .select("id");
+
+      if (clearError || !cleared?.length) {
+        return {
+          success: false,
+          error: reportError(
+            "Error clearing rejected friend request",
+            clearError ?? new Error("No rejected row deleted")
+          ),
+        };
+      }
     }
 
     // Create friend request
-    const { error } = await supabase.from("friend_requests").insert({
-      sender_id: user.id,
-      receiver_id: targetUserId,
-      status: "pending",
-    });
+    const { data: created, error } = await supabase
+      .from("friend_requests")
+      .insert({
+        sender_id: user.id,
+        receiver_id: targetUserId,
+        status: "pending",
+      })
+      .select("id")
+      .single();
 
-    if (error) {
+    if (error || !created) {
       return { success: false, error: reportError("Error sending friend request", error) };
     }
 
     revalidatePath("/friends");
     revalidatePath(`/users`);
 
-    return { success: true };
+    return { success: true, requestId: created.id };
   } catch (error) {
     logError("Unexpected error in sendFriendRequest", error);
     return { success: false, error: "An unexpected error occurred" };

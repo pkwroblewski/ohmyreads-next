@@ -16,6 +16,8 @@ export async function GET(request: Request) {
 
     // Fetch user data
     const supabase = await createClient();
+    // The card is titled "<year> Reading Stats", so count this year's books
+    const currentYear = new Date().getUTCFullYear();
 
     const [profileResult, booksResult, reviewsResult] = await Promise.all([
       supabase.from("profiles").select("username, display_name, avatar_url").eq("id", userId).single(),
@@ -23,7 +25,9 @@ export async function GET(request: Request) {
         .from("user_books")
         .select("book:books(page_count, genres)")
         .eq("user_id", userId)
-        .eq("status", "read"),
+        .eq("status", "read")
+        .gte("finished_at", `${currentYear}-01-01`)
+        .lt("finished_at", `${currentYear + 1}-01-01`),
       supabase.from("reviews").select("rating").eq("user_id", userId),
     ]);
 
@@ -65,8 +69,6 @@ export async function GET(request: Request) {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([genre]) => genre);
-
-    const currentYear = new Date().getFullYear();
 
     return new ImageResponse(
       (

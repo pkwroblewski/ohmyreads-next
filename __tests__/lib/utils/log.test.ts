@@ -8,7 +8,10 @@
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { GENERIC_ERROR_MESSAGE, reportError } from "@/lib/utils/log";
+import * as Sentry from "@sentry/nextjs";
+import { GENERIC_ERROR_MESSAGE, logError, reportError } from "@/lib/utils/log";
+
+vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 
 /** A realistic Supabase error: plain object, not an Error instance. */
 const pgError = {
@@ -32,6 +35,7 @@ function captureLogs() {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.mocked(Sentry.captureException).mockClear();
 });
 
 describe("reportError", () => {
@@ -88,5 +92,44 @@ describe("reportError", () => {
     expect(reportError("scope", { unexpected: "shape" })).toBe(
       GENERIC_ERROR_MESSAGE
     );
+  });
+});
+
+/**
+ * Every route catches its errors and returns, so logError is the only place
+ * they can reach Sentry.
+ */
+describe("logError → Sentry", () => {
+  it("sends Error instances as-is with the context attached", () => {
+    captureLogs();
+    const thrown = new Error("boom");
+
+    logError("Export failed", thrown, { userId: "user-123" });
+
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+    const [sent, hint] = vi.mocked(Sentry.captureException).mock.calls[0];
+    expect(sent).toBe(thrown);
+    expect(hint).toMatchObject({
+      extra: { message: "Export failed", userId: "user-123" },
+    });
+  });
+
+  it("wraps a Supabase error in an Error titled by the log message", () => {
+    captureLogs();
+
+    logError("Error creating shelf", pgError);
+
+    const [sent, hint] = vi.mocked(Sentry.captureException).mock.calls[0];
+    expect(sent).toBeInstanceOf(Error);
+    expect((sent as Error).message).toBe("Error creating shelf");
+    expect(hint).toMatchObject({ extra: { errorCode: "23505" } });
+  });
+
+  it("reports through reportError as well", () => {
+    captureLogs();
+
+    reportError("scope", null);
+
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
   });
 });

@@ -96,6 +96,7 @@ describe("POST /api/webhooks/supabase", () => {
     expect(await res.json()).toEqual({ success: true });
     expect(getUserById).toHaveBeenCalledWith(USER);
     expect(sendWelcomeEmail).toHaveBeenCalledWith({
+      userId: USER,
       email: "ada@example.com",
       username: "ada",
       displayName: "Ada",

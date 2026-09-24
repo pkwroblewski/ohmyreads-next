@@ -1,63 +1,28 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MessageSquare, Users } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useRealtimeMessages } from "@/hooks/use-realtime-messages";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-import type { ConversationPreview, DirectMessage } from "@/types/database";
+import type { ConversationPreview } from "@/types/database";
 
 interface ConversationListProps {
-  userId: string;
   initialConversations: ConversationPreview[];
   onSelectConversation: (friendId: string) => void;
 }
 
 export function ConversationList({
-  userId,
   initialConversations,
   onSelectConversation,
 }: ConversationListProps) {
   const [conversations, setConversations] = useState<ConversationPreview[]>(initialConversations);
 
-  // Handle new messages from realtime
-  const handleNewMessage = useCallback((message: DirectMessage) => {
-    setConversations((prev) => {
-      const friendId = message.sender_id === userId ? message.receiver_id : message.sender_id;
-      const existingIndex = prev.findIndex((c) => c.friend_id === friendId);
-
-      if (existingIndex >= 0) {
-        // Update existing conversation
-        const updated = [...prev];
-        const existing = updated[existingIndex];
-        updated.splice(existingIndex, 1);
-
-        const updatedConv: ConversationPreview = {
-          ...existing,
-          last_message: message.content,
-          last_message_at: message.created_at,
-          unread_count: message.receiver_id === userId
-            ? existing.unread_count + 1
-            : existing.unread_count,
-        };
-
-        // Move to top
-        return [updatedConv, ...updated];
-      }
-
-      // New conversation - will be fetched on next load
-      return prev;
-    });
-  }, [userId]);
-
-  useRealtimeMessages({
-    userId,
-    onNewMessage: handleNewMessage,
-  });
-
+  // ChatWrapper owns the realtime subscription and passes updated
+  // conversations down; a second subscription here would reuse its channel
+  // name and break both.
   // Update conversations when initialConversations change
   useEffect(() => {
     setConversations(initialConversations);

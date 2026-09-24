@@ -87,6 +87,9 @@ export function BookBrowser({
   );
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Bumped per fetch; a response only applies if it is still the latest,
+  // so a slow earlier search can't overwrite a newer one
+  const requestIdRef = useRef(0);
   const aiSearchButtonRef = useRef<HTMLButtonElement>(null);
 
   // Fetch books from API
@@ -97,7 +100,8 @@ export function BookBrowser({
       sort: SortOption,
       pageNum: number,
       append: boolean = false
-    ) => {
+    ): Promise<boolean> => {
+      const requestId = ++requestIdRef.current;
       setIsLoading(true);
 
       try {
@@ -111,10 +115,11 @@ export function BookBrowser({
 
         const response = await fetch(`/api/books/search?${params.toString()}`);
         const data = await response.json();
+        if (requestId !== requestIdRef.current) return false;
 
         if (data.error) {
           console.error("Search error:", data.error);
-          return;
+          return false;
         }
 
         const statuses: Record<string, BookStatus> = data.shelfStatuses ?? {};
@@ -129,10 +134,12 @@ export function BookBrowser({
 
         setTotalCount(data.total);
         setHasMore(data.hasMore);
+        return true;
       } catch (error) {
         console.error("Failed to fetch books:", error);
+        return false;
       } finally {
-        setIsLoading(false);
+        if (requestId === requestIdRef.current) setIsLoading(false);
       }
     },
     []
@@ -155,6 +162,8 @@ export function BookBrowser({
   // Genre filter handler
   const handleGenreChange = (genre: string | null) => {
     setSelectedGenre(genre);
+    // A pending debounced search would fire later with the old genre
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     setPage(1);
     fetchBooks(searchQuery, genre, sortBy, 1);
   };
@@ -162,6 +171,7 @@ export function BookBrowser({
   // Sort handler
   const handleSortChange = (sort: SortOption) => {
     setSortBy(sort);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     setPage(1);
     fetchBooks(searchQuery, selectedGenre, sort, 1);
   };
@@ -181,10 +191,12 @@ export function BookBrowser({
   );
 
   // Load more handler
-  const handleLoadMore = () => {
+  const handleLoadMore = async () => {
     const nextPage = page + 1;
-    setPage(nextPage);
-    fetchBooks(searchQuery, selectedGenre, sortBy, nextPage, true);
+    // Advance only on success, so a failed load retries the same page
+    if (await fetchBooks(searchQuery, selectedGenre, sortBy, nextPage, true)) {
+      setPage(nextPage);
+    }
   };
 
   return (

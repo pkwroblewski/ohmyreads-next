@@ -57,7 +57,7 @@ export default function StatsHighlights({
             icon={Ruler}
             title="Longest Book"
             book={stats.longestBook}
-            stat={`${stats.longestBook.pages.toLocaleString()} pages`}
+            stat={`${stats.longestBook.pages.toLocaleString("en-US")} pages`}
             gradient="from-violet-500 to-purple-600"
           />
         )}
@@ -67,7 +67,7 @@ export default function StatsHighlights({
             icon={Zap}
             title="Shortest Book"
             book={stats.shortestBook}
-            stat={`${stats.shortestBook.pages.toLocaleString()} pages`}
+            stat={`${stats.shortestBook.pages.toLocaleString("en-US")} pages`}
             gradient="from-cyan-500 to-teal-600"
           />
         )}
@@ -115,7 +115,7 @@ export default function StatsHighlights({
           <FunFactCard
             emoji="📚"
             title="Page Turner"
-            description={`You've read ${stats.totalPagesRead.toLocaleString()} pages. That's about ${Math.round(stats.totalPagesRead / 300)} average-sized books!`}
+            description={`You've read ${stats.totalPagesRead.toLocaleString("en-US")} pages. That's about ${Math.round(stats.totalPagesRead / 300)} average-sized books!`}
           />
         )}
 

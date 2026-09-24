@@ -127,6 +127,15 @@ describe("markMessagesAsRead", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/");
   });
 
+  it("leaves the counter alone when the recount fails", async () => {
+    mock.is
+      .mockReturnValueOnce(mock)
+      .mockResolvedValueOnce({ count: null, error: { message: "timeout" } });
+
+    expect(await markMessagesAsRead(FRIEND)).toEqual({ success: true });
+    expect(adminUpdate).not.toHaveBeenCalled();
+  });
+
   it("refuses an anonymous caller and a malformed friend id", async () => {
     expect(await markMessagesAsRead("nope")).toMatchObject({ success: false });
     mock = createMockSupabase(null);

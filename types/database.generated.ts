@@ -153,19 +153,19 @@ export type Database = {
         Row: {
           club_id: string
           joined_at: string | null
-          role: string | null
+          role: string
           user_id: string
         }
         Insert: {
           club_id: string
           joined_at?: string | null
-          role?: string | null
+          role?: string
           user_id: string
         }
         Update: {
           club_id?: string
           joined_at?: string | null
-          role?: string | null
+          role?: string
           user_id?: string
         }
         Relationships: [
@@ -535,6 +535,24 @@ export type Database = {
         }
         Relationships: []
       }
+      books_nyt_desc_backup_2026_09: {
+        Row: {
+          backed_up_at: string | null
+          description: string | null
+          id: string | null
+        }
+        Insert: {
+          backed_up_at?: string | null
+          description?: string | null
+          id?: string | null
+        }
+        Update: {
+          backed_up_at?: string | null
+          description?: string | null
+          id?: string | null
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           content: string
@@ -650,7 +668,7 @@ export type Database = {
           receiver_id: string
           responded_at: string | null
           sender_id: string
-          status: string | null
+          status: string
         }
         Insert: {
           created_at?: string | null
@@ -658,7 +676,7 @@ export type Database = {
           receiver_id: string
           responded_at?: string | null
           sender_id: string
-          status?: string | null
+          status?: string
         }
         Update: {
           created_at?: string | null
@@ -666,7 +684,7 @@ export type Database = {
           receiver_id?: string
           responded_at?: string | null
           sender_id?: string
-          status?: string | null
+          status?: string
         }
         Relationships: [
           {

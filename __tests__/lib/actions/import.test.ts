@@ -36,14 +36,20 @@ function csv(rows: string[]) {
   return [HEADER, ...rows].join("\n");
 }
 
-/** `user_books.select().eq()` (existing shelf) and `books.select().in()` (ISBN lookup) are awaited directly. */
+/**
+ * `.in("book_id")` answers the shelf check, `.in("isbn")` the ISBN lookup and
+ * `.or()` the title-candidate lookup; each is awaited directly.
+ */
 function arrange({
   existing = [] as string[],
   catalog = [] as Array<{ id: string; title: string; author: string; isbn: string | null }>,
 } = {}) {
-  mock.eq.mockResolvedValueOnce({ data: existing.map((book_id) => ({ book_id })), error: null });
-  mock.in.mockResolvedValue({ data: catalog, error: null });
-  mock.limit.mockResolvedValue({ data: catalog, error: null }); // title-match load
+  mock.in.mockImplementation(async (column: string) =>
+    column === "book_id"
+      ? { data: existing.map((book_id) => ({ book_id })), error: null }
+      : { data: catalog, error: null }
+  );
+  mock.or.mockResolvedValue({ data: catalog, error: null });
   mock.insert.mockResolvedValue({ error: null });
 }
 
@@ -160,6 +166,8 @@ describe("importFromGoodreads matching", () => {
     );
 
     expect(result).toMatchObject({ success: true, matched: 0, skipped: 1, notFound: 1 });
+    // The shelf check asks about the matched books only, not the whole shelf
+    expect(mock.in).toHaveBeenCalledWith("book_id", ["b-dune"]);
     expect(result.notFoundBooks).toEqual([{ title: "Unknown Book", author: "Nobody", isbn13: "9780000000009" }]);
     expect(mock.insert).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith("/my-shelf");
@@ -179,6 +187,39 @@ describe("importFromGoodreads matching", () => {
     const ok = await importFromGoodreads(csv([`1,dune,Herbert,,,4,0,0,,2024/01/01,,to-read`]));
     expect(ok.matched).toBe(1);
     expect(ok.matchedBooks[0]).toEqual({ title: "Dune", author: "Frank Herbert", status: "want_to_read" });
+  });
+
+  it("matches a Cyrillic title and does not shelve an unknown one as the first catalog book", async () => {
+    arrange({
+      catalog: [
+        { id: "b-dune", title: "Dune", author: "Frank Herbert", isbn: null },
+        { id: "b-war", title: "Война и мир", author: "Лев Толстой", isbn: null },
+      ],
+    });
+
+    const result = await importFromGoodreads(
+      csv([
+        `1,Война и мир,Лев Толстой,,,5,0,0,,2024/01/01,,read`,
+        `2,Мастер и Маргарита,Михаил Булгаков,,,4,0,0,,2024/01/01,,read`,
+      ])
+    );
+
+    expect(result).toMatchObject({ matched: 1, notFound: 1 });
+    expect(result.matchedBooks[0].title).toBe("Война и мир");
+    expect(result.notFoundBooks[0].title).toBe("Мастер и Маргарита");
+    // Candidates come from a prefix query on the title's leading words
+    expect(mock.or.mock.calls[0][0]).toBe('title.ilike."Война и мир*",title.ilike."Мастер и Маргарита*"');
+  });
+
+  it("does not match a title of under four characters by containment", async () => {
+    arrange({ catalog: [{ id: "b-dune", title: "Dune", author: "Frank Herbert", isbn: null }] });
+
+    const result = await importFromGoodreads(csv([`1,Dun,Frank Herbert,,,4,0,0,,2024/01/01,,to-read`]));
+
+    expect(result.matched).toBe(0);
+    expect(result.notFound).toBe(1);
+    // A short title is looked up exactly, not as a prefix
+    expect(mock.or).toHaveBeenCalledWith('title.ilike."Dun"');
   });
 
   it("reports a failed batch insert without claiming success or revalidating", async () => {

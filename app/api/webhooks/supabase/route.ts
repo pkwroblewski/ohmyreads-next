@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWelcomeEmail } from "@/lib/actions/email";
 import { logError, logger } from "@/lib/utils/log";
+import { cleanEnv } from "@/lib/utils/env";
 import { safeCompare } from "@/lib/utils/secrets";
 
 // Verify the webhook is from Supabase using a shared secret
 function verifyWebhookSecret(request: NextRequest): boolean {
   const secret = request.headers.get("x-webhook-secret");
-  const expectedSecret = process.env.SUPABASE_WEBHOOK_SECRET;
+  const expectedSecret = cleanEnv(process.env.SUPABASE_WEBHOOK_SECRET);
 
   // Fail closed in production - require secret
   if (!expectedSecret) {
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
 
       if (userData?.user?.email && username) {
         const result = await sendWelcomeEmail({
+          userId,
           email: userData.user.email,
           username,
           displayName,

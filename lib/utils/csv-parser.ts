@@ -18,19 +18,28 @@ export interface GoodreadsRow {
 }
 
 /**
- * Parse a CSV string into rows
- * Handles quoted fields with commas and newlines
+ * Split CSV text into records in one pass, so quoted fields can hold
+ * commas, doubled quotes and newlines (Goodreads reviews span lines)
  */
-function parseCSVLine(line: string): string[] {
-  const fields: string[] = [];
+function parseCSVRecords(content: string): string[][] {
+  const records: string[][] = [];
+  let fields: string[] = [];
   let field = "";
   let inQuotes = false;
 
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
+  const endRecord = () => {
+    fields.push(field.trim());
+    // A blank line is one empty field; skip it
+    if (fields.length > 1 || fields[0] !== "") records.push(fields);
+    fields = [];
+    field = "";
+  };
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
 
     if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
+      if (inQuotes && content[i + 1] === '"') {
         // Escaped quote
         field += '"';
         i++;
@@ -41,30 +50,33 @@ function parseCSVLine(line: string): string[] {
     } else if (char === "," && !inQuotes) {
       fields.push(field.trim());
       field = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && content[i + 1] === "\n") i++;
+      endRecord();
     } else {
       field += char;
     }
   }
 
-  // Don't forget the last field
-  fields.push(field.trim());
+  // Don't forget the last record
+  endRecord();
 
-  return fields;
+  return records;
 }
 
 /**
  * Parse Goodreads CSV export into structured data
  */
 export function parseGoodreadsCSV(csvContent: string): GoodreadsRow[] {
-  // Split by newlines, handling both \r\n and \n
-  const lines = csvContent.split(/\r?\n/);
+  // Strip a UTF-8 byte order mark, which would corrupt the first header
+  const records = parseCSVRecords(csvContent.replace(/^﻿/, ""));
 
-  if (lines.length < 2) {
+  if (records.length < 2) {
     throw new Error("CSV file is empty or has no data rows");
   }
 
   // Parse header row
-  const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase().trim());
+  const headers = records[0].map((h) => h.toLowerCase().trim());
 
   // Find column indices for fields we care about
   const getIndex = (name: string): number => {
@@ -98,11 +110,8 @@ export function parseGoodreadsCSV(csvContent: string): GoodreadsRow[] {
   // Parse data rows
   const rows: GoodreadsRow[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const fields = parseCSVLine(line);
+  for (let i = 1; i < records.length; i++) {
+    const fields = records[i];
 
     // Skip if we don't have enough fields
     if (fields.length < 5) continue;

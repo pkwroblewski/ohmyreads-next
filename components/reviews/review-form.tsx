@@ -75,11 +75,13 @@ export function ReviewForm({
         ? await updateReview({
             reviewId: existingReview.id,
             rating: rating > 0 ? rating : null,
-            summary: summary || undefined,
-            liked: liked || undefined,
-            disliked: disliked || undefined,
-            takeaway: takeaway || undefined,
-            vibeTags: vibeTags.length > 0 ? vibeTags : undefined,
+            // Send blanks as "" / [] so the action clears them; undefined
+            // would mean "leave unchanged"
+            summary,
+            liked,
+            disliked,
+            takeaway,
+            vibeTags,
             isSpoiler,
           })
         : await createReview({

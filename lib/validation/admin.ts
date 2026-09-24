@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { httpUrl } from "./shared";
+import { normalizeIsbn } from "@/lib/utils/isbn";
 
 // ---- Shared ----
 export const adminBookIdSchema = z.string().uuid("Invalid book ID");
@@ -29,15 +30,18 @@ const adminBookFieldsSchema = z.object({
     .string()
     .max(5000, "Description must be less than 5000 characters")
     .optional(),
-  isbn: z.string().max(32, "Invalid ISBN").optional(),
-  isbn13: z.string().max(32, "Invalid ISBN-13").optional(),
+  isbn: z
+    .string()
+    .max(32, "Invalid ISBN")
+    .refine((v) => !v.trim() || normalizeIsbn(v) !== null, "ISBN must be 10 or 13 digits")
+    .optional(),
   cover_url: bookUrlSchema.optional(),
   page_count: z
     .number()
     .int("Invalid page count")
     .positive("Invalid page count")
     .max(50000, "Invalid page count")
-    .optional(),
+    .nullish(),
   published_date: z.string().max(30, "Invalid published date").optional(),
   genres: z
     .array(z.string().max(100, "Invalid genre"))

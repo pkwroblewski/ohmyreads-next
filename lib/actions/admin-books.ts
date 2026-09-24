@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import { generateSlug } from "@/lib/utils/slug";
+import { normalizeIsbn } from "@/lib/utils/isbn";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   adminBookIdSchema,
@@ -20,10 +21,11 @@ export interface AdminBookInput {
   title: string;
   author: string;
   description?: string;
+  /** ISBN-10 or ISBN-13; stored as ISBN-13 */
   isbn?: string;
-  isbn13?: string;
   cover_url?: string;
-  page_count?: number;
+  /** null clears the field on edit */
+  page_count?: number | null;
   published_date?: string;
   genres?: string[];
   google_books_id?: string;
@@ -76,8 +78,7 @@ export async function adminCreateBook(input: AdminBookInput): Promise<ActionResu
         author: input.author.trim(),
         slug,
         description: input.description?.trim() || null,
-        isbn: input.isbn?.trim() || null,
-        isbn13: input.isbn13?.trim() || null,
+        isbn: normalizeIsbn(input.isbn),
         cover_url: input.cover_url?.trim() || null,
         page_count: input.page_count || null,
         published_date: input.published_date || null,
@@ -88,6 +89,9 @@ export async function adminCreateBook(input: AdminBookInput): Promise<ActionResu
       .select()
       .single();
 
+    if (error?.code === "23505" && error.message.includes("isbn")) {
+      return { success: false, error: "A book with this ISBN already exists" };
+    }
     if (error) throw error;
 
     // Audit log
@@ -137,15 +141,24 @@ export async function adminUpdateBook(bookId: string, input: Partial<AdminBookIn
     if (input.title !== undefined) updates.title = input.title.trim();
     if (input.author !== undefined) updates.author = input.author.trim();
     if (input.description !== undefined) updates.description = input.description?.trim() || null;
-    if (input.isbn !== undefined) updates.isbn = input.isbn?.trim() || null;
-    if (input.isbn13 !== undefined) updates.isbn13 = input.isbn13?.trim() || null;
+    if (input.isbn !== undefined) updates.isbn = normalizeIsbn(input.isbn);
     if (input.cover_url !== undefined) updates.cover_url = input.cover_url?.trim() || null;
     if (input.page_count !== undefined) updates.page_count = input.page_count || null;
     if (input.published_date !== undefined) updates.published_date = input.published_date || null;
     if (input.genres !== undefined) updates.genres = input.genres || [];
 
-    // Update slug if title changed
+    // Rebuild the slug only when the title actually changed; the edit form
+    // always sends the title, and a new slug breaks existing /books links.
+    let titleChanged = false;
     if (input.title) {
+      const { data: current } = await supabase
+        .from("books")
+        .select("title")
+        .eq("id", bookId)
+        .single();
+      titleChanged = current?.title !== input.title.trim();
+    }
+    if (input.title && titleChanged) {
       const baseSlug = generateSlug(input.title);
       let slug = baseSlug;
       let counter = 1;

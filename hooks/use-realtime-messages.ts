@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { DirectMessage } from "@/types/database";
-import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
+import type { RealtimeChannel, RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 
 interface UseRealtimeMessagesOptions {
   userId: string | null;
@@ -55,39 +55,50 @@ function useDirectMessagesChannel(
     }
 
     const supabase = createClient();
+    let channel: RealtimeChannel | null = null;
+    let cancelled = false;
 
-    const channel = supabase
-      .channel(name)
-      .on<DirectMessage>(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "direct_messages",
-          ...(filter ? { filter } : {}),
-        },
-        (payload: RealtimePostgresInsertPayload<DirectMessage>) => {
-          const msg = payload.new;
-          if (msg && acceptRef.current(msg)) {
-            onNewMessageRef.current?.(msg);
+    // Load the user's JWT into the socket before joining. Otherwise realtime-js
+    // builds the join payload while its token lookup is still pending and
+    // joins with the anon key; the later setAuth() sees no change and never
+    // sends the token, so RLS hides every direct_messages row and no INSERT
+    // event is ever delivered.
+    supabase.realtime.setAuth().then(() => {
+      if (cancelled) return;
+      channel = supabase
+        .channel(name)
+        .on<DirectMessage>(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "direct_messages",
+            ...(filter ? { filter } : {}),
+          },
+          (payload: RealtimePostgresInsertPayload<DirectMessage>) => {
+            const msg = payload.new;
+            if (msg && acceptRef.current(msg)) {
+              onNewMessageRef.current?.(msg);
+            }
           }
-        }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          setIsConnected(true);
-          setConnectionError(null);
-        } else if (status === "CHANNEL_ERROR") {
-          setIsConnected(false);
-          setConnectionError(errorMessage);
-        } else if (status === "TIMED_OUT") {
-          setIsConnected(false);
-          setConnectionError("Connection timed out");
-        }
-      });
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            setIsConnected(true);
+            setConnectionError(null);
+          } else if (status === "CHANNEL_ERROR") {
+            setIsConnected(false);
+            setConnectionError(errorMessage);
+          } else if (status === "TIMED_OUT") {
+            setIsConnected(false);
+            setConnectionError("Connection timed out");
+          }
+        });
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, [name, filter, errorMessage]);
 

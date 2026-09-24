@@ -192,6 +192,52 @@ describe("GET /api/cron/weekly-digest — the send (Task 9)", () => {
     expect(sendEmail.mock.calls[0][0].to).toBe("bob@example.com");
   });
 
+  it("counts this week's finished books, not the lifetime total (audit Task 11)", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "profiles") {
+        return chain({ data: [{ id: USER, username: "ada", display_name: null }], error: null });
+      }
+      if (table === "reading_stats") {
+        return chain({
+          data: { books_read: 40, pages_read: 12000, reviews_count: 7, current_streak: 2 },
+          error: null,
+        });
+      }
+      if (table === "user_books") {
+        // 3 finished this week; the list limit returns only some of them.
+        return chain({
+          data: [
+            { book: { title: "Dune", author: "Frank Herbert", cover_url: null } },
+            { book: { title: "Emma", author: "Jane Austen", cover_url: null } },
+          ],
+          count: 3,
+          error: null,
+        });
+      }
+      return chain({ data: null, error: null });
+    });
+    createAdminClient.mockReturnValue({
+      from,
+      auth: {
+        admin: {
+          getUserById: vi.fn().mockResolvedValue({ data: { user: { email: "ada@example.com" } } }),
+        },
+      },
+    });
+    sendEmail.mockResolvedValue({ data: { id: "email-1" }, error: null });
+    getResendClient.mockReturnValue({ emails: { send: sendEmail } });
+    const { GET } = await loadRoute("s3cret");
+
+    await GET(req("Bearer s3cret"));
+
+    const sent = sendEmail.mock.calls[0][0];
+    expect(sent.subject).toBe("Your week in reading: 3 books completed!");
+    expect(sent.html).toMatch(/>3<\/p>\s*<p[^>]*>Books This Week</);
+    expect(sent.html).toMatch(/>40<\/p>\s*<p[^>]*>Books All Time</);
+    expect(sent.text).toContain("THIS WEEK\n---\nBooks finished: 3");
+    expect(sent.text).toContain("ALL TIME\n---\nBooks: 40\nPages: 12000");
+  });
+
   it("prefers EMAIL_TOKEN_SECRET over CRON_SECRET for the link", async () => {
     arrangeSend();
     vi.stubEnv("EMAIL_TOKEN_SECRET", "link-key");

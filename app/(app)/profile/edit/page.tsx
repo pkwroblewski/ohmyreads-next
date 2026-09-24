@@ -94,10 +94,11 @@ export default function EditProfilePage() {
     try {
       // Update profile
       const profileResult = await updateProfile({
-        displayName: displayName || undefined,
+        // "" clears these; undefined would leave the old value in place
+        displayName,
         username: username || undefined,
-        bio: bio || undefined,
-        website: website || undefined,
+        bio,
+        website,
       });
 
       if (profileResult.error) {

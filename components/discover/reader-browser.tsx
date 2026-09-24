@@ -41,6 +41,9 @@ export function ReaderBrowser({
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Bumped per search (and on clear); a response only applies if it is
+  // still the latest, so a slow earlier query can't overwrite a newer one
+  const requestIdRef = useRef(0);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close sort dropdown when clicking outside
@@ -66,7 +69,8 @@ export function ReaderBrowser({
       sort: SortOption,
       pageNum: number,
       append: boolean = false
-    ) => {
+    ): Promise<boolean> => {
+      const requestId = ++requestIdRef.current;
       setIsLoading(true);
 
       try {
@@ -78,10 +82,11 @@ export function ReaderBrowser({
 
         const response = await fetch(`/api/discover/browse?${params.toString()}`);
         const data = await response.json();
+        if (requestId !== requestIdRef.current) return false;
 
         if (data.error) {
           console.error("Browse error:", data.error);
-          return;
+          return false;
         }
 
         if (append) {
@@ -92,10 +97,12 @@ export function ReaderBrowser({
 
         setTotalCount(data.total);
         setHasMore(data.readers.length >= 20);
+        return true;
       } catch (error) {
         console.error("Failed to fetch readers:", error);
+        return false;
       } finally {
-        setIsLoading(false);
+        if (requestId === requestIdRef.current) setIsLoading(false);
       }
     },
     []
@@ -119,15 +126,19 @@ export function ReaderBrowser({
   const handleSortChange = (sort: SortOption) => {
     setSortBy(sort);
     setShowSortDropdown(false);
+    // A pending debounced search would fire later with the old sort
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     setPage(1);
     fetchReaders(searchQuery, sort, 1);
   };
 
   // Load more handler
-  const handleLoadMore = () => {
+  const handleLoadMore = async () => {
     const nextPage = page + 1;
-    setPage(nextPage);
-    fetchReaders(searchQuery, sortBy, nextPage, true);
+    // Advance only on success, so a failed load retries the same page
+    if (await fetchReaders(searchQuery, sortBy, nextPage, true)) {
+      setPage(nextPage);
+    }
   };
 
   // Filter sort options based on auth

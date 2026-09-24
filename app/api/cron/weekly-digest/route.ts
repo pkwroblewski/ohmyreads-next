@@ -8,6 +8,7 @@ import {
   type WeeklyDigestProps,
 } from "@/lib/email/templates/weekly-digest";
 import { logger } from "@/lib/utils/log";
+import { cleanEnv } from "@/lib/utils/env";
 import { safeCompare } from "@/lib/utils/secrets";
 import {
   buildUnsubscribeUrl,
@@ -18,7 +19,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300; // 5 minutes for batch processing
 
 // Vercel Cron secret for authentication
-const CRON_SECRET = process.env.CRON_SECRET;
+const CRON_SECRET = cleanEnv(process.env.CRON_SECRET);
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
       logger.error("Digest: no secret to sign unsubscribe links with");
       return NextResponse.json({ error: "Service not configured" }, { status: 503 });
     }
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
+    const siteUrl = cleanEnv(process.env.NEXT_PUBLIC_SITE_URL) || "https://ohmyreads.com";
 
     const supabase = createAdminClient();
     const now = new Date();
@@ -110,10 +111,11 @@ export async function GET(request: NextRequest) {
                 .eq("user_id", user.id)
                 .single(),
 
-              // Books completed this week
+              // Books completed this week: up to 5 to list, plus the exact
+              // count for the headline (reading_stats is lifetime totals).
               supabase
                 .from("user_books")
-                .select("book:books(title, author, cover_url)")
+                .select("book:books(title, author, cover_url)", { count: "exact" })
                 .eq("user_id", user.id)
                 .eq("status", "read")
                 .gte("finished_at", oneWeekAgo.toISOString())
@@ -191,6 +193,7 @@ export async function GET(request: NextRequest) {
               displayName: user.display_name || undefined,
               unsubscribeUrl,
               stats: {
+                booksThisWeek: booksResult.count ?? recentBooks.length,
                 booksRead: stats.books_read ?? 0,
                 pagesRead: stats.pages_read ?? 0,
                 reviewsWritten: stats.reviews_count ?? 0,

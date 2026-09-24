@@ -13,6 +13,7 @@ import {
 } from "@/lib/queries/books";
 import { createAuthorSlug } from "@/lib/queries/authors";
 import { hasUserReviewedBook } from "@/lib/queries/reviews";
+import { getUserLikedReviewIds } from "@/lib/queries/community";
 import { getSimilarBookRecommendations } from "@/lib/queries/recommendations";
 import { BookListHorizontal } from "@/components/books/book-list-horizontal";
 import { RecommendedBooksRow } from "@/components/books/recommended-books-row";
@@ -126,6 +127,9 @@ export default async function BookPage({ params, searchParams }: Props) {
   ]);
 
   const { reviews, total: reviewTotal } = reviewsPage;
+  const likedReviewIds = new Set(
+    user ? await getUserLikedReviewIds(user.id, reviews.map((r) => r.id)) : []
+  );
   const totalPages = Math.max(1, Math.ceil(reviewTotal / REVIEWS_PAGE_SIZE));
   const { hasReviewed, review: userExistingReview } = userReviewCheck;
 
@@ -373,6 +377,9 @@ export default async function BookPage({ params, searchParams }: Props) {
                   valid review). Edits the reader's existing review if any. */}
               {user && (
                 <QuickRating
+                  // Remount when the review changes (e.g. posted via the
+                  // form) so the seeded rating and reviewId are current
+                  key={`${userExistingReview?.id ?? "new"}:${userExistingReview?.rating ?? ""}`}
                   bookId={book.id}
                   bookTitle={book.title}
                   initialRating={userExistingReview?.rating ?? null}
@@ -457,6 +464,7 @@ export default async function BookPage({ params, searchParams }: Props) {
                     review={{
                       ...review,
                       profile: review.profile || undefined,
+                      hasLiked: likedReviewIds.has(review.id),
                     }}
                     currentUserId={user?.id}
                     isAuthenticated={!!user}

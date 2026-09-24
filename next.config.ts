@@ -1,10 +1,14 @@
 import type { NextConfig } from "next";
 import { ALLOWED_IMAGE_HOSTS } from "./lib/config/image-hosts";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  experimental: {
+    // Goodreads exports with reviews pass the 1 MB default; Vercel caps bodies at 4.5 MB
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   images: {
     // Covers and the hero never change under the same URL; keep optimizer output for 30 days
     minimumCacheTTL: 2592000,

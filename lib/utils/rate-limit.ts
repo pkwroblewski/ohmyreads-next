@@ -23,7 +23,7 @@ export function getClientIp(request: Request): string {
  */
 
 import { kv } from "@vercel/kv";
-import { logger } from "@/lib/utils/log";
+import { logError, logger } from "@/lib/utils/log";
 
 interface RateLimitEntry {
   count: number;
@@ -181,7 +181,7 @@ async function checkRateLimitKV(
 
     return { allowed, remaining, resetIn };
   } catch (error) {
-    logger.error("KV rate limit error", { error, key });
+    logError("KV rate limit error", error, { key });
 
     // In production: fail-closed to prevent distributed attack bypass
     // In development: fall back to in-memory for local testing convenience
@@ -226,8 +226,9 @@ export async function checkRateLimit(
     // Vercel (phase-2 plan, Out of Scope: "Provision Upstash Redis"); until
     // then say so once per instance so the gap is visible in Sentry.
     warnedMissingKv = true;
-    logger.error(
-      "Rate limiting is per-instance only: KV_REST_API_URL / KV_REST_API_TOKEN are not set in production"
+    logError(
+      "Rate limiting is per-instance only: KV_REST_API_URL / KV_REST_API_TOKEN are not set in production",
+      "KV store not configured"
     );
   }
   return checkRateLimitMemory(key, limit, windowMs);
@@ -253,7 +254,7 @@ export async function resetRateLimit(key: string): Promise<void> {
     try {
       await kv.del(`ratelimit:${key}`);
     } catch (error) {
-      logger.error("KV reset error", { error, key });
+      logError("KV reset error", error, { key });
     }
   }
   rateLimitMap.delete(key);
@@ -287,7 +288,7 @@ export async function getRateLimitStatus(
         resetIn: ttl * 1000,
       };
     } catch (error) {
-      logger.error("KV status error", { error, key });
+      logError("KV status error", error, { key });
     }
   }
 

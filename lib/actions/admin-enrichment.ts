@@ -2,7 +2,7 @@
 
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
-import { enrichBookEntry } from "@/lib/utils/external-book-search";
+import { enrichBookEntry, normalizeDate } from "@/lib/utils/external-book-search";
 import { logger, reportError } from "@/lib/utils/log";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
@@ -54,43 +54,6 @@ export interface EnrichmentResult {
   skipped: number;
   failed: number;
   results: EnrichmentResultItem[];
-}
-
-// ============================================
-// HELPERS
-// ============================================
-
-/**
- * Normalize a date string to YYYY-MM-DD format.
- */
-function normalizeDate(dateStr: string | null): string | null {
-  if (!dateStr) return null;
-
-  const trimmed = dateStr.trim();
-  if (!trimmed) return null;
-
-  // Already full date: 2022-02-15
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  // Year and month: 2022-02
-  if (/^\d{4}-\d{2}$/.test(trimmed)) {
-    return `${trimmed}-01`;
-  }
-
-  // Year only: 2022
-  if (/^\d{4}$/.test(trimmed)) {
-    return `${trimmed}-01-01`;
-  }
-
-  // Try to parse other formats
-  const date = new Date(trimmed);
-  if (!isNaN(date.getTime())) {
-    return date.toISOString().split("T")[0];
-  }
-
-  return null;
 }
 
 // ============================================

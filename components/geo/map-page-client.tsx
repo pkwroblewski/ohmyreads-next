@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Settings, Plus, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReaderMapLazy } from "./reader-map-lazy";
@@ -19,6 +20,7 @@ interface MapPageClientProps {
 }
 
 export function MapPageClient({ currentUserId, userName, userPresence }: MapPageClientProps) {
+  const router = useRouter();
   // Shared state between map and context panel
   const [selectedItem, setSelectedItem] = useState<MapItem | null>(null);
   const [readers, setReaders] = useState<ReaderPin[]>([]);
@@ -76,7 +78,7 @@ export function MapPageClient({ currentUserId, userName, userPresence }: MapPage
   // Open mark spot modal at a specific place
   const handleMarkSpotAtPlace = useCallback((place: PlacePin, presenceType: "temporary" | "recommended") => {
     if (!currentUserId) {
-      window.location.href = "/login?redirect=/community/map";
+      router.push("/login?redirect=/community/map");
       return;
     }
     setMarkSpotPlace({
@@ -87,7 +89,7 @@ export function MapPageClient({ currentUserId, userName, userPresence }: MapPage
     });
     setDefaultPresenceType(presenceType);
     setShowMarkSpotModal(true);
-  }, [currentUserId]);
+  }, [currentUserId, router]);
 
   // Clear user's presence
   const handleClearPresence = useCallback(async () => {

@@ -42,6 +42,9 @@ export function UnifiedSearch({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Bumped per search (and on clear); a response only applies if it is
+  // still the latest, so a slow earlier query can't overwrite a newer one
+  const requestIdRef = useRef(0);
 
   const [query, setQuery] = useState("");
   const [authors, setAuthors] = useState<AuthorSuggestion[]>([]);
@@ -59,6 +62,7 @@ export function UnifiedSearch({
 
   // Debounced search using autocomplete endpoint
   const performSearch = useCallback(async (searchQuery: string) => {
+    const requestId = ++requestIdRef.current;
     if (searchQuery.length < 2) {
       setAuthors([]);
       setBooks([]);
@@ -71,15 +75,17 @@ export function UnifiedSearch({
       const response = await fetch(
         `/api/books/autocomplete?q=${encodeURIComponent(searchQuery)}`
       );
+      if (requestId !== requestIdRef.current) return;
       if (response.ok) {
         const data: AutocompleteResponse = await response.json();
+        if (requestId !== requestIdRef.current) return;
         setAuthors(data.authors || []);
         setBooks(data.books || []);
       }
     } catch (error) {
       console.error("Search error:", error);
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) setIsLoading(false);
     }
   }, []);
 
@@ -99,6 +105,7 @@ export function UnifiedSearch({
         performSearch(value.trim());
       }, 200);
     } else {
+      requestIdRef.current++;
       setShowDropdown(false);
       setAuthors([]);
       setBooks([]);

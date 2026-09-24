@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { isForeignOrigin } from "@/lib/utils/csrf";
 import { logError, logger } from "@/lib/utils/log";
+import { cleanEnv } from "@/lib/utils/env";
 /**
  * GET /api/geo/places/enrich?name=BookStore&lat=51.5&lng=-0.1
  *
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  const apiKey = cleanEnv(process.env.GOOGLE_PLACES_API_KEY);
   if (!apiKey) {
     return NextResponse.json(
       { found: false, reason: "Google Places API not configured" },
@@ -56,8 +57,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Check cache first
-  const cacheKey = osmId || `${name}-${lat}-${lng}`;
+  // Check cache first. Key on every input: osm_id alone is client-supplied, so
+  // a crafted request could store another business's data under a real place.
+  const cacheKey = [
+    osmId ?? "",
+    name,
+    Number(lat).toFixed(4),
+    Number(lng).toFixed(4),
+  ].join("|");
   const cached = await getCachedEnrichment(cacheKey);
   if (cached) {
     return NextResponse.json(cached, {
@@ -86,6 +93,7 @@ export async function GET(request: NextRequest) {
         },
         maxResultCount: 1,
       }),
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!searchRes.ok) {
@@ -103,10 +111,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ found: false, reason: "Place not found" });
     }
 
-    // Build photo URL if available
-    let photoUrl = null;
+    // Resolve the photo server-side: the media URL needs the API key, so only
+    // the key-free googleusercontent photoUri may reach the browser.
+    let photoUrl: string | null = null;
     if (place.photos?.[0]?.name) {
-      photoUrl = `https://places.googleapis.com/v1/${place.photos[0].name}/media?key=${apiKey}&maxWidthPx=400`;
+      photoUrl = await fetchPhotoUri(place.photos[0].name, apiKey);
     }
 
     const result = {
@@ -127,13 +136,40 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result, {
       headers: {
-        "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
+        "Cache-Control": "public, s-maxage=3600",
         "X-Cache": "MISS",
       },
     });
   } catch (error) {
     logError("Error enriching place", error);
     return NextResponse.json({ found: false, reason: "Error fetching data" });
+  }
+}
+
+/**
+ * Resolve a Places photo name to its short-lived, key-free photoUri.
+ * Returns null on any failure — the panel simply shows no photo.
+ */
+async function fetchPhotoUri(
+  photoName: string,
+  apiKey: string
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=400&skipHttpRedirect=true`,
+      { headers: { "X-Goog-Api-Key": apiKey }, signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) {
+      logger.error("Google Places photo error", { status: res.status });
+      return null;
+    }
+    const { photoUri } = (await res.json()) as { photoUri?: string };
+    return typeof photoUri === "string" && photoUri.startsWith("https://")
+      ? photoUri
+      : null;
+  } catch (error) {
+    logError("Error fetching place photo", error);
+    return null;
   }
 }
 

@@ -6,6 +6,7 @@
 
 import { unstable_cache } from "next/cache";
 import { logError, logger } from "@/lib/utils/log";
+import { cleanEnv } from "@/lib/utils/env";
 const MCP_ENDPOINT = "https://mcp.mapbox.com/mcp";
 
 // Transport profile types
@@ -76,7 +77,7 @@ async function callMcp<T>(
   toolName: string,
   args: Record<string, unknown>
 ): Promise<{ success: boolean; data?: T; error?: string }> {
-  const token = process.env.MAPBOX_ACCESS_TOKEN;
+  const token = cleanEnv(process.env.MAPBOX_ACCESS_TOKEN);
 
   if (!token) {
     logger.error("MAPBOX_ACCESS_TOKEN is not configured");
@@ -96,6 +97,7 @@ async function callMcp<T>(
         params: { name: toolName, arguments: args },
         id: Date.now(),
       }),
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!response.ok) {
@@ -335,5 +337,5 @@ export async function getMatrix(
  * Check if MCP is properly configured
  */
 export function isMcpConfigured(): boolean {
-  return !!process.env.MAPBOX_ACCESS_TOKEN;
+  return !!cleanEnv(process.env.MAPBOX_ACCESS_TOKEN);
 }

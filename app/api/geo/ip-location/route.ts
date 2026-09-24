@@ -37,6 +37,7 @@ export async function GET(request: Request) {
       },
       // Cache for 1 hour to avoid rate limits
       next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!res.ok) {

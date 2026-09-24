@@ -1,11 +1,12 @@
 // @vitest-environment node
 /**
- * One-click digest unsubscribe (Phase 2, Task 9).
+ * Digest unsubscribe (Phase 2, Task 9; audit Task 11).
  *
  * No session, so the HMAC in `t` is the whole authorization: a wrong or
- * tampered token must change nothing and say so; a right one flips
- * `email_digest_enabled` off for that user, through the service-role client,
- * and answers 200 for GET and for the RFC 8058 POST alike.
+ * tampered token must change nothing and say so. A signed GET only shows a
+ * confirm form (link scanners follow GETs); a signed POST, from that form or
+ * an RFC 8058 one-click, flips `email_digest_enabled` off for that user
+ * through the service-role client.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -56,19 +57,23 @@ beforeEach(() => {
 });
 
 describe("GET /api/email/unsubscribe", () => {
-  it("turns the digest off for a correctly signed link", async () => {
+  it("shows a confirm form for a correctly signed link and changes nothing", async () => {
     const { GET } = await loadRoute({ EMAIL_TOKEN_SECRET: SECRET });
+    const t = signUnsubscribeToken(USER, SECRET);
 
-    const response = await GET(req({ u: USER, t: signUnsubscribeToken(USER, SECRET) }));
+    const response = await GET(req({ u: USER, t }));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/html");
-    expect(await response.text()).toContain("unsubscribed");
-    expect(from).toHaveBeenCalledWith("profiles");
-    expect(update).toHaveBeenCalledWith({ email_digest_enabled: false });
+    const html = await response.text();
+    expect(html).toContain(
+      `<form method="post" action="/api/email/unsubscribe?u=${USER}&t=${t}">`
+    );
+    expect(html).not.toContain("You're unsubscribed");
+    expect(from).not.toHaveBeenCalled();
   });
 
-  it("accepts the RFC 8058 one-click POST too", async () => {
+  it("turns the digest off on POST (the form, or RFC 8058 one-click)", async () => {
     const { POST } = await loadRoute({ EMAIL_TOKEN_SECRET: SECRET });
 
     const response = await POST(
@@ -76,31 +81,38 @@ describe("GET /api/email/unsubscribe", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(await response.text()).toContain("unsubscribed");
+    expect(from).toHaveBeenCalledWith("profiles");
     expect(update).toHaveBeenCalledWith({ email_digest_enabled: false });
   });
 
   it("falls back to CRON_SECRET when EMAIL_TOKEN_SECRET is unset", async () => {
-    const { GET } = await loadRoute({ CRON_SECRET: "cron-key" });
+    const { POST } = await loadRoute({ CRON_SECRET: "cron-key" });
 
-    const response = await GET(req({ u: USER, t: signUnsubscribeToken(USER, "cron-key") }));
+    const response = await POST(
+      req({ u: USER, t: signUnsubscribeToken(USER, "cron-key") }, "POST")
+    );
 
     expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalled();
   });
 
   it("changes nothing for a wrong signature", async () => {
-    const { GET } = await loadRoute({ EMAIL_TOKEN_SECRET: SECRET });
+    const { GET, POST } = await loadRoute({ EMAIL_TOKEN_SECRET: SECRET });
+    const params = { u: USER, t: signUnsubscribeToken(USER, "other-key") };
 
-    const response = await GET(req({ u: USER, t: signUnsubscribeToken(USER, "other-key") }));
-
-    expect(response.status).toBe(400);
+    expect((await GET(req(params))).status).toBe(400);
+    expect((await POST(req(params, "POST"))).status).toBe(400);
     expect(update).not.toHaveBeenCalled();
   });
 
   it("changes nothing when the token was minted for another user", async () => {
-    const { GET } = await loadRoute({ EMAIL_TOKEN_SECRET: SECRET });
+    const { POST } = await loadRoute({ EMAIL_TOKEN_SECRET: SECRET });
     const other = "11111111-1111-4111-8111-111111111111";
 
-    const response = await GET(req({ u: USER, t: signUnsubscribeToken(other, SECRET) }));
+    const response = await POST(
+      req({ u: USER, t: signUnsubscribeToken(other, SECRET) }, "POST")
+    );
 
     expect(response.status).toBe(400);
     expect(update).not.toHaveBeenCalled();
@@ -116,10 +128,12 @@ describe("GET /api/email/unsubscribe", () => {
   });
 
   it("does not claim success when no row was updated", async () => {
-    const { GET } = await loadRoute({ EMAIL_TOKEN_SECRET: SECRET });
+    const { POST } = await loadRoute({ EMAIL_TOKEN_SECRET: SECRET });
     select.mockResolvedValue({ data: [], error: null });
 
-    const response = await GET(req({ u: USER, t: signUnsubscribeToken(USER, SECRET) }));
+    const response = await POST(
+      req({ u: USER, t: signUnsubscribeToken(USER, SECRET) }, "POST")
+    );
 
     expect(response.status).toBe(400);
   });

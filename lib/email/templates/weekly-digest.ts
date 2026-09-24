@@ -1,7 +1,12 @@
+import { cleanEnv } from "@/lib/utils/env";
+
 export interface WeeklyDigestProps {
   username: string;
   displayName?: string;
   stats: {
+    /** Books finished in the last 7 days. */
+    booksThisWeek: number;
+    /** Lifetime totals from reading_stats, labelled "all time". */
     booksRead: number;
     pagesRead: number;
     reviewsWritten: number;
@@ -27,9 +32,9 @@ export interface WeeklyDigestProps {
   unsubscribeUrl?: string;
 }
 
-export function getWeeklyDigestSubject(stats: { booksRead: number }): string {
-  if (stats.booksRead > 0) {
-    return `Your week in reading: ${stats.booksRead} book${stats.booksRead > 1 ? "s" : ""} completed!`;
+export function getWeeklyDigestSubject(stats: { booksThisWeek: number }): string {
+  if (stats.booksThisWeek > 0) {
+    return `Your week in reading: ${stats.booksThisWeek} book${stats.booksThisWeek > 1 ? "s" : ""} completed!`;
   }
   return "Your weekly reading roundup from OhMyReads";
 }
@@ -37,7 +42,7 @@ export function getWeeklyDigestSubject(stats: { booksRead: number }): string {
 export function getWeeklyDigestHtml(props: WeeklyDigestProps): string {
   const { username, displayName, stats, recentBooks, friendActivity, challengeProgress } = props;
   const name = displayName || username;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
+  const siteUrl = cleanEnv(process.env.NEXT_PUBLIC_SITE_URL) || "https://ohmyreads.com";
   const unsubscribeUrl = props.unsubscribeUrl || `${siteUrl}/settings`;
 
   const recentBooksHtml = recentBooks.length > 0
@@ -115,12 +120,12 @@ export function getWeeklyDigestHtml(props: WeeklyDigestProps): string {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
                   <td align="center" style="padding: 10px;">
-                    <p style="margin: 0; font-size: 28px; font-weight: bold; color: #8B5A2B;">${stats.booksRead}</p>
-                    <p style="margin: 4px 0 0; font-size: 12px; color: #888; text-transform: uppercase;">Books</p>
+                    <p style="margin: 0; font-size: 28px; font-weight: bold; color: #8B5A2B;">${stats.booksThisWeek}</p>
+                    <p style="margin: 4px 0 0; font-size: 12px; color: #888; text-transform: uppercase;">Books This Week</p>
                   </td>
                   <td align="center" style="padding: 10px;">
-                    <p style="margin: 0; font-size: 28px; font-weight: bold; color: #8B5A2B;">${stats.pagesRead}</p>
-                    <p style="margin: 4px 0 0; font-size: 12px; color: #888; text-transform: uppercase;">Pages</p>
+                    <p style="margin: 0; font-size: 28px; font-weight: bold; color: #8B5A2B;">${stats.booksRead}</p>
+                    <p style="margin: 4px 0 0; font-size: 12px; color: #888; text-transform: uppercase;">Books All Time</p>
                   </td>
                   <td align="center" style="padding: 10px;">
                     <p style="margin: 0; font-size: 28px; font-weight: bold; color: #8B5A2B;">${stats.currentStreak}</p>
@@ -201,7 +206,7 @@ export function getWeeklyDigestHtml(props: WeeklyDigestProps): string {
 export function getWeeklyDigestText(props: WeeklyDigestProps): string {
   const { username, displayName, stats, recentBooks, friendActivity, challengeProgress } = props;
   const name = displayName || username;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
+  const siteUrl = cleanEnv(process.env.NEXT_PUBLIC_SITE_URL) || "https://ohmyreads.com";
   const unsubscribeUrl = props.unsubscribeUrl || `${siteUrl}/settings`;
 
   const recentBooksText = recentBooks.length > 0
@@ -221,12 +226,16 @@ Your Week in Books - OhMyReads
 
 Hi ${name}!
 
-YOUR STATS THIS WEEK
+THIS WEEK
+---
+Books finished: ${stats.booksThisWeek}
+
+ALL TIME
 ---
 Books: ${stats.booksRead}
 Pages: ${stats.pagesRead}
 Reviews: ${stats.reviewsWritten}
-Streak: ${stats.currentStreak} days
+Current streak: ${stats.currentStreak} days
 
 RECENTLY COMPLETED
 ---

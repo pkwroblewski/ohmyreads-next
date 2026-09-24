@@ -350,14 +350,21 @@ export const getInitialCommunityFeed = unstable_cache(
 // ============================================
 
 /**
- * Get the IDs of all reviews a user has liked.
+ * Get the IDs of all reviews a user has liked, or only those among
+ * `reviewIds` when given (a page of reviews).
  */
-export async function getUserLikedReviewIds(userId: string): Promise<string[]> {
+export async function getUserLikedReviewIds(
+  userId: string,
+  reviewIds?: string[]
+): Promise<string[]> {
+  if (reviewIds?.length === 0) return [];
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("review_likes")
     .select("review_id")
     .eq("user_id", userId);
+  if (reviewIds) query = query.in("review_id", reviewIds);
+  const { data } = await query;
   return (data || []).map(r => r.review_id);
 }
 

@@ -6,6 +6,7 @@ import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createAuditLog } from "@/lib/utils/audit-log";
 import type { ParsedBookRow } from "@/lib/utils/book-csv-parser";
 import { generateSlug } from "@/lib/utils/slug";
+import { normalizeIsbn } from "@/lib/utils/isbn";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { importBookRowsSchema } from "@/lib/validation/admin";
 import { logError, reportError } from "@/lib/utils/log";
@@ -93,35 +94,28 @@ export async function importBooksFromCSV(rows: ParsedBookRow[]): Promise<ImportR
         continue;
       }
 
-      // Check for duplicate by ISBN or title+author
+      // Check for duplicate by ISBN or title+author. books.isbn holds ISBN-13.
       let existingBook = null;
+      const isbn = normalizeIsbn(row.isbn13) ?? normalizeIsbn(row.isbn);
 
-      if (row.isbn) {
+      if (isbn) {
         const { data } = await supabase
           .from("books")
           .select("id, title")
-          .eq("isbn", row.isbn)
-          .single();
-        existingBook = data;
-      }
-
-      if (!existingBook && row.isbn13) {
-        const { data } = await supabase
-          .from("books")
-          .select("id, title")
-          .eq("isbn13", row.isbn13)
-          .single();
+          .eq("isbn", isbn)
+          .maybeSingle();
         existingBook = data;
       }
 
       if (!existingBook) {
-        // Check by title and author (fuzzy)
+        // Check by title and author (case-insensitive); several matches still count
         const { data } = await supabase
           .from("books")
           .select("id, title")
           .ilike("title", row.title)
           .ilike("author", row.author)
-          .single();
+          .limit(1)
+          .maybeSingle();
         existingBook = data;
       }
 
@@ -163,8 +157,7 @@ export async function importBooksFromCSV(rows: ParsedBookRow[]): Promise<ImportR
           author: row.author,
           slug,
           description: row.description || null,
-          isbn: row.isbn || null,
-          isbn13: row.isbn13 || null,
+          isbn,
           cover_url: row.cover_url || null,
           page_count: row.page_count || null,
           published_date: row.published_date || null,

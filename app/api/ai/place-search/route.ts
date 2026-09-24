@@ -1,10 +1,11 @@
-import { generateText, stepCountIs, UIMessage, CoreMessage } from "ai";
+import { generateText, stepCountIs, CoreMessage } from "ai";
 import { google } from "@ai-sdk/google";
 import { GEMINI_MODEL, GEMINI_CALL_OPTIONS } from "@/lib/ai/models";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { NextRequest } from "next/server";
-import { placeSearchTools } from "@/lib/ai/place-tools";
+import { placeSearchTools, extractPlaces } from "@/lib/ai/place-tools";
+import { chatRequestSchema, chatMessageText, CHAT_HISTORY_LIMIT } from "@/lib/ai/schemas";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { getUser } from "@/lib/supabase/server";
 import { validateOrigin } from "@/lib/utils/csrf";
@@ -87,17 +88,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, location } = (await request.json()) as {
-      messages: UIMessage[];
-      location?: { lat: number; lng: number };
-    };
+    const parsed = chatRequestSchema.safeParse(await request.json().catch(() => null));
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!parsed.success) {
       return new Response(
-        JSON.stringify({ error: "Messages array is required" }),
+        JSON.stringify({ error: "Invalid messages" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
+    const { messages, location } = parsed.data;
 
     const model = getModel();
 
@@ -108,13 +107,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert UI messages to model messages format
-    const modelMessages: CoreMessage[] = messages.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content:
-        typeof m.parts === "string"
-          ? m.parts
-          : m.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") || "",
-    }));
+    const modelMessages: CoreMessage[] = messages
+      .slice(-CHAT_HISTORY_LIMIT)
+      .map((m) => ({ role: m.role, content: chatMessageText(m) }));
 
     const result = await generateText({
       model,
@@ -132,12 +127,10 @@ export async function POST(request: NextRequest) {
       stopWhen: stepCountIs(3),
       maxOutputTokens: MAX_REPLY_TOKENS,
       ...GEMINI_CALL_OPTIONS,
+      abortSignal: request.signal,
     });
 
-    // Extract places from tool results if any
-    const places = result.steps
-      .flatMap((step) => step.toolResults || [])
-      .flatMap((tr) => (tr as { result?: { places?: unknown[] } }).result?.places || []);
+    const places = extractPlaces(result.steps);
 
     return Response.json({
       text: result.text,

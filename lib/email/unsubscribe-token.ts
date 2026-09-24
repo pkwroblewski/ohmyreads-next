@@ -1,5 +1,6 @@
 import { createHmac } from "crypto";
 import { safeCompare } from "@/lib/utils/secrets";
+import { cleanEnv } from "@/lib/utils/env";
 
 /**
  * Signed one-click unsubscribe links for the weekly digest.
@@ -13,7 +14,7 @@ import { safeCompare } from "@/lib/utils/secrets";
  * cron already requires) so no new variable is mandatory.
  */
 export function getEmailTokenSecret(): string | null {
-  return process.env.EMAIL_TOKEN_SECRET || process.env.CRON_SECRET || null;
+  return cleanEnv(process.env.EMAIL_TOKEN_SECRET) || cleanEnv(process.env.CRON_SECRET) || null;
 }
 
 export function signUnsubscribeToken(userId: string, secret: string): string {

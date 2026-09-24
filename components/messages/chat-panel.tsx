@@ -21,6 +21,8 @@ interface ChatPanelProps {
   userId: string;
   conversations: ConversationPreview[];
   initialFriendId?: string | null;
+  /** The friend whose chat is on screen, or null (list shown or panel closed). */
+  onActiveFriendChange?: (friendId: string | null) => void;
 }
 
 export function ChatPanel({
@@ -29,6 +31,7 @@ export function ChatPanel({
   userId,
   conversations,
   initialFriendId,
+  onActiveFriendChange,
 }: ChatPanelProps) {
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(
     initialFriendId || null
@@ -44,31 +47,44 @@ export function ChatPanel({
     }
   }, [initialFriendId]);
 
+  useEffect(() => {
+    onActiveFriendChange?.(isOpen ? selectedFriendId : null);
+  }, [isOpen, selectedFriendId, onActiveFriendChange]);
+
   // Load chat when friend is selected
   useEffect(() => {
     if (!selectedFriendId || !isOpen) {
       setSelectedFriend(null);
       setMessages([]);
+      setIsLoadingChat(false);
       return;
     }
+
+    // A slower response for a previously selected friend must not overwrite
+    // the chat that is now open.
+    let stale = false;
 
     async function loadChat() {
       setIsLoadingChat(true);
       try {
         const response = await fetch(`/api/messages/${selectedFriendId}`);
-        if (response.ok) {
+        if (response.ok && !stale) {
           const data = await response.json();
+          if (stale) return;
           setSelectedFriend(data.friend);
           setMessages(data.messages);
         }
       } catch (error) {
         console.error("Failed to load chat:", error);
       } finally {
-        setIsLoadingChat(false);
+        if (!stale) setIsLoadingChat(false);
       }
     }
 
     loadChat();
+    return () => {
+      stale = true;
+    };
   }, [selectedFriendId, isOpen]);
 
   const handleBack = useCallback(() => {
@@ -82,14 +98,11 @@ export function ChatPanel({
   }, []);
 
   // Close panel handler
+  // Reset synchronously: a delayed reset would clear a chat reopened within
+  // the delay (e.g. a "Message" button clicked right after closing).
   const handleClose = useCallback(() => {
     onClose();
-    // Reset state after animation
-    setTimeout(() => {
-      setSelectedFriendId(null);
-      setSelectedFriend(null);
-      setMessages([]);
-    }, 300);
+    setSelectedFriendId(null);
   }, [onClose]);
 
   // Handle escape key
@@ -157,7 +170,6 @@ export function ChatPanel({
             />
           ) : (
             <ConversationList
-              userId={userId}
               initialConversations={conversations}
               onSelectConversation={handleSelectConversation}
             />

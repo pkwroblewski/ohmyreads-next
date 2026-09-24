@@ -41,6 +41,15 @@ export function AdminSearchInput({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [value, setValue] = useState(params[name] ?? "");
+  // The last query this input put in the URL. When the URL changes to
+  // anything else (back/forward, a link), adopt it rather than debouncing
+  // the stale typed value back over it.
+  const [pushed, setPushed] = useState(params[name] ?? "");
+  const urlValue = params[name] ?? "";
+  if (urlValue !== pushed) {
+    setPushed(urlValue);
+    setValue(urlValue);
+  }
 
   // Debounce so a typed query is one navigation, not one per keystroke. The
   // 300ms matches the debounce the client-fetching version used.
@@ -49,6 +58,7 @@ export function AdminSearchInput({
     if (value === current) return;
 
     const timer = setTimeout(() => {
+      setPushed(value);
       startTransition(() => {
         // Any change to the query resets to page 1 — page 4 of the old result
         // set is meaningless against the new one.

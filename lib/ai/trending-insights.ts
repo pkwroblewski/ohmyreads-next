@@ -5,6 +5,7 @@ import { google } from "@ai-sdk/google";
 import { GEMINI_MODEL, GEMINI_CALL_OPTIONS } from "@/lib/ai/models";
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache/tags";
+import { UncachedResult, serveUncachedResult } from "@/lib/cache/uncached-result";
 import { trendingInsightSchema } from "@/lib/ai/schemas";
 import { createPublicClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
@@ -81,7 +82,8 @@ async function generateTrendingInsights(): Promise<TrendingInsight[]> {
 
   // One request per book, in parallel: they share no state, and run serially
   // this was seven sequential round-trips behind a single cache miss.
-  return Promise.all(
+  let aiFailed = false;
+  const insights = await Promise.all(
     trendingBooks.map(async (book) => {
       const bookReviews = reviewsByBook.get(book.id) || [];
 
@@ -123,6 +125,7 @@ Generate a brief trending insight and 2-3 keywords that capture why this book re
         // Covers both a provider failure and NoObjectGeneratedError (model
         // returned something the schema rejects).
         logError("AI generation failed for book", aiError, { bookId: book.id });
+        aiFailed = true;
         return {
           bookId: book.id,
           insight: `Trending in ${book.genres?.[0] || "fiction"}`,
@@ -131,6 +134,10 @@ Generate a brief trending insight and 2-3 keywords that capture why this book re
       }
     })
   );
+
+  // Don't pin a fallback for 24h because Gemini blipped once.
+  if (aiFailed) throw new UncachedResult(insights);
+  return insights;
 }
 
 /**
@@ -138,8 +145,10 @@ Generate a brief trending insight and 2-3 keywords that capture why this book re
  * whole site (or until the `trending` tag is expired); the homepage awaits
  * it for signed-in readers and the route below serves the same entry.
  */
-export const getCachedTrendingInsights = unstable_cache(
-  generateTrendingInsights,
-  ["trending-insights"],
-  { revalidate: 86400, tags: [CACHE_TAGS.trending] } // 24 hours
+export const getCachedTrendingInsights = serveUncachedResult(
+  unstable_cache(
+    generateTrendingInsights,
+    ["trending-insights"],
+    { revalidate: 86400, tags: [CACHE_TAGS.trending] } // 24 hours
+  )
 );

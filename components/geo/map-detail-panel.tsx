@@ -513,12 +513,14 @@ function PlaceContent({ place, currentUserId, onMarkSpotAtPlace }: {
 
       {/* Photo section - smaller */}
       {photoUrl && (
-        <div className="relative rounded-lg overflow-hidden">
+        <div key={photoUrl} className="relative rounded-lg overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element -- URL host is not guaranteed to be in ALLOWED_IMAGE_HOSTS */}
           <img
             src={photoUrl}
             alt={place.name}
             className="w-full h-28 object-cover"
+            // Google photoUris are short-lived; hide the frame if one expired
+            onError={(e) => e.currentTarget.parentElement?.classList.add("hidden")}
           />
         </div>
       )}

@@ -25,7 +25,9 @@ import {
   isStoredCover,
   type BookCoverData,
 } from "@/lib/utils/covers";
+import { isAllowedImageHost } from "@/lib/config/image-hosts";
 import { logError } from "@/lib/utils/log";
+import { cleanEnv } from "@/lib/utils/env";
 
 // Defined in the client-safe utils module (no sharp) so the renderer can use
 // them too; re-exported here for pipeline callers.
@@ -72,26 +74,17 @@ export const PLACEHOLDER_MD5 = new Set([
 export const MIN_BYTES_PER_PIXEL = 0.05;
 
 const FETCH_TIMEOUT_MS = 15_000;
+/** Open Library covers redirect once to archive.org; anything longer is refused. */
+const MAX_REDIRECTS = 3;
 const MAX_CANDIDATE_BYTES = 5 * 1024 * 1024;
 
 /**
  * Open Library asks every client to identify itself and give a contact;
  * unnamed clients are the first to be throttled.
  */
-/**
- * Env values pasted through the Vercel CLI carry a literal CR-LF (the same
- * defect behind the CSRF and Sentry DSN fixes). Inside Next the loader turns
- * it into real control characters, and undici rejects a header that contains
- * one before the request is sent, so every candidate would be "fetch-failed".
- */
-function headerSafeEnv(value: string | undefined): string | undefined {
-  const cleaned = value?.replace(/[\r\n]/g, "").trim();
-  return cleaned || undefined;
-}
-
 const USER_AGENT = `OhMyReads/1.0 (${
-  headerSafeEnv(process.env.NEXT_PUBLIC_SITE_URL) ?? "https://ohmyreads-next.vercel.app"
-}; ${headerSafeEnv(process.env.OPEN_LIBRARY_CONTACT) ?? "contact via site"})`;
+  cleanEnv(process.env.NEXT_PUBLIC_SITE_URL) ?? "https://ohmyreads-next.vercel.app"
+}; ${cleanEnv(process.env.OPEN_LIBRARY_CONTACT) ?? "contact via site"})`;
 
 export type CoverSource = "google" | "openlibrary" | "other";
 
@@ -267,18 +260,30 @@ export async function fetchAndScore(
     extra: Partial<ScoredCandidate> = {}
   ): ScoredCandidate => ({ url, finalUrl: url, ok: false, reason, ...extra });
 
-  let response: Response;
+  // Every hop must be https on an allowed image host: a candidate can come
+  // from a stored cover_url, and following redirects blindly would let one
+  // reach internal addresses (SSRF) with the bytes copied to a public bucket.
+  let response: Response | undefined;
+  let current = url;
   try {
-    response = await fetchImpl(url, {
-      headers: { "User-Agent": USER_AGENT, Accept: "image/*" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      if (!isAllowedImageHost(current)) return reject("fetch-failed");
+      response = await fetchImpl(current, {
+        headers: { "User-Agent": USER_AGENT, Accept: "image/*" },
+        redirect: "manual",
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+      const location = response.headers.get("location");
+      if (response.status < 300 || response.status >= 400 || !location) break;
+      current = new URL(location, current).toString();
+      response = undefined;
+    }
   } catch {
     return reject("fetch-failed");
   }
+  if (!response) return reject("fetch-failed");
 
-  const finalUrl = response.url || url;
+  const finalUrl = response.url || current;
   if (!response.ok) return reject("http-error", { finalUrl });
 
   const contentType = response.headers.get("content-type") ?? "";

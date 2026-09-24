@@ -11,10 +11,12 @@ import { logError, logger } from "@/lib/utils/log";
 export const runtime = "nodejs";
 
 /**
- * One-click digest unsubscribe: `GET|POST /api/email/unsubscribe?u=<id>&t=<sig>`.
+ * Digest unsubscribe: `GET|POST /api/email/unsubscribe?u=<id>&t=<sig>`.
  *
- * No session: the link is opened from a mail client, and mail providers POST
- * to it themselves (RFC 8058 `List-Unsubscribe-Post`). Authority comes from
+ * GET only shows a confirm button: corporate link scanners open every URL in a
+ * message, so a GET must never change anything. POST unsubscribes, whether it
+ * comes from that button or from a mail provider's RFC 8058 one-click
+ * (`List-Unsubscribe-Post`). No session either way. Authority comes from
  * the HMAC in `t`, verified in constant time; the only thing it can do is set
  * `email_digest_enabled = false` for that one user, through the service-role
  * client because the email columns are not readable by the API roles (065).
@@ -26,7 +28,7 @@ const paramsSchema = z.object({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://ohmyreads.com";
 
-function page(title: string, body: string, status: number): NextResponse {
+function page(title: string, body: string, status: number, extra = ""): NextResponse {
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -40,12 +42,14 @@ function page(title: string, body: string, status: number): NextResponse {
     h1 { font-size: 22px; margin: 0 0 12px; }
     p { margin: 0 0 20px; line-height: 1.5; color: #6B5744; }
     a { color: #8B5A2B; }
+    button { font: inherit; font-size: 16px; padding: 10px 24px; border: 0; border-radius: 8px; background: #8B5A2B; color: #fff; cursor: pointer; }
+    form { margin: 0 0 20px; }
   </style>
 </head>
 <body>
   <main>
     <h1>${title}</h1>
-    <p>${body}</p>
+    <p>${body}</p>${extra}
     <p><a href="${SITE_URL}/settings">Manage email preferences</a></p>
   </main>
 </body>
@@ -59,7 +63,7 @@ function page(title: string, body: string, status: number): NextResponse {
   });
 }
 
-async function unsubscribe(request: NextRequest): Promise<NextResponse> {
+async function unsubscribe(request: NextRequest, confirmed: boolean): Promise<NextResponse> {
   try {
     const ip = getClientIp(request);
     const { allowed } = await checkRateLimit(`email-unsubscribe:${ip}`, 10, 60000);
@@ -86,6 +90,17 @@ async function unsubscribe(request: NextRequest): Promise<NextResponse> {
         "This link is not valid",
         "It may have been copied incompletely. You can still turn the digest off from your settings.",
         400
+      );
+    }
+
+    if (!confirmed) {
+      // u is a UUID and t matches [A-Za-z0-9_-], so both are safe in the URL.
+      const action = `/api/email/unsubscribe?u=${parsed.data.u}&t=${parsed.data.t}`;
+      return page(
+        "Unsubscribe from the digest?",
+        "You will stop receiving the weekly reading digest.",
+        200,
+        `<form method="post" action="${action}"><button type="submit">Unsubscribe</button></form>`
       );
     }
 
@@ -120,11 +135,12 @@ async function unsubscribe(request: NextRequest): Promise<NextResponse> {
   }
 }
 
+/** Confirm page only; see the module comment. */
 export async function GET(request: NextRequest) {
-  return unsubscribe(request);
+  return unsubscribe(request, false);
 }
 
-/** RFC 8058 one-click: mail providers POST `List-Unsubscribe=One-Click`. */
+/** The confirm button, and RFC 8058 one-click (`List-Unsubscribe=One-Click`). */
 export async function POST(request: NextRequest) {
-  return unsubscribe(request);
+  return unsubscribe(request, true);
 }

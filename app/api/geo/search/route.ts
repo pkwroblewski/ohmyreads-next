@@ -104,6 +104,7 @@ export async function GET(request: NextRequest) {
         "User-Agent": "OhMyReads/1.0 (book reading community)",
         "Accept-Language": "en",
       },
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!response.ok) {

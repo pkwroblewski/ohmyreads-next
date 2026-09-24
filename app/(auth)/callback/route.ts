@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
-import { sendWelcomeEmail } from "@/lib/actions/email";
 import { logger, extractErrorInfo, extractSupabaseErrorInfo } from "@/lib/utils/log";
 import type { Database } from "@/types/database";
 
@@ -179,16 +178,7 @@ export async function GET(request: Request) {
           // Non-fatal, continue with login
         }
 
-        // Send welcome email for new user (non-blocking)
-        if (user.email) {
-          sendWelcomeEmail({
-            email: user.email,
-            username: username,
-            displayName: displayName || undefined,
-          }).catch((err) => {
-            logger.error("Failed to send welcome email", extractErrorInfo(err));
-          });
-        }
+        // The welcome email is sent by the profiles INSERT webhook.
 
         // Brand-new profile → route into taste onboarding
         if (isDefaultRedirect) {
@@ -199,24 +189,13 @@ export async function GET(request: Request) {
         // We no longer update admin status on every login based on ADMIN_EMAILS
         // Admins are granted/revoked through the admin panel with full audit trail
 
-        // Check if new (created in last 5 minutes) for welcome email
+        // Created in the last 5 minutes = a new account
         const createdAt = new Date(profile.created_at);
         const now = new Date();
         const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
-        // Send welcome email if profile was created in the last 5 minutes (non-blocking)
-        if (createdAt > fiveMinutesAgo && data.user.email) {
-          sendWelcomeEmail({
-            email: data.user.email,
-            username: profile.username,
-            displayName: profile.display_name || undefined,
-          }).catch((err) => {
-            logger.error("Failed to send welcome email", extractErrorInfo(err));
-          });
-        }
-
         // Recent account that hasn't completed taste onboarding → route there
-        // (same new-account window as the welcome email; older accounts skip)
+        // (older accounts skip)
         if (createdAt > fiveMinutesAgo && isDefaultRedirect) {
           const { data: taste } = await supabase
             .from("user_taste_profiles")

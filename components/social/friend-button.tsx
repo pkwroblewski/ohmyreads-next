@@ -52,12 +52,13 @@ export default function FriendButton({
     startTransition(async () => {
       const result = await sendFriendRequest(targetUserId);
 
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error);
         return;
       }
 
       setStatus("pending_sent");
+      setRequestId(result.requestId);
       onStatusChange?.("pending_sent");
       toast.success("Friend request sent!");
     });

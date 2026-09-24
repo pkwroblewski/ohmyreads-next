@@ -244,6 +244,156 @@ export async function searchGoogleBooks(
 }
 
 // ============================================
+// LOOKUP BY ID (server-trusted catalog data)
+// ============================================
+
+/** Google Books volume ids, e.g. "zyTCAlFPjgYC". */
+export const GOOGLE_BOOKS_ID_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
+/** Open Library work ids, e.g. "OL468431W". */
+export const OPEN_LIBRARY_WORK_ID_PATTERN = /^OL\d{1,10}W$/;
+
+/** Single-volume responses format the description as HTML. */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>|<\/p>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
+ * Fetch one Google Books volume by id. Used when a user adds a search result
+ * to the catalog: the row is built from this response, never from the client.
+ */
+export async function getGoogleBookById(
+  id: string
+): Promise<ExternalBookResult | null> {
+  if (!GOOGLE_BOOKS_ID_PATTERN.test(id)) return null;
+  const url = googleBooksUrl();
+  url.pathname += `/${id}`;
+
+  try {
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      if (response.status !== 404) logError("Google Books volume lookup failed", response.status);
+      return null;
+    }
+
+    const item: GoogleBooksItem = await response.json();
+    const vol = item.volumeInfo;
+    if (!vol?.title) return null;
+    const isbn =
+      vol.industryIdentifiers?.find((i) => i.type === "ISBN_13")?.identifier ||
+      vol.industryIdentifiers?.find((i) => i.type === "ISBN_10")?.identifier ||
+      null;
+
+    return {
+      source: "google" as const,
+      externalId: item.id,
+      title: vol.title,
+      author: vol.authors?.[0] || "Unknown Author",
+      isbn,
+      description: vol.description ? stripHtml(vol.description) || null : null,
+      coverUrl: getGoogleBooksCoverUrl(item.id, 3),
+      publishedDate: vol.publishedDate || null,
+      pageCount: vol.pageCount || null,
+      genres: (vol.categories || []).slice(0, 5),
+      googleBooksId: item.id,
+      openLibraryId: null,
+      openLibraryCoverId: null,
+    };
+  } catch (error) {
+    logError("Google Books volume lookup error", error);
+    return null;
+  }
+}
+
+/**
+ * Fetch one Open Library work by id, through the search endpoint so the
+ * author name, ISBN and cover id come back in one call.
+ */
+export async function getOpenLibraryWorkById(
+  workId: string
+): Promise<ExternalBookResult | null> {
+  if (!OPEN_LIBRARY_WORK_ID_PATTERN.test(workId)) return null;
+  const url = new URL("https://openlibrary.org/search.json");
+  url.searchParams.set("q", `key:/works/${workId}`);
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("fields", "key,title,author_name,first_publish_year,isbn,cover_i,subject,number_of_pages_median");
+
+  try {
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      logError("Open Library work lookup failed", response.status);
+      return null;
+    }
+
+    const data: OpenLibrarySearchResponse = await response.json();
+    const doc = data.docs?.[0];
+    if (!doc || doc.key !== `/works/${workId}`) return null;
+    const coverId = doc.cover_i || null;
+
+    return {
+      source: "openlibrary" as const,
+      externalId: workId,
+      title: doc.title,
+      author: doc.author_name?.[0] || "Unknown Author",
+      isbn: doc.isbn?.[0] || null,
+      description: await getOpenLibraryDescription(workId),
+      coverUrl: coverId ? getOpenLibraryCoverById(coverId, "L") : null,
+      publishedDate: doc.first_publish_year ? `${doc.first_publish_year}-01-01` : null,
+      pageCount: doc.number_of_pages_median || null,
+      genres: (doc.subject || []).slice(0, 5),
+      googleBooksId: null,
+      openLibraryId: workId,
+      openLibraryCoverId: coverId,
+    };
+  } catch (error) {
+    logError("Open Library work lookup error", error);
+    return null;
+  }
+}
+
+/**
+ * Normalize a date string to YYYY-MM-DD format for a DATE column. Google
+ * returns "2004" or "2004-03" as often as a full date.
+ */
+export function normalizeDate(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+
+  const trimmed = dateStr.trim();
+  if (!trimmed) return null;
+
+  // Already full date: 2022-02-15
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Year and month: 2022-02
+  if (/^\d{4}-\d{2}$/.test(trimmed)) {
+    return `${trimmed}-01`;
+  }
+
+  // Year only: 2022
+  if (/^\d{4}$/.test(trimmed)) {
+    return `${trimmed}-01-01`;
+  }
+
+  // Try to parse other formats
+  const date = new Date(trimmed);
+  if (!isNaN(date.getTime())) {
+    return date.toISOString().split("T")[0];
+  }
+
+  return null;
+}
+
+// ============================================
 // COMBINED SEARCH
 // ============================================
 

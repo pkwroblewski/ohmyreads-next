@@ -52,7 +52,7 @@ function validateISBN(isbn: string | undefined | null): string | null {
 function normalize(str: string): string {
   return str
     .toLowerCase()
-    .replace(/[^\w\s]/g, "") // Remove punctuation
+    .replace(/[^\p{L}\p{N}\s]/gu, "") // Remove punctuation, keep any script's letters
     .replace(/\s+/g, " ") // Normalize whitespace
     .trim();
 }
@@ -64,13 +64,29 @@ function isSimilar(a: string, b: string): boolean {
   const normA = normalize(a);
   const normB = normalize(b);
 
+  // An empty string would "contain" in everything
+  if (!normA || !normB) return false;
+
   // Exact match after normalization
   if (normA === normB) return true;
 
-  // One contains the other (for subtitle variations)
-  if (normA.includes(normB) || normB.includes(normA)) return true;
+  // One contains the other (for subtitle variations), unless the shorter is too
+  // short to mean anything
+  const [shorter, longer] = normA.length <= normB.length ? [normA, normB] : [normB, normA];
+  return shorter.length >= 4 && longer.includes(shorter);
+}
 
-  return false;
+/**
+ * Leading words of a title, before any punctuation (subtitle, series, apostrophe),
+ * as a PostgREST ilike pattern: a prefix when long enough, else the exact title
+ */
+function titlePattern(title: string): string | null {
+  const lead = title
+    .replace(/^[^\p{L}\p{N}]+/u, "")
+    .match(/^[\p{L}\p{N} ]+/u)?.[0]
+    .trim();
+  if (!lead) return null;
+  return lead.length >= 4 ? `${lead}*` : lead;
 }
 
 /**
@@ -130,16 +146,6 @@ export async function importFromGoodreads(
     }
     rows = validationResult.data;
 
-    // Get user's existing books to avoid duplicates
-    const { data: existingUserBooks } = await supabase
-      .from("user_books")
-      .select("book_id")
-      .eq("user_id", user.id);
-
-    const existingBookIds = new Set(
-      existingUserBooks?.map((ub) => ub.book_id) || []
-    );
-
     // Step 1: Collect all valid ISBNs from CSV for efficient batch query
     const isbnList = rows
       .flatMap((r) => [r.isbn, r.isbn13])
@@ -184,25 +190,41 @@ export async function importFromGoodreads(
       return true;
     });
 
-    // Load books for title matching only if needed (limited to 10000 for safety)
+    // Load title-match candidates by each unmatched title's leading words, rather
+    // than the catalog, which PostgREST would cut off at 1,000 rows
     const booksByNormalizedTitle = new Map<string, { id: string; title: string; author: string; isbn: string | null }[]>();
-    let allBooksForTitleMatch: { id: string; title: string; author: string; isbn: string | null }[] = [];
+    const allBooksForTitleMatch: { id: string; title: string; author: string; isbn: string | null }[] = [];
 
-    if (unmatchedRows.length > 0) {
-      const { data: titleMatchBooks } = await supabase
+    const titlePatterns = [
+      ...new Set(
+        unmatchedRows
+          .map((row) => titlePattern(row.title))
+          .filter((p): p is string => p !== null)
+      ),
+    ];
+    const seenCandidateIds = new Set<string>();
+    const patternChunkSize = 50;
+    for (let i = 0; i < titlePatterns.length; i += patternChunkSize) {
+      const chunk = titlePatterns.slice(i, i + patternChunkSize);
+      // Patterns hold only letters, digits and spaces, so quoting is enough
+      const { data: candidates } = await supabase
         .from("books")
         .select("id, title, author, isbn")
-        .limit(10000);
+        .or(chunk.map((p) => `title.ilike."${p}"`).join(","));
 
-      allBooksForTitleMatch = titleMatchBooks || [];
-
-      for (const book of allBooksForTitleMatch) {
-        const normalizedTitle = normalize(book.title);
-        if (!booksByNormalizedTitle.has(normalizedTitle)) {
-          booksByNormalizedTitle.set(normalizedTitle, []);
-        }
-        booksByNormalizedTitle.get(normalizedTitle)!.push(book);
+      for (const book of candidates || []) {
+        if (seenCandidateIds.has(book.id)) continue;
+        seenCandidateIds.add(book.id);
+        allBooksForTitleMatch.push(book);
       }
+    }
+
+    for (const book of allBooksForTitleMatch) {
+      const normalizedTitle = normalize(book.title);
+      if (!booksByNormalizedTitle.has(normalizedTitle)) {
+        booksByNormalizedTitle.set(normalizedTitle, []);
+      }
+      booksByNormalizedTitle.get(normalizedTitle)!.push(book);
     }
 
     // Process each row
@@ -217,8 +239,7 @@ export async function importFromGoodreads(
 
     type BookMatch = { id: string; title: string; author: string; isbn: string | null };
 
-    for (const row of rows) {
-      // Try to find a match
+    const findMatch = (row: GoodreadsRow): BookMatch | undefined => {
       let matchedBook: BookMatch | undefined;
 
       // 1. Try ISBN13 first (most reliable)
@@ -238,7 +259,9 @@ export async function importFromGoodreads(
       // 3. Try title + author fuzzy match (only if title matching data was loaded)
       if (!matchedBook && allBooksForTitleMatch.length > 0) {
         const normalizedTitle = normalize(row.title);
-        const candidates = booksByNormalizedTitle.get(normalizedTitle) || [];
+        const candidates = normalizedTitle
+          ? booksByNormalizedTitle.get(normalizedTitle) || []
+          : [];
 
         // Check if any candidate has a matching author
         for (const candidate of candidates) {
@@ -262,6 +285,28 @@ export async function importFromGoodreads(
         }
       }
 
+      return matchedBook;
+    };
+
+    const matches = rows.map((row) => ({ row, matchedBook: findMatch(row) }));
+
+    // Books already on the shelf, checked for the matched IDs only: reading the
+    // whole shelf would stop at 1,000 rows and let duplicates fail the insert
+    const matchedIds = [
+      ...new Set(matches.flatMap((m) => (m.matchedBook ? [m.matchedBook.id] : []))),
+    ];
+    const existingBookIds = new Set<string>();
+    for (let i = 0; i < matchedIds.length; i += 500) {
+      const { data: existingUserBooks } = await supabase
+        .from("user_books")
+        .select("book_id")
+        .eq("user_id", user.id)
+        .in("book_id", matchedIds.slice(i, i + 500));
+
+      for (const ub of existingUserBooks || []) existingBookIds.add(ub.book_id);
+    }
+
+    for (const { row, matchedBook } of matches) {
       if (matchedBook) {
         // Check if already in user's shelf
         if (existingBookIds.has(matchedBook.id)) {

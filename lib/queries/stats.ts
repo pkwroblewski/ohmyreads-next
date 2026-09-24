@@ -344,8 +344,9 @@ export async function getUserReadingStats(
   // Monthly reading (last 12 months)
   const monthlyReading: { month: string; books: number; pages: number }[] = [];
   for (let i = 11; i >= 0; i--) {
-    const date = new Date();
-    date.setMonth(date.getMonth() - i);
+    // Day 1, so stepping back from the 29th-31st can't overflow a month
+    const now = new Date();
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const year = date.getFullYear();
     const month = date.getMonth();
     const monthName = date.toLocaleDateString("en-US", {
