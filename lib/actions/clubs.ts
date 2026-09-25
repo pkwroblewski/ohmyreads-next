@@ -1,6 +1,7 @@
 "use server";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
@@ -82,8 +83,17 @@ export async function createClub(
 
   if (memberError) {
     logError("[createClub] Member insert error", memberError);
-    // Rollback: delete the club since we couldn't add the creator as admin
-    await supabase.from("book_clubs").delete().eq("id", club.id);
+    // Rollback: delete the club since we couldn't add the creator as admin.
+    // Service role: the delete policy needs the club-admin membership that
+    // just failed, so the session client would delete 0 rows.
+    const { error: rollbackError } = await createAdminClient()
+      .from("book_clubs")
+      .delete()
+      .eq("id", club.id)
+      .eq("created_by", user.id);
+    if (rollbackError) {
+      reportError("[createClub] Rollback failed, orphan club", rollbackError, { clubId: club.id });
+    }
     return { success: false, error: "Failed to add you as club admin. Please try again." };
   }
 

@@ -30,6 +30,12 @@ export const ALLOWED_IMAGE_HOSTS: AllowedImageHost[] = [
     hostname: "bgczdbmqievfilvdzlgl.supabase.co",
     pathname: "/storage/v1/object/public/book-covers/**",
   },
+  // Reader-uploaded place photos (next/image in the map's Photos tab).
+  {
+    protocol: "https",
+    hostname: "bgczdbmqievfilvdzlgl.supabase.co",
+    pathname: "/storage/v1/object/public/place-photos/**",
+  },
 ];
 
 /**

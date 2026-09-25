@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { requireUser } from "@/lib/auth/require-user";
+import { syncUserBadges } from "@/lib/actions/badges";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
   createCheckinSchema,
@@ -113,8 +114,10 @@ export async function createCheckin(input: CreateCheckinInput): Promise<CreateCh
       return { success: false, error: "Failed to create check-in" };
     }
 
-    // Check for new badges (after stats are updated by trigger)
-    const newBadges = await checkAndUnlockCheckinBadges(user.id);
+    // Check for new badges (after stats are updated by trigger). Awarded via
+    // the shared service-role path: RLS blocks user_badges inserts since 064.
+    const badgeSync = await syncUserBadges();
+    const newBadges = badgeSync.success ? badgeSync.newBadges : [];
 
     // A trigger writes the check-in into activity_feed, staling the cached feed.
     invalidateTags(CACHE_TAGS.activity);
@@ -214,91 +217,5 @@ export async function getPlaceCheckins(
   } catch (error) {
     logError("Error in getPlaceCheckins", error);
     return { checkins: [] };
-  }
-}
-
-// ============================================
-// GET USER CHECK-IN STATS
-// ============================================
-
-// ============================================
-// CAN CHECK-IN AT PLACE
-// ============================================
-
-// ============================================
-// DELETE CHECK-IN
-// ============================================
-
-// ============================================
-// CHECK AND UNLOCK CHECK-IN BADGES
-// ============================================
-
-/**
- * Check and unlock check-in related badges
- */
-async function checkAndUnlockCheckinBadges(
-  userId: string
-): Promise<Array<{ id: string; name: string; icon: string }>> {
-  try {
-    const supabase = await createClient();
-
-    // Get user's check-in stats
-    const { data: stats } = await supabase
-      .from("user_checkin_stats")
-      .select("total_checkins, current_streak")
-      .eq("user_id", userId)
-      .single();
-
-    if (!stats) return [];
-
-    const totalCheckins = stats.total_checkins || 0;
-    const currentStreak = stats.current_streak || 0;
-
-    // Get user's existing badges
-    const { data: existingBadges } = await supabase
-      .from("user_badges")
-      .select("badge_id")
-      .eq("user_id", userId);
-
-    const existingIds = new Set((existingBadges || []).map((b) => b.badge_id));
-
-    // Define check-in badges with their criteria
-    const checkinBadges = [
-      { id: "first-checkin", name: "Explorer", icon: "📍", totalCheckins: 1 },
-      { id: "regular-visitor", name: "Regular Visitor", icon: "🏪", totalCheckins: 10 },
-      { id: "local-reader", name: "Local Reader", icon: "🏘️", totalCheckins: 50 },
-      { id: "reading-nomad", name: "Reading Nomad", icon: "🌍", totalCheckins: 100 },
-      { id: "weekly-wanderer", name: "Weekly Wanderer", icon: "🔥", checkinStreak: 7 },
-      { id: "monthly-explorer", name: "Monthly Explorer", icon: "🏆", checkinStreak: 30 },
-    ];
-
-    const newlyUnlocked: Array<{ id: string; name: string; icon: string }> = [];
-
-    for (const badge of checkinBadges) {
-      if (existingIds.has(badge.id)) continue;
-
-      let shouldUnlock = false;
-
-      if (badge.totalCheckins !== undefined) {
-        shouldUnlock = totalCheckins >= badge.totalCheckins;
-      } else if (badge.checkinStreak !== undefined) {
-        shouldUnlock = currentStreak >= badge.checkinStreak;
-      }
-
-      if (shouldUnlock) {
-        const { error } = await supabase
-          .from("user_badges")
-          .insert({ user_id: userId, badge_id: badge.id });
-
-        if (!error) {
-          newlyUnlocked.push({ id: badge.id, name: badge.name, icon: badge.icon });
-        }
-      }
-    }
-
-    return newlyUnlocked;
-  } catch (error) {
-    logError("Error checking badges", error);
-    return [];
   }
 }

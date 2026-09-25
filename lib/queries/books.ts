@@ -93,6 +93,7 @@ async function fetchBookReviewsPage(
     )
     .eq("book_id", bookId)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: true }) // unique tiebreaker: stable pages
     .range(offset, offset + REVIEWS_PAGE_SIZE - 1)
     // The declared type predates the select: profile is a 4-column subset
     .overrideTypes<ReviewWithUser[], { merge: false }>();
@@ -196,7 +197,8 @@ export async function searchBooks(
       });
   }
 
-  bookQuery = bookQuery.range(offset, offset + limit - 1);
+  // Unique tiebreaker so .range() pages never overlap or skip rows.
+  bookQuery = bookQuery.order("id", { ascending: true }).range(offset, offset + limit - 1);
 
   const { data, error, count } = await bookQuery;
 

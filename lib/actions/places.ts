@@ -59,26 +59,27 @@ export async function submitPlace(input: SubmitPlaceInput): Promise<ActionResult
       };
     }
 
-    // Generate geohash if coordinates provided
-    let geohash = null;
-    if (input.lat && input.lng) {
-      geohash = encodeGeohash(input.lat, input.lng, 7);
-    }
+    const place = validationResult.data;
+
+    // Generate geohash if coordinates provided (0 is a valid coordinate)
+    const coords =
+      place.lat != null && place.lng != null ? { lat: place.lat, lng: place.lng } : null;
+    const geohash = coords ? encodeGeohash(coords.lat, coords.lng, 7) : null;
 
     // Insert submission
     const { data, error } = await supabase
       .from("place_submissions")
       .insert({
-        name: input.name.trim(),
-        place_type: input.placeType,
-        address: input.address?.trim() || null,
-        city: input.city?.trim() || null,
-        country: input.country?.trim() || null,
-        lat: input.lat || null,
-        lng: input.lng || null,
+        name: place.name,
+        place_type: place.placeType,
+        address: place.address || null,
+        city: place.city || null,
+        country: place.country || null,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
         geohash,
-        website: input.website?.trim() || null,
-        description: input.description?.trim() || null,
+        website: place.website?.trim() || null,
+        description: place.description?.trim() || null,
         submitted_by: user.id,
         status: "pending",
       })
@@ -216,7 +217,7 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
       .single();
 
     // Call the database function to reject
-    const { error } = await supabase.rpc("reject_place_submission", {
+    const { data: rejected, error } = await supabase.rpc("reject_place_submission", {
       submission_id: submissionId,
       admin_notes: notes || undefined,
     });
@@ -224,6 +225,11 @@ export async function rejectPlaceSubmission(submissionId: string, notes?: string
     if (error) {
       logError("Error rejecting submission", error);
       return { success: false, error: "Failed to reject submission" };
+    }
+
+    // false = no pending submission with this id (already reviewed or gone)
+    if (!rejected) {
+      return { success: false, error: "Submission not found or already reviewed" };
     }
 
     // Audit log

@@ -82,6 +82,9 @@ interface ReaderMapImmersiveProps {
   // User presence for check-out button
   userPresence?: UserPresenceData | null;
   onClearPresence?: () => void;
+  // Called after a spot is marked from inside the map, so the page's presence
+  // state (context panel, Check Out button) matches what was saved.
+  onPresenceSet?: (presence: UserPresenceData) => void;
 }
 
 export function ReaderMapImmersive({
@@ -94,6 +97,7 @@ export function ReaderMapImmersive({
   onRefreshData,
   userPresence,
   onClearPresence,
+  onPresenceSet,
 }: ReaderMapImmersiveProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -118,6 +122,10 @@ export function ReaderMapImmersive({
   const [selectedSearchIndex, setSelectedSearchIndex] = useState(-1); // Keyboard navigation index
   // Highlighted place from search (to show with distinctive marker)
   const [highlightedPlace, setHighlightedPlace] = useState<{ lat: number; lng: number; name: string } | null>(null);
+
+  // Deep link from "Places near you": /community/map?place=<id>&lat=..&lng=..
+  // Read once at init; cleared when the place has been selected.
+  const deepLinkRef = useRef<{ id: string; lat: number; lng: number } | null>(null);
 
   // Mark spot modal state
   const [showMarkSpotModal, setShowMarkSpotModal] = useState(false);
@@ -287,6 +295,17 @@ export function ReaderMapImmersive({
           community: placesData.community || [],
           osm: placesData.osm || [],
         });
+
+        const target = deepLinkRef.current;
+        if (target) {
+          const hit = [...(placesData.community || []), ...(placesData.osm || [])].find(
+            (p: PlacePin) => p.id === target.id
+          );
+          if (hit) {
+            deepLinkRef.current = null;
+            setSelectedItem(hit);
+          }
+        }
       }
     } catch (error) {
       console.error("Error fetching map data:", error);
@@ -307,6 +326,24 @@ export function ReaderMapImmersive({
 
     // Set the access token
     mapboxgl.accessToken = mapboxToken;
+
+    const params = new URLSearchParams(window.location.search);
+    const linkLat = Number(params.get("lat"));
+    const linkLng = Number(params.get("lng"));
+    const linkPlace = params.get("place");
+    if (
+      linkPlace &&
+      params.get("lat") && params.get("lng") &&
+      Math.abs(linkLat) <= 90 && Math.abs(linkLng) <= 180
+    ) {
+      deepLinkRef.current = { id: linkPlace, lat: linkLat, lng: linkLng };
+      // The link may point at any type "Places near you" lists (cafes are off
+      // by default), so show all three or the pin would never be fetched.
+      const linkLayers = { ...layersRef.current, bookstores: true, libraries: true, cafes: true };
+      layersRef.current = linkLayers;
+      prevLayersRef.current = linkLayers; // no second fetch from the layers effect
+      setLayers(linkLayers);
+    }
 
     // Create map with Mapbox Standard style and 3D features
     map.current = new mapboxgl.Map({
@@ -429,7 +466,25 @@ export function ReaderMapImmersive({
       }
     };
 
-    if (navigator.geolocation) {
+    const deepLink = deepLinkRef.current;
+    if (deepLink) {
+      // Open on the linked place rather than the reader's own position.
+      map.current.flyTo({
+        center: [deepLink.lng, deepLink.lat],
+        zoom: 16,
+        pitch: 50,
+        bearing: 0,
+        duration: 2000,
+        essential: true,
+      });
+      fetchDataForLocation(deepLink.lat, deepLink.lng, 16);
+      // Still learn the device position for "I'm Here", without moving the map.
+      navigator.geolocation?.getCurrentPosition(
+        (position) =>
+          setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude }),
+        () => {}
+      );
+    } else if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
@@ -1234,7 +1289,8 @@ export function ReaderMapImmersive({
           setMarkSpotPlace(null);
           setMarkSpotDefaultType("temporary");
         }}
-        onSuccess={() => {
+        onSuccess={(presence) => {
+          onPresenceSet?.(presence);
           // Refresh reader data after marking a spot (force refresh to bypass cache)
           if (map.current) {
             const center = map.current.getCenter();
@@ -1249,6 +1305,7 @@ export function ReaderMapImmersive({
           lng: markSpotPlace.lng,
           type: markSpotPlace.type,
         } : undefined}
+        currentLocation={markSpotPlace ? null : userLocation}
         defaultPresenceType={markSpotDefaultType}
       />
     </div>

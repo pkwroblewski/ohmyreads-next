@@ -8,6 +8,7 @@ import { setPresence } from "@/lib/actions/location";
 import { cn } from "@/lib/utils";
 import { encodeGeohash } from "@/lib/utils/geohash";
 import { toast } from "sonner";
+import type { UserPresenceData } from "./map-context-panel";
 
 export interface PlaceForMarkSpot {
   name: string;
@@ -19,18 +20,30 @@ export interface PlaceForMarkSpot {
 interface MarkSpotModalProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  /** Called with the presence that was just saved. */
+  onSuccess: (presence: UserPresenceData) => void;
   locationLabel?: string;
   place?: PlaceForMarkSpot; // Optional place to mark at
+  /** The device's position, used when marking without a place (mobile "I'm Here"). */
+  currentLocation?: { lat: number; lng: number } | null;
   defaultPresenceType?: "temporary" | "recommended"; // Pre-select a type
 }
 
-export function MarkSpotModal({
-  open,
+/**
+ * The form mounts only while open, so each opening starts from the props of
+ * the button that opened it (Recommend vs I'm Here) instead of stale state.
+ */
+export function MarkSpotModal(props: MarkSpotModalProps) {
+  if (!props.open) return null;
+  return <MarkSpotForm {...props} />;
+}
+
+function MarkSpotForm({
   onClose,
   onSuccess,
   locationLabel,
   place,
+  currentLocation,
   defaultPresenceType,
 }: MarkSpotModalProps) {
   const [presenceType, setPresenceType] = useState<"temporary" | "recommended">(
@@ -56,6 +69,9 @@ export function MarkSpotModal({
         return;
       }
       placeGeohash = encodeGeohash(place.lat, place.lng, 7); // Precision 7 = ~150m
+    } else if (currentLocation) {
+      // Without a geohash the presence is saved with no position on the map.
+      placeGeohash = encodeGeohash(currentLocation.lat, currentLocation.lng, 7);
     }
 
     const result = await setPresence({
@@ -68,7 +84,7 @@ export function MarkSpotModal({
 
     setIsSubmitting(false);
 
-    if (result.error) {
+    if (!result.success) {
       setError(result.error);
       return;
     }
@@ -85,16 +101,17 @@ export function MarkSpotModal({
       });
     }
 
-    onSuccess();
+    onSuccess({
+      type: presenceType,
+      expiresAt: result.expiresAt,
+      note: note.trim() || null,
+      locationLabel: place?.name ?? null,
+    });
     onClose();
-    // Reset form
-    setPresenceType(defaultPresenceType || "temporary");
-    setDuration(2);
-    setNote("");
-    setLocationConsent(false);
   };
 
-  if (!open) return null;
+  // Any submission that pins a position needs explicit consent.
+  const sharesPosition = !!place || !!currentLocation;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -239,8 +256,8 @@ export function MarkSpotModal({
             </p>
           </div>
 
-          {/* Location Consent - Required when marking at a specific place */}
-          {place && (
+          {/* Location Consent - Required whenever a position is shared */}
+          {sharesPosition && (
             <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
               <input
                 type="checkbox"
@@ -254,8 +271,10 @@ export function MarkSpotModal({
                   Share your precise location
                 </p>
                 <p className="text-amber-700 dark:text-amber-300 text-xs mt-1">
-                  Other readers will see that you&apos;re at {place.name}.
-                  Your exact position (~150m) will be visible on the map.
+                  {place
+                    ? <>Other readers will see that you&apos;re at {place.name}. </>
+                    : null}
+                  Your position (~150m) will be visible on the map.
                 </p>
                 <p className="text-amber-600 dark:text-amber-400 text-xs mt-2 font-medium">
                   ↑ Required to submit
@@ -281,7 +300,7 @@ export function MarkSpotModal({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || (place && !locationConsent)}
+              disabled={isSubmitting || (sharesPosition && !locationConsent)}
               className={cn(
                 "flex-1",
                 presenceType === "recommended"

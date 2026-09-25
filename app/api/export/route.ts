@@ -3,6 +3,7 @@ import { createClient, getUser } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { extractSupabaseErrorInfo, logError, logger } from "@/lib/utils/log";
 import { escapeCsv } from "@/lib/utils/csv-escape";
+import { fetchAllPages } from "@/lib/utils/fetch-all-pages";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,11 @@ interface ExportData {
   exportedAt: string;
 }
 
+/** fetchAllPages' result in the `{ data, error }` shape the sections expect. */
+function asResult<T>({ rows, error }: { rows: T[]; error: unknown }) {
+  return { data: rows, error: error as { code?: string } | null };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -30,6 +36,17 @@ export async function GET(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Validate before the rate limit so a bad request does not spend the
+    // hour's one export.
+    const format = request.nextUrl.searchParams.get("format") || "json";
+
+    if (format !== "json" && format !== "csv") {
+      return NextResponse.json(
+        { error: "Invalid format. Use 'json' or 'csv'" },
+        { status: 400 }
+      );
     }
 
     // Rate limit: 1 export per hour
@@ -46,15 +63,6 @@ export async function GET(request: NextRequest) {
           error: `You can only export your data once per hour. Please try again in ${minutes} minutes.`,
         },
         { status: 429 }
-      );
-    }
-
-    const format = request.nextUrl.searchParams.get("format") || "json";
-
-    if (format !== "json" && format !== "csv") {
-      return NextResponse.json(
-        { error: "Invalid format. Use 'json' or 'csv'" },
-        { status: 400 }
       );
     }
 
@@ -77,41 +85,49 @@ export async function GET(request: NextRequest) {
         .eq("id", user.id)
         .single(),
 
-      // Books on shelves with book details
-      supabase
-        .from("user_books")
-        .select(
+      // Books on shelves with book details (paged: can pass 1,000 rows)
+      fetchAllPages((from, to) =>
+        supabase
+          .from("user_books")
+          .select(
+            `
+            status,
+            rating,
+            started_at,
+            finished_at,
+            created_at,
+            book:books(title, author, isbn, genres, page_count, published_date)
           `
-          status,
-          rating,
-          started_at,
-          finished_at,
-          created_at,
-          book:books(title, author, isbn, genres, page_count, published_date)
-        `
-        )
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false }),
+          )
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to)
+      ).then(asResult),
 
       // Reviews
-      supabase
-        .from("reviews")
-        .select(
+      fetchAllPages((from, to) =>
+        supabase
+          .from("reviews")
+          .select(
+            `
+            content,
+            summary,
+            liked,
+            disliked,
+            takeaway,
+            vibe_tags,
+            rating,
+            is_spoiler,
+            created_at,
+            book:books(title, author)
           `
-          content,
-          summary,
-          liked,
-          disliked,
-          takeaway,
-          vibe_tags,
-          rating,
-          is_spoiler,
-          created_at,
-          book:books(title, author)
-        `
-        )
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false }),
+          )
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to)
+      ).then(asResult),
 
       // Taste profile
       supabase
@@ -139,16 +155,24 @@ export async function GET(request: NextRequest) {
         .order("unlocked_at", { ascending: false }),
 
       // Following
-      supabase
-        .from("follows")
-        .select("created_at, following:profiles!follows_following_profile_fkey(username, display_name)")
-        .eq("follower_id", user.id),
+      fetchAllPages((from, to) =>
+        supabase
+          .from("follows")
+          .select("created_at, following:profiles!follows_following_profile_fkey(username, display_name)")
+          .eq("follower_id", user.id)
+          .order("id", { ascending: true })
+          .range(from, to)
+      ).then(asResult),
 
       // Followers
-      supabase
-        .from("follows")
-        .select("created_at, follower:profiles!follows_follower_profile_fkey(username, display_name)")
-        .eq("following_id", user.id),
+      fetchAllPages((from, to) =>
+        supabase
+          .from("follows")
+          .select("created_at, follower:profiles!follows_follower_profile_fkey(username, display_name)")
+          .eq("following_id", user.id)
+          .order("id", { ascending: true })
+          .range(from, to)
+      ).then(asResult),
 
       // Reading goals
       supabase
@@ -288,7 +312,8 @@ export async function GET(request: NextRequest) {
     csvRows.push("");
     csvRows.push(`Exported at: ${exportData.exportedAt}`);
 
-    return new NextResponse(csvRows.join("\n"), {
+    // UTF-8 BOM so Excel does not read accented titles as Latin-1.
+    return new NextResponse("﻿" + csvRows.join("\n"), {
       headers: {
         "Content-Type": "text/csv",
         "Content-Disposition": `attachment; filename="ohmyreads-export-${new Date().toISOString().split("T")[0]}.csv"`,

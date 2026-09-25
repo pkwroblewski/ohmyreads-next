@@ -1,5 +1,6 @@
 "use server";
 
+import { normalizeGenres } from "@/lib/data/genres";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
 import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
@@ -161,7 +162,7 @@ export async function importBooksFromCSV(rows: ParsedBookRow[]): Promise<ImportR
           cover_url: row.cover_url || null,
           page_count: row.page_count || null,
           published_date: row.published_date || null,
-          genres: row.genres,
+          genres: normalizeGenres(row.genres),
         })
         .select()
         .single();

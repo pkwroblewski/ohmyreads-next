@@ -89,9 +89,12 @@ export async function GET(request: Request) {
           .split(",")
           .map((e) => e.trim().toLowerCase())
           .filter(Boolean);
-        const isAdmin = user.email
-          ? adminEmails.includes(user.email.toLowerCase())
-          : false;
+        // Only a confirmed address counts: an unconfirmed sign-up could claim
+        // an admin's email before its owner ever registers.
+        const isAdmin =
+          !!user.email &&
+          !!user.email_confirmed_at &&
+          adminEmails.includes(user.email.toLowerCase());
 
         // Try inserting profile with error handling
         try {

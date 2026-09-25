@@ -156,6 +156,7 @@ export async function getAuditLogs(options?: {
     .from("audit_logs")
     .select("*", { count: "exact" })
     .order("created_at", { ascending: false })
+    .order("id", { ascending: true }) // unique tiebreaker: stable pages
     .range(offset, offset + limit - 1);
 
   if (options?.userId) {

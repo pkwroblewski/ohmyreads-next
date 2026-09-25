@@ -87,7 +87,8 @@ export async function adminGetReviews(filters: ReviewFilters = {}) {
     // Pagination
     const from = (page - 1) * limit;
     const to = from + limit - 1;
-    query = query.range(from, to);
+    // Unique tiebreaker so .range() pages never overlap or skip rows.
+    query = query.order("id", { ascending: true }).range(from, to);
 
     const { data, error, count } = await query;
 

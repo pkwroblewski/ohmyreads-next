@@ -114,7 +114,8 @@ export async function getPersonalizedRecommendations(
   const [
     { data: tasteProfile },
     { data: userBooks },
-    { data: lovedBooks },
+    { data: lovedShelfBooks },
+    { data: lovedReviews },
     { data: userReviews },
     { books: allBooks, vibeTags: bookVibeTags },
   ] = await Promise.all([
@@ -126,13 +127,20 @@ export async function getPersonalizedRecommendations(
       .single(),
     // 2. Get user's books (to exclude from recommendations)
     supabase.from("user_books").select("book_id").eq("user_id", userId),
-    // 3. Get user's highly-rated books (4+ stars) for similarity matching
+    // 3. Get user's highly-rated books (4+ stars) for similarity matching.
+    // In-app ratings live on reviews; user_books.rating is only written by
+    // the Goodreads import, so read both.
     supabase
       .from("user_books")
       .select("book_id, rating, book:books(id, title, genres)")
       .eq("user_id", userId)
       .gte("rating", 4)
       .not("rating", "is", null),
+    supabase
+      .from("reviews")
+      .select("book_id, rating, book:books(id, title, genres)")
+      .eq("user_id", userId)
+      .gte("rating", 4),
     // 4. Get reviews with vibe tags from user's reviews
     supabase
       .from("reviews")
@@ -147,7 +155,7 @@ export async function getPersonalizedRecommendations(
 
   // Extract genres from loved books
   const lovedGenres = new Map<string, string>(); // genre -> book title
-  for (const ub of lovedBooks || []) {
+  for (const ub of [...(lovedShelfBooks || []), ...(lovedReviews || [])]) {
     const book = ub.book;
     if (book?.genres) {
       for (const genre of book.genres) {
@@ -728,12 +736,15 @@ export async function hasEnoughSignals(userId: string): Promise<boolean> {
     return true;
   }
 
-  // Check if user has rated any books
-  const { count } = await supabase
-    .from("user_books")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .gte("rating", 1);
+  // Check if user has rated any books: in-app ratings are on reviews, imported
+  // Goodreads ratings on user_books. Count distinct books across both.
+  const [{ data: shelfRated }, { data: reviewRated }] = await Promise.all([
+    supabase.from("user_books").select("book_id").eq("user_id", userId).gte("rating", 1),
+    supabase.from("reviews").select("book_id").eq("user_id", userId).gte("rating", 1),
+  ]);
+  const ratedBookIds = new Set(
+    [...(shelfRated || []), ...(reviewRated || [])].map((row) => row.book_id)
+  );
 
-  return (count || 0) >= 3;
+  return ratedBookIds.size >= 3;
 }

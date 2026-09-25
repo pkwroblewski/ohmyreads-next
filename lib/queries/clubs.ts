@@ -44,6 +44,7 @@ export async function getClubs(options: GetClubsOptions = {}): Promise<{
     )
     .eq("visibility", "public")
     .order("member_count", { ascending: false })
+    .order("id", { ascending: true }) // unique tiebreaker: stable pages
     .range(offset, offset + limit - 1);
 
   if (search && search.length >= 2) {
@@ -225,6 +226,7 @@ export async function getClubMembers(
     )
     .eq("club_id", clubId)
     .order("joined_at", { ascending: true })
+    .order("user_id", { ascending: true }) // unique tiebreaker: stable pages
     .range(offset, offset + limit - 1);
 
   if (error) {

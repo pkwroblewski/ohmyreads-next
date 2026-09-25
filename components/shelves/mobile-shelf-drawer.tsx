@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, ChevronDown, Plus, Settings, X } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ShelfManager } from "./shelf-manager";
 import { getUserShelves } from "@/lib/actions/shelves";
 import { cn } from "@/lib/utils";
@@ -22,6 +24,7 @@ export function MobileShelfDrawer({ activeShelfId, activeShelfName }: MobileShel
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [showManager, setShowManager] = useState(false);
+  const managerTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Load shelves
   const loadShelves = async () => {
@@ -55,42 +58,36 @@ export function MobileShelfDrawer({ activeShelfId, activeShelfName }: MobileShel
 
   return (
     <>
-      {/* Trigger Button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setIsOpen(true)}
-        className="gap-2"
-      >
-        <Folder className="h-4 w-4" />
-        {activeShelfName ?? "Shelves"}
-        <ChevronDown className="h-3 w-3" />
-      </Button>
+      <DialogPrimitive.Root open={isOpen} onOpenChange={setIsOpen}>
+        {/* Trigger Button */}
+        <DialogPrimitive.Trigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Folder className="h-4 w-4" />
+            {activeShelfName ?? "Shelves"}
+            <ChevronDown className="h-3 w-3" />
+          </Button>
+        </DialogPrimitive.Trigger>
 
-      {/* Drawer Overlay */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50">
+        <DialogPrimitive.Portal>
           {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setIsOpen(false)}
-          />
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
 
           {/* Drawer Panel */}
-          <div className="fixed inset-y-0 right-0 w-full max-w-xs bg-background shadow-xl z-10 animate-in slide-in-from-right duration-200">
+          <DialogPrimitive.Content
+            aria-describedby={undefined}
+            className="fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-background shadow-xl animate-in slide-in-from-right duration-200 focus:outline-none"
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center gap-2">
-                <Folder className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold">Custom Shelves</h2>
+                <Folder className="h-5 w-5 text-primary" aria-hidden="true" />
+                <DialogPrimitive.Title className="font-semibold">Custom Shelves</DialogPrimitive.Title>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <DialogPrimitive.Close asChild>
+                <Button variant="ghost" size="sm" aria-label="Close shelves">
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </DialogPrimitive.Close>
             </div>
 
             {/* Content */}
@@ -103,6 +100,7 @@ export function MobileShelfDrawer({ activeShelfId, activeShelfName }: MobileShel
                     No custom shelves yet
                   </p>
                   <Button
+                    ref={managerTriggerRef}
                     variant="outline"
                     size="sm"
                     onClick={() => setShowManager(true)}
@@ -161,6 +159,7 @@ export function MobileShelfDrawer({ activeShelfId, activeShelfName }: MobileShel
             {shelves.length > 0 && (
               <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
                 <Button
+                  ref={managerTriggerRef}
                   variant="outline"
                   size="sm"
                   onClick={() => setShowManager(true)}
@@ -171,32 +170,32 @@ export function MobileShelfDrawer({ activeShelfId, activeShelfName }: MobileShel
                 </Button>
               </div>
             )}
-          </div>
-        </div>
-      )}
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
 
       {/* Shelf Manager Dialog */}
-      {showManager && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowManager(false)}
+      <Dialog open={showManager} onOpenChange={setShowManager}>
+        <DialogContent
+          hideClose
+          returnFocusTo={managerTriggerRef}
+          aria-describedby={undefined}
+          className="bg-background sm:max-w-md max-h-[80vh]"
+        >
+          <DialogTitle className="sr-only">Manage shelves</DialogTitle>
+          <ShelfManager
+            shelves={shelves}
+            onShelvesChange={() => {
+              loadShelves();
+            }}
           />
-          <div className="relative bg-background rounded-xl shadow-2xl w-full max-w-md z-10 p-6 max-h-[80vh] overflow-y-auto">
-            <ShelfManager
-              shelves={shelves}
-              onShelvesChange={() => {
-                loadShelves();
-              }}
-            />
-            <div className="mt-4 flex justify-end">
-              <Button variant="outline" onClick={() => setShowManager(false)}>
-                Done
-              </Button>
-            </div>
+          <div className="mt-4 flex justify-end">
+            <Button variant="outline" onClick={() => setShowManager(false)}>
+              Done
+            </Button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

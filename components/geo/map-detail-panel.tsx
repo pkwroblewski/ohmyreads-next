@@ -191,9 +191,10 @@ export function MapDetailPanel({ item, onClose, currentUserId, onMarkSpotAtPlace
         {/* Content */}
         <div className="px-3 pb-3 overflow-y-auto max-h-[50vh] lg:max-h-[calc(100vh-12rem)]">
           {isReader(item) ? (
-            <ReaderContent reader={item} currentUserId={currentUserId} onClearPresence={onClearPresence} />
+            <ReaderContent key={item.id} reader={item} currentUserId={currentUserId} onClearPresence={onClearPresence} />
           ) : (
-            <PlaceContent place={item} currentUserId={currentUserId} onMarkSpotAtPlace={onMarkSpotAtPlace} />
+            // Keyed so enrichment, hours and directions state never carry over to another place
+            <PlaceContent key={item.id} place={item} currentUserId={currentUserId} onMarkSpotAtPlace={onMarkSpotAtPlace} />
           )}
         </div>
       </div>
@@ -359,6 +360,8 @@ function PlaceContent({ place, currentUserId, onMarkSpotAtPlace }: {
   const [copied, setCopied] = useState(false);
   const [showAllHours, setShowAllHours] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
+  // Bumped after a check-in so the list remounts and refetches
+  const [checkinsVersion, setCheckinsVersion] = useState(0);
 
   // Only community places have real IDs for reviews
   const canShowReviews = place.source === "community" && !place.id.startsWith("osm-");
@@ -633,6 +636,7 @@ function PlaceContent({ place, currentUserId, onMarkSpotAtPlace }: {
             placeId={place.id}
             placeName={place.name}
             currentUserId={currentUserId}
+            onSuccess={() => setCheckinsVersion((v) => v + 1)}
           />
         </div>
       )}
@@ -656,7 +660,7 @@ function PlaceContent({ place, currentUserId, onMarkSpotAtPlace }: {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="checkins" className="mt-4">
-              <PlaceCheckinsList placeId={place.id} currentUserId={currentUserId} />
+              <PlaceCheckinsList key={checkinsVersion} placeId={place.id} currentUserId={currentUserId} />
             </TabsContent>
             <TabsContent value="reviews" className="mt-4">
               <PlaceReviewsList placeId={place.id} currentUserId={currentUserId} />

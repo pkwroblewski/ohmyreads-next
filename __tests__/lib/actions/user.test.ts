@@ -8,12 +8,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockSupabase, type MockSupabase } from "../../helpers/mock-supabase";
 
-const { revalidatePath, checkRateLimit } = vi.hoisted(() => ({
+const { revalidatePath, updateTag, checkRateLimit } = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
+  updateTag: vi.fn(),
   checkRateLimit: vi.fn(),
 }));
 
-vi.mock("next/cache", () => ({ revalidatePath }));
+vi.mock("next/cache", () => ({ revalidatePath, updateTag }));
 vi.mock("@/lib/utils/rate-limit", () => ({ checkRateLimit }));
 vi.mock("@/lib/utils/log", () => ({
   logError: vi.fn(),
@@ -26,7 +27,7 @@ vi.mock("@/lib/supabase/server", () => ({
   getUser: () => mock.auth.getUser(),
 }));
 
-import { updateProfile } from "@/lib/actions/user";
+import { updateProfile, updateSocialLinks } from "@/lib/actions/user";
 
 const ME = { id: "550e8400-e29b-41d4-a716-446655440000" };
 
@@ -82,6 +83,9 @@ describe("updateProfile", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/profile");
     expect(revalidatePath).toHaveBeenCalledWith("/settings");
     expect(revalidatePath).toHaveBeenCalledWith("/users/ada_l");
+    // Cached review lists and the feed embed the reviewer's name and avatar.
+    expect(updateTag).toHaveBeenCalledWith("reviews");
+    expect(updateTag).toHaveBeenCalledWith("activity-feed");
   });
 
   it("skips the username lookup when no username is sent", async () => {
@@ -109,5 +113,55 @@ describe("updateProfile", () => {
 
     expect(await updateProfile({ bio: "hi" })).toEqual({ success: false, error: "Error updating profile" });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateSocialLinks", () => {
+  const link = (platform: string, displayOrder = 0) => ({
+    platform,
+    url: `https://${platform}.example/ada`,
+    displayOrder,
+  });
+
+  it("upserts the new set, then deletes only the platforms no longer listed", async () => {
+    // The read of existing rows is the first .eq() call.
+    mock.eq.mockResolvedValueOnce({
+      data: [{ platform: "twitter" }, { platform: "github" }],
+      error: null,
+    });
+
+    const result = await updateSocialLinks([link("github"), link("bluesky", 1)]);
+
+    expect(result).toEqual({ success: true });
+    expect(mock.upsert).toHaveBeenCalledWith(
+      [
+        { user_id: ME.id, platform: "github", url: "https://github.example/ada", display_order: 0 },
+        { user_id: ME.id, platform: "bluesky", url: "https://bluesky.example/ada", display_order: 1 },
+      ],
+      { onConflict: "user_id,platform" }
+    );
+    expect(mock.delete).toHaveBeenCalled();
+    expect(mock.in).toHaveBeenCalledWith("platform", ["twitter"]);
+    expect(mock.upsert.mock.invocationCallOrder[0]).toBeLessThan(
+      mock.delete.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("keeps the old links when the upsert fails", async () => {
+    mock.upsert.mockResolvedValueOnce({ error: { message: "boom" } });
+
+    const result = await updateSocialLinks([link("github")]);
+
+    expect(result.success).toBe(false);
+    expect(mock.delete).not.toHaveBeenCalled();
+  });
+
+  it("sends one row per platform, the last entry winning", async () => {
+    await updateSocialLinks([link("github"), { ...link("github", 2), url: "https://github.example/new" }]);
+
+    expect(mock.upsert).toHaveBeenCalledWith(
+      [{ user_id: ME.id, platform: "github", url: "https://github.example/new", display_order: 2 }],
+      { onConflict: "user_id,platform" }
+    );
   });
 });

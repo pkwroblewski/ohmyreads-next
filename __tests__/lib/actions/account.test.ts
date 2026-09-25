@@ -24,6 +24,7 @@ const {
   probeSignOut,
   createAuditLog,
   checkRateLimit,
+  updateTag,
 } = vi.hoisted(() => ({
   getUser: vi.fn(),
   getClaims: vi.fn(),
@@ -37,7 +38,10 @@ const {
   probeSignOut: vi.fn(),
   createAuditLog: vi.fn(),
   checkRateLimit: vi.fn(),
+  updateTag: vi.fn(),
 }));
+
+vi.mock("next/cache", () => ({ updateTag }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
@@ -157,6 +161,11 @@ describe("deleteAccount", () => {
     const signOutOrder = sessionSignOut.mock.invocationCallOrder[0];
     expect(auditOrder).toBeLessThan(deleteOrder);
     expect(deleteOrder).toBeLessThan(signOutOrder);
+
+    // The cascade removed reviews, shelf rows and feed entries still cached.
+    for (const tag of ["books", "reviews", "activity-feed", "trending"]) {
+      expect(updateTag).toHaveBeenCalledWith(tag);
+    }
   });
 
   it("matches the username case-insensitively and ignores surrounding whitespace", async () => {

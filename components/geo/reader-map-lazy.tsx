@@ -33,6 +33,7 @@ interface ReaderMapLazyProps {
   onRefreshData?: (callback: () => void) => void;
   userPresence?: UserPresenceData | null;
   onClearPresence?: () => void;
+  onPresenceSet?: (presence: UserPresenceData) => void;
 }
 
 export function ReaderMapLazy({
@@ -44,6 +45,7 @@ export function ReaderMapLazy({
   onRefreshData,
   userPresence,
   onClearPresence,
+  onPresenceSet,
 }: ReaderMapLazyProps) {
   return (
     <ReaderMapImmersive
@@ -55,6 +57,7 @@ export function ReaderMapLazy({
       onRefreshData={onRefreshData}
       userPresence={userPresence}
       onClearPresence={onClearPresence}
+      onPresenceSet={onPresenceSet}
     />
   );
 }

@@ -102,6 +102,7 @@ export async function getUserLists(options: GetListsOptions = {}): Promise<{
     )
     .eq("visibility", "public")
     .order("likes_count", { ascending: false })
+    .order("id", { ascending: true }) // unique tiebreaker: stable pages
     .range(offset, offset + limit - 1);
 
   if (userId) {

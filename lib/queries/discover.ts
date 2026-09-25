@@ -3,12 +3,43 @@ import { unstable_cache } from "next/cache";
 import { sanitizePostgrestValue } from "@/lib/utils/sanitize";
 import { getFollowingIds } from "./follows";
 import { logError } from "@/lib/utils/log";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   CompatibilityLevel,
   ReaderWithCompatibility,
   ReaderTasteData,
   ReaderSearchFilters,
+  Database,
 } from "@/types/database";
+
+/**
+ * Shelf and review totals for a page of reader cards. One HEAD count per user
+ * and table: fetching the rows instead hits PostgREST's 1,000-row cap once a
+ * page of readers has more than that between them.
+ */
+async function getReaderCounts(
+  supabase: SupabaseClient<Database>,
+  userIds: string[]
+): Promise<{ booksPerUser: Map<string, number>; reviewsPerUser: Map<string, number> }> {
+  const countFor = async (table: "user_books" | "reviews", userId: string) => {
+    const { count, error } = await supabase
+      .from(table)
+      .select("user_id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    if (error) logError(`Error counting ${table} for reader card`, error, { userId });
+    return count ?? 0;
+  };
+
+  const [books, reviews] = await Promise.all([
+    Promise.all(userIds.map((id) => countFor("user_books", id))),
+    Promise.all(userIds.map((id) => countFor("reviews", id))),
+  ]);
+
+  return {
+    booksPerUser: new Map(userIds.map((id, i) => [id, books[i]])),
+    reviewsPerUser: new Map(userIds.map((id, i) => [id, reviews[i]])),
+  };
+}
 
 // ============================================
 // COMPATIBILITY ALGORITHM
@@ -173,6 +204,7 @@ export async function searchReaders(options: {
     .is("disabled_at", null)
     .or(`username.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%`)
     .order("followers_count", { ascending: false })
+    .order("id", { ascending: true }) // unique tiebreaker: stable pages
     .range(offset, offset + limit - 1);
 
   if (excludeUserId) {
@@ -189,27 +221,7 @@ export async function searchReaders(options: {
   // Get book counts for each user
   const userIds = (data || []).map((p) => p.id);
 
-  const { data: bookCounts } = await supabase
-    .from("user_books")
-    .select("user_id")
-    .in("user_id", userIds);
-
-  const { data: reviewCounts } = await supabase
-    .from("reviews")
-    .select("user_id")
-    .in("user_id", userIds);
-
-  // Count per user
-  const booksPerUser = new Map<string, number>();
-  const reviewsPerUser = new Map<string, number>();
-
-  (bookCounts || []).forEach((b) => {
-    booksPerUser.set(b.user_id, (booksPerUser.get(b.user_id) || 0) + 1);
-  });
-
-  (reviewCounts || []).forEach((r) => {
-    reviewsPerUser.set(r.user_id, (reviewsPerUser.get(r.user_id) || 0) + 1);
-  });
+  const { booksPerUser, reviewsPerUser } = await getReaderCounts(supabase, userIds);
 
   // Map to ReaderWithCompatibility (without compatibility for search)
   const readers: ReaderWithCompatibility[] = (data || []).map((p) => ({
@@ -304,26 +316,7 @@ export async function getRecommendedReaders(
   if (!profiles) return [];
 
   // Get book and review counts
-  const { data: bookCounts } = await supabase
-    .from("user_books")
-    .select("user_id")
-    .in("user_id", candidateIds);
-
-  const { data: reviewCounts } = await supabase
-    .from("reviews")
-    .select("user_id")
-    .in("user_id", candidateIds);
-
-  const booksPerUser = new Map<string, number>();
-  const reviewsPerUser = new Map<string, number>();
-
-  (bookCounts || []).forEach((b) => {
-    booksPerUser.set(b.user_id, (booksPerUser.get(b.user_id) || 0) + 1);
-  });
-
-  (reviewCounts || []).forEach((r) => {
-    reviewsPerUser.set(r.user_id, (reviewsPerUser.get(r.user_id) || 0) + 1);
-  });
+  const { booksPerUser, reviewsPerUser } = await getReaderCounts(supabase, candidateIds);
 
   // Calculate compatibility for each candidate. One batched fetch for all of
   // them — this used to be a query pair per profile.
@@ -385,26 +378,7 @@ async function getActiveReaders(
   // Get book and review counts
   const userIds = activeUsers.map((u) => u.id);
 
-  const { data: bookCounts } = await supabase
-    .from("user_books")
-    .select("user_id")
-    .in("user_id", userIds);
-
-  const { data: reviewCounts } = await supabase
-    .from("reviews")
-    .select("user_id")
-    .in("user_id", userIds);
-
-  const booksPerUser = new Map<string, number>();
-  const reviewsPerUser = new Map<string, number>();
-
-  (bookCounts || []).forEach((b) => {
-    booksPerUser.set(b.user_id, (booksPerUser.get(b.user_id) || 0) + 1);
-  });
-
-  (reviewCounts || []).forEach((r) => {
-    reviewsPerUser.set(r.user_id, (reviewsPerUser.get(r.user_id) || 0) + 1);
-  });
+  const { booksPerUser, reviewsPerUser } = await getReaderCounts(supabase, userIds);
 
   return activeUsers.map((u) => ({
     id: u.id,
@@ -478,7 +452,8 @@ export async function browseReaders(options: {
   }
 
   // Apply pagination
-  queryBuilder = queryBuilder.range(offset, offset + limit - 1);
+  // Unique tiebreaker so .range() pages never overlap or skip rows.
+  queryBuilder = queryBuilder.order("id", { ascending: true }).range(offset, offset + limit - 1);
 
   const { data, error, count } = await queryBuilder;
 
@@ -494,26 +469,7 @@ export async function browseReaders(options: {
   // Get book and review counts
   const userIds = data.map((p) => p.id);
 
-  const { data: bookCounts } = await supabase
-    .from("user_books")
-    .select("user_id")
-    .in("user_id", userIds);
-
-  const { data: reviewCounts } = await supabase
-    .from("reviews")
-    .select("user_id")
-    .in("user_id", userIds);
-
-  const booksPerUser = new Map<string, number>();
-  const reviewsPerUser = new Map<string, number>();
-
-  (bookCounts || []).forEach((b) => {
-    booksPerUser.set(b.user_id, (booksPerUser.get(b.user_id) || 0) + 1);
-  });
-
-  (reviewCounts || []).forEach((r) => {
-    reviewsPerUser.set(r.user_id, (reviewsPerUser.get(r.user_id) || 0) + 1);
-  });
+  const { booksPerUser, reviewsPerUser } = await getReaderCounts(supabase, userIds);
 
   // If currentUserId provided and sorting by compatibility, calculate scores
   let readers: ReaderWithCompatibility[];

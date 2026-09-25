@@ -65,7 +65,7 @@ describe("recommendation caches", () => {
     expect(entry("curated-fallback")?.options).toEqual({ revalidate: 600, tags: ["books"] });
   });
 
-  it("starts the four reader reads and the pool together, and scores from the pool's vibe map", async () => {
+  it("starts the five reader reads and the pool together, and scores from the pool's vibe map", async () => {
     responses["session:user_taste_profiles"] = {
       data: { preferred_genres: ["Fantasy"], preferred_vibes: ["cozy"] },
     };
@@ -83,12 +83,38 @@ describe("recommendation caches", () => {
     const recs = await getPersonalizedRecommendations("u1", 10);
 
     // Every read was *started* before any resolved: no serial waterfall.
-    const firstFive = started.slice(0, 5).sort();
-    expect(firstFive).toEqual(
-      ["public:books", "session:reviews", "session:user_books", "session:user_books", "session:user_taste_profiles"].sort()
+    const firstSix = started.slice(0, 6).sort();
+    expect(firstSix).toEqual(
+      [
+        "public:books",
+        "session:reviews",
+        "session:reviews",
+        "session:user_books",
+        "session:user_books",
+        "session:user_taste_profiles",
+      ].sort()
     );
     expect(recs.map((r) => r.id)).toEqual(["b1"]); // owned book excluded, off-taste book scores 0
     expect(recs[0]?.score).toBe(30 + 25 + 10 + 5); // genre + vibe (from the pool map) + rating + popular
+  });
+
+  it("treats a 4+ star in-app review as a loved book, not only an imported shelf rating", async () => {
+    responses["session:user_books"] = { data: [] }; // no imported ratings at all
+    responses["session:reviews"] = {
+      data: [{ book_id: "r1", rating: 5, vibe_tags: [], book: { id: "r1", title: "Loved", genres: ["Mystery"] } }],
+    };
+    responses["public:books"] = {
+      data: [{ id: "m1", title: "Whodunit", genres: ["Mystery"], average_rating: 3.5, ratings_count: 1 }],
+    };
+    responses["public:reviews"] = { data: [] };
+
+    const recs = await getPersonalizedRecommendations("u1", 10);
+
+    expect(recs.map((r) => r.id)).toEqual(["m1"]);
+    expect(recs[0]?.reason).toMatchObject({ type: "similar_to_loved", relatedBookTitle: "Loved" });
+    const lovedRead = calls.find((c) => c.table === "reviews" && (c.args.gte?.[0] as unknown[] | undefined)?.[0] === "rating");
+    expect(lovedRead?.args.gte).toEqual([["rating", 4]]);
+    expect(lovedRead?.args.eq).toEqual([["user_id", "u1"]]);
   });
 
   it("serves the anonymous curated list from the public client", async () => {

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { X, MapPin, Loader2, BookOpen } from "lucide-react";
+import { toast } from "sonner";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { createCheckin } from "@/lib/actions/checkins";
@@ -113,11 +115,9 @@ export function CheckinFormDialog({
       setNote("");
       setSelectedBookId(null);
 
-      // Show badge notification if any new badges
-      if (result.newBadges && result.newBadges.length > 0) {
-        // Could integrate with a toast notification system
-        console.log("New badges unlocked:", result.newBadges);
-      }
+      result.newBadges.forEach((badge) => {
+        toast.success(`Badge unlocked: ${badge.icon} ${badge.name}`);
+      });
 
       onSuccess?.();
     } catch {
@@ -129,7 +129,9 @@ export function CheckinFormDialog({
 
   if (!open) return null;
 
-  return (
+  // Portaled: the map's detail panel uses a transform, which would otherwise
+  // make this "fixed" overlay position and clip relative to the panel.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
@@ -275,6 +277,7 @@ export function CheckinFormDialog({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

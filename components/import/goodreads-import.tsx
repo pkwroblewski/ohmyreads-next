@@ -82,12 +82,12 @@ export function GoodreadsImport() {
 
         {/* Upload Area */}
         <label className="block cursor-pointer">
-          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 hover:bg-accent/5 transition-colors">
+          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 hover:bg-accent/5 transition-colors focus-within:ring-2 focus-within:ring-ring">
             <input
               type="file"
               accept=".csv"
               onChange={handleFileSelect}
-              className="hidden"
+              className="sr-only"
             />
             <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
             <p className="text-sm font-medium">

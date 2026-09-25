@@ -3,18 +3,16 @@
  *
  * A message may only go to an accepted friend, never to yourself; marking as
  * read touches only messages addressed to the caller; deleting is scoped to
- * the sender. The unread counter is trigger-owned, so the reconcile goes
- * through the service-role client.
+ * the sender. The unread counter follows read_at in SQL (migration 076), so
+ * the action never writes it.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockSupabase, type MockSupabase } from "../../helpers/mock-supabase";
 
-const { revalidatePath, checkRateLimit, adminUpdate, adminEq } = vi.hoisted(() => ({
+const { revalidatePath, checkRateLimit } = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   checkRateLimit: vi.fn(),
-  adminUpdate: vi.fn(),
-  adminEq: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath }));
@@ -26,8 +24,6 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => mock,
   getUser: () => mock.auth.getUser(),
 }));
-const adminFrom = vi.fn(() => ({ update: adminUpdate }));
-vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from: adminFrom }) }));
 
 import { sendMessage, markMessagesAsRead } from "@/lib/actions/messages";
 
@@ -39,8 +35,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   mock = createMockSupabase(ME);
   checkRateLimit.mockResolvedValue({ allowed: true });
-  adminUpdate.mockReturnValue({ eq: adminEq });
-  adminEq.mockResolvedValue({ error: null });
 });
 
 describe("sendMessage", () => {
@@ -105,13 +99,9 @@ describe("sendMessage", () => {
 });
 
 describe("markMessagesAsRead", () => {
-  it("marks only unread messages FROM the friend TO the caller, then reconciles the counter", async () => {
+  it("marks only unread messages FROM the friend TO the caller and leaves the counter to SQL", async () => {
     // `.update().eq().eq().is()` is awaited directly; the chain resolves to
-    // itself (error undefined). The count query resolves via `.is()` too.
-    mock.is
-      .mockReturnValueOnce(mock) // the update
-      .mockResolvedValueOnce({ count: 3, error: null }); // the recount
-
+    // itself (error undefined).
     const result = await markMessagesAsRead(FRIEND);
 
     expect(result).toEqual({ success: true });
@@ -120,26 +110,16 @@ describe("markMessagesAsRead", () => {
     expect(mock.eq).toHaveBeenCalledWith("sender_id", FRIEND);
     expect(mock.eq).toHaveBeenCalledWith("receiver_id", ME.id);
     expect(mock.is).toHaveBeenCalledWith("read_at", null);
-    // profiles.unread_messages_count is trigger-owned → service role
-    expect(adminFrom).toHaveBeenCalledWith("profiles");
-    expect(adminUpdate).toHaveBeenCalledWith({ unread_messages_count: 3 });
-    expect(adminEq).toHaveBeenCalledWith("id", ME.id);
+    // No recount-and-overwrite: it lost messages that arrived in between
+    expect(mock.from).not.toHaveBeenCalledWith("profiles");
+    expect(mock.select).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith("/");
-  });
-
-  it("leaves the counter alone when the recount fails", async () => {
-    mock.is
-      .mockReturnValueOnce(mock)
-      .mockResolvedValueOnce({ count: null, error: { message: "timeout" } });
-
-    expect(await markMessagesAsRead(FRIEND)).toEqual({ success: true });
-    expect(adminUpdate).not.toHaveBeenCalled();
   });
 
   it("refuses an anonymous caller and a malformed friend id", async () => {
     expect(await markMessagesAsRead("nope")).toMatchObject({ success: false });
     mock = createMockSupabase(null);
     expect(await markMessagesAsRead(FRIEND)).toEqual({ success: false, error: "Not authenticated" });
-    expect(adminFrom).not.toHaveBeenCalled();
+    expect(mock.update).not.toHaveBeenCalled();
   });
 });

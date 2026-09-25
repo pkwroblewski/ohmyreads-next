@@ -1,5 +1,6 @@
 "use server";
 
+import { normalizeGenres } from "@/lib/data/genres";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
 import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
@@ -82,7 +83,7 @@ export async function adminCreateBook(input: AdminBookInput): Promise<ActionResu
         cover_url: input.cover_url?.trim() || null,
         page_count: input.page_count || null,
         published_date: input.published_date || null,
-        genres: input.genres || [],
+        genres: normalizeGenres(input.genres || []),
         google_books_id: input.google_books_id || null,
         open_library_id: input.open_library_id || null,
       })
@@ -145,7 +146,7 @@ export async function adminUpdateBook(bookId: string, input: Partial<AdminBookIn
     if (input.cover_url !== undefined) updates.cover_url = input.cover_url?.trim() || null;
     if (input.page_count !== undefined) updates.page_count = input.page_count || null;
     if (input.published_date !== undefined) updates.published_date = input.published_date || null;
-    if (input.genres !== undefined) updates.genres = input.genres || [];
+    if (input.genres !== undefined) updates.genres = normalizeGenres(input.genres || []);
 
     // Rebuild the slug only when the title actually changed; the edit form
     // always sends the title, and a new slug breaks existing /books links.

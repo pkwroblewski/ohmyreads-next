@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply pagination
-    query = query.range(offset, offset + limit - 1);
+    // Unique tiebreaker so .range() pages never overlap or skip rows.
+    query = query.order("id", { ascending: true }).range(offset, offset + limit - 1);
 
     // Execute query
     const { data: books, count, error } = await query;

@@ -31,11 +31,11 @@
 | 11 | Email: GET unsubscribes via link scanners, digest "this week" = all-time, duplicate welcome | 🟡 Medium | Medium | [x] COMPLETE | `app/api/email/unsubscribe/route.ts`, `app/api/cron/weekly-digest/route.ts`, `app/api/webhooks/supabase/route.ts`, `app/(auth)/callback/route.ts` |
 | 12 | Date/timezone bugs: challenges, stats month overflow, locale hydration | 🟡 Medium | Low | [x] COMPLETE | `components/challenges/*`, `lib/queries/challenges.ts`, `lib/queries/stats.ts`, `components/stats/*` |
 | 13 | Client state: edits can't clear fields, likes never shown, stale QuickRating/BookBrowser, search races | 🟡 Medium | Medium | [x] COMPLETE | `components/reviews/*`, `app/(app)/profile/edit/page.tsx`, `components/books/book-browser.tsx`, search components |
-| 14 | Server-action correctness batch (badges, places, clubs, social links, cache tags, auth edge cases) | 🟡 Medium | Medium | [ ] PENDING | `lib/actions/*` |
-| 15 | Queries: unstable pagination, capped counts, recs ignore in-app ratings, export gaps | 🟡 Medium | Medium | [ ] PENDING | `lib/queries/*`, `app/api/export/route.ts` |
-| 16 | Reader map bugs (stale place panel, mark-spot type, presence, clipped overlays, CSP) | 🟡 Medium | Medium | [ ] PENDING | `components/geo/*`, `next.config.ts` |
-| 17 | Accessibility + sign-out-by-prefetch | 🟡 Medium | Low | [ ] PENDING | file pickers, hand-rolled modals, `components/settings/account-section.tsx` |
-| 18 | Migration 076: DM indexes/triggers, place-review freeze, feed of disabled users | 🟢 Low | Medium | [ ] PENDING | `supabase/migrations/076_*.sql` |
+| 14 | Server-action correctness batch (badges, places, clubs, social links, cache tags, auth edge cases) | 🟡 Medium | Medium | [x] COMPLETE | `lib/actions/*` |
+| 15 | Queries: unstable pagination, capped counts, recs ignore in-app ratings, export gaps | 🟡 Medium | Medium | [x] COMPLETE | `lib/queries/*`, `app/api/export/route.ts` |
+| 16 | Reader map bugs (stale place panel, mark-spot type, presence, clipped overlays, CSP) | 🟡 Medium | Medium | [x] CODE COMPLETE - Verification blocked | `components/geo/*`, `next.config.ts` |
+| 17 | Accessibility + sign-out-by-prefetch | 🟡 Medium | Low | [x] COMPLETE | file pickers, hand-rolled modals, `components/settings/account-section.tsx` |
+| 18 | Migration 076: DM indexes/triggers, place-review freeze, feed of disabled users | 🟢 Low | Medium | [x] COMPLETE | `supabase/migrations/076_*.sql`, `lib/actions/messages.ts` |
 | 19 | Final QA | - | Medium | [ ] PENDING | - |
 
 **Progress: 9/20 complete (+4 code complete, verification in Task 19)**
@@ -516,20 +516,28 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 - `ADMIN_EMAILS` grant doesn't require `email_confirmed_at`.
 
 **Steps:**
-1. [ ] Fix each bullet at its root; one commit-sized change per bullet
-2. [ ] Add/extend unit tests where a test file exists for the action
+1. [x] Fix each bullet at its root; one commit-sized change per bullet
+2. [x] Add/extend unit tests where a test file exists for the action
 
 **Verify:**
-- [ ] Tests pass; lint, tsc pass
-- [ ] Check-in as test user → badge appears immediately
+- [x] Tests pass; lint, tsc pass
+- [x] Check-in as test user → badge appears immediately
 
 **Completed Notes:**
-- Files modified:
+- Files modified: `lib/actions/checkins.ts`, `components/geo/checkin-form-dialog.tsx`, `lib/actions/user.ts`, `lib/actions/admin-enrichment.ts`, `lib/actions/admin-books.ts`, `lib/actions/admin-import.ts`, `lib/actions/clubs.ts`, `lib/actions/places.ts`, `lib/actions/account.ts`, `app/(auth)/reset-password/page.tsx`, `app/(auth)/callback/route.ts`, `__tests__/lib/actions/user.test.ts`, `__tests__/lib/actions/account.test.ts`
 - Approach taken:
-- Deviations from plan:
-- Issues encountered:
+  - **Check-in badges:** `createCheckin` now calls `syncUserBadges()`, the same service-role path `addToShelf` uses. The private `checkAndUnlockCheckinBadges`, which inserted through the session client, is gone. The dialog shows a toast for each new badge instead of a `console.log`.
+  - **Social links:** the action upserts on `(user_id, platform)` first, then deletes only the platforms no longer listed, checking every error. A failed write leaves the old links in place. Duplicate platforms collapse to one row, and the last entry wins.
+  - **Enrichment:** `published_date` and `open_library_cover_id` are filled only when empty. Both columns are now selected, and `BookToEnrich` has them. Genres go through `normalizeGenres` in enrichment, admin create/edit and admin CSV import, matching `scripts/enrich-books.ts`.
+  - **Club create:** the rollback delete runs through the admin client, scoped to `created_by`. The session client's delete needs the club-admin membership that had just failed, so it deleted 0 rows. A failed rollback is reported as an orphan club.
+  - **Places:** `submitPlace` uses the parsed Zod data and treats coordinates as present when `!= null`, so 0 is a valid coordinate. `rejectPlaceSubmission` returns an error, with no audit row, when the RPC returns `false`. Approve already raises in that case.
+  - **Cache tags:** `deleteAccount` invalidates books, reviews, activity and trending after the cascade. `updateProfile` invalidates reviews and activity, because both cached lists embed the name and avatar.
+  - **Reset password:** the `#access_token` implicit-flow branch is removed. The browser client is PKCE, and auth-js already refuses implicit tokens under PKCE. The `?code` exchange needs the visitor's own verifier, so an attacker's code can't be planted.
+  - **ADMIN_EMAILS:** admin is granted only when `email_confirmed_at` is set, in both the callback and `ensureUserProfile`.
+- Deviations from plan: the check-in dialog change (toast) was not listed. Without it, the badge the action returns was only logged to the console, so the verify step couldn't pass. New unit tests cover the social-links order, rollback and dedupe, and the cache tags for profile edit and account delete. No test files exist for checkins, clubs, places or enrichment, so none were added there.
+- Issues encountered: the Playwright MCP failed to connect this session. The live check used a temporary vitest file (Task 9 recipe) that ran the real `createCheckin` as a throwaway signed-in user against prod. Prod has **0 places**, so the test inserted a temporary place at (0, 0) with the admin client. HEAD's `checkins.ts` returned `newBadges: []` with no `user_badges` row, which reproduced the bug. The new code returned `first-checkin` and wrote the row. Afterwards the place, check-in, badges and user were deleted, and the counts were confirmed at 0. The toast itself was not seen in a browser; it uses the same `toast.success` pattern as the shelf buttons. Full suite: 790 passed, 1 skipped. Lint and tsc are clean.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -543,23 +551,28 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 **Context:** `.range()` pagination ordered by non-unique columns (imports share one `updated_at`) duplicates/skips rows — add `id` tiebreaker. Reader-card counts fetch all rows for 20 users and hit the 1,000 cap. Recommendations read `user_books.rating` (only Goodreads import writes it) instead of `reviews.rating`. Export: rate-limit slot spent before validation, unpaginated (>1,000 rows truncated), no BOM for Excel.
 
 **Steps:**
-1. [ ] `.order("id")` tiebreaker on every `.range()` query
-2. [ ] Per-user HEAD counts or GROUP BY RPC for reader cards
-3. [ ] Loved books from `reviews.rating >= 4` (union with user_books.rating)
-4. [ ] Export: validate first, `fetchAllPages`, prepend BOM to CSV
+1. [x] `.order("id")` tiebreaker on every `.range()` query
+2. [x] Per-user HEAD counts or GROUP BY RPC for reader cards
+3. [x] Loved books from `reviews.rating >= 4` (union with user_books.rating)
+4. [x] Export: validate first, `fetchAllPages`, prepend BOM to CSV
 
 **Verify:**
-- [ ] Tests pass (update query mocks)
-- [ ] /my-shelf Load More on an imported shelf shows no duplicates
-- [ ] Lint, tsc pass
+- [x] Tests pass (update query mocks)
+- [x] /my-shelf Load More on an imported shelf shows no duplicates
+- [x] Lint, tsc pass
 
 **Completed Notes:**
-- Files modified:
+- Files modified: `lib/queries/admin-books.ts`, `lib/queries/admin-reviews.ts`, `lib/queries/admin-users.ts`, `lib/queries/books.ts`, `lib/queries/clubs.ts`, `lib/queries/discover.ts`, `lib/queries/lists.ts`, `lib/queries/users.ts`, `lib/queries/recommendations.ts`, `lib/queries/stats.ts`, `lib/utils/audit-log.ts`, `app/api/books/search/route.ts`, `app/api/export/route.ts`, new `lib/utils/fetch-all-pages.ts`, `__tests__/lib/queries/recommendations.test.ts`, `__tests__/app/api/export.test.ts`
 - Approach taken:
-- Deviations from plan:
-- Issues encountered:
+  - **Tiebreakers:** every `.range()` query (13 sites) now ends its ordering with `.order("id", { ascending: true })`. The exception is club members, which have no `id` column and use `user_id`, unique within a club. `stats.ts` already had one.
+  - **Reader cards:** the four copies that fetched every `user_books`/`reviews` row for a page of readers are replaced by `getReaderCounts()` in `discover.ts`. It runs one HEAD `count: exact` per user and table, all in parallel. There is no migration: an RPC would have needed a migration outside Task 18's scope.
+  - **Recommendations:** loved books now come from `user_books.rating >= 4` (Goodreads import) plus `reviews.rating >= 4` (in-app), with a sixth parallel read. `hasEnoughSignals` counts distinct rated books across both tables instead of `user_books` alone.
+  - **Export:** the format is validated before the rate limit, so a bad request no longer spends the hour's one export. Books, reviews, following and followers are paged with `fetchAllPages`, which moved from `stats.ts` into `lib/utils/fetch-all-pages.ts`, each ordered with an `id` tiebreaker. The CSV starts with a UTF-8 BOM.
+- Deviations from plan: `hasEnoughSignals` also ignored review ratings and got the same fix. Challenges, badges and goals in the export are not paged: they are small per user.
+- Issues encountered: the Bash heredoc swallowed the `
+` in the BOM edit (a known quirk); it was redone with Edit. Prod has only 13 `user_books` rows and no imported shelf, so the live check built one. A temporary vitest file created a throwaway user and inserted 150 shelf rows in one statement, which gave 1 distinct `updated_at`, the same as an import. It then paged them through the real `getUserBooks` at `SHELF_PAGE_SIZE` (48): 150 rows, 150 distinct, total 150. The old `updated_at`-only order *also* came back 150/150 on this small table. Postgres reorders tied rows only when the plan changes (larger tables, parallel scans), so the tiebreaker is a guarantee rather than a reproduced failure. The user and rows were deleted afterwards (13 rows, 0 QA users). New tests cover a 4+ in-app review driving a "Similar to" pick, validation before the rate limit, and the CSV BOM. Suite: 792 passed, 1 skipped (one recommendations test added after the full run). Lint and tsc are clean.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -573,24 +586,35 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 **Context:** Unkeyed `PlaceContent` carries enrichment across places; mark-spot modal ignores which button opened it (Recommend saves a 2-hour check-in); presence card uses defaults and in-map marking doesn't update parent; mobile "I'm Here" sends no location; lightbox and check-in dialog are clipped by the panel's transform; Nominatim autofill blocked by CSP `connect-src`; `?place=` links ignored; check-in list and marker don't refresh; privacy-radius failure not rolled back; near-you spinner never stops if prompt ignored.
 
 **Steps:**
-1. [ ] Keys / mount-on-open for PlaceContent and MarkSpotModal
-2. [ ] Presence state from submitted values; lift in-map marking to parent
-3. [ ] Send geohash on mobile I'm Here
-4. [ ] Portal overlays (Radix Dialog)
-5. [ ] CSP `connect-src` for Nominatim; honour `?place=&lat=&lng=`
-6. [ ] onSuccess refreshes; rollback; geolocation timeout
+1. [x] Keys / mount-on-open for PlaceContent and MarkSpotModal
+2. [x] Presence state from submitted values; lift in-map marking to parent
+3. [x] Send geohash on mobile I'm Here
+4. [x] Portal overlays (Radix Dialog)
+5. [x] CSP `connect-src` for Nominatim; honour `?place=&lat=&lng=`
+6. [x] onSuccess refreshes; rollback; geolocation timeout
 
 **Verify:**
-- [ ] Manual map walkthrough (Playwright): switch places, recommend spot, check in, lightbox full-screen, no CSP errors
-- [ ] Lint, tsc, tests pass
+- [x] Manual map walkthrough, signed-out part (Chrome): switch places, lightbox full-screen, no CSP errors, `?place=` deep link
+- [ ] Signed-in part: recommend spot, check in (moved to Task 19)
+- [x] Lint, tsc, tests pass
 
 **Completed Notes:**
-- Files modified:
+- Files modified: `components/geo/map-detail-panel.tsx`, `components/geo/mark-spot-modal.tsx`, `components/geo/map-page-client.tsx`, `components/geo/reader-map-immersive.tsx`, `components/geo/reader-map-lazy.tsx`, `components/geo/place-photos-list.tsx`, `components/geo/checkin-form-dialog.tsx`, `components/dashboard/places-near-you.tsx`, `components/settings/location-section.tsx`, `lib/config/image-hosts.ts`, `next.config.ts`
 - Approach taken:
-- Deviations from plan:
-- Issues encountered:
+  - **Keys:** `PlaceContent` and `ReaderContent` are keyed by item id, so enrichment, hours, directions and the selected tab never carry over to another place.
+  - **Mark-spot modal:** it mounts its form only while open (`MarkSpotModal` → `MarkSpotForm`), so each opening starts from the type of the button that opened it, and the manual reset is gone.
+  - **Presence:** `onSuccess(presence)` now reports the saved type, the server's `expiresAt`, the note and the label. The page's optimistic guess (always 2h, note null) is gone. The immersive map's own modal reports up through a new `onPresenceSet` prop (lazy wrapper → `MapPageClient`), so the context panel and Check Out button update after marking from the map.
+  - **Mobile "I'm Here":** passes `currentLocation`, which is encoded to a precision-7 geohash behind the same consent checkbox as a place. Before, it saved presence with no position.
+  - **Overlays:** the check-in dialog and photo lightbox render through `createPortal(…, document.body)`, because the panel's `transform` made them clip to the panel. The lightbox column is `h-[90vh]` (was `max-h`), since the `fill` image gave a zero-height box.
+  - **CSP:** `connect-src` gains `https://nominatim.openstreetmap.org`.
+  - **Deep links:** `?place=&lat=&lng=` is read once at map init. The map flies to the linked spot at zoom 16 (device position is still learned for "I'm Here"), turns on the bookstore, library and cafe layers, and selects the pin when the first places fetch returns it.
+  - **Refreshes:** after a check-in, a version key remounts `PlaceCheckinsList`. Map pins carry no check-in data, so there's no marker to refresh.
+  - **Privacy radius:** a failed update rolls back to the previous value.
+  - **Places near you:** a 15 s fallback stops the spinner when the permission prompt is ignored (the geolocation `timeout` only runs after permission). A late accept still loads the places.
+- Deviations from plan: the walkthrough found **two production bugs outside the listed ones**, both fixed here. (1) `script-src` lacked `'wasm-unsafe-eval'`. Mapbox GL 3.17's Standard style compiles WebAssembly, so the reader map stuck on "Loading 3D map…" (Mapbox logged CSP errors). Prod serves the same header. `'wasm-unsafe-eval'` permits WebAssembly compilation only, not JS `eval`. (2) `ALLOWED_IMAGE_HOSTS` allowed the Supabase host only for `book-covers`, so opening the Photos tab of any place with a photo threw in `next/image` and crashed the map page into the "Couldn't load community" error boundary. Added the `place-photos` path. The overlays use `createPortal`, not Radix `Dialog`; Task 17 converts hand-rolled modals to Radix and can take these two as well.
+- Issues encountered: Playwright MCP failed to connect, so the walkthrough ran in Chrome (extension) against local dev, signed out. Fixtures: a temporary community bookshop and library in Luxembourg (the first needed `geohash` set, which the places API matches by prefix) plus one uploaded photo. All were deleted afterwards: 0 places, photos, check-ins, `place-photos` objects and QA users. Verified: the `?place=` deep link opened the map on the bookshop with its panel open and the cafe layer on. With Photos and Directions open on the bookshop, clicking the library pin opened it fresh (Check-ins tab, no directions). The lightbox is portaled to `<body>` at full viewport (1270×551 of 1280×551) with a 380 px image. No CSP errors after the fix. Overpass returned no OSM places from this machine, so OSM enrichment switching wasn't exercised. The Chrome tab runs hidden, and Mapbox only advances when screenshots force frames. The lightbox close button sits partly above the viewport on short windows (pre-existing, `-top-12`). **Blocked:** check-in, Recommend and presence need a signed-in session, and Claude can't enter a password in the browser. The user chose to mark this blocked and carry it to Task 19. The Next dev overlay's "eval() is not supported" notice is dev-only (React debug stacks) and not a production issue. Suite: 791 passed, 1 skipped. Lint and tsc are clean.
 
-**Status:** [ ] PENDING
+**Status:** [x] CODE COMPLETE - Verification blocked
 
 ---
 
@@ -604,22 +628,22 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 **Context:** "Sign out now" is a `<Link>` to the GET `/signout` route handler — prefetch can execute it. File inputs are `display:none` → unreachable by keyboard. Two hand-rolled modals have no dialog role, Escape, or focus trap; drawer close button has no name; star rating buttons unnamed.
 
 **Steps:**
-1. [ ] Signout link → `prefetch={false}` (or plain `<a>`); confirm no other `<Link href="/signout">`
-2. [ ] `sr-only` inputs + visible button/label focus styles
-3. [ ] Convert both modals to Radix `Dialog`
-4. [ ] aria-labels on close and star buttons
+1. [x] Signout link → `prefetch={false}` (or plain `<a>`); confirm no other `<Link href="/signout">`
+2. [x] `sr-only` inputs + visible button/label focus styles
+3. [x] Convert both modals to Radix `Dialog`
+4. [x] aria-labels on close and star buttons
 
 **Verify:**
-- [ ] Keyboard-only: tab to each file picker and open it; Escape closes both modals
-- [ ] Lint, tsc, tests pass
+- [x] Keyboard-only: tab to each file picker and open it; Escape closes both modals
+- [x] Lint, tsc, tests pass
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: `components/settings/account-section.tsx`, `components/import/goodreads-import.tsx`, `components/geo/place-photo-upload.tsx`, `components/geo/place-review-form.tsx`, `components/clubs/set-current-book-dialog.tsx`, `components/shelves/mobile-shelf-drawer.tsx`, `components/shelves/shelf-sidebar.tsx`
+- Approach taken: "Sign out now" is a plain `<a>` (full-page GET, never prefetched; it was the only `/signout` link, the other reference is a server `redirect`). File inputs `hidden` → `sr-only` with a `focus-within` ring on the drop zone; the place-photo drop zone became a `<label>` (dropped its `onClick` → `click()`, which would have opened the picker twice once the input is clickable). Set-current-book uses the shared `DialogContent` (`hideClose`, keeps its own labelled X, `returnFocusTo` the trigger, focus goes to the search input on open, `DialogTitle`). The mobile shelf drawer uses Radix primitives directly for the right-side panel (Trigger/Close `asChild`, "Close shelves" label); its nested Manage Shelves modal uses `DialogContent` with an sr-only title. Star buttons: "N star(s)" label + `aria-pressed`, icon `aria-hidden`.
+- Deviations from plan: Also converted the identical hand-rolled Manage Shelves modal in `shelf-sidebar.tsx` (same defect, same fix). `app/(app)/admin/import/page.tsx` not changed: its visible "Select File" `<Button>` is focusable and Enter bubbles to the drop zone's `click()`, so it was already keyboard-reachable.
+- Issues encountered: Playwright MCP down; verified with Claude in Chrome on a throwaway fixture page (deleted). Tab order hit both file inputs and the five named star buttons; the file input's drop zone shows the 2px ring (computed style); the native file dialog was not opened, because it blocks the browser automation. Set-current-book: `role=dialog` labelled "Set Current Book", focus on the search input, Tab stays inside, Escape closes, focus back on the trigger. Drawer: labelled "Custom Shelves", focus on "Close shelves"; the nested manager opens on top, the first Escape closes only the manager (focus back on "Create Shelf"), the second closes the drawer (focus back on "Shelves"). Sidebar manager opens and closes with Escape, and focus returns. The dev overlay's single issue is React's dev-only `eval()`/CSP notice, which predates this task. Lint 0; tsc clean; 791 tests pass.
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -633,25 +657,25 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 **Context:** The DM conversation query can't use the LEAST/GREATEST expression index; unread queries have no index. Unread counter has no DELETE branch and `read_at` can be reset/pre-set; `created_at` backdatable. `place_reviews` UPDATE can move a review to another place leaving stale averages. Disabled users' activity feed rows stay public (066 hid their reviews/lists) — ❓ confirm intent with user.
 
 **Steps:**
-1. [ ] Indexes `(sender_id, receiver_id, created_at desc)`, partial `(receiver_id) where read_at is null`; drop unusable `dm_conversation_idx`
-2. [ ] DM freeze trigger on INSERT+UPDATE; unread trigger with DELETE branch and floor; have the read-marking UPDATE decrement the counter in SQL so `markMessagesAsRead` can drop its count-then-write reconcile (it loses a message that arrives in between; see Task 10)
-3. [ ] place_reviews freeze `place_id`/`user_id`
-4. [ ] Feed policy for disabled users (only if user confirms)
-5. [ ] Apply, `npm run types:gen`, re-run 064 §9 REVOKEs on new trigger functions
+1. [x] Indexes `(sender_id, receiver_id, created_at desc)`, partial `(receiver_id) where read_at is null`; drop unusable `dm_conversation_idx`
+2. [x] DM freeze trigger on INSERT+UPDATE; unread trigger with DELETE branch and floor; have the read-marking UPDATE decrement the counter in SQL so `markMessagesAsRead` can drop its count-then-write reconcile (it loses a message that arrives in between; see Task 10)
+3. [x] place_reviews freeze `place_id`/`user_id`
+4. [x] Feed policy for disabled users (only if user confirms) — user confirmed "Hide them" 2026-09-25
+5. [x] Apply, `npm run types:gen`, re-run 064 §9 REVOKEs on new trigger functions
 
 **Verify:**
-- [ ] `EXPLAIN` of the conversation query uses the new index
-- [ ] Send/read/delete DM → counter correct
-- [ ] Advisors: no new lints
-- [ ] Lint, tsc, tests pass
+- [x] `EXPLAIN` of the conversation query uses the new index
+- [x] Send/read/delete DM → counter correct
+- [x] Advisors: no new lints
+- [x] Lint, tsc, tests pass
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: new `supabase/migrations/076_dm_indexes_and_triggers.sql` (applied 2026-09-25), `lib/actions/messages.ts`, `__tests__/lib/actions/messages.test.ts`. `types/database.generated.ts` regenerated, no diff (no columns/RPCs changed).
+- Approach taken: Dropped `dm_conversation_idx`, added `dm_pair_created_at_idx` and partial `dm_unread_receiver_idx`. `freeze_direct_message_immutables()` (still SECURITY INVOKER) now runs BEFORE INSERT OR UPDATE: API inserts get `created_at = now()` and `read_at = NULL`; on update `read_at` can only go NULL → `now()` (no reset, no future date). `update_unread_messages_count()` computes a per-row delta for INSERT (only if unread), UPDATE (either direction) and a new AFTER DELETE trigger (unread row deleted), floored at 0. The existing trigger already decremented per row on the read-marking UPDATE, so with every path now exact `markMessagesAsRead` just drops its recount + service-role overwrite (and the `createAdminClient` import). New `freeze_place_review_columns()` (SECURITY INVOKER, `is_api_role()`) pins `place_id`/`user_id` on UPDATE. Feed SELECT policy replaced with 066's rule (own rows, author not disabled, or admin). EXECUTE on the three trigger functions revoked from PUBLIC/anon/authenticated, granted to service_role.
+- Deviations from plan: Also dropped `dm_sender_idx`. With it present the planner chose it over the new pair index; the pair index leads with `sender_id`, so it covers every sender lookup and the FK, and the advisors raised no unindexed-FK lint afterwards.
+- Issues encountered: None blocking. Verified in rolled-back transactions as the real roles: a forged insert (`created_at` 2000, `read_at` preset) came out as now/NULL with the counter 5→6; a read with a 2099 date was clamped and the counter went 6→5; a reset to NULL was ignored (5); a second send and a sender delete went 6→5. Anon saw 0 of a temporarily disabled user's feed rows, the user saw their own 1. A temporary place review could not be moved (the rating edit went through, the old place kept count 1 / avg 2.00, the new place 0). EXPLAIN with seqscan off: the conversation query does a BitmapOr of two `dm_pair_created_at_idx` scans, and the unread count is an index-only scan on `dm_unread_receiver_idx`. Live unread drift 0 before and after. Advisors: only the two new indexes appear, as "unused"; the security lints predate this task. Lint 0; tsc clean; 790 tests pass (recount test removed with the code). Found: the weekly digest reads the feed via the service role, so it bypasses the new policy (see Out of Scope).
 
-**Status:** [ ] PENDING
+**Status:** [x] COMPLETE
 
 ---
 
@@ -681,6 +705,11 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 
 **Verify (carried from Task 7):**
 - [ ] After launch Task 0 fixes the Sentry DSN / ingest 403: trigger a caught route error (e.g. the cron route with KV or Resend failing) → event appears in Sentry with the `extra` context
+
+**Verify (carried from Task 16):**
+- [ ] Signed in, on a community place: Recommend opens with "Recommend spot" selected (after an I'm Here); saving updates the context panel's presence card (type, expiry, note); check-in dialog appears centred over the whole page (not clipped by the panel) and the Check-ins list shows the new entry; badge toast appears
+- [ ] Mobile width: "I'm Here" without a place asks for consent and the reader marker appears at the device position
+- [ ] Deployed site: reader map loads past "Loading 3D map…" with no CSP console errors (`'wasm-unsafe-eval'`), and a place's Photos tab renders an uploaded photo
 
 **Verify:**
 - [ ] Build, lint (0/0), typecheck, tests all pass
@@ -713,6 +742,7 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 | ~50 bare `logger.error(...)` calls (no error object) don't reach Sentry | Task 7 routed only `logError`/`reportError` and the rate limiter; converting every call site is a wide, low-value edit | When Sentry is live and gaps show |
 | No fetch timeout in `lib/utils/external-book-search.ts` (Open Library / Google Books helpers) | Task 8 covered the AI-tool and geo fetches only; these run in admin enrichment and add-from-search, where a hang costs a slow request, not a stuck chat | Task 14 or next hardening pass |
 | Floating Messages trigger keeps its old unread total after messages are read inside the open panel (it refreshes on the next open) | Behaviour predates Task 10; the fix is a refetch or a decrement when a chat is marked read | Task 13 or post-launch |
+| Weekly digest can include disabled users' activity (reads `activity_feed` via the service role, so 076's policy doesn't apply; it only filters disabled *recipients*) | App-side filter on the actor's `disabled_at`; found during Task 18, outside the migration's scope | Task 19 or post-launch |
 | Goodreads title match misses differing series suffixes ("All the Pretty Horses (The Border Trilogy, #1)" vs catalog "… (Border Trilogy)") and titles that start with punctuation ("'Salem's Lot") | Same behaviour as before Task 9; fixing it means stripping series parentheses before comparing, which is a matching-policy change | If users report misses |
 
 ---
@@ -749,4 +779,9 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 | 2026-09-24 | 11 | ✅ Complete | GET unsubscribe = confirm page, POST acts; digest counts books finished this week (lifetime labelled all time); webhook on profiles is the only welcome sender, Resend idempotency key; verified live with a throwaway account |
 | 2026-09-24 | 12 | ✅ Complete | Local-date challenge ranges; inclusive end date, failed only after the following UTC day; UTC card dates; month-loop overflow; en-US number format; OG card counts this year |
 | 2026-09-24 | 13 | ✅ Complete | Blanks clear on review/profile edit; liked hearts shown; keys on QuickRating/BookBrowser/TrendingGrid; admin search follows URL; request-id guard in 5 searches; Load More on success; mobile shelf name; verified live with throwaway accounts |
+| 2026-09-25 | 14 | ✅ Complete | Check-in badges via service-role sync (verified live, HEAD reproduced `[]`); social links upsert-then-prune; enrichment fills only empty date/cover id + normalised genres; club rollback via admin; place 0-coords + reject `false`; cache tags on delete/profile edit; hash-token reset branch removed; ADMIN_EMAILS needs confirmed email |
+| 2026-09-25 | 15 | ✅ Complete | `id` tiebreaker on all 13 `.range()` queries; reader-card HEAD counts; loved books + signals include review ratings; export validates first, pages 4 sections, CSV BOM; live 150-row tied shelf paged clean |
+| 2026-09-25 | 16 | ⚠️ Code complete | Keyed place panel; mark-spot form mounts on open; saved presence lifted to page; mobile geohash + consent; portaled check-in dialog/lightbox; Nominatim + `wasm-unsafe-eval` CSP (map never loaded); place-photos in image hosts (Photos tab crashed); deep link; refresh/rollback/prompt timeout; signed-in checks → Task 19 |
+| 2026-09-25 | 17 | ✅ Complete | Signout plain `<a>`; sr-only file inputs + focus ring (photo drop zone → label); set-current-book, mobile shelf drawer + both Manage Shelves modals on Radix; named star/close buttons; keyboard-verified on a fixture page |
+| 2026-09-25 | 18 | ✅ Complete | Migration 076 applied: pair + unread DM indexes (dropped conversation and redundant sender index); DM freeze on INSERT (created_at, read_at) and one-way read_at; unread counter exact on insert/read/unread/delete; place-review move frozen; disabled authors' feed hidden (user confirmed); markMessagesAsRead reconcile removed |
 | | | | |

@@ -2,7 +2,6 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { KeyRound, Loader2, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -262,9 +261,10 @@ function DeleteAccount({ username }: { username: string }) {
                 {staleSession && (
                   <>
                     {" "}
-                    <Link href="/signout" className="underline underline-offset-4">
+                    {/* Plain <a>: a <Link> prefetch would run the GET sign-out route */}
+                    <a href="/signout" className="underline underline-offset-4">
                       Sign out now
-                    </Link>
+                    </a>
                   </>
                 )}
               </p>

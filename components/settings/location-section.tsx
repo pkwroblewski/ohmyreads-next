@@ -264,6 +264,7 @@ export function LocationSection({ initialLocation }: LocationSectionProps) {
   // Handle precision change
   const handlePrecisionChange = (value: string) => {
     const newPrecision = parseInt(value, 10);
+    const previousPrecision = precision;
     setPrecision(newPrecision);
 
     if (coordinates && enabled) {
@@ -271,6 +272,8 @@ export function LocationSection({ initialLocation }: LocationSectionProps) {
         const result = await updateLocationPrecision(newPrecision);
         if (result.error) {
           toast.error(result.error);
+          // Show the radius that is actually saved, not the one that failed
+          setPrecision(previousPrecision);
         }
       });
     }

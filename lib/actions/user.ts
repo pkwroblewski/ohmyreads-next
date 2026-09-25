@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { requireUser } from "@/lib/auth/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -78,6 +79,9 @@ export async function updateProfile(input: UpdateProfileInput): Promise<ActionRe
       return { success: false, error: reportError("Error updating profile", error) };
     }
 
+    // Cached review lists and the activity feed embed the reviewer's name,
+    // username and avatar.
+    invalidateTags(CACHE_TAGS.reviews, CACHE_TAGS.activity);
     revalidatePath("/profile");
     revalidatePath("/settings");
     if (data.username) {
@@ -119,22 +123,49 @@ export async function updateSocialLinks(links: SocialLinkInput[]): Promise<Actio
 
     const validatedLinks = validationResult.data;
 
-    // Delete existing links
-    await supabase.from("social_links").delete().eq("user_id", user.id);
+    // One row per platform (unique user_id+platform); the last entry wins.
+    const validLinks = [
+      ...new Map(
+        validatedLinks
+          .filter((l) => l.url && l.url.trim())
+          .map((l) => [l.platform, l] as const)
+      ).values(),
+    ];
 
-    // Insert new links (filter out empty URLs)
-    const validLinks = validatedLinks.filter((l) => l.url && l.url.trim());
-
+    // Upsert first, then remove platforms no longer listed, so a failure
+    // part-way leaves the old links in place instead of deleting them all.
     if (validLinks.length > 0) {
-      const { error } = await supabase.from("social_links").insert(
+      const { error } = await supabase.from("social_links").upsert(
         validLinks.map((link) => ({
           user_id: user.id,
           platform: link.platform,
           url: link.url,
           display_order: link.displayOrder,
-        }))
+        })),
+        { onConflict: "user_id,platform" }
       );
 
+      if (error) {
+        return { success: false, error: reportError("Error updating social links", error) };
+      }
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from("social_links")
+      .select("platform")
+      .eq("user_id", user.id);
+    if (existingError) {
+      return { success: false, error: reportError("Error updating social links", existingError) };
+    }
+
+    const kept = new Set(validLinks.map((l) => l.platform));
+    const stale = (existing ?? []).map((l) => l.platform).filter((p) => !kept.has(p));
+    if (stale.length > 0) {
+      const { error } = await supabase
+        .from("social_links")
+        .delete()
+        .eq("user_id", user.id)
+        .in("platform", stale);
       if (error) {
         return { success: false, error: reportError("Error updating social links", error) };
       }
@@ -203,9 +234,12 @@ export async function ensureUserProfile(): Promise<ActionResult<{ profile: Profi
       .split(",")
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
-    const isAdmin = user.email
-      ? adminEmails.includes(user.email.toLowerCase())
-      : false;
+    // Only a confirmed address counts: an unconfirmed sign-up could claim
+    // an admin's email before its owner ever registers.
+    const isAdmin =
+      !!user.email &&
+      !!user.email_confirmed_at &&
+      adminEmails.includes(user.email.toLowerCase());
 
     // Prepare profile data
     const profileData: Database["public"]["Tables"]["profiles"]["Insert"] = {

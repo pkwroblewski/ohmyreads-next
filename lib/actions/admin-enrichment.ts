@@ -3,6 +3,7 @@
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { BOOK_CATALOG_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { enrichBookEntry, normalizeDate } from "@/lib/utils/external-book-search";
+import { normalizeGenres } from "@/lib/data/genres";
 import { logger, reportError } from "@/lib/utils/log";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import {
@@ -29,6 +30,8 @@ export interface BookToEnrich {
   page_count: number | null;
   google_books_id: string | null;
   open_library_id: string | null;
+  open_library_cover_id: number | null;
+  published_date: string | null;
   created_at: string;
 }
 
@@ -89,7 +92,7 @@ export async function getBooksNeedingEnrichment(
   const { data: books, error } = await supabase
     .from("books")
     .select(
-      "id, title, author, isbn, genres, description, cover_url, page_count, google_books_id, open_library_id, created_at"
+      "id, title, author, isbn, genres, description, cover_url, page_count, google_books_id, open_library_id, open_library_cover_id, published_date, created_at"
     )
     .order("created_at", { ascending: false })
     .limit(limit * 2); // Fetch extra to account for filtering
@@ -209,9 +212,10 @@ async function enrichSingleBookCore(
       result.fieldsUpdated.push("page_count");
     }
 
-    // Genres: update if empty
-    if ((!book.genres || book.genres.length === 0) && enriched.genres.length > 0) {
-      updates.genres = enriched.genres;
+    // Genres: update if empty (vocabulary only, see lib/data/genres.ts)
+    const genres = normalizeGenres(enriched.genres);
+    if ((!book.genres || book.genres.length === 0) && genres.length > 0) {
+      updates.genres = genres;
       result.fieldsUpdated.push("genres");
     }
 
@@ -232,12 +236,12 @@ async function enrichSingleBookCore(
       result.fieldsUpdated.push("open_library_id");
     }
 
-    if (enriched.openLibraryCoverId) {
+    if (!book.open_library_cover_id && enriched.openLibraryCoverId) {
       updates.open_library_cover_id = enriched.openLibraryCoverId;
     }
 
     // Published date: update if missing and we have it
-    if (enriched.publishedDate) {
+    if (!book.published_date && enriched.publishedDate) {
       const normalizedDate = normalizeDate(enriched.publishedDate);
       if (normalizedDate) {
         updates.published_date = normalizedDate;
@@ -308,7 +312,7 @@ export async function enrichBooks(
   const { data: books, error } = await supabase
     .from("books")
     .select(
-      "id, title, author, isbn, genres, description, cover_url, page_count, google_books_id, open_library_id, created_at"
+      "id, title, author, isbn, genres, description, cover_url, page_count, google_books_id, open_library_id, open_library_cover_id, published_date, created_at"
     )
     .in("id", bookIds);
 

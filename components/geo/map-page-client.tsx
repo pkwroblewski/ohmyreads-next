@@ -102,6 +102,11 @@ export function MapPageClient({ currentUserId, userName, userPresence }: MapPage
     toast.success("Status cleared");
   }, []);
 
+  // Presence saved from the map's own modal (detail panel, mobile I'm Here)
+  const handlePresenceSet = useCallback((presence: UserPresenceData) => {
+    setLocalPresence(presence);
+  }, []);
+
   // Clear selection (called from context panel)
   const handleClearSelection = useCallback(() => {
     setSelectedItem(null);
@@ -180,6 +185,7 @@ export function MapPageClient({ currentUserId, userName, userPresence }: MapPage
             onRefreshData={handleRefreshData}
             userPresence={localPresence}
             onClearPresence={handleClearPresence}
+            onPresenceSet={handlePresenceSet}
           />
         </div>
 
@@ -203,18 +209,9 @@ export function MapPageClient({ currentUserId, userName, userPresence }: MapPage
       <MarkSpotModal
         open={showMarkSpotModal}
         onClose={() => setShowMarkSpotModal(false)}
-        onSuccess={() => {
-          // Update local presence state optimistically
-          if (markSpotPlace) {
-            setLocalPresence({
-              type: defaultPresenceType,
-              expiresAt: defaultPresenceType === "temporary"
-                ? new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
-                : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-              note: null,
-              locationLabel: markSpotPlace.name,
-            });
-          }
+        onSuccess={(presence) => {
+          // The type, expiry and note actually saved, not the defaults
+          setLocalPresence(presence);
           setShowMarkSpotModal(false);
           // Refresh map data to show the new reader marker
           refreshDataRef.current?.();

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { createPortal } from "react-dom";
 import { Camera, Loader2, Trash2, X, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -136,14 +137,15 @@ export function PlacePhotosList({ placeId, currentUserId }: PlacePhotosListProps
         </div>
       )}
 
-      {/* Photo Lightbox */}
-      {selectedPhoto && (
+      {/* Photo Lightbox - portaled: the map's detail panel uses a transform,
+          which would otherwise make this "fixed" overlay clip to the panel */}
+      {selectedPhoto && createPortal(
         <div
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
           onClick={() => setSelectedPhoto(null)}
         >
           <div
-            className="relative max-w-3xl w-full max-h-[90vh] flex flex-col"
+            className="relative max-w-3xl w-full h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
@@ -224,7 +226,8 @@ export function PlacePhotosList({ placeId, currentUserId }: PlacePhotosListProps
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

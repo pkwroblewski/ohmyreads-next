@@ -104,11 +104,10 @@ export function PlacePhotoUpload({
     <div className="space-y-4">
       {/* File Input Area */}
       {!preview ? (
-        <div
-          onClick={() => fileInputRef.current?.click()}
+        <label
           className={cn(
-            "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
-            "hover:border-primary hover:bg-primary/5",
+            "block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
+            "hover:border-primary hover:bg-primary/5 focus-within:ring-2 focus-within:ring-ring",
             error ? "border-destructive" : "border-muted-foreground/25"
           )}
         >
@@ -117,14 +116,14 @@ export function PlacePhotoUpload({
             type="file"
             accept="image/jpeg,image/png,image/webp"
             onChange={handleFileSelect}
-            className="hidden"
+            className="sr-only"
           />
           <Camera className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
           <p className="text-sm font-medium">Click to select a photo</p>
           <p className="text-xs text-muted-foreground mt-1">
             JPEG, PNG, or WebP up to 5MB
           </p>
-        </div>
+        </label>
       ) : (
         <div className="relative">
           {/* Preview */}

@@ -3,6 +3,7 @@
 import { createClient as createBareClient } from "@supabase/supabase-js";
 import type { AMREntry, User } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth/require-user";
+import { CACHE_TAGS, invalidateTags } from "@/lib/cache/tags";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { createAuditLog } from "@/lib/utils/audit-log";
@@ -225,6 +226,15 @@ export async function deleteAccount(input: DeleteAccountInput): Promise<AccountA
         error: reportError("Error deleting account", deleteError, { userId: user.id }),
       };
     }
+
+    // The cascade removed this reader's reviews, likes, shelf rows and feed
+    // entries, which the cached lists, ratings and trending scores still hold.
+    invalidateTags(
+      CACHE_TAGS.books,
+      CACHE_TAGS.reviews,
+      CACHE_TAGS.activity,
+      CACHE_TAGS.trending
+    );
 
     // The session is already dead server-side; this clears the cookies. The
     // sign-out request itself may 401/403 now, which auth-js tolerates.

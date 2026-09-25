@@ -64,9 +64,24 @@ export function PlacesNearYou() {
       return;
     }
 
+    // The geolocation `timeout` only starts once permission is granted; an
+    // ignored prompt fires neither callback, so stop the spinner ourselves.
+    let settled = false;
+    const promptTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setLocationDenied(true);
+      setIsLoading(false);
+    }, 15000);
+
     // Get user's location
     navigator.geolocation.getCurrentPosition(
       async (position) => {
+        // A late answer (after the fallback above) still loads the places.
+        settled = true;
+        clearTimeout(promptTimer);
+        setLocationDenied(false);
+        setIsLoading(true);
         const { latitude, longitude } = position.coords;
 
         try {
@@ -91,11 +106,16 @@ export function PlacesNearYou() {
         }
       },
       () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(promptTimer);
         setLocationDenied(true);
         setIsLoading(false);
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
     );
+
+    return () => clearTimeout(promptTimer);
   }, []);
 
   // Don't render anything if location is denied

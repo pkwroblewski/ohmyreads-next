@@ -89,6 +89,8 @@ describe("GET /api/export", () => {
     const res = await GET(req("?format=xml"));
     expect(res.status).toBe(400);
     expect(router.from).not.toHaveBeenCalled();
+    // A bad request must not spend the hour's one export.
+    expect(checkRateLimit).not.toHaveBeenCalled();
   });
 
   it("returns a dated JSON attachment scoped to the caller", async () => {
@@ -118,6 +120,8 @@ describe("GET /api/export", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("text/csv");
     expect(res.headers.get("Content-Disposition")).toBe(`attachment; filename="ohmyreads-export-${today}.csv"`);
+    const bytes = new Uint8Array(await res.clone().arrayBuffer());
+    expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]); // UTF-8 BOM for Excel
     const text = await res.text();
     expect(text).toContain("=== BOOKS ===");
     // The title started with "=": it must not reach the sheet as a formula.

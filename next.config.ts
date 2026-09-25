@@ -61,8 +61,10 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              // 'unsafe-inline' needed for Next.js inline scripts; 'unsafe-eval' removed
-              "script-src 'self' 'unsafe-inline' https://vercel.live https://*.sentry.io https://browser.sentry-cdn.com",
+              // 'unsafe-inline' needed for Next.js inline scripts; 'unsafe-eval' removed.
+              // 'wasm-unsafe-eval' allows WebAssembly compilation only (not JS eval):
+              // Mapbox GL v3's Standard style needs it, or the map never loads.
+              "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://vercel.live https://*.sentry.io https://browser.sentry-cdn.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https://covers.openlibrary.org https://books.google.com https://*.googleusercontent.com https://*.supabase.co https://archive.org https://*.us.archive.org",
               "font-src 'self' https://fonts.gstatic.com data:",
@@ -73,6 +75,7 @@ const nextConfig: NextConfig = {
                 "https://events.mapbox.com " + // Mapbox telemetry
                 "https://openlibrary.org https://covers.openlibrary.org " + // OpenLibrary
                 "https://www.googleapis.com https://books.google.com " + // Google Books
+                "https://nominatim.openstreetmap.org " + // Place/location address autofill
                 "https://*.sentry.io https://*.ingest.sentry.io " + // Sentry
                 "https://vercel.live wss://ws-us3.pusher.com", // Vercel Live (dev)
               "worker-src 'self' blob:",

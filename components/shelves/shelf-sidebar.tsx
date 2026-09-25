@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, ChevronDown, ChevronUp, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ShelfManager } from "./shelf-manager";
 import { getUserShelves } from "@/lib/actions/shelves";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ export function ShelfSidebar({ activeShelfId }: ShelfSidebarProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(true);
   const [showManager, setShowManager] = useState(false);
+  const managerTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Load shelves
   const loadShelves = async () => {
@@ -79,6 +81,7 @@ export function ShelfSidebar({ activeShelfId }: ShelfSidebarProps) {
                   No custom shelves yet
                 </p>
                 <Button
+                  ref={managerTriggerRef}
                   variant="outline"
                   size="sm"
                   onClick={() => setShowManager(true)}
@@ -129,6 +132,7 @@ export function ShelfSidebar({ activeShelfId }: ShelfSidebarProps) {
 
                 {/* Manage button */}
                 <button
+                  ref={managerTriggerRef}
                   type="button"
                   onClick={() => setShowManager(true)}
                   className="w-full flex items-center gap-2 py-1.5 px-2 rounded text-sm text-muted-foreground hover:bg-muted transition-colors mt-2"
@@ -143,27 +147,27 @@ export function ShelfSidebar({ activeShelfId }: ShelfSidebarProps) {
       </div>
 
       {/* Shelf Manager Dialog */}
-      {showManager && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowManager(false)}
+      <Dialog open={showManager} onOpenChange={setShowManager}>
+        <DialogContent
+          hideClose
+          returnFocusTo={managerTriggerRef}
+          aria-describedby={undefined}
+          className="bg-background sm:max-w-md"
+        >
+          <DialogTitle className="sr-only">Manage shelves</DialogTitle>
+          <ShelfManager
+            shelves={shelves}
+            onShelvesChange={() => {
+              loadShelves();
+            }}
           />
-          <div className="relative bg-background rounded-xl shadow-2xl w-full max-w-md z-10 p-6">
-            <ShelfManager
-              shelves={shelves}
-              onShelvesChange={() => {
-                loadShelves();
-              }}
-            />
-            <div className="mt-4 flex justify-end">
-              <Button variant="outline" onClick={() => setShowManager(false)}>
-                Done
-              </Button>
-            </div>
+          <div className="mt-4 flex justify-end">
+            <Button variant="outline" onClick={() => setShowManager(false)}>
+              Done
+            </Button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

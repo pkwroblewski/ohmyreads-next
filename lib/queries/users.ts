@@ -207,7 +207,8 @@ export async function getUserBooks(
     query = query.eq("status", status);
   }
 
-  query = query.range(offset, offset + limit - 1);
+  // Unique tiebreaker so .range() pages never overlap or skip rows.
+  query = query.order("id", { ascending: true }).range(offset, offset + limit - 1);
 
   // `columns` is built at runtime, so the select cannot infer the join shape
   const { data, error, count } = await query.overrideTypes<UserBookWithBook[], { merge: false }>();

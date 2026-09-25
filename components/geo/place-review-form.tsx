@@ -103,9 +103,12 @@ export function PlaceReviewForm({
               onClick={() => setRating(star)}
               onMouseEnter={() => setHoverRating(star)}
               onMouseLeave={() => setHoverRating(0)}
+              aria-label={`${star} star${star !== 1 ? "s" : ""}`}
+              aria-pressed={rating === star}
               className="p-1 hover:scale-110 transition-transform"
             >
               <Star
+                aria-hidden="true"
                 className={cn(
                   "h-7 w-7 transition-colors",
                   (hoverRating || rating) >= star
