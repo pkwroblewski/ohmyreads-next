@@ -687,14 +687,14 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 **File(s):** -
 
 **Steps:**
-1. [ ] `npm run build` (dev server stopped)
-2. [ ] `npm run lint`, `npm run typecheck`, `npm run test:run`
-3. [ ] `npm audit --omit=dev`; Supabase security + performance advisors
-4. [ ] Playwright smoke with a throwaway account: signup, add book (search + AI), review, friend request both ways, DM, club join, map place, import small CSV, export, admin add book
+1. [x] `npm run build` (dev server stopped)
+2. [x] `npm run lint`, `npm run typecheck`, `npm run test:run`
+3. [x] `npm audit --omit=dev`; Supabase security + performance advisors
+4. [-] Playwright smoke with a throwaway account: signup, add book (search + AI), review, friend request both ways, DM, club join, map place, import small CSV, export, admin add book
 
 **Verify (carried from Task 2):**
-- [ ] As a throwaway authenticated user: INSERT friend_request `status='accepted'` → rejected; INSERT club member `role='admin'` on someone else's public club → rejected; normal join as member → OK
-- [ ] PATCH `book_clubs.member_count` / `created_by` as club admin → values unchanged
+- [x] As a throwaway authenticated user: INSERT friend_request `status='accepted'` → rejected; INSERT club member `role='admin'` on someone else's public club → rejected; normal join as member → OK
+- [x] PATCH `book_clubs.member_count` / `created_by` as club admin → values unchanged
 
 **Verify (carried from Task 3):**
 - [ ] On the deployed site, open an OSM bookshop on the map: Google photo renders, no CSP violation, enrich JSON has no `key=`
@@ -712,15 +712,15 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 - [ ] Deployed site: reader map loads past "Loading 3D map…" with no CSP console errors (`'wasm-unsafe-eval'`), and a place's Photos tab renders an uploaded photo
 
 **Verify:**
-- [ ] Build, lint (0/0), typecheck, tests all pass
-- [ ] No high/critical prod advisories; no new DB lints
+- [x] Build, lint (0/0), typecheck, tests all pass
+- [x] No high/critical prod advisories; no new DB lints
 - [ ] Smoke journey passes with no console errors
 
 **Completed Notes:**
-- Files modified:
-- Approach taken:
-- Deviations from plan:
-- Issues encountered:
+- Files modified: none (QA only). Tasks 14–18 committed as 289cfc4 and pushed; production deploy `dpl_Agb37dmkQF9RCDdX1UctAEC4E2Re` READY 2026-09-25, aliased to ohmyreads.com / ohmyreads-next.vercel.app.
+- Approach taken: Build (dev server stopped) exit 0 with no warnings; lint 0/0; typecheck clean; 790 tests pass; `npm audit --omit=dev` 0 vulnerabilities; advisors re-checked after 076 (no new lints). Task 2 checks were run in the database as the real roles (rolled back), which is where PostgREST enforces them: forged `accepted` friend request → 42501, pending → OK; `role='admin'` self-join on another user's public club → 42501, member join → OK; the club creator/admin's PATCH of `member_count` (3) and `created_by` → unchanged. Task 3 on production (same-origin fetch from ohmyreads-next.vercel.app): enrich returns no `key=`, but reports "Google Places API not configured", so production has no working Places key. Task 16 deployed CSP: `/community/map` (public) loads with no CSP violations or console errors (two Mapbox style warnings only); the CSP carries `'wasm-unsafe-eval'`, `worker-src blob:` and the Mapbox/Nominatim hosts; the style request returns 200.
+- Deviations from plan: Signed-in smoke skipped by the user (Playwright MCP down; Claude may not type passwords into Chrome). Task 2 checks done in SQL rather than through the browser.
+- Issues encountered: ohmyreads.com shows a browser error page from here (custom-domain DNS still pending per launch Task 0); checks used the vercel.app alias. The map stays on "Loading 3D map…" in the automation tab because that tab is `visibilityState: hidden` and `requestAnimationFrame` never fires, so Mapbox never emits `load`. This comes from the test environment and needs a visible tab to confirm. Still blocked: signed-in smoke; Task 4 AI-search add (signed in); Task 16 signed-in and mobile checks; Photos tab (0 rows in `places`); Places photo render + key rotation (user); Sentry event (launch Task 0).
 
 **Status:** [ ] PENDING
 
@@ -749,12 +749,12 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 
 ## Final QA Checklist
 
-- [ ] All files created/modified exist
-- [ ] No broken imports or references
-- [ ] Build passes (`npm run build`)
-- [ ] Lint passes (`npm run lint`)
-- [ ] Typecheck + tests pass
-- [ ] Migrations 074/075/076 applied and types regenerated
+- [x] All files created/modified exist
+- [x] No broken imports or references
+- [x] Build passes (`npm run build`)
+- [x] Lint passes (`npm run lint`)
+- [x] Typecheck + tests pass
+- [x] Migrations 074/075/076 applied and types regenerated
 - [ ] Places API key rotated (user)
 - [ ] Feature works as expected (smoke test)
 - [ ] No console errors
@@ -784,4 +784,5 @@ A full audit on 2026-09-24 (lint, typecheck, 713 tests, `npm audit`, Supabase ad
 | 2026-09-25 | 16 | ⚠️ Code complete | Keyed place panel; mark-spot form mounts on open; saved presence lifted to page; mobile geohash + consent; portaled check-in dialog/lightbox; Nominatim + `wasm-unsafe-eval` CSP (map never loaded); place-photos in image hosts (Photos tab crashed); deep link; refresh/rollback/prompt timeout; signed-in checks → Task 19 |
 | 2026-09-25 | 17 | ✅ Complete | Signout plain `<a>`; sr-only file inputs + focus ring (photo drop zone → label); set-current-book, mobile shelf drawer + both Manage Shelves modals on Radix; named star/close buttons; keyboard-verified on a fixture page |
 | 2026-09-25 | 18 | ✅ Complete | Migration 076 applied: pair + unread DM indexes (dropped conversation and redundant sender index); DM freeze on INSERT (created_at, read_at) and one-way read_at; unread counter exact on insert/read/unread/delete; place-review move frozen; disabled authors' feed hidden (user confirmed); markMessagesAsRead reconcile removed |
+| 2026-09-25 | 19 | 🔄 Partial (pending, user's choice) | Build/lint/typecheck/790 tests/audit 0/advisors pass; Task 2 RLS checks pass in SQL; 289cfc4 deployed READY; prod CSP clean; blocked: signed-in smoke, Places key (prod reports "not configured"), Sentry, Photos tab (0 places), visual map load (hidden automation tab) |
 | | | | |
