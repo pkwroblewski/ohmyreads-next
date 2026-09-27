@@ -16,7 +16,7 @@ Next.js 16 book tracking app with Supabase, Vercel, and AI integration.
 1. **STOP** - Do not start coding
 2. **READ** `.claude/docs/example-plan.md` - understand the exact format
 3. **READ** `.claude/docs/planning-workflow.md` - understand the process
-4. **CREATE** plan in `.claude/plans/` using exact template format
+4. **CREATE** plan in `.claude/plans/` using exact template format (convert any user-provided doc or audit into this template; never use it as the plan directly)
 5. **EXECUTE** one task → fill Completed Notes → mark COMPLETE
 6. **WAIT** for user to run `/clear`
 7. **AFTER CLEAR** → re-read plan file, find next PENDING, repeat
@@ -45,7 +45,7 @@ Next.js 16 book tracking app with Supabase, Vercel, and AI integration.
 
 **Plan must also include:**
 - Summary section
-- Out of Scope (Deferred) table
+- Out of Scope (Deferred) table — what's deferred and why
 - Final QA Checklist
 - Changelog table
 
@@ -59,17 +59,6 @@ If you cannot complete Verify steps (deployment needed, credentials required, et
 4. **UPDATE** - Use status user approves (e.g., `[x] CODE COMPLETE - Verification blocked`)
 
 Never assume deferred verification carries over to subsequent tasks.
-
-## Don't Do This
-
-- ❌ Start coding without reading example-plan.md first
-- ❌ Use user-provided docs or audits directly as plans → convert to exact template
-- ❌ Create Status table with different columns → always use `# | Task | Priority | Effort | Status | Files`
-- ❌ Execute multiple tasks without `/clear` → one task, then clear, then next
-- ❌ Mark COMPLETE without filling Completed Notes → always document what was done
-- ❌ Mark COMPLETE with unchecked Verify items → stop and ask if verification is blocked
-- ❌ Skip Out of Scope section → explicitly list what's deferred and why
-- ❌ Skip planning for "small" multi-step tasks → always plan if 3+ steps
 
 ## Commands
 ```bash
