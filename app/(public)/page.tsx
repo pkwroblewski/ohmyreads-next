@@ -32,7 +32,7 @@ import { safeJsonLd } from "@/lib/utils/jsonld";
 export const metadata: Metadata = {
   // `absolute` opts out of the layout's "%s | OhMyReads" template, which would
   // otherwise print the brand twice on the one page that names itself.
-  title: { absolute: "OhMyReads - Independent Minds, Shared Stories" },
+  title: { absolute: "OhMyReads - Every book you've read, on one shelf" },
   alternates: { canonical: "/" },
   description:
     "The independent reading community where you own your data and readers come first. Track your reading journey without corporate interference.",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     "reading list",
   ],
   openGraph: {
-    title: "OhMyReads - Independent Minds, Shared Stories",
+    title: "OhMyReads - Every book you've read, on one shelf",
     description:
       "The independent reading community where you own your data and readers come first.",
     type: "website",
@@ -230,8 +230,8 @@ export default async function HomePage() {
           CTA SECTION - Compact
           ======================================== */}
       <section className="py-10 lg:py-12 relative overflow-hidden">
-        {/* Gradient Background */}
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/90 to-accent/90" />
+        {/* Ribbon band */}
+        <div className="absolute inset-0 bg-primary" />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-xl mx-auto text-center">

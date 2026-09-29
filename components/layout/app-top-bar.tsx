@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Search, User, Settings, LogOut, Shield } from "lucide-react";
+import { Search, User, Settings, LogOut, Shield } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 import { GlobalSearchModal } from "@/components/search/global-search-modal";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
@@ -50,13 +51,8 @@ export function AppTopBar({ user, profile, isAdmin = false }: AppTopBarProps) {
     <header className="fixed top-0 left-0 right-0 z-50 h-12 border-b border-border/50 bg-background/80 backdrop-blur-md">
       <div className="flex h-full items-center px-4">
         {/* Logo (left) */}
-        <Link href="/dashboard" className="flex items-center gap-2 group">
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-105">
-            <BookOpen className="w-4 h-4" />
-          </div>
-          <span className="text-lg font-bold font-serif tracking-tight hidden sm:inline">
-            OhMyReads
-          </span>
+        <Link href="/dashboard" aria-label="OhMyReads dashboard">
+          <Logo size="sm" wordmarkFromSm />
         </Link>
 
         {/* Global Search trigger (Desktop pill) */}

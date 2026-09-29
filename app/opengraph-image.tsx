@@ -1,188 +1,91 @@
 import { ImageResponse } from "next/og";
+import { BRAND_INK, BRAND_RIBBON, BRAND_WALL, BrandMark, loadGoogleFont } from "@/lib/brand/app-icon";
 
 export const runtime = "edge";
 
-export const alt = "OhMyReads - Track Your Reading Journey";
+export const alt = "OhMyReads: every book you've read, on one shelf";
 export const size = {
   width: 1200,
   height: 630,
 };
 export const contentType = "image/png";
 
+const WORDMARK = "OhMyReads";
+const LINE = "Every book you've read, on one shelf.";
+
+// Spine colours taken from real catalog covers (the shelf prototype's sample
+// reader); width follows page count the same way the shelf does.
+const SPINES: { c: string; p: number }[] = [
+  { c: "#98a1a8", p: 351 }, { c: "#3a2408", p: 199 }, { c: "#191718", p: 815 },
+  { c: "#235c86", p: 492 }, { c: "#ecb649", p: 184 }, { c: "#d80703", p: 264 },
+  { c: "#aa9368", p: 608 }, { c: "#faf9f5", p: 528 }, { c: "#781d18", p: 513 },
+  { c: "#033956", p: 592 }, { c: "#fefbde", p: 306 }, { c: "#b88b2c", p: 395 },
+  { c: "#24477a", p: 480 }, { c: "#7b7a76", p: 479 }, { c: "#cab29c", p: 192 },
+  { c: "#03aab5", p: 385 }, { c: "#1a1717", p: 330 },
+];
+const HEIGHTS = [0.92, 0.84, 0.97, 0.88, 0.8, 0.9, 0.95, 0.86, 0.93, 0.83, 0.89, 0.96, 0.87, 0.91, 0.82, 0.94, 0.9];
+
 export default async function OGImage() {
+  const [serif, serifItalic] = await Promise.all([
+    loadGoogleFont("Literata", 600, WORDMARK + LINE),
+    loadGoogleFont("Literata", 400, LINE, true),
+  ]);
+  const fonts = [
+    ...(serif ? [{ name: "Literata", data: serif, weight: 600 as const, style: "normal" as const }] : []),
+    ...(serifItalic ? [{ name: "Literata", data: serifItalic, weight: 400 as const, style: "italic" as const }] : []),
+  ];
+
   return new ImageResponse(
     (
       <div
         style={{
-          height: "100%",
           width: "100%",
+          height: "100%",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(135deg, #FDF8F3 0%, #F5EDE4 50%, #EDE4D9 100%)",
-          fontFamily: "Georgia, serif",
+          justifyContent: "space-between",
+          background: BRAND_WALL,
+          padding: "64px 72px 0",
+          fontFamily: "Literata, Georgia, serif",
+          color: BRAND_INK,
         }}
       >
-        {/* Decorative book elements */}
-        <div
-          style={{
-            position: "absolute",
-            top: "40px",
-            left: "40px",
-            display: "flex",
-            gap: "8px",
-            opacity: 0.15,
-          }}
-        >
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              style={{
-                width: "30px",
-                height: "120px",
-                background: "#8B4513",
-                borderRadius: "3px",
-                transform: `rotate(${(i - 3) * 3}deg)`,
-              }}
-            />
-          ))}
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            bottom: "40px",
-            right: "40px",
-            display: "flex",
-            gap: "8px",
-            opacity: 0.15,
-          }}
-        >
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              style={{
-                width: "30px",
-                height: "120px",
-                background: "#8B4513",
-                borderRadius: "3px",
-                transform: `rotate(${(i - 3) * 3}deg)`,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Logo Icon */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "120px",
-            height: "120px",
-            background: "linear-gradient(135deg, #8B4513 0%, #A0522D 100%)",
-            borderRadius: "24px",
-            marginBottom: "32px",
-            boxShadow: "0 8px 32px rgba(139, 69, 19, 0.3)",
-          }}
-        >
-          <svg
-            width="64"
-            height="64"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-          </svg>
-        </div>
-
-        {/* Title */}
-        <div
-          style={{
-            fontSize: 72,
-            fontWeight: 700,
-            color: "#2D1F14",
-            marginBottom: "16px",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          OhMyReads
-        </div>
-
-        {/* Tagline */}
-        <div
-          style={{
-            fontSize: 32,
-            color: "#6B5344",
-            marginBottom: "40px",
-          }}
-        >
-          Track Your Reading Journey
-        </div>
-
-        {/* Features */}
-        <div
-          style={{
-            display: "flex",
-            gap: "48px",
-            color: "#8B4513",
-            fontSize: 20,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-            </svg>
-            Discover Books
+        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            <BrandMark size={72} spine={BRAND_INK} ribbon={BRAND_RIBBON} />
+            <div style={{ fontSize: 56, fontWeight: 600, letterSpacing: "-0.02em" }}>{WORDMARK}</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z" />
-            </svg>
-            Write Reviews
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            Connect with Readers
+          {/* Two rows: Satori mis-measures upright and italic faces side by side
+              on one line, so the italic half gets its own row. */}
+          <div style={{ display: "flex", flexDirection: "column", fontSize: 54, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+            <div style={{ display: "flex", fontWeight: 600 }}>Every book you&apos;ve read,</div>
+            <div style={{ display: "flex", fontStyle: "italic", fontWeight: 400 }}>on one shelf.</div>
           </div>
         </div>
 
-        {/* Footer badge */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: "40px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            background: "rgba(139, 69, 19, 0.1)",
-            padding: "12px 24px",
-            borderRadius: "100px",
-            fontSize: 16,
-            color: "#8B4513",
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <path d="M7 7h10" />
-            <path d="M7 12h10" />
-            <path d="M7 17h10" />
-          </svg>
-          Free &amp; Independent • Not Amazon-owned
+        {/* A shelf of spines on a plank */}
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 230, paddingLeft: 12 }}>
+            {SPINES.map((s, i) => (
+              <div
+                key={i}
+                style={{
+                  width: Math.round(18 + s.p / 16),
+                  height: Math.round(230 * HEIGHTS[i]),
+                  background: s.c,
+                  borderRadius: "3px 3px 1px 1px",
+                  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)",
+                  display: "flex",
+                  ...(i === SPINES.length - 1 ? { transform: "rotate(-6deg)", transformOrigin: "bottom right", marginLeft: 8 } : {}),
+                }}
+              />
+            ))}
+          </div>
+          <div style={{ display: "flex", height: 14, background: "#34363b", marginLeft: -72, marginRight: -72 }} />
+          <div style={{ display: "flex", height: 30 }} />
         </div>
       </div>
     ),
-    {
-      ...size,
-    }
+    { ...size, fonts }
   );
 }

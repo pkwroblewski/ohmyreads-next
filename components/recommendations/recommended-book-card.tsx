@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Star, Sparkles, Heart, BookMarked, TrendingUp } from "lucide-react";
+import { Star, Heart, BookMarked, TrendingUp, Bookmark, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "@/components/books/cover-image";
 import { AddToShelfButton } from "@/components/books/add-to-shelf-button";
@@ -10,7 +10,7 @@ interface RecommendedBookCardProps {
 }
 
 const REASON_ICONS = {
-  genre_match: Sparkles,
+  genre_match: Tag,
   vibe_match: Heart,
   similar_to_loved: BookMarked,
   popular_in_genre: TrendingUp,
@@ -28,7 +28,7 @@ const REASON_COLORS = {
 };
 
 export function RecommendedBookCard({ book }: RecommendedBookCardProps) {
-  const ReasonIcon = REASON_ICONS[book.reason.type] || Sparkles;
+  const ReasonIcon = REASON_ICONS[book.reason.type] || Bookmark;
   const reasonColorClass = REASON_COLORS[book.reason.type] || "text-primary bg-primary/10";
 
   return (
@@ -62,7 +62,7 @@ export function RecommendedBookCard({ book }: RecommendedBookCardProps) {
             {/* Rating */}
             {book.average_rating && (
               <div className="flex items-center gap-1 mt-2">
-                <Star className="w-4 h-4 fill-accent text-accent" />
+                <Star className="w-4 h-4 fill-star text-star" />
                 <span className="font-medium text-sm">
                   {book.average_rating.toFixed(1)}
                 </span>

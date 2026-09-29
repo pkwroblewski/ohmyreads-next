@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { BookOpen, Leaf, Shield } from "lucide-react";
+import { Leaf, Shield } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 
@@ -52,17 +53,9 @@ export async function Footer() {
         <div className="py-12 grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
           {/* Column 1: Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="inline-flex items-center gap-2.5 mb-4 group">
-              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-105">
-                <BookOpen className="w-5 h-5" />
-              </div>
-              <span className="text-xl font-bold font-serif tracking-tight">
-                OhMyReads
-              </span>
+            <Link href="/" aria-label="OhMyReads home" className="inline-flex mb-4">
+              <Logo />
             </Link>
-            <p className="text-sm text-muted-foreground mb-4">
-              Independent Minds, Shared Stories
-            </p>
             {/* Independence badge */}
             <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1.5 rounded-md mb-4">
               <Leaf className="w-3.5 h-3.5 text-green-600 dark:text-green-500" />

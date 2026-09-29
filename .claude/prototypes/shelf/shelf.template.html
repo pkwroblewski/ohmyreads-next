@@ -1,0 +1,659 @@
+<title>OhMyReads Shelf Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Literata:ital,opsz,wght@0,7..72,300..800;1,7..72,300..800&display=swap">
+<style>
+/* Layout: one reader's wall. A bookcase of year shelves carries all the colour;
+   type, panels and controls stay paper-and-ink quiet around it. */
+:root {
+  --wall: #ecede8;
+  --paper: #f7f7f3;
+  --ink: #1a1c21;
+  --ink-soft: #565a61;
+  --rule: #d2d4cd;
+  --plank: #34363b;
+  --plank-shadow: rgba(26, 28, 33, 0.18);
+  --ribbon: #a8122c;
+  --ribbon-ink: #ffffff;
+  --book-filter: none;
+  --font-display: "Literata", "Iowan Old Style", Georgia, serif;
+  --font-ui: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --shelf-h: 188px;
+  --shelf-gap: 46px;
+  --spine-scale: 1;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --wall: #15161a; --paper: #1d1f23; --ink: #e9e7e2; --ink-soft: #a4a5a1;
+    --rule: #2d2f34; --plank: #55575d; --plank-shadow: rgba(0, 0, 0, 0.5);
+    --ribbon: #e2536b; --ribbon-ink: #15161a;
+    --book-filter: brightness(0.84) saturate(0.92);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --wall: #15161a; --paper: #1d1f23; --ink: #e9e7e2; --ink-soft: #a4a5a1;
+  --rule: #2d2f34; --plank: #55575d; --plank-shadow: rgba(0, 0, 0, 0.5);
+  --ribbon: #e2536b; --ribbon-ink: #15161a;
+  --book-filter: brightness(0.84) saturate(0.92);
+  color-scheme: dark;
+}
+@media (max-width: 640px) {
+  :root { --shelf-h: 148px; --shelf-gap: 40px; --spine-scale: 0.8; }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ribbon); outline-offset: 3px; }
+
+/* ---------- Top bar ---------- */
+.top {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding-block: 18px; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+.brand svg { width: 30px; height: 30px; }
+.brand b { font-family: var(--font-display); font-weight: 650; font-size: 21px; letter-spacing: -0.01em; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; padding: 3px; background: var(--paper); }
+.seg button {
+  border: 0; background: none; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--ink-soft);
+}
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--wall); }
+
+.note {
+  font-size: 13px; color: var(--ink-soft); border-top: 1px solid var(--rule);
+  padding-block: 10px; display: flex; gap: 8px; align-items: baseline;
+}
+.note strong { color: var(--ribbon); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }
+
+/* ---------- Hero ---------- */
+.hero {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: end;
+  padding-block: 36px 28px;
+}
+.hero h1 {
+  font-family: var(--font-display); font-weight: 560; font-size: clamp(34px, 5.4vw, 64px);
+  line-height: 1.02; letter-spacing: -0.025em; margin: 0 0 16px; text-wrap: balance;
+  font-variation-settings: "opsz" 72;
+}
+.hero h1 em { font-style: italic; font-weight: 400; }
+.tally { display: flex; gap: 28px; flex-wrap: wrap; margin: 0; }
+.tally div { display: grid; }
+.tally dt { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; order: 2; }
+.tally dd { margin: 0; font-family: var(--font-display); font-size: 28px; font-variant-numeric: tabular-nums lining-nums; order: 1; }
+
+/* Currently reading card with its ribbon */
+.current {
+  display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 16px; align-items: start;
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 16px;
+  width: min(380px, 100%);
+}
+.current .cover { position: relative; width: 92px; }
+.current .cover img { width: 92px; height: auto; display: block; border-radius: 2px; box-shadow: 0 6px 16px var(--plank-shadow); filter: var(--book-filter); }
+.ribbon {
+  position: absolute; top: -6px; right: 14px; width: 12px; height: 74px; background: var(--ribbon);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%);
+}
+.current h2 { font-family: var(--font-display); font-size: 18px; line-height: 1.2; margin: 0 0 2px; font-weight: 600; text-wrap: balance; }
+.label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ribbon); font-weight: 700; margin: 0 0 6px; }
+.byline { color: var(--ink-soft); font-size: 13px; margin: 0 0 10px; }
+.progress { height: 4px; background: var(--rule); border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+.progress span { display: block; height: 100%; background: var(--ribbon); }
+.pnum { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; margin: 0 0 12px; }
+.btn {
+  border: 0; background: var(--ribbon); color: var(--ribbon-ink); padding: 8px 14px; border-radius: 4px;
+  font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.btn[disabled] { background: var(--rule); color: var(--ink-soft); cursor: default; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
+
+/* ---------- Year shelves ---------- */
+.year { padding-block: 18px 8px; }
+.year-head {
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.year-head h2 {
+  font-family: var(--font-display); font-weight: 500; font-size: 40px; margin: 0; letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums;
+}
+.year-head p { margin: 0; color: var(--ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+/* The bookcase: flex lines are exactly one shelf tall, and the background
+   draws a plank at the bottom of every line, so shelves wrap at any width. */
+.shelf {
+  --line: calc(var(--shelf-h) + var(--shelf-gap));
+  display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: 1px; row-gap: var(--shelf-gap);
+  padding-bottom: var(--shelf-gap); padding-inline: 10px;
+  background:
+    repeating-linear-gradient(to bottom,
+      transparent 0 var(--shelf-h),
+      var(--plank) var(--shelf-h) calc(var(--shelf-h) + 7px),
+      var(--plank-shadow) calc(var(--shelf-h) + 7px) calc(var(--shelf-h) + 9px),
+      transparent calc(var(--shelf-h) + 9px) var(--line));
+}
+.slot { height: var(--shelf-h); display: flex; align-items: flex-end; position: relative; }
+.month {
+  position: absolute; top: calc(var(--shelf-h) + 13px); left: 0;
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600;
+  white-space: nowrap; pointer-events: none;
+}
+.spine {
+  --c: #777; --t: #fff;
+  position: relative; border: 0; padding: 7px 0 8px; margin: 0; cursor: pointer;
+  background-color: var(--c); color: var(--t);
+  background-image: linear-gradient(90deg, rgba(0,0,0,.24) 0, rgba(255,255,255,.12) 14%, rgba(255,255,255,0) 38%, rgba(0,0,0,.06) 78%, rgba(0,0,0,.28) 100%);
+  border-radius: 2px 2px 1px 1px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; overflow: hidden;
+  filter: var(--book-filter);
+  transition: transform .22s cubic-bezier(.3,.7,.3,1);
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.25);
+}
+.spine:hover, .spine:focus-visible, .spine.pulled { transform: translateY(-14px); }
+.spine:focus-visible { outline-offset: 2px; }
+.spine .t {
+  writing-mode: vertical-rl; flex: 1 1 auto; min-height: 0; overflow: hidden; white-space: nowrap;
+  text-overflow: ellipsis; line-height: 1;
+}
+.spine .a { writing-mode: vertical-rl; white-space: nowrap; line-height: 1; opacity: .88; flex: 0 0 auto; }
+.spine .mark { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; opacity: .7; flex: 0 0 auto; }
+.spine .band { align-self: stretch; height: 0; border-top: 1.5px solid currentColor; margin-inline: 3px; opacity: .65; flex: 0 0 auto; }
+.spine .band.double { height: 3px; border-bottom: 1px solid currentColor; }
+.spine .block { align-self: stretch; height: 16px; background: currentColor; opacity: .9; flex: 0 0 auto; margin-top: -7px; }
+
+/* Lettering families, chosen by genre */
+.f-classic .t { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .09em; font-weight: 600; }
+.f-fantasy .t { font-family: var(--font-display); font-style: italic; font-weight: 600; }
+.f-literary .t { font-family: var(--font-display); font-weight: 450; }
+.f-scifi .t { font-family: var(--font-ui); text-transform: uppercase; font-weight: 700; letter-spacing: .14em; }
+.f-thriller .t { font-family: var(--font-ui); text-transform: uppercase; font-weight: 900; letter-spacing: .01em; }
+.f-thriller .a { font-weight: 800; text-transform: uppercase; }
+.f-light .t { font-family: var(--font-ui); font-weight: 650; }
+.f-fact .t { font-family: var(--font-ui); text-transform: uppercase; font-weight: 800; letter-spacing: .04em; }
+.spine .a { font-family: var(--font-ui); font-weight: 600; }
+
+.lean { transform: rotate(-5deg); transform-origin: bottom right; margin-left: 5px; }
+.lean:hover, .lean:focus-visible { transform: rotate(-5deg) translateY(-10px); }
+
+.bookend {
+  width: 30px; height: calc(var(--shelf-h) * .6); position: relative; margin-left: 6px; align-self: flex-end;
+}
+.bookend::before, .bookend::after { content: ""; position: absolute; background: var(--plank); }
+.bookend::before { left: 0; bottom: 0; width: 5px; height: 100%; border-radius: 2px 2px 0 0; }
+.bookend::after { left: 0; bottom: 0; width: 30px; height: 5px; }
+.bookend.left::before { left: auto; right: 0; }
+
+@keyframes place {
+  0% { transform: translate(-60px, -90px) rotate(-12deg); opacity: 0; }
+  60% { transform: translate(0, -8px) rotate(2deg); opacity: 1; }
+  80% { transform: translate(0, 0) rotate(-1deg); }
+  100% { transform: none; }
+}
+.placed { animation: place .75s cubic-bezier(.2,.8,.25,1) both; }
+@keyframes nudge { 0% { transform: translateX(-10px); } 100% { transform: none; } }
+.nudged { animation: nudge .5s ease-out .25s both; }
+
+/* ---------- List view ---------- */
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-soft); font-weight: 600; }
+td.n { font-variant-numeric: tabular-nums; text-align: right; }
+.swatch { display: inline-block; width: 8px; height: 22px; border-radius: 1px; vertical-align: middle; margin-right: 10px; }
+
+/* ---------- Face-out and studies ---------- */
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.section-head h2 { font-family: var(--font-display); font-weight: 500; font-size: 28px; margin: 0; letter-spacing: -0.015em; }
+.section-head p { margin: 0; color: var(--ink-soft); font-size: 14px; max-width: 60ch; }
+.faceout {
+  display: flex; gap: 18px; align-items: flex-end; overflow-x: auto; padding: 18px 12px 0;
+  border-bottom: 7px solid var(--plank); scrollbar-width: thin;
+}
+.faceout figure { margin: 0; flex: 0 0 auto; }
+.faceout img { display: block; height: 170px; width: auto; border-radius: 2px; box-shadow: 0 8px 18px var(--plank-shadow); filter: var(--book-filter); }
+@media (max-width: 640px) { .faceout img { height: 132px; } }
+
+.studies { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; padding-block: 40px 24px; }
+@media (max-width: 860px) { .studies { grid-template-columns: minmax(0, 1fr); } }
+.study h3 { font-family: var(--font-display); font-size: 22px; font-weight: 550; margin: 0 0 4px; }
+.study > p { margin: 0 0 16px; color: var(--ink-soft); font-size: 14px; max-width: 58ch; }
+.empty {
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 22px 22px 0;
+}
+.empty .shelf { padding-inline: 18px; min-height: calc(var(--shelf-h) + var(--shelf-gap)); }
+.empty-copy { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.empty-copy p { margin: 0; font-family: var(--font-display); font-style: italic; font-size: 20px; }
+
+.share {
+  --card-ink: #f2efe8; --card-bg: #17181c;
+  width: min(300px, 100%); aspect-ratio: 9 / 16; background: var(--card-bg); color: var(--card-ink);
+  border-radius: 14px; padding: 22px 18px; display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 18px 40px var(--plank-shadow); overflow: hidden; margin-inline: auto;
+}
+.share .brand { color: var(--card-ink); }
+.share .brand b { font-size: 15px; }
+.share .brand svg { width: 20px; height: 20px; }
+.share .big { font-family: var(--font-display); font-size: 58px; line-height: .9; margin: 6px 0 0; font-weight: 500; letter-spacing: -.03em; }
+.share .sub { font-size: 12px; opacity: .8; margin: 0; }
+.share .shelf {
+  --shelf-h: 62px; --shelf-gap: 12px; --plank: #6a6c72; --plank-shadow: rgba(0,0,0,.4);
+  padding-inline: 2px; margin-top: 6px;
+}
+.share .spine { padding: 2px 0; gap: 2px; filter: none; }
+.share .spine .t { font-size: 5px !important; }
+.share .spine .a, .share .spine .mark, .share .spine .band, .share .spine .block { display: none; }
+.share dl { margin-top: auto !important; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0; font-size: 11px; }
+.share dt { opacity: .7; text-transform: uppercase; letter-spacing: .08em; font-size: 9px; }
+.share dd { margin: 0; font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums lining-nums; }
+
+.judge { border-top: 1px solid var(--rule); padding-block: 24px 48px; display: grid; gap: 10px; }
+.judge h2 { font-family: var(--font-display); font-weight: 500; font-size: 24px; margin: 0; }
+.judge ol { margin: 0; padding-left: 20px; color: var(--ink-soft); display: grid; gap: 4px; max-width: 70ch; }
+.judge p { margin: 0; color: var(--ink-soft); font-size: 13px; max-width: 75ch; }
+
+/* ---------- Detail bar (what a pulled-out book shows) ---------- */
+.detail {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  padding: 0 16px env(safe-area-inset-bottom, 0px);
+  pointer-events: none;
+}
+.detail-inner { max-width: 720px; margin-inline: auto; }
+.detail-inner {
+  pointer-events: auto;
+  display: flex; gap: 14px; align-items: center; background: var(--paper); border: 1px solid var(--rule);
+  border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; box-shadow: 0 10px 30px var(--plank-shadow);
+  min-height: 72px;
+}
+.detail img { height: 58px; width: auto; border-radius: 2px; filter: var(--book-filter); }
+.detail .dt { min-width: 0; }
+.detail .dt b { font-family: var(--font-display); font-size: 16px; font-weight: 600; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.detail .dt span { font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.detail .hint { color: var(--ink-soft); font-size: 14px; }
+
+@media (max-width: 760px) {
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .year-head h2 { font-size: 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#top" aria-label="OhMyReads">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="5" y="7" width="6" height="21" rx="1" fill="currentColor"/>
+        <rect x="12.5" y="3" width="6" height="25" rx="1" fill="var(--ribbon)"/>
+        <rect x="21" y="9" width="6" height="19.5" rx="1" fill="currentColor" transform="rotate(-14 27 28.5)"/>
+        <rect x="3" y="28" width="26" height="2" fill="currentColor"/>
+      </svg>
+      <b>OhMyReads</b>
+    </a>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="View">
+        <button type="button" id="view-shelf" aria-pressed="true">Shelf</button>
+        <button type="button" id="view-list" aria-pressed="false">List</button>
+      </div>
+      <div class="seg" role="group" aria-label="Lights">
+        <button type="button" id="lights-on" aria-pressed="false">Lights on</button>
+        <button type="button" id="lights-off" aria-pressed="false">Lights down</button>
+      </div>
+    </div>
+  </header>
+  <p class="note"><strong>Prototype</strong><span id="note-text"></span></p>
+
+  <section class="hero" id="top">
+    <div>
+      <h1>Every book you've read, <em>on one shelf.</em></h1>
+      <dl class="tally" id="tally"></dl>
+    </div>
+    <article class="current" id="current" aria-label="Currently reading"></article>
+  </section>
+
+  <main id="shelves"></main>
+  <div id="list" hidden></div>
+
+  <section class="year" aria-labelledby="next-h">
+    <div class="section-head">
+      <h2 id="next-h">Up next</h2>
+      <p>Books you want to read stand face out, like a bookshop table. When you finish one, it turns spine out and joins the shelf.</p>
+    </div>
+    <div class="faceout" id="faceout"></div>
+  </section>
+
+  <section class="studies">
+    <div class="study">
+      <h3>A new reader's first visit</h3>
+      <p>Nobody else needs to be here for this to look right. The shelf is empty, not broken, and the first book is one tap away.</p>
+      <div class="empty">
+        <div class="empty-copy">
+          <p id="empty-line">Room for your first book.</p>
+          <button type="button" class="btn ghost" id="add-first">Add a book you loved</button>
+        </div>
+        <div class="shelf" id="empty-shelf"><div class="slot"><span class="bookend left"></span></div><div class="slot"><span class="bookend"></span></div></div>
+      </div>
+    </div>
+    <div class="study">
+      <h3>Ready to post</h3>
+      <p>The year as a 9:16 image for stories. Each shelf is made from the reader's own books, so no two look alike.</p>
+      <div class="share" id="share"></div>
+    </div>
+  </section>
+
+  <section class="judge">
+    <h2>How to judge this</h2>
+    <ol>
+      <li>Would you screenshot your own shelf and post it?</li>
+      <li>Does any spine look fake or cheap? Which one, and why?</li>
+      <li>Would a shelf of your real books make you import from Goodreads today?</li>
+    </ol>
+    <p>Spine width follows page count at 1 px per 24 pages. Spine colour and lettering colour are taken from each book's real cover in the OhMyReads catalog; the lettering style follows the genre. The reader and dates are a sample.</p>
+  </section>
+
+  <div class="detail" aria-live="polite"><div class="detail-inner" id="detail" hidden></div></div>
+</div>
+
+<script>
+const BOOKS = /*BOOKS*/[];
+
+const read = BOOKS.filter(b => b.status === "read");
+const current = BOOKS.find(b => b.status === "reading");
+const want = BOOKS.filter(b => b.status === "want");
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmt = n => n.toLocaleString("en-GB");
+const shortTitle = t => t.split(/[:(]/)[0].replace(/\s+$/, "");
+const surname = a => (a || "").split(",")[0].trim().split(/\s+/).pop();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+const FAMILY = {
+  Classics: "classic", Poetry: "classic", "Short Stories": "classic",
+  Fantasy: "fantasy", "Historical Fiction": "fantasy", Adventure: "fantasy",
+  "Literary Fiction": "literary", Fiction: "literary", Contemporary: "literary",
+  "Science Fiction": "scifi", Dystopian: "scifi", "Hugo Award": "scifi",
+  Thriller: "thriller", Crime: "thriller", Mystery: "thriller", Horror: "thriller", Paranormal: "thriller",
+  Romance: "light", "Young Adult": "light", Humor: "light", Children: "light", "Graphic Novel": "light",
+};
+const family = g => FAMILY[g] || "fact";
+const GENRE_COLOUR = { classic: "#6b2a2a", fantasy: "#2f4a3a", literary: "#e8e2d4", scifi: "#1f3550", thriller: "#161616", light: "#e0a33a", fact: "#f0efe9" };
+
+function hash(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h >>> 0) / 2 ** 32; }
+function rgb(s) {
+  s = s || "";
+  const hex = s.match(/^#([0-9a-f]{6})$/i);
+  if (hex) return [0, 2, 4].map(i => parseInt(hex[1].slice(i, i + 2), 16));
+  const m = s.match(/\d+/g); return m ? m.map(Number) : null;
+}
+function lum([r, g, b]) { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); }
+function contrast(a, b) { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); }
+
+function spineColours(b) {
+  const fam = family(b.genre);
+  const bg = b.color || GENRE_COLOUR[fam];
+  const bgRgb = rgb(bg) || [120, 120, 120];
+  const ink = rgb(b.ink);
+  let text = ink && contrast(ink, bgRgb) >= 3 ? b.ink : (lum(bgRgb) > .35 ? "#15161a" : "#f6f3ec");
+  return { bg, text };
+}
+
+function spineEl(b, opts = {}) {
+  const fam = family(b.genre);
+  const scale = opts.scale || 1;
+  const w = Math.round(Math.min(64, Math.max(18, 12 + b.pages / 24)) * scale);
+  const tall = { classic: .9, fantasy: .93, literary: .88, scifi: .86, thriller: .8, light: .84, fact: .87 }[fam];
+  const hPct = Math.round((tall - .08 + hash(b.title) * .1) * 100);
+  const { bg, text } = spineColours(b);
+
+  const el = document.createElement("button");
+  el.type = "button";
+  el.className = `spine f-${fam}`;
+  el.style.setProperty("--c", bg);
+  el.style.setProperty("--t", text);
+  el.style.width = `calc(${w}px * var(--spine-scale))`;
+  el.style.height = hPct + "%";
+  const title = shortTitle(b.title);
+  el.setAttribute("aria-label", `${title} by ${b.author}, ${b.pages} pages${b.finished ? ", finished " + niceDate(b.finished) : ""}`);
+
+  // Fit the title to the spine: shrink, then narrow the letters (Archivo's width axis).
+  const chars = title.length;
+  const avail = 188 * (hPct / 100) * .62 * scale;
+  const perChar = { classic: .78, fantasy: .5, literary: .52, scifi: .82, thriller: .6, light: .55, fact: .7 }[fam];
+  let size = Math.min(w * .5, 16 * scale, avail / (chars * perChar));
+  let stretch = 100;
+  if (size < 9 * scale && fam !== "classic" && fam !== "fantasy" && fam !== "literary") {
+    stretch = Math.max(62, Math.round(100 * size / (9 * scale)));
+    size = Math.min(w * .5, avail / (chars * perChar * stretch / 100));
+  }
+  size = Math.max(size, 6.5 * scale);
+  const deco = { classic: '<i class="band double"></i>', fantasy: '<i class="band"></i>', fact: '<i class="block"></i>', scifi: "", thriller: "", literary: "", light: "" }[fam];
+  const author = w * scale >= 20 ? `<span class="a" style="font-size:${Math.max(6, Math.min(w * .3, 10) * scale).toFixed(1)}px">${esc(surname(b.author))}</span>` : "";
+  el.innerHTML = `${deco}<span class="t" style="font-size:${size.toFixed(1)}px;font-stretch:${stretch}%">${esc(title)}</span>${fam === "classic" || fam === "fantasy" ? '<i class="band"></i>' : ""}${author}<i class="mark"></i>`;
+  el.addEventListener("mouseenter", () => show(b));
+  el.addEventListener("focus", () => show(b));
+  el.addEventListener("click", () => show(b, el));
+  return el;
+}
+
+function niceDate(d) { const [y, m, day] = d.split("-").map(Number); return `${day} ${MONTHS[m - 1]} ${y}`; }
+
+const detail = document.getElementById("detail");
+let pulled = null;
+function show(b, el) {
+  if (pulled && pulled !== el) pulled.classList.remove("pulled");
+  if (el) { el.classList.add("pulled"); pulled = el; }
+  const when = b.finished ? `Finished ${niceDate(b.finished)}` : b.status === "reading" ? "Reading now" : "Want to read";
+  detail.hidden = false;
+  detail.innerHTML = `${b.cover ? `<img src="${b.cover}" alt="">` : ""}<div class="dt"><b>${esc(b.title)}</b><span>${esc(b.author)} · ${fmt(b.pages)} pages · ${esc(b.genre)} · ${when}</span></div>`;
+}
+
+function slotFor(b, monthLabel) {
+  const slot = document.createElement("div");
+  slot.className = "slot";
+  slot.appendChild(spineEl(b));
+  if (monthLabel) { const m = document.createElement("span"); m.className = "month"; m.textContent = monthLabel; slot.appendChild(m); }
+  return slot;
+}
+
+const byYear = {};
+for (const b of read) (byYear[b.finished.slice(0, 4)] ||= []).push(b);
+const years = Object.keys(byYear).sort().reverse();
+
+function renderShelves() {
+  const main = document.getElementById("shelves");
+  main.innerHTML = "";
+  for (const y of years) {
+    const books = byYear[y].slice().sort((a, b) => a.finished.localeCompare(b.finished));
+    const pages = books.reduce((s, b) => s + b.pages, 0);
+    const sec = document.createElement("section");
+    sec.className = "year";
+    sec.setAttribute("aria-label", `${y} shelf`);
+    const ongoing = y === years[0];
+    sec.innerHTML = `<div class="year-head"><h2>${y}</h2><p id="yearline-${y}">${books.length} books · ${fmt(pages)} pages${ongoing ? " · so far" : ""}</p></div>`;
+    const shelf = document.createElement("div");
+    shelf.className = "shelf";
+    shelf.id = "shelf-" + y;
+    let lastMonth = null;
+    books.forEach((b, i) => {
+      const m = Number(b.finished.slice(5, 7));
+      const slot = slotFor(b, m !== lastMonth ? MONTHS[m - 1] : null);
+      lastMonth = m;
+      if (!ongoing && i === books.length - 1) slot.firstChild.classList.add("lean");
+      shelf.appendChild(slot);
+    });
+    if (ongoing) { const be = document.createElement("div"); be.className = "slot"; be.id = "bookend"; be.innerHTML = '<span class="bookend"></span>'; shelf.appendChild(be); }
+    sec.appendChild(shelf);
+    main.appendChild(sec);
+  }
+}
+
+function renderList() {
+  const rows = read.slice().sort((a, b) => b.finished.localeCompare(a.finished)).map(b =>
+    `<tr><td><span class="swatch" style="background:${spineColours(b).bg}"></span>${esc(b.title)}</td><td>${esc(b.author)}</td><td>${esc(b.genre)}</td><td class="n">${fmt(b.pages)}</td><td class="n">${niceDate(b.finished)}</td></tr>`).join("");
+  document.getElementById("list").innerHTML = `<div class="table-wrap"><table><thead><tr><th>Title</th><th>Author</th><th>Genre</th><th class="n">Pages</th><th class="n">Finished</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function renderTally() {
+  const pages = read.reduce((s, b) => s + b.pages, 0);
+  const longest = read.reduce((a, b) => (b.pages > a.pages ? b : a));
+  document.getElementById("tally").innerHTML =
+    `<div><dt>Books</dt><dd id="tally-books">${read.length}</dd></div>` +
+    `<div><dt>Pages</dt><dd id="tally-pages">${fmt(pages)}</dd></div>` +
+    `<div><dt>Longest</dt><dd>${fmt(longest.pages)}</dd></div>`;
+  document.getElementById("note-text").textContent =
+    ` Sample reader made from ${BOOKS.length} real OhMyReads catalog books. Spine colours come from each book's actual cover. Point at a spine, or tab to it, to pull it out.`;
+}
+
+function renderCurrent() {
+  const done = Math.round(current.pages * current.progress);
+  document.getElementById("current").innerHTML =
+    `<div class="cover">${current.cover ? `<img src="${current.cover}" alt="">` : ""}<span class="ribbon" aria-hidden="true"></span></div>
+     <div><p class="label">Reading now</p><h2>${esc(current.title)}</h2><p class="byline">${esc(current.author)}</p>
+     <div class="progress" aria-hidden="true"><span style="width:${current.progress * 100}%"></span></div>
+     <p class="pnum">Page ${fmt(done)} of ${fmt(current.pages)}</p>
+     <button type="button" class="btn" id="finish">I finished it</button></div>`;
+  document.getElementById("finish").addEventListener("click", finish);
+}
+
+function finish(e) {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  btn.textContent = "On your shelf";
+  const y = years[0];
+  const today = `${y}-09-29`;
+  const b = { ...current, status: "read", finished: today };
+  read.push(b); byYear[y].push(b);
+  const shelf = document.getElementById("shelf-" + y);
+  const slot = slotFor(b, null);
+  slot.firstChild.classList.add("placed");
+  const be = document.getElementById("bookend");
+  shelf.insertBefore(slot, be);
+  be.classList.add("nudged");
+  fitTitles(slot);
+  slot.firstChild.focus({ preventScroll: true });
+  slot.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  const books = byYear[y];
+  document.getElementById("yearline-" + y).textContent = `${books.length} books · ${fmt(books.reduce((s, x) => s + x.pages, 0))} pages · so far`;
+  document.getElementById("tally-books").textContent = read.length;
+  document.getElementById("tally-pages").textContent = fmt(read.reduce((s, x) => s + x.pages, 0));
+  renderList();
+}
+
+function renderFaceout() {
+  document.getElementById("faceout").innerHTML = want.filter(b => { const c = rgb(b.color); return b.cover && c && Math.max(...c) - Math.min(...c) > 24; }).map(b =>
+    `<figure><img src="${b.cover}" alt="${esc(b.title)} by ${esc(b.author)}"></figure>`).join("");
+}
+
+function renderEmpty() {
+  const shelf = document.getElementById("empty-shelf");
+  const pool = read.slice().sort((a, b) => hash(a.slug) - hash(b.slug));
+  let n = 0;
+  document.getElementById("add-first").addEventListener("click", () => {
+    const b = pool[n++ % pool.length];
+    const slot = slotFor(b, null);
+    slot.firstChild.classList.add("placed");
+    shelf.insertBefore(slot, shelf.lastElementChild);
+    fitTitles(slot);
+    document.getElementById("empty-line").textContent = n === 1 ? "There it is. What else did you love?" : `${n} books. It's starting to look like you.`;
+    document.getElementById("add-first").textContent = "Add another";
+  });
+}
+
+function renderShare() {
+  const y = years[1];
+  const books = byYear[y].slice().sort((a, b) => a.finished.localeCompare(b.finished));
+  const pages = books.reduce((s, b) => s + b.pages, 0);
+  const genres = {};
+  books.forEach(b => (genres[b.genre] = (genres[b.genre] || 0) + 1));
+  const top = Object.entries(genres).sort((a, b) => b[1] - a[1])[0][0];
+  const card = document.getElementById("share");
+  card.innerHTML = `<div class="brand">${document.querySelector(".brand svg").outerHTML}<b>OhMyReads</b></div>
+    <p class="big">${y}</p><p class="sub">My year on one shelf</p>`;
+  const shelf = document.createElement("div");
+  shelf.className = "shelf";
+  books.forEach(b => {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    const s = spineEl(b, { scale: .42 });
+    s.tabIndex = -1;
+    s.setAttribute("aria-hidden", "true");
+    slot.appendChild(s);
+    shelf.appendChild(slot);
+  });
+  card.appendChild(shelf);
+  const dl = document.createElement("dl");
+  dl.innerHTML = `<div><dt>Books</dt><dd>${books.length}</dd></div><div><dt>Pages</dt><dd>${fmt(pages)}</dd></div><div><dt>Most read</dt><dd>${esc(top)}</dd></div><div><dt>Longest</dt><dd>${esc(shortTitle(books.reduce((a, b) => (b.pages > a.pages ? b : a)).title))}</dd></div>`;
+  card.appendChild(dl);
+}
+
+function setView(v) {
+  document.getElementById("shelves").hidden = v !== "shelf";
+  document.getElementById("list").hidden = v !== "list";
+  document.getElementById("view-shelf").setAttribute("aria-pressed", v === "shelf");
+  document.getElementById("view-list").setAttribute("aria-pressed", v === "list");
+}
+document.getElementById("view-shelf").addEventListener("click", () => setView("shelf"));
+document.getElementById("view-list").addEventListener("click", () => setView("list"));
+
+function setLights(dark) {
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  document.getElementById("lights-on").setAttribute("aria-pressed", !dark);
+  document.getElementById("lights-off").setAttribute("aria-pressed", dark);
+}
+document.getElementById("lights-on").addEventListener("click", () => setLights(false));
+document.getElementById("lights-off").addEventListener("click", () => setLights(true));
+const startDark = document.documentElement.getAttribute("data-theme") === "dark" ||
+  (!document.documentElement.hasAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+document.getElementById("lights-on").setAttribute("aria-pressed", !startDark);
+document.getElementById("lights-off").setAttribute("aria-pressed", startDark);
+
+renderTally();
+renderCurrent();
+renderShelves();
+renderList();
+renderFaceout();
+renderEmpty();
+renderShare();
+
+// Real spines never truncate: shrink, then narrow the letters, and only then cut.
+function fitTitles(root = document) {
+  for (const t of root.querySelectorAll(".spine .t")) {
+    let size = parseFloat(t.style.fontSize);
+    let stretch = parseFloat(t.style.fontStretch) || 100;
+    const min = t.closest(".share") ? 3 : 6.5;
+    let guard = 40;
+    while (t.scrollHeight > t.clientHeight + 1 && guard--) {
+      if (stretch > 62 && !/f-(classic|fantasy|literary)/.test(t.parentElement.className)) stretch = Math.max(62, stretch - 8);
+      else if (size > min) size = Math.max(min, size - 0.5);
+      else break;
+      t.style.fontSize = size + "px";
+      t.style.fontStretch = stretch + "%";
+    }
+  }
+}
+function tidyMonths() {
+  for (const shelf of document.querySelectorAll("#shelves .shelf")) {
+    let prev = null;
+    for (const m of shelf.querySelectorAll(".month")) {
+      m.hidden = false;
+      const r = m.getBoundingClientRect();
+      if (prev && Math.abs(r.top - prev.top) < 4 && r.left < prev.right + 8) { m.hidden = true; continue; }
+      prev = r;
+    }
+  }
+}
+function settle() { fitTitles(); tidyMonths(); }
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(settle);
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(tidyMonths, 150); });
+</script>

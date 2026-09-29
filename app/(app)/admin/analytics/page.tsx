@@ -302,7 +302,7 @@ export default async function AdminAnalyticsPage() {
               {ratings.map((r) => (
                 <div key={r.rating} className="flex items-center gap-3">
                   <span className="w-16 flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-accent text-accent" />
+                    <Star className="h-4 w-4 fill-star text-star" />
                     {r.rating}
                   </span>
                   <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">

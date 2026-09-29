@@ -5,7 +5,6 @@ import { DefaultChatTransport, UIMessage } from "ai";
 import { useRef, useEffect, useState, useMemo, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  Sparkles,
   Send,
   Loader2,
   BookOpen,
@@ -13,6 +12,7 @@ import {
   Search,
   Plus,
   Check,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -191,7 +191,7 @@ export function AIBookSearch({
         {/* Header */}
         <DialogHeader className="flex-row items-center gap-2 space-y-0 p-4 border-b">
           <div className="p-2 rounded-full bg-primary/10">
-            <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
+            <Compass className="h-5 w-5 text-primary" aria-hidden="true" />
           </div>
           <div>
             <DialogTitle className="text-base">Mood Search</DialogTitle>

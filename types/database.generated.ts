@@ -482,6 +482,8 @@ export type Database = {
           published_date: string | null
           ratings_count: number | null
           slug: string
+          spine_color: string | null
+          spine_ink: string | null
           title: string
           updated_at: string | null
         }
@@ -506,6 +508,8 @@ export type Database = {
           published_date?: string | null
           ratings_count?: number | null
           slug: string
+          spine_color?: string | null
+          spine_ink?: string | null
           title: string
           updated_at?: string | null
         }
@@ -530,6 +534,8 @@ export type Database = {
           published_date?: string | null
           ratings_count?: number | null
           slug?: string
+          spine_color?: string | null
+          spine_ink?: string | null
           title?: string
           updated_at?: string | null
         }

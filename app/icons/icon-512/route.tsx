@@ -1,39 +1,9 @@
 import { ImageResponse } from "next/og";
+import { IconTile } from "@/lib/brand/app-icon";
 
 export const runtime = "edge";
 
+// Square: the manifest marks this icon maskable, so the OS applies the shape.
 export async function GET() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          fontSize: 24,
-          background: "linear-gradient(135deg, #8B4513 0%, #A0522D 100%)",
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: "102px",
-        }}
-      >
-        <svg
-          width="280"
-          height="280"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-        </svg>
-      </div>
-    ),
-    {
-      width: 512,
-      height: 512,
-    }
-  );
+  return new ImageResponse(<IconTile size={512} radius={0} />, { width: 512, height: 512 });
 }

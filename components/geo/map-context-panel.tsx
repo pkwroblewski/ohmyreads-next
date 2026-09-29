@@ -121,7 +121,7 @@ export function MapContextPanel({
         "w-80 xl:w-96 flex flex-col h-full",
         "bg-white/95 dark:bg-card/95 backdrop-blur-xl",
         "rounded-3xl border border-border/50",
-        "shadow-warm-lg dark:shadow-none",
+        "shadow-lg dark:shadow-none",
         "overflow-hidden",
         className
       )}

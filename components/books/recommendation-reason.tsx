@@ -1,7 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Sparkles, Heart, BookMarked, Star, TrendingUp, Flame } from "lucide-react";
+import { Heart, BookMarked, Star, TrendingUp, Flame, Bookmark, Tag } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { RecommendationReasonType } from "@/lib/queries/recommendations";
 
 interface RecommendationReasonProps {
@@ -11,8 +12,8 @@ interface RecommendationReasonProps {
   size?: "sm" | "md";
 }
 
-const REASON_ICONS: Record<RecommendationReasonType, typeof Sparkles> = {
-  genre_match: Sparkles,
+const REASON_ICONS: Record<RecommendationReasonType, LucideIcon> = {
+  genre_match: Tag,
   vibe_match: Heart,
   similar_to_loved: BookMarked,
   popular_in_genre: TrendingUp,
@@ -35,7 +36,7 @@ export function RecommendationReason({
   className,
   size = "sm",
 }: RecommendationReasonProps) {
-  const Icon = REASON_ICONS[type] || Sparkles;
+  const Icon = REASON_ICONS[type] || Bookmark;
   const colorClass = REASON_COLORS[type] || "text-primary";
 
   return (

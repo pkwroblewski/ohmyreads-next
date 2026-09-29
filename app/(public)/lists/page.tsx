@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Library, Plus, Search, Sparkles, Users } from "lucide-react";
+import { Library, Plus, Search, Users, BookMarked } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CURATED_LISTS } from "@/lib/data/curated-lists";
@@ -119,7 +119,7 @@ export default async function ListsPage({ searchParams }: ListsPageProps) {
       {/* Curated Lists Section */}
       <section id="curated" className="scroll-mt-20">
         <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="h-5 w-5 text-amber-500" />
+          <BookMarked className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Curated Collections</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

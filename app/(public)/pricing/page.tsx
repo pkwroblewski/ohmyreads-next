@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { Check, Sparkles } from "lucide-react";
+import { Check, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -60,7 +60,7 @@ export default function PricingPage() {
       <div className="max-w-md mx-auto mb-16">
         <div className="p-8 rounded-2xl border-2 border-primary bg-card">
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="h-6 w-6 text-primary" />
+            <BadgeCheck className="h-6 w-6 text-primary" />
             <span className="text-sm font-medium text-primary uppercase tracking-wider">
               Most Popular
             </span>

@@ -4,8 +4,8 @@
   "description": "Track Your Reading Journey - Discover, track, and share your favorite books",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFFBF5",
-  "theme_color": "#8B4513",
+  "background_color": "#ecede8",
+  "theme_color": "#ecede8",
   "orientation": "portrait-primary",
   "scope": "/",
   "icons": [

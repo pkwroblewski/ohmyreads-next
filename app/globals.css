@@ -4,84 +4,99 @@
 @source "../pages/**/*.{js,ts,jsx,tsx,mdx}";
 
 /* ============================================
-   LIGHT MODE (DEFAULT) - Warm Literary Theme
-   Inspired by cozy libraries and old bookshops
+   LIGHT MODE (DEFAULT) - Paper and ink
+   The books supply the colour (spines, covers); the UI stays quiet.
+   One accent: bookmark-ribbon red. See .claude/docs/design-direction-2026-09.md
    ============================================ */
 :root {
-  --background: 39 60% 98%;
-  --foreground: 30 27% 13%;
+  --background: 72 12% 92%;
+  --foreground: 223 12% 12%;
 
-  --card: 0 0% 100%;
-  --card-foreground: 30 27% 13%;
+  --card: 60 20% 96%;
+  --card-foreground: 223 12% 12%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 30 27% 13%;
+  --popover: 60 20% 96%;
+  --popover-foreground: 223 12% 12%;
 
-  --primary: 28 75% 31%;
+  /* Ribbon red: 6.4:1 on --background; white on it 7.5:1. */
+  --primary: 350 81% 36%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 122 37% 27%;
-  --secondary-foreground: 0 0% 100%;
+  --secondary: 70 9% 87%;
+  --secondary-foreground: 223 12% 12%;
 
-  --muted: 36 33% 94%;
-  /* 42 % lightness: 4.96:1 on --background, 5.13:1 on --card, 4.55:1 on
-     --muted (48 % measured 3.97 / 4.11 / 3.64). Opacity variants of this
-     token cannot reach 4.5:1, so text always uses it solid. */
-  --muted-foreground: 30 14% 42%;
+  --muted: 70 10% 88%;
+  /* 6.1:1 on --background, 6.7:1 on --card, 5.5:1 on --muted. Opacity
+     variants of this token can drop below 4.5:1, so text uses it solid. */
+  --muted-foreground: 218 6% 35%;
 
-  --accent: 43 66% 52%;
-  --accent-foreground: 30 27% 13%;
+  /* A deeper ribbon, so primary-to-accent gradients stay one hue.
+     9.3:1 on --background; white on it 10.9:1. */
+  --accent: 349 78% 27%;
+  --accent-foreground: 0 0% 100%;
 
-  /* Star glyphs. The accent gold reads at 2.1:1 on the cream background;
-     this darker gold is 3.3:1 on cream and 3.4:1 on white (WCAG 1.4.11
-     needs 3:1 for graphics). Numeric rating labels use --foreground. */
-  --star: 43 70% 40%;
+  /* Star glyphs in ink: 9.1:1 on --background, 10:1 on --card. */
+  --star: 222 8% 25%;
 
-  --destructive: 0 84% 60%;
+  --destructive: 4 76% 40%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 34 26% 87%;
-  --input: 34 26% 87%;
-  --ring: 28 75% 31%;
+  --border: 77 8% 82%;
+  --input: 77 8% 82%;
+  --ring: 350 81% 36%;
 
-  --radius: 0.75rem;
+  --radius: 0.5rem;
+
+  /* Shelf: the plank books stand on, its shadow, and how covers and
+     spines are lit (dimmed in dark mode). */
+  --plank: 225 7% 22%;
+  --plank-shadow: 223 12% 12% / 0.18;
+  --book-filter: none;
 }
 
 /* ============================================
-   DARK MODE - Olive + Copper Theme
-   Warm bookish feel with olive background
+   DARK MODE - Lights down
+   The same room with the lights dimmed: same hues, lower light.
    ============================================ */
 .dark {
-  --background: 132 14% 7%;
-  --foreground: 42 28% 88%;
+  --background: 228 11% 9%;
+  --foreground: 43 14% 90%;
 
-  --card: 129 14% 10%;
-  --card-foreground: 42 28% 88%;
+  --card: 220 9% 13%;
+  --card-foreground: 43 14% 90%;
 
-  --popover: 128 13% 12%;
-  --popover-foreground: 42 28% 88%;
+  --popover: 220 9% 14%;
+  --popover-foreground: 43 14% 90%;
 
-  --primary: 24 53% 54%;
-  --primary-foreground: 26 37% 7%;
+  /* 4.9:1 on --background; --background text on it 4.9:1. */
+  --primary: 350 71% 61%;
+  --primary-foreground: 228 11% 9%;
 
-  --secondary: 137 17% 16%;
-  --secondary-foreground: 42 28% 88%;
+  --secondary: 223 8% 18%;
+  --secondary-foreground: 43 14% 90%;
 
-  --muted: 127 13% 12%;
-  --muted-foreground: 42 12% 68%;
+  --muted: 223 9% 15%;
+  /* 7.3:1 on --background, 6.7:1 on --card, 6.1:1 on --muted. */
+  --muted-foreground: 75 2% 64%;
 
-  --accent: 158 28% 61%;
-  --accent-foreground: 132 14% 7%;
+  /* 7.2:1 on --background. */
+  --accent: 351 78% 73%;
+  --accent-foreground: 228 11% 9%;
 
-  /* 8.2:1 on the dark background, so the accent itself is fine here. */
-  --star: 158 28% 61%;
+  /* 11.4:1 on --background. */
+  --star: 45 8% 80%;
 
-  --destructive: 5 70% 59%;
-  --destructive-foreground: 0 0% 100%;
+  /* White on this red is only 3.2:1, so its text uses the background. */
+  --destructive: 3 83% 65%;
+  --destructive-foreground: 228 11% 9%;
 
-  --border: 120 12% 17%;
-  --input: 120 12% 17%;
-  --ring: 24 53% 54%;
+  --border: 223 7% 19%;
+  --input: 223 7% 19%;
+  --ring: 350 71% 61%;
+
+  --plank: 225 4% 35%;
+  --plank-shadow: 0 0% 0% / 0.5;
+  --book-filter: brightness(0.84) saturate(0.92);
 }
 
 /* ============================================
@@ -108,8 +123,9 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-serif: var(--font-merriweather), Georgia, serif;
+  --color-plank: hsl(var(--plank));
+  --font-sans: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+  --font-serif: var(--font-literata), "Iowan Old Style", Georgia, serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -148,7 +164,7 @@ html {
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -172,16 +188,19 @@ body {
    Typography
    ============================================ */
 
-/* Serif headings for literary feel (H1-H3 only, consistent in light + dark mode) */
+/* Literata for reading-type headings (H1-H3). Optical sizing lets large
+   headings use Literata's display cut automatically. */
 h1, h2, h3 {
-  font-family: var(--font-merriweather), Georgia, serif;
-  font-weight: 700;
+  font-family: var(--font-literata), "Iowan Old Style", Georgia, serif;
+  font-weight: 600;
   letter-spacing: -0.02em;
+  font-optical-sizing: auto;
+  text-wrap: balance;
 }
 
 /* Keep h4-h6 as sans-serif for UI elements */
 h4, h5, h6 {
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -190,16 +209,14 @@ h4, h5, h6 {
    Selection Colors
    ============================================ */
 
-/* Light mode: Gold selection */
+/* Ribbon-tinted selection in both modes */
 ::selection {
-  background-color: hsl(43 66% 52% / 0.3);
-  color: hsl(30 27% 13%);
+  background-color: hsl(var(--primary) / 0.2);
+  color: hsl(var(--foreground));
 }
 
-/* Dark mode: Copper selection */
 .dark ::selection {
-  background-color: hsl(24 53% 54% / 0.35);
-  color: hsl(42 28% 88%);
+  background-color: hsl(var(--primary) / 0.35);
 }
 
 /* ============================================
@@ -261,55 +278,6 @@ h4, h5, h6 {
 /* ============================================
    Utility Classes
    ============================================ */
-
-/* Gradient utilities - Light mode (warm) */
-.gradient-primary {
-  background: linear-gradient(135deg, hsl(28 75% 31%) 0%, hsl(43 66% 52%) 100%);
-}
-
-.gradient-text {
-  background: linear-gradient(135deg, hsl(28 75% 31%) 0%, hsl(43 66% 52%) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Dark mode gradients - Copper to Teal-sage */
-.dark .gradient-primary {
-  background: linear-gradient(135deg, hsl(24 53% 54%) 0%, hsl(158 28% 61%) 100%);
-}
-
-.dark .gradient-text {
-  background: linear-gradient(135deg, hsl(24 53% 54%) 0%, hsl(158 28% 61%) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Glass effect */
-.glass {
-  background: hsl(var(--card) / 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-/* Glow effects */
-.glow-primary {
-  box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-}
-
-.glow-accent {
-  box-shadow: 0 0 20px hsl(var(--accent) / 0.3);
-}
-
-/* Warm shadow for light mode cards */
-.shadow-warm {
-  box-shadow: 0 4px 14px 0 rgba(139, 69, 19, 0.1);
-}
-
-.shadow-warm-lg {
-  box-shadow: 0 10px 40px 0 rgba(139, 69, 19, 0.15);
-}
 
 /* Hide scrollbar utility */
 .scrollbar-hide {

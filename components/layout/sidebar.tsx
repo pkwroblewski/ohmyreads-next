@@ -18,8 +18,8 @@ import {
   List,
   Globe,
   TrendingUp,
-  Sparkles,
   MessageSquare,
+  Bookmark,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,7 @@ const navSections: NavSection[] = [
     label: "Discover",
     items: [
       { href: "/trending", label: "Trending", icon: TrendingUp },
-      { href: "/recommendations", label: "For You", icon: Sparkles },
+      { href: "/recommendations", label: "For You", icon: Bookmark },
       { href: "/discover", label: "Find Readers", icon: UserSearch },
     ],
   },

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { Sparkles } from "lucide-react";
+import { Bookmark } from "lucide-react";
 import { createClient, getUser } from "@/lib/supabase/server";
 import {
   getCuratedBooks,
@@ -79,8 +79,8 @@ export default async function RecommendationsPage({
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-accent">
-              <Sparkles className="w-6 h-6 text-white" />
+            <div className="p-2 rounded-lg bg-primary">
+              <Bookmark className="w-6 h-6 text-primary-foreground" />
             </div>
             <h1 className="text-3xl lg:text-4xl font-bold font-serif">
               {isPersonalized ? "Curated For You" : "Recommended Books"}

@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Sparkles,
   BookOpen,
   Heart,
   ArrowRight,
@@ -11,6 +10,7 @@ import {
   Check,
   Loader2,
   X,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -319,7 +319,7 @@ export function TasteOnboardingWizard({
           <div className="space-y-8">
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="h-8 w-8 text-blue-500" />
+                <SlidersHorizontal className="h-8 w-8 text-blue-500" />
               </div>
               <h2 className="text-2xl font-bold mb-2">Reading preferences</h2>
               <p className="text-muted-foreground">

@@ -164,7 +164,7 @@ export default async function ProfilePage() {
             <p className="text-xs text-muted-foreground">Want to Read</p>
           </div>
           <div className="p-4 rounded-xl bg-card border border-border text-center">
-            <Star className="h-5 w-5 mx-auto mb-2 text-accent" />
+            <Star className="h-5 w-5 mx-auto mb-2 text-star" />
             <p className="text-2xl font-bold">{stats.reviewsCount}</p>
             <p className="text-xs text-muted-foreground">Reviews</p>
           </div>

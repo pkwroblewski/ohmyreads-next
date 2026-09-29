@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, BookOpen, Users, Sparkles, Shield, Building2, Upload } from "lucide-react";
+import { ArrowRight, BookOpen, Users, Shield, Building2, Upload, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface HomeHeroProps {
@@ -75,11 +75,9 @@ export function HomeHero({
           </div>
 
           {/* Heading */}
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight mb-4 lg:mb-6">
-            <span className="font-serif italic text-primary">
-              Independent Minds,
-            </span>{" "}
-            Shared Stories
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-semibold tracking-tight mb-4 lg:mb-6">
+            Every book you&apos;ve read,{" "}
+            <span className="font-serif italic font-normal">on one shelf.</span>
           </h1>
 
           {/* Subheading */}
@@ -160,7 +158,7 @@ export function HomeHero({
               </div>
             )}
             <div className="flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-amber-500" />
+              <Bookmark className="w-4 h-4 text-primary" />
               <span>Smart recommendations</span>
             </div>
           </div>

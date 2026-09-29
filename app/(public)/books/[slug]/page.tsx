@@ -229,7 +229,7 @@ export default async function BookPage({ params, searchParams }: Props) {
           <div className="md:w-72 flex-shrink-0 mx-auto md:mx-0">
             <div
               className={cn(
-                "relative w-72 rounded-xl overflow-hidden shadow-warm-lg",
+                "relative w-72 rounded-xl overflow-hidden shadow-lg",
                 "bg-gradient-to-br from-muted to-muted-foreground/20"
               )}
               style={{ aspectRatio: "2/3" }}

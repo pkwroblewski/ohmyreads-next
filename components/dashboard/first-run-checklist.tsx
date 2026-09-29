@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BookPlus, Check, Sparkles, Upload, Users } from "lucide-react";
+import { ArrowRight, BookPlus, Check, Upload, Users, SlidersHorizontal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -25,7 +25,7 @@ const stepCopy: Record<
     description: "A few genres and favourites, and the recommendations start working.",
     href: "/onboarding/taste",
     cta: "Set up taste",
-    icon: Sparkles,
+    icon: SlidersHorizontal,
   },
   follow: {
     title: "Follow a reader",

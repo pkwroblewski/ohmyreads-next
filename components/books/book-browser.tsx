@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Loader2, Search, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Loader2, Search, SlidersHorizontal, Compass } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -217,9 +217,9 @@ export function BookBrowser({
           ref={aiSearchButtonRef}
           variant="outline"
           onClick={() => setShowAISearch(true)}
-          className="h-12 px-4 gap-2 bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/20 hover:border-primary/40 hover:bg-primary/10"
+          className="h-12 px-4 gap-2 bg-primary/5 border-primary/20 hover:border-primary/40 hover:bg-primary/10"
         >
-          <Sparkles className="h-5 w-5 text-primary" />
+          <Compass className="h-5 w-5 text-primary" />
           <span className="hidden sm:inline">Mood Search</span>
         </Button>
       </div>

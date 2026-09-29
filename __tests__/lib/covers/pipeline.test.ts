@@ -469,6 +469,8 @@ describe("processBook", () => {
       cover_url: result.coverUrl,
       cover_source: "google",
       open_library_cover_id: 8771,
+      spine_color: expect.stringMatching(/^#[0-9a-f]{6}$/),
+      spine_ink: null,
     });
     expect(eq).toHaveBeenCalledWith("id", BOOK_ID);
     expect(result.candidates.every((c) => !("buffer" in c))).toBe(true);

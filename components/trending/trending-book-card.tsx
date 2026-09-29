@@ -64,7 +64,7 @@ export function TrendingBookCard({ book }: TrendingBookCardProps) {
             {/* Rating */}
             {book.average_rating && (
               <div className="flex items-center gap-1 mt-2">
-                <Star className="w-4 h-4 fill-accent text-accent" />
+                <Star className="w-4 h-4 fill-star text-star" />
                 <span className="font-medium text-sm">
                   {book.average_rating.toFixed(1)}
                 </span>

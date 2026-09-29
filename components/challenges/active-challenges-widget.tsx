@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Target, ArrowRight, BookOpen, FileText, Sparkles } from "lucide-react";
+import { Target, ArrowRight, BookOpen, FileText, Tag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { ChallengeWithProgress, ChallengeType } from "@/types/database";
@@ -14,7 +14,7 @@ interface ActiveChallengesWidgetProps {
 const typeConfig: Record<ChallengeType, { icon: typeof Target; color: string }> = {
   books_count: { icon: BookOpen, color: "from-blue-500 to-indigo-500" },
   pages_count: { icon: FileText, color: "from-purple-500 to-pink-500" },
-  genre_books: { icon: Sparkles, color: "from-amber-500 to-orange-500" },
+  genre_books: { icon: Tag, color: "from-amber-500 to-orange-500" },
 };
 
 export default function ActiveChallengesWidget({

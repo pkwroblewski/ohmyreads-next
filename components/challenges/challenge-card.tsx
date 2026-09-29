@@ -5,7 +5,6 @@ import {
   Target,
   BookOpen,
   FileText,
-  Sparkles,
   MoreVertical,
   Trash2,
   Flag,
@@ -13,6 +12,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Tag,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,7 +43,7 @@ const typeConfig: Record<
     color: "from-purple-500 to-pink-500",
   },
   genre_books: {
-    icon: Sparkles,
+    icon: Tag,
     label: "Genre",
     unit: "books",
     color: "from-amber-500 to-orange-500",

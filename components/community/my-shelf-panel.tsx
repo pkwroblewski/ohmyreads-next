@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, ArrowRight, Sparkles } from "lucide-react";
+import { BookOpen, ArrowRight, Library } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage, getInitials } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -34,7 +34,7 @@ export function MyShelfPanel({ activity, user }: MyShelfPanelProps) {
             </p>
             <Link href="/signup">
               <Button size="sm" className="w-full">
-                <Sparkles className="w-4 h-4 mr-1.5" />
+                <Library className="w-4 h-4 mr-1.5" />
                 Get Started
               </Button>
             </Link>

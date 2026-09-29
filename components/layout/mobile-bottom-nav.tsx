@@ -19,11 +19,11 @@ import {
   User,
   Globe,
   TrendingUp,
-  Sparkles,
   MapPin,
   Info,
   MessageSquare,
   X,
+  Bookmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChatPanel } from "@/components/messages/chat-context";
@@ -38,7 +38,7 @@ const primaryItems = [
 
 const overflowItems = [
   { href: "/trending", label: "Trending", icon: TrendingUp },
-  { href: "/recommendations", label: "For You", icon: Sparkles },
+  { href: "/recommendations", label: "For You", icon: Bookmark },
   { href: "/discover", label: "Find Readers", icon: UserSearch },
   { href: "/friends", label: "Friends", icon: UserPlus },
   { href: "/clubs", label: "Book Clubs", icon: Globe },

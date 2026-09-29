@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, UserPlus, Sparkles } from "lucide-react";
+import { Loader2, UserPlus, SlidersHorizontal, Library } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { RecommendedBookCard } from "./recommended-book-card";
@@ -97,7 +97,7 @@ export function RecommendationsGrid({
         {!isPersonalized && isLoggedIn && (
           <Link href="/onboarding/taste">
             <Button variant="outline" size="sm" className="gap-2">
-              <Sparkles className="w-4 h-4" />
+              <SlidersHorizontal className="w-4 h-4" />
               Set up taste profile
             </Button>
           </Link>
@@ -116,7 +116,7 @@ export function RecommendationsGrid({
       {/* Results */}
       {initialBooks.length === 0 ? (
         <div className="text-center py-16">
-          <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <Library className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <p className="text-muted-foreground text-lg">
             No recommendations found for this genre.
           </p>

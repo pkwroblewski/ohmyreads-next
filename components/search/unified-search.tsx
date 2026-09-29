@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useId } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Sparkles, X, Loader2, ArrowRight, User, BookOpen } from "lucide-react";
+import { Search, X, Loader2, ArrowRight, User, BookOpen, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIBookSearch } from "@/components/ai/ai-book-search";
 import type {
@@ -418,7 +418,7 @@ export function UnifiedSearch({
                     )}
                   >
                     <span className="flex items-center gap-2 text-primary">
-                      <Sparkles className="w-4 h-4" />
+                      <Compass className="w-4 h-4" />
                       Can&apos;t find it? Try mood search
                     </span>
                     <ArrowRight className="w-4 h-4 text-primary" />
@@ -438,7 +438,7 @@ export function UnifiedSearch({
                       "hover:bg-primary/90 transition-colors text-sm font-medium"
                     )}
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Compass className="w-4 h-4" />
                     Try mood search instead
                   </button>
                 </div>
@@ -464,7 +464,6 @@ export function UnifiedSearch({
                   "focus:outline-none focus:ring-2 focus:ring-primary/50"
                 )}
               >
-                <Sparkles className="w-3.5 h-3.5" />
                 {mood.label}
               </button>
             ))}

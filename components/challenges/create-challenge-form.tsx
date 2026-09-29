@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, BookOpen, FileText, Sparkles } from "lucide-react";
+import { Plus, BookOpen, FileText, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ const challengeTypes: {
     type: "genre_books",
     label: "Genre",
     description: "Read books in a specific genre",
-    icon: Sparkles,
+    icon: Tag,
     color: "from-amber-500 to-orange-500",
   },
 ];

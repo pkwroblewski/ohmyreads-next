@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Target, ArrowRight, Sparkles } from "lucide-react";
+import { BookOpen, Target, ArrowRight, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CoverImage } from "@/components/books/cover-image";
 import { cn } from "@/lib/utils";
@@ -128,7 +128,7 @@ export function ReadingActivityPanel({
         <div className="mt-4 space-y-2">
           <Link href="/signup" className="block">
             <Button size="sm" className="w-full">
-              <Sparkles className="w-4 h-4 mr-1.5" />
+              <Library className="w-4 h-4 mr-1.5" />
               Start Tracking
             </Button>
           </Link>

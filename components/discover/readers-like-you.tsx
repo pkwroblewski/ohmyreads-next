@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Users } from "lucide-react";
 import { ReaderCard } from "./reader-card";
 import type { ReaderWithCompatibility } from "@/types/database";
 
@@ -18,7 +18,7 @@ export function ReadersLikeYou({ readers }: ReadersLikeYouProps) {
     <section className="mb-8">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
+          <Users className="w-5 h-5 text-primary" />
           <h2 className="text-xl font-semibold">Readers Like You</h2>
         </div>
         <Link

@@ -227,7 +227,7 @@ export default async function AdminBooksPage({ searchParams }: PageProps) {
                     <td className="p-4 text-center hidden sm:table-cell">
                       {book.average_rating ? (
                         <div className="flex items-center justify-center gap-1">
-                          <Star className="h-4 w-4 fill-accent text-accent" />
+                          <Star className="h-4 w-4 fill-star text-star" />
                           <span>{book.average_rating.toFixed(1)}</span>
                         </div>
                       ) : (

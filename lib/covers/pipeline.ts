@@ -28,6 +28,7 @@ import {
 import { isAllowedImageHost } from "@/lib/config/image-hosts";
 import { logError } from "@/lib/utils/log";
 import { cleanEnv } from "@/lib/utils/env";
+import { spineColours } from "@/lib/covers/spine-colour";
 
 // Defined in the client-safe utils module (no sharp) so the renderer can use
 // them too; re-exported here for pipeline callers.
@@ -491,6 +492,17 @@ export async function processBook(
       cover_url: coverUrl,
       cover_source: source,
     };
+    // A failed colour read must not lose the stored cover; the backfill
+    // (`npm run covers:spines`) picks the row up later.
+    try {
+      const spine = await spineColours(winner.buffer);
+      update.spine_color = spine.color;
+      update.spine_ink = spine.ink;
+    } catch (error) {
+      logError("Cover pipeline could not read spine colours", error, {
+        bookId: book.id,
+      });
+    }
     // Any passing Open Library candidate reveals the cover id, even when a
     // wider Google image wins; keep it so the row is fully identified.
     const discoveredId = scored.find((c) => c.ok && c.openLibraryCoverId)

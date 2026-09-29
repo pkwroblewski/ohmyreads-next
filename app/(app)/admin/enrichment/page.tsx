@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  Sparkles,
   Loader2,
   Check,
   X,
@@ -18,6 +17,7 @@ import {
   ChevronUp,
   Square,
   CheckSquare,
+  FilePenLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -130,7 +130,7 @@ export default function AdminEnrichmentPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-primary/10">
-            <Sparkles className="h-8 w-8 text-primary" aria-hidden="true" />
+            <FilePenLine className="h-8 w-8 text-primary" aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-3xl font-bold font-serif">Book Enrichment</h1>
@@ -158,7 +158,7 @@ export default function AdminEnrichmentPage() {
         {[
           { key: "loading", label: "Load", icon: RefreshCw },
           { key: "select", label: "Select", icon: BookOpen },
-          { key: "enriching", label: "Enrich", icon: Sparkles },
+          { key: "enriching", label: "Enrich", icon: FilePenLine },
           { key: "results", label: "Results", icon: Check },
         ].map((s, i) => (
           <div key={s.key} className="flex items-center gap-2">
@@ -379,7 +379,7 @@ export default function AdminEnrichmentPage() {
                   onClick={handleEnrich}
                   disabled={selectedBooks.size === 0 || loading}
                 >
-                  <Sparkles className="h-4 w-4 mr-2" aria-hidden="true" />
+                  <FilePenLine className="h-4 w-4 mr-2" aria-hidden="true" />
                   Enrich {selectedBooks.size} Book{selectedBooks.size !== 1 ? "s" : ""}
                 </Button>
               </div>

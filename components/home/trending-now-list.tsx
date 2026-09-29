@@ -136,7 +136,7 @@ function TrendingBookItem({
           </p>
         ) : book.average_rating !== null ? (
           <div className="flex items-center gap-1 mt-1">
-            <Star className="w-3 h-3 fill-accent text-accent" />
+            <Star className="w-3 h-3 fill-star text-star" />
             <span className="text-xs font-medium">
               {book.average_rating.toFixed(1)}
             </span>

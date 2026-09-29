@@ -15,6 +15,7 @@
     "enrich-books": "npx --yes tsx scripts/enrich-books.ts",
     "import-ratings": "npx --yes tsx scripts/import-ratings.ts",
     "covers:process": "npx --yes tsx scripts/process-covers.ts",
+    "covers:spines": "npx --yes tsx scripts/backfill-spine-colours.ts",
     "import:nyt": "npx --yes tsx scripts/import-nyt-bestsellers.ts",
     "import:subjects": "npx --yes tsx scripts/import-popular-subjects.ts",
     "import:awards": "npx --yes tsx scripts/import-award-winners.ts"

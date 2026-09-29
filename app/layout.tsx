@@ -1,20 +1,26 @@
 import type { Metadata } from "next";
-import { Inter, Merriweather } from "next/font/google";
+import { Archivo, Literata } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const inter = Inter({
+// Archivo: UI text and spine lettering; the width axis narrows long titles
+// to fit a spine.
+const archivo = Archivo({
   subsets: ["latin"],
-  variable: "--font-inter",
+  axes: ["wdth"],
+  variable: "--font-archivo",
   display: "swap",
 });
 
-const merriweather = Merriweather({
+// Literata: headings and reading text; designed for e-reading, with an
+// optical-size axis for display sizes.
+const literata = Literata({
   subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-merriweather",
+  style: ["normal", "italic"],
+  axes: ["opsz"],
+  variable: "--font-literata",
   display: "swap",
 });
 
@@ -99,7 +105,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${merriweather.variable} font-sans antialiased min-h-screen`}
+        className={`${archivo.variable} ${literata.variable} font-sans antialiased min-h-screen`}
       >
         <a
           href="#main"

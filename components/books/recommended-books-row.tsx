@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight, Library } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CoverImage } from "./cover-image";
 import { RecommendationReason } from "./recommendation-reason";
@@ -29,7 +29,7 @@ export function RecommendedBooksRow({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-accent" />
+          <Library className="h-5 w-5 text-accent" />
           <h2 className="text-xl font-semibold font-serif">{title}</h2>
         </div>
         {viewAllHref && (

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  Sparkles,
   Send,
   X,
   Loader2,
@@ -12,6 +11,7 @@ import {
   Coffee,
   Clock,
   Navigation,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -148,7 +148,7 @@ export function AIPlaceSearch({
         )}
         onClick={() => setIsOpen(true)}
       >
-        <Sparkles className="h-4 w-4 text-primary" />
+        <Search className="h-4 w-4 text-primary" />
         Search
       </Button>
     );
@@ -164,7 +164,7 @@ export function AIPlaceSearch({
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border/50">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
+          <MapPin className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium">Find Places</span>
         </div>
         <Button

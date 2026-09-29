@@ -12,7 +12,7 @@ import { EmailSection } from "@/components/settings/email-section";
 import { ExportSection } from "@/components/settings/export-section";
 import { AccountSection } from "@/components/settings/account-section";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Sparkles, MapPin, Download, Shield, Mail, UserCog } from "lucide-react";
+import { Settings, MapPin, Download, Shield, Mail, UserCog, SlidersHorizontal } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -94,7 +94,7 @@ export default async function SettingsPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-accent" />
+            <SlidersHorizontal className="h-5 w-5 text-accent" />
             <CardTitle>Taste Profile</CardTitle>
           </div>
           <CardDescription>

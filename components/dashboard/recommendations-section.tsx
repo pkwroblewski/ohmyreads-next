@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Bookmark } from "lucide-react";
 import { getUser } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { RecommendedBooksRow } from "@/components/books/recommended-books-row";
@@ -64,7 +64,7 @@ export async function RecommendationsSection({
         >
           <div className="flex items-start gap-4">
             <div className="p-2 rounded-lg bg-accent/20">
-              <Sparkles className="h-5 w-5 text-accent" />
+              <Bookmark className="h-5 w-5 text-accent" />
             </div>
             <div className="flex-1">
               <h3 className="font-semibold mb-1">

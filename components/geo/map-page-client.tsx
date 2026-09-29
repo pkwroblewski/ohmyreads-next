@@ -116,7 +116,7 @@ export function MapPageClient({ currentUserId, userName, userPresence }: MapPage
     <div className="h-[calc(100vh-4rem)] bg-gradient-to-br from-background via-muted/30 to-background p-4 lg:p-6">
       <div className="flex h-full gap-4 lg:gap-6">
         {/* Map Container - Premium curved box */}
-        <div className="relative flex-1 rounded-3xl overflow-hidden shadow-warm-lg dark:shadow-none border border-border/50 bg-card">
+        <div className="relative flex-1 rounded-3xl overflow-hidden shadow-lg dark:shadow-none border border-border/50 bg-card">
           {/* Subtle inner glow effect */}
           <div className="absolute inset-0 rounded-3xl ring-1 ring-inset ring-white/10 pointer-events-none z-10" />
 
