@@ -18,6 +18,7 @@ import {
   updateReadingProgressSchema,
   importAndAddToShelfSchema,
   bookIdSchema,
+  starterPicksSchema,
 } from "@/lib/validation/book-action";
 import type { UpdateReadingProgressInput } from "@/lib/validation/book-action";
 import type { Database } from "@/types/database";
@@ -119,6 +120,75 @@ export async function addToShelf(bookId: string, status: string): Promise<Action
     return { success: true, newBadges };
   } catch (error) {
     logError("Error in addToShelf", error);
+    return { success: false, error: "An unexpected error occurred" };
+  }
+}
+
+/**
+ * Put the books a visitor picked on the homepage before signing up
+ * (`components/home/shelf-starter.tsx`) on their new shelf as read. The ids
+ * come from the visitor's browser, so only real catalogue ids are kept.
+ * Books already on the reader's shelf are left as they are, and no finish
+ * date is invented: the picks land on the undated shelf, like an import
+ * without "Date Read".
+ */
+export async function addStarterPicks(
+  bookIds: unknown
+): Promise<ActionResult<{ added: number }>> {
+  try {
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
+    }
+    const { supabase, user } = auth;
+
+    const { allowed } = await checkRateLimit(`book:${user.id}`, 20, 60000);
+    if (!allowed) {
+      return { success: false, error: "Too many requests. Please wait a moment." };
+    }
+
+    const parsed = starterPicksSchema.safeParse(bookIds);
+    if (!parsed.success) {
+      return { success: false, error: "Invalid book IDs" };
+    }
+
+    const { data: books, error: booksError } = await supabase
+      .from("books")
+      .select("id")
+      .in("id", [...new Set(parsed.data)]);
+    if (booksError) {
+      return { success: false, error: reportError("Error checking starter picks", booksError) };
+    }
+    if (!books?.length) {
+      return { success: false, error: "Invalid book IDs" };
+    }
+
+    const now = new Date().toISOString();
+    const { data: inserted, error } = await supabase
+      .from("user_books")
+      .upsert(
+        books.map((book) => ({
+          user_id: user.id,
+          book_id: book.id,
+          status: "read",
+          updated_at: now,
+        })),
+        { onConflict: "user_id,book_id", ignoreDuplicates: true }
+      )
+      .select("id");
+    if (error) {
+      return { success: false, error: reportError("Error adding starter picks", error) };
+    }
+
+    await Promise.allSettled([syncChallengeProgress(), syncUserBadges()]);
+    invalidateTags(CACHE_TAGS.activity, CACHE_TAGS.trending);
+    revalidatePath("/dashboard");
+    revalidatePath("/my-shelf");
+    revalidatePath("/profile");
+
+    return { success: true, added: inserted?.length ?? 0 };
+  } catch (error) {
+    logError("Error in addStarterPicks", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }

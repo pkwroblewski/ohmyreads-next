@@ -2,6 +2,7 @@ import { AppTopBar } from "@/components/layout/app-top-bar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { ChatWrapper } from "@/components/messages";
+import { StarterPicksClaim } from "@/components/home/starter-picks-claim";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@/types/database";
 import type { getConversations } from "@/lib/queries/messages";
@@ -57,6 +58,8 @@ export function AppShell({
 
       {/* Mobile Bottom Nav - hidden on desktop */}
       <MobileBottomNav />
+
+      <StarterPicksClaim />
     </div>
     </ChatWrapper>
   );

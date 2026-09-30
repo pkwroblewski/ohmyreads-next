@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: "4mb" },
   },
   images: {
-    // Covers and the hero never change under the same URL; keep optimizer output for 30 days
+    // Covers never change under the same URL; keep optimizer output for 30 days
     minimumCacheTTL: 2592000,
     qualities: [75, 85, 90],
     remotePatterns: ALLOWED_IMAGE_HOSTS,

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CoverImage } from "@/components/books/cover-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Calendar, FileText, Star } from "lucide-react";
+import { Calendar, FileText } from "lucide-react";
 import { getUser } from "@/lib/supabase/server";
 import {
   getBookBySlug,
@@ -21,7 +21,6 @@ import { AddToShelfButton } from "@/components/books/add-to-shelf-button";
 import { ReadingProgressCard } from "@/components/books/reading-progress-card";
 import { ShareButton } from "@/components/books/share-button";
 import { RatingDisplay } from "@/components/ui/rating-display";
-import { EmptyState } from "@/components/ui/empty-state";
 import { ReviewForm } from "@/components/reviews/review-form";
 import { QuickRating } from "@/components/reviews/quick-rating";
 import { ReviewCard } from "@/components/reviews/review-card";
@@ -430,7 +429,7 @@ export default async function BookPage({ params, searchParams }: Props) {
             ======================================== */}
         <section id="reviews" className="mb-12 scroll-mt-20">
           <h2 className="text-xl font-semibold font-serif mb-6">
-            Reviews ({reviewTotal})
+            Reviews{reviewTotal > 0 && ` (${reviewTotal})`}
           </h2>
 
           {/* Review Form - show if user is logged in and hasn't reviewed yet */}
@@ -472,19 +471,21 @@ export default async function BookPage({ params, searchParams }: Props) {
                 ))}
             </div>
           ) : !hasReviewed ? (
-            <EmptyState
-              icon={Star}
-              title="No reviews yet"
-              description="Be the first to share your thoughts about this book."
-              action={
-                user
-                  ? undefined
-                  : {
-                      label: "Sign in to review",
-                      href: `/login?redirect=/books/${book.slug}`,
-                    }
-              }
-            />
+            <p className="text-sm text-muted-foreground">
+              No reviews yet.
+              {!user && (
+                <>
+                  {" "}
+                  <Link
+                    href={`/login?redirect=/books/${book.slug}`}
+                    className="text-primary hover:underline"
+                  >
+                    Sign in to write the first one
+                  </Link>
+                  .
+                </>
+              )}
+            </p>
           ) : null}
 
           {/* Pagination: plain links so every page is crawlable and cacheable */}
@@ -527,7 +528,7 @@ export default async function BookPage({ params, searchParams }: Props) {
           <section className="mb-12">
             <RecommendedBooksRow
               books={similarRecs}
-              title={user ? "Readers like you also enjoyed" : "Readers also enjoyed"}
+              title="More like this"
             />
           </section>
         )}

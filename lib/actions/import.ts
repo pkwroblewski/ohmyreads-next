@@ -10,6 +10,7 @@ import {
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { goodreadsRowsSchema } from "@/lib/validation/import";
 import { reportError } from "@/lib/utils/log";
+import { getProfileShelf, type ShelfYear } from "@/lib/queries/shelf";
 
 export interface ImportResult {
   success: boolean;
@@ -27,6 +28,8 @@ export interface ImportResult {
     author: string;
     status: string;
   }>;
+  /** The reader's whole shelf after a successful import, for the result wall. */
+  shelf?: ShelfYear[];
 }
 
 /**
@@ -295,14 +298,22 @@ export async function importFromGoodreads(
     const matchedIds = [
       ...new Set(matches.flatMap((m) => (m.matchedBook ? [m.matchedBook.id] : []))),
     ];
+    // Chunks of 100: the ids travel in the URL, and 500 UUIDs (~18 KB) fail
+    // at the network layer. A failed check must stop the import, or every
+    // book counts as new and the batch insert hits the unique constraint.
     const existingBookIds = new Set<string>();
-    for (let i = 0; i < matchedIds.length; i += 500) {
-      const { data: existingUserBooks } = await supabase
+    for (let i = 0; i < matchedIds.length; i += 100) {
+      const { data: existingUserBooks, error: existingError } = await supabase
         .from("user_books")
         .select("book_id")
         .eq("user_id", user.id)
-        .in("book_id", matchedIds.slice(i, i + 500));
+        .in("book_id", matchedIds.slice(i, i + 100));
 
+      if (existingError) {
+        reportError("Import: shelf check failed", existingError);
+        result.errors.push("Failed to check your shelf. Please try again.");
+        return result;
+      }
       for (const ub of existingUserBooks || []) existingBookIds.add(ub.book_id);
     }
 
@@ -365,6 +376,7 @@ export async function importFromGoodreads(
     }
 
     result.success = true;
+    result.shelf = (await getProfileShelf(user.id)).years;
 
     // Revalidate relevant pages
     revalidatePath("/dashboard");

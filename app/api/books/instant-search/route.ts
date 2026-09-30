@@ -12,6 +12,9 @@ export interface InstantSearchResult {
   coverUrl: string | null;
   rating: number | null;
   genre: string | null;
+  pageCount: number | null;
+  spineColor: string | null;
+  spineInk: string | null;
 }
 
 export interface InstantSearchResponse {
@@ -63,7 +66,7 @@ export async function GET(request: NextRequest) {
     const { data: books, count, error } = await supabase
       .from("books")
       .select(
-        "id, title, author, slug, cover_url, average_rating, genres",
+        "id, title, author, slug, cover_url, average_rating, genres, page_count, spine_color, spine_ink",
         { count: "exact" }
       )
       .or(`title.ilike.%${q}%,author.ilike.%${q}%`)
@@ -97,6 +100,9 @@ export async function GET(request: NextRequest) {
       coverUrl: book.cover_url,
       rating: book.average_rating,
       genre: book.genres?.[0] || null,
+      pageCount: book.page_count,
+      spineColor: book.spine_color,
+      spineInk: book.spine_ink,
     }));
 
     return NextResponse.json(

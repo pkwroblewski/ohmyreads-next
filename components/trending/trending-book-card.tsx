@@ -94,22 +94,36 @@ export function TrendingBookCard({ book }: TrendingBookCardProps) {
 
         {/* Trending Metrics */}
         <div className="mt-4 pt-4 border-t border-border/50">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 text-sm">
-              <TrendingUp className="w-4 h-4 text-green-500" />
-              <span className="font-medium text-green-600 dark:text-green-400">
-                +{book.metrics.recentReviews}
-              </span>
-              <span className="text-muted-foreground">reviews</span>
+          {/* Only real activity is counted; a filler book with none says
+              why it is listed ("1,411 ratings") instead of "+0 · +0". */}
+          {book.metrics.recentReviews > 0 || book.metrics.recentAdds > 0 ? (
+            <div className="flex items-center gap-4">
+              {book.metrics.recentReviews > 0 && (
+                <div className="flex items-center gap-1.5 text-sm">
+                  <TrendingUp className="w-4 h-4 text-green-500" />
+                  <span className="font-medium text-green-600 dark:text-green-400">
+                    +{book.metrics.recentReviews}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {book.metrics.recentReviews === 1 ? "review" : "reviews"}
+                  </span>
+                </div>
+              )}
+              {book.metrics.recentAdds > 0 && (
+                <div className="flex items-center gap-1.5 text-sm">
+                  <Bookmark className="w-4 h-4 text-blue-500" />
+                  <span className="font-medium text-blue-600 dark:text-blue-400">
+                    +{book.metrics.recentAdds}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {book.metrics.recentAdds === 1 ? "add" : "adds"}
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-1.5 text-sm">
-              <Bookmark className="w-4 h-4 text-blue-500" />
-              <span className="font-medium text-blue-600 dark:text-blue-400">
-                +{book.metrics.recentAdds}
-              </span>
-              <span className="text-muted-foreground">adds</span>
-            </div>
-          </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{book.reason.label}</p>
+          )}
         </div>
 
         {/* Action Button */}

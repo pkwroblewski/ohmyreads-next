@@ -11,14 +11,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockSupabase, type MockSupabase } from "../../helpers/mock-supabase";
 
-const { revalidatePath, checkRateLimit } = vi.hoisted(() => ({
+const { revalidatePath, checkRateLimit, getProfileShelf } = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   checkRateLimit: vi.fn(),
+  getProfileShelf: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("@/lib/utils/rate-limit", () => ({ checkRateLimit }));
 vi.mock("@/lib/utils/log", () => ({ reportError: (msg: string) => msg }));
+// The result wall's shelf read is its own query, tested through the profile.
+vi.mock("@/lib/queries/shelf", () => ({ getProfileShelf }));
+const SHELF = [{ year: 2024, books: [], pages: 0 }];
 
 let mock: MockSupabase;
 vi.mock("@/lib/supabase/server", () => ({
@@ -57,6 +61,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mock = createMockSupabase(ME);
   checkRateLimit.mockResolvedValue({ allowed: true });
+  getProfileShelf.mockResolvedValue({ years: SHELF, reading: [], want: [] });
 });
 
 describe("importFromGoodreads guards", () => {
@@ -150,6 +155,8 @@ describe("importFromGoodreads matching", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/dashboard");
     expect(revalidatePath).toHaveBeenCalledWith("/my-shelf");
     expect(revalidatePath).toHaveBeenCalledWith("/stats");
+    expect(getProfileShelf).toHaveBeenCalledWith(ME.id);
+    expect(result.shelf).toBe(SHELF);
   });
 
   it("skips books already on the shelf and reports the ones it cannot find", async () => {

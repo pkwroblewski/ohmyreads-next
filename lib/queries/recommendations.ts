@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { BOOK_CARD_COLUMNS } from "./columns";
+import { STAFF_PICK_REASON, STAFF_PICK_SLUGS, inStaffOrder } from "@/lib/curated-picks";
 import type { BookSummary, UserTasteProfile } from "@/types/database";
 
 // Recommendation reason types
@@ -500,6 +501,25 @@ const getCuratedFallback = unstable_cache(
 async function fetchCuratedFallback(limit: number): Promise<RecommendedBook[]> {
   const supabase = createPublicClient();
 
+  // Hand-picked staff shelf first; the rating-based list below only tops it up.
+  const { data: picks } = await supabase
+    .from("books")
+    .select(BOOK_CARD_COLUMNS)
+    .in("slug", STAFF_PICK_SLUGS);
+  const staff: RecommendedBook[] = inStaffOrder((picks as BookSummary[]) || []).map((book) => ({
+    ...book,
+    score: 0,
+    reason: { type: "highly_rated" as RecommendationReasonType, label: STAFF_PICK_REASON },
+  }));
+  if (staff.length >= limit) return staff.slice(0, limit);
+  const topUp = await fetchRatedFallback(limit);
+  const staffIds = new Set(staff.map((b) => b.id));
+  return [...staff, ...topUp.filter((b) => !staffIds.has(b.id))].slice(0, limit);
+}
+
+async function fetchRatedFallback(limit: number): Promise<RecommendedBook[]> {
+  const supabase = createPublicClient();
+
   // Fallback: get diverse highly-rated books across different genres
   // This provides a better "curated" experience than just newest books
   const { data: books, error } = await supabase
@@ -566,7 +586,7 @@ async function fetchCuratedFallback(limit: number): Promise<RecommendedBook[]> {
       type: "highly_rated" as RecommendationReasonType,
       label: book.average_rating
         ? `${book.average_rating.toFixed(1)}★ curated pick`
-        : "Staff pick",
+        : "Popular", // not hand-picked: only STAFF_PICK_SLUGS are staff picks
     },
   }));
 }

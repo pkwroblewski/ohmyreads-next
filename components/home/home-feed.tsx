@@ -19,6 +19,8 @@ interface HomeFeedProps {
    */
   trendingInsights: Promise<TrendingInsight[]>;
   isLoggedIn: boolean;
+  /** The curated panel holds personal recommendations, not staff picks. */
+  personalised: boolean;
 }
 
 export function HomeFeed({
@@ -27,6 +29,7 @@ export function HomeFeed({
   trendingBooks,
   trendingInsights,
   isLoggedIn,
+  personalised,
 }: HomeFeedProps) {
   const hasContent = curatedBooks.length > 0 || trendingBooks.length > 0;
 
@@ -59,7 +62,7 @@ export function HomeFeed({
             <CardContent className="p-5 lg:p-6 h-full">
               <CuratedMiniGrid
                 books={curatedBooks}
-                title={isLoggedIn ? "Personalized Recommendations" : "Curated for You"}
+                title={personalised ? "Personalized Recommendations" : "Staff picks"}
                 isLoggedIn={isLoggedIn}
               />
             </CardContent>

@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GoodreadsImport } from "@/components/import/goodreads-import";
 import { Upload } from "lucide-react";
@@ -20,8 +20,13 @@ export default async function ImportPage() {
     redirect("/login?redirect=/import");
   }
 
+  // For the result wall's "Share" menus; a hidden reader's image would 404.
+  const supabase = await createClient();
+  const { data: profile } = await supabase.rpc("get_my_profile").maybeSingle();
+  const shareAs = profile && profile.discovery_visible !== false ? profile.username : undefined;
+
   return (
-    <div className="container max-w-2xl py-8 space-y-8">
+    <div className="container max-w-4xl py-8 space-y-8">
       {/* Page Header */}
       <div className="flex items-center gap-3">
         <div className="p-2.5 rounded-lg bg-primary/10">
@@ -46,7 +51,7 @@ export default async function ImportPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <GoodreadsImport />
+          <GoodreadsImport shareAs={shareAs} />
         </CardContent>
       </Card>
 

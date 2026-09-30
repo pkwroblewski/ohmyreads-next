@@ -127,4 +127,19 @@ describe("recommendation caches", () => {
     expect(books.map((b) => b.id)).toEqual(["b1"]);
     expect(calls.every((c) => c.client === "public")).toBe(true);
   });
+
+  it("leads with the hand-picked staff shelf, in shelf order", async () => {
+    responses["public:books"] = {
+      data: [
+        { id: "road", slug: "the-road", title: "The Road", genres: ["Literary Fiction"] },
+        { id: "other", slug: "not-a-pick", title: "Other", genres: ["Fantasy"] },
+        { id: "dune", slug: "dune", title: "Dune", genres: ["Science Fiction"] },
+      ],
+    };
+
+    const books = await getCuratedBooks(undefined, 2);
+
+    expect(books.map((b) => b.id)).toEqual(["dune", "road"]);
+    expect(books.every((b) => b.reason.label === "Staff pick")).toBe(true);
+  });
 });

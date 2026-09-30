@@ -2,7 +2,6 @@ import Link from "next/link";
 import { BookOpen, Target, ArrowRight, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CoverImage } from "@/components/books/cover-image";
-import { cn } from "@/lib/utils";
 import type { HomeReadingActivity } from "@/lib/queries/home";
 
 interface ReadingActivityPanelProps {
@@ -17,14 +16,12 @@ const SAMPLE_BOOKS = [
     title: "The Midnight Library",
     author: "Matt Haig",
     progress: 68,
-    coverGradient: "from-indigo-400 to-violet-500",
   },
   {
     id: "sample-2",
     title: "Project Hail Mary",
     author: "Andy Weir",
     progress: 34,
-    coverGradient: "from-amber-400 to-orange-500",
   },
 ];
 
@@ -93,16 +90,8 @@ export function ReadingActivityPanel({
           </p>
           <div className="space-y-3">
             {SAMPLE_BOOKS.map((book) => (
-              <div key={book.id} className="flex gap-3 opacity-90">
-                {/* Gradient placeholder cover */}
-                <div
-                  className={cn(
-                    "flex-shrink-0 w-12 h-[72px] rounded overflow-hidden",
-                    "bg-gradient-to-br",
-                    book.coverGradient
-                  )}
-                />
-                <div className="flex-1 min-w-0">
+              <div key={book.id} className="opacity-90">
+                <div className="min-w-0">
                   <p className="text-sm font-medium line-clamp-1">
                     {book.title}
                   </p>
@@ -129,7 +118,7 @@ export function ReadingActivityPanel({
           <Link href="/signup" className="block">
             <Button size="sm" className="w-full">
               <Library className="w-4 h-4 mr-1.5" />
-              Start Tracking
+              Build your shelf
             </Button>
           </Link>
           <p className="text-xs text-center text-muted-foreground">

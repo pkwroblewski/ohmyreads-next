@@ -15,17 +15,17 @@ import {
 import { createClient, getUser } from "@/lib/supabase/server";
 import {
   getUserStats,
-  getUserBooks,
   getUserReviews,
   getSocialLinks,
 } from "@/lib/queries/users";
 import { getUserBadgesWithDefinitions } from "@/lib/queries/badges";
+import { getProfileShelf } from "@/lib/queries/shelf";
 import { getFollowCounts } from "@/lib/queries/follows";
 import { safeHref } from "@/lib/utils/sanitize";
 import { SocialLinksDisplay } from "@/components/social/social-links-display";
 import FollowStats from "@/components/social/follow-stats";
 import BadgesSection from "@/components/badges/badges-section";
-import { BookCard } from "@/components/books/book-card";
+import { ProfileShelves } from "@/components/shelf/profile-shelves";
 import { RatingDisplay } from "@/components/ui/rating-display";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -55,16 +55,14 @@ export default async function ProfilePage() {
   }
 
   // Fetch data in parallel
-  const [stats, booksResult, reviews, socialLinks, badges, followCounts] = await Promise.all([
+  const [stats, shelf, reviews, socialLinks, badges, followCounts] = await Promise.all([
     getUserStats(profile.id),
-    getUserBooks(profile.id, { limit: 12 }),
+    getProfileShelf(profile.id),
     getUserReviews(profile.id, 5),
     getSocialLinks(profile.id),
     getUserBadgesWithDefinitions(profile.id),
     getFollowCounts(profile.id),
   ]);
-
-  const books = booksResult.userBooks;
 
   const displayName = profile.display_name || profile.username;
   const memberSince = format(new Date(profile.created_at), "MMMM yyyy");
@@ -186,7 +184,7 @@ export default async function ProfilePage() {
           ======================================== */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold font-serif">Bookshelves</h2>
+          <h2 className="text-xl font-semibold font-serif">Shelves</h2>
           <Link
             href="/my-shelf"
             className="text-sm text-primary hover:underline"
@@ -195,39 +193,12 @@ export default async function ProfilePage() {
           </Link>
         </div>
 
-        {books.length > 0 ? (
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-            {books.map(
-              (userBook) =>
-                userBook.book && (
-                  <BookCard
-                    key={userBook.id}
-                    book={{
-                      id: userBook.book.id,
-                      title: userBook.book.title,
-                      author: userBook.book.author,
-                      slug: userBook.book.slug,
-                      cover_url: userBook.book.cover_url,
-                      google_books_id: userBook.book.google_books_id,
-                      isbn: userBook.book.isbn,
-                      average_rating: null,
-                    }}
-                    size="sm"
-                    showRating={false}
-                  />
-                )
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground mb-4">
-              You haven&apos;t added any books yet.
-            </p>
-            <Link href="/books">
-              <Button>Browse Books</Button>
-            </Link>
-          </div>
-        )}
+        <ProfileShelves
+          shelf={shelf}
+          isOwnProfile
+          // A hidden reader's shelf image 404s, so there is nothing to share.
+          shareAs={profile.discovery_visible !== false ? profile.username : undefined}
+        />
       </section>
 
       {/* ========================================

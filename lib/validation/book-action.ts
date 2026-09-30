@@ -8,6 +8,12 @@ const shelfStatusSchema = z.enum(["want_to_read", "reading", "read"]);
 
 export const bookIdSchema = z.string().uuid("Invalid book ID");
 
+/** Up to three books a visitor picked on the homepage before signing up. */
+export const starterPicksSchema = z
+  .array(z.uuidv4("Invalid book ID"))
+  .min(1)
+  .max(3);
+
 export const addToShelfSchema = z.object({
   bookId: z.string().uuid("Invalid book ID"),
   status: shelfStatusSchema,

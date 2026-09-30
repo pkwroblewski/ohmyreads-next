@@ -1,10 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
-  BookOpen,
-  PenLine,
-  BarChart3,
-  Users,
+  Library,
+  CalendarDays,
+  Upload,
+  Download,
   ArrowRight,
 } from "lucide-react";
 import { getUser } from "@/lib/supabase/server";
@@ -24,8 +24,9 @@ import {
 import {
   getHomeReadingActivity,
   getCommunityFeed,
-  getHomeCounts,
 } from "@/lib/queries/home";
+import { getStaffShelf } from "@/lib/queries/shelf";
+import { STAFF_PICK_REASON } from "@/lib/curated-picks";
 import { cn } from "@/lib/utils";
 import { safeJsonLd } from "@/lib/utils/jsonld";
 
@@ -55,28 +56,28 @@ export const metadata: Metadata = {
 
 const features = [
   {
-    icon: BookOpen,
-    title: "Never Forget a Book",
+    icon: Library,
+    title: "Every book, spine out",
     description:
-      "Log your reads, organize your shelves, and build a library of everything you've experienced.",
+      "Finish a book and it goes on your shelf: as wide as its page count, in the colours of its cover.",
   },
   {
-    icon: PenLine,
-    title: "Capture Your Thoughts",
+    icon: CalendarDays,
+    title: "One shelf per year",
     description:
-      "Write meaningful reviews that help you remember how each book made you feel.",
+      "Your reading year by year, with the month under each book and the pages on every shelf.",
   },
   {
-    icon: BarChart3,
-    title: "Watch Your Progress",
+    icon: Upload,
+    title: "Bring your Goodreads years",
     description:
-      "See your reading stats grow over time with beautiful visual progress tracking.",
+      "Upload your Goodreads export and every book you've logged appears on your shelves at once.",
   },
   {
-    icon: Users,
-    title: "Discover Next Favorites",
+    icon: Download,
+    title: "Yours to take with you",
     description:
-      "Get community-powered recommendations based on what you actually enjoy reading.",
+      "Independent and reader-owned. Export your books as CSV or JSON whenever you like.",
   },
 ];
 
@@ -89,13 +90,13 @@ export default async function HomePage() {
   } = await getUser();
 
   // Fetch all data in parallel
-  const [curatedBooks, trendingBooks, activity, communityFeed, counts] =
+  const [curatedBooks, trendingBooks, activity, communityFeed, staffShelf] =
     await Promise.all([
       getCuratedBooks(user?.id, 4), // Only need 4 for mini grid
       getTrulyTrending(7, 7), // 7 books, 7-day window for real trending
       user ? getHomeReadingActivity(user.id) : Promise.resolve(null),
       getCommunityFeed(6), // 6 recent reviews
-      getHomeCounts(),
+      getStaffShelf(),
     ]);
 
   // Not awaited: the trending panel streams it in (see HomeFeed). Signed-in
@@ -149,11 +150,7 @@ export default async function HomePage() {
       {/* ========================================
           HERO SECTION - Smaller, bookish
           ======================================== */}
-      <HomeHero
-        isLoggedIn={!!user}
-        readerCount={counts.readers}
-        reviewCount={counts.reviews}
-      />
+      <HomeHero isLoggedIn={!!user} staffShelf={staffShelf} />
 
       {/* ========================================
           3-PANEL FEED SECTION
@@ -164,6 +161,9 @@ export default async function HomePage() {
         trendingBooks={trendingBooks}
         trendingInsights={trendingInsights}
         isLoggedIn={!!user}
+        // A reader without taste signals gets the staff picks too; only
+        // call the panel personal when it is.
+        personalised={curatedBooks.some((b) => b.reason.label !== STAFF_PICK_REASON)}
       />
 
       {/* ========================================
@@ -181,10 +181,10 @@ export default async function HomePage() {
           {/* Section Header */}
           <div className="text-center mb-8">
             <h2 className="text-xl sm:text-2xl font-bold font-serif mb-2">
-              Track Your Reading Life
+              Your reading life, as a shelf
             </h2>
             <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-              Never forget a book again. Log your reads, organize your shelves, and see your reading stats grow over time.
+              It looks right with one book and better with a thousand. Nobody else needs to be here for yours to fill up.
             </p>
           </div>
 
@@ -237,12 +237,12 @@ export default async function HomePage() {
           <div className="max-w-xl mx-auto text-center">
             {/* Heading */}
             <h2 className="text-xl sm:text-2xl font-bold font-serif mb-2 text-primary-foreground">
-              Ready to start your reading journey?
+              What was the last book you loved?
             </h2>
 
             {/* Subheading */}
-            <p className="text-sm text-primary-foreground/80 mb-5">
-              Join readers who track, review, and share what they read.
+            <p className="text-sm text-primary-foreground mb-5">
+              Put it on the first shelf. The rest can come later, or all at once from Goodreads.
             </p>
 
             {/* CTA Button */}
@@ -255,13 +255,13 @@ export default async function HomePage() {
                   "dark:bg-background dark:text-foreground dark:hover:bg-background/90"
                 )}
               >
-                Create Free Account
+                Build your shelf
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
 
             {/* Small text */}
-            <p className="text-xs text-primary-foreground/60 mt-2">
+            <p className="text-xs text-primary-foreground mt-2">
               No credit card required
             </p>
           </div>

@@ -68,8 +68,8 @@
   --popover: 220 9% 14%;
   --popover-foreground: 43 14% 90%;
 
-  /* 4.9:1 on --background; --background text on it 4.9:1. */
-  --primary: 350 71% 61%;
+  /* 5.8:1 on --background, 5.2:1 on --card, 4.6:1 on primary/10 tints; --background text on it 5.8:1. */
+  --primary: 350 71% 66%;
   --primary-foreground: 228 11% 9%;
 
   --secondary: 223 8% 18%;
@@ -92,7 +92,7 @@
 
   --border: 223 7% 19%;
   --input: 223 7% 19%;
-  --ring: 350 71% 61%;
+  --ring: 350 71% 66%;
 
   --plank: 225 4% 35%;
   --plank-shadow: 0 0% 0% / 0.5;

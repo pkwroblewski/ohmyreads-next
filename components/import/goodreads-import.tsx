@@ -5,10 +5,23 @@ import { Upload, FileText, CheckCircle2, XCircle, AlertCircle, BookOpen } from "
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { importFromGoodreads, type ImportResult } from "@/lib/actions/import";
+import { YearShelves } from "@/components/shelf/profile-shelves";
+
+/** "412 books, 118,000 pages since 2014" for the whole shelf. */
+function shelfTotals(shelf: NonNullable<ImportResult["shelf"]>): string {
+  const books = shelf.reduce((n, y) => n + y.books.length, 0);
+  const pages = shelf.reduce((n, y) => n + y.pages, 0);
+  const first = Math.min(...shelf.flatMap((y) => (y.year ? [y.year] : [])));
+  return [
+    `${books.toLocaleString("en-GB")} ${books === 1 ? "book" : "books"}`,
+    pages > 0 ? `, ${pages.toLocaleString("en-GB")} pages` : "",
+    Number.isFinite(first) ? ` since ${first}` : "",
+  ].join("");
+}
 
 type ImportState = "idle" | "reading" | "importing" | "done";
 
-export function GoodreadsImport() {
+export function GoodreadsImport({ shareAs }: { shareAs?: string }) {
   const [state, setState] = useState<ImportState>("idle");
   const [fileName, setFileName] = useState<string>("");
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -126,8 +139,24 @@ export function GoodreadsImport() {
 
   // Done state - show results
   if (state === "done" && result) {
+    const shelf = result.shelf ?? [];
     return (
       <div className="space-y-6">
+        {/* The wall: every book read, on one shelf per year */}
+        {shelf.length > 0 && (
+          <section aria-labelledby="import-wall" className="space-y-8">
+            <div>
+              <h2 id="import-wall" className="text-2xl sm:text-3xl font-medium">
+                Your shelf: {shelfTotals(shelf)}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Every book you&apos;ve read, one shelf per year. Point at a spine, or tab to it, to see the book.
+              </p>
+            </div>
+            <YearShelves years={shelf} shareAs={shareAs} />
+          </section>
+        )}
+
         {/* Summary */}
         <div className="grid grid-cols-3 gap-4">
           <Card>
@@ -197,42 +226,13 @@ export function GoodreadsImport() {
           </div>
         )}
 
-        {/* Successfully Imported */}
-        {result.matchedBooks.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium">
-              Successfully imported ({result.matchedBooks.length})
-            </h3>
-            <div className="max-h-48 overflow-y-auto rounded-lg border divide-y">
-              {result.matchedBooks.slice(0, 50).map((book, i) => (
-                <div key={i} className="px-3 py-2 text-sm flex items-center justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{book.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      by {book.author}
-                    </p>
-                  </div>
-                  <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                    {book.status.replace(/_/g, " ")}
-                  </span>
-                </div>
-              ))}
-              {result.matchedBooks.length > 50 && (
-                <div className="px-3 py-2 text-xs text-muted-foreground">
-                  ...and {result.matchedBooks.length - 50} more
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Actions */}
         <div className="flex gap-3">
           <Button onClick={handleReset} variant="outline">
             Import another file
           </Button>
-          <a href="/my-shelf" className={buttonVariants()}>
-            View my shelf
+          <a href="/profile" className={buttonVariants()}>
+            See your profile
           </a>
         </div>
       </div>

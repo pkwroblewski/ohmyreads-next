@@ -7,6 +7,8 @@ import { CoverImage } from "./cover-image";
 import { RecommendationReason } from "./recommendation-reason";
 import type { RecommendedBook } from "@/lib/queries/recommendations";
 
+const MIN_RATINGS_FOR_BADGE = 25;
+
 interface RecommendedBooksRowProps {
   books: RecommendedBook[];
   title?: string;
@@ -71,8 +73,9 @@ function RecommendedBookCard({ book }: { book: RecommendedBook }) {
           className="w-full aspect-[2/3]"
         />
 
-        {/* Rating Badge */}
-        {book.average_rating && (
+        {/* Rating Badge: Open Library averages over a handful of ratings
+            are mostly 5.0, so only show one with a real sample. */}
+        {book.average_rating && (book.ratings_count ?? 0) >= MIN_RATINGS_FOR_BADGE && (
           <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/70 text-white text-xs font-medium z-10">
             ★ {book.average_rating.toFixed(1)}
           </div>

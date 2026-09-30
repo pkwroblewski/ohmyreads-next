@@ -16,11 +16,11 @@ import { getUser } from "@/lib/supabase/server";
 import {
   getProfileByUsername,
   getUserStats,
-  getUserBooks,
   getUserReviews,
   getSocialLinks,
 } from "@/lib/queries/users";
 import { getUserBadgesWithDefinitions } from "@/lib/queries/badges";
+import { getProfileShelf } from "@/lib/queries/shelf";
 import { isFollowing, getFollowCounts } from "@/lib/queries/follows";
 import { safeHref } from "@/lib/utils/sanitize";
 import { getFriendshipStatus } from "@/lib/queries/friends";
@@ -29,20 +29,19 @@ import FollowButton from "@/components/social/follow-button";
 import FriendButton from "@/components/social/friend-button";
 import FollowStats from "@/components/social/follow-stats";
 import BadgesSection from "@/components/badges/badges-section";
-import { BookCard } from "@/components/books/book-card";
+import { ProfileShelves } from "@/components/shelf/profile-shelves";
 import { RatingDisplay } from "@/components/ui/rating-display";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
 import { truncate } from "@/lib/utils";
 import { safeJsonLd } from "@/lib/utils/jsonld";
 
 interface Props {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ year?: string }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { username } = await params;
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+  const [{ username }, { year: yearParam }] = await Promise.all([params, searchParams]);
   const profile = await getProfileByUsername(username);
 
   if (!profile) {
@@ -50,6 +49,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const name = profile.display_name || profile.username;
+  // A shared year link (`ShareShelf`) unfurls as that year's shelf image;
+  // the image route itself 404s for hidden readers and empty years.
+  const year = Number(yearParam);
+  const shareYear =
+    profile.discovery_visible !== false && Number.isInteger(year) && year >= 1900 && year <= new Date().getFullYear() + 1
+      ? year
+      : null;
 
   return {
     title: `${name} (@${profile.username})`,
@@ -60,17 +66,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ...(profile.discovery_visible === false
       ? { robots: { index: false, follow: false } }
       : {}),
-    openGraph: {
-      title: `${name} on OhMyReads`,
-      description: profile.bio || `Check out ${name}'s reading list`,
-      images: profile.avatar_url ? [profile.avatar_url] : [],
-    },
+    openGraph: shareYear
+      ? {
+          title: `${name}'s ${shareYear} shelf`,
+          description: `Every book ${name} read in ${shareYear}, on OhMyReads`,
+          images: [
+            {
+              url: `/api/og/shelf?user=${encodeURIComponent(profile.username)}&year=${shareYear}`,
+              width: 1200,
+              height: 630,
+              alt: `${name}'s ${shareYear} shelf`,
+            },
+          ],
+        }
+      : {
+          title: `${name} on OhMyReads`,
+          description: profile.bio || `Check out ${name}'s reading list`,
+          images: profile.avatar_url ? [profile.avatar_url] : [],
+        },
+    ...(shareYear ? { twitter: { card: "summary_large_image" } } : {}),
   };
 }
 
-export default async function UserProfilePage({ params, searchParams }: Props) {
+export default async function UserProfilePage({ params }: Props) {
   const { username } = await params;
-  const { tab } = await searchParams;
 
   // The viewer and the profile do not depend on each other: resolve both at once.
   const [
@@ -87,23 +106,10 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
   // Check if viewing own profile
   const isOwnProfile = currentUser?.id === profile.id;
 
-  // Determine active tab
-  const activeTab = tab || "all";
-  const statusFilter =
-    activeTab === "all"
-      ? undefined
-      : activeTab === "reading"
-        ? "reading"
-        : activeTab === "read"
-          ? "read"
-          : activeTab === "want"
-            ? "want_to_read"
-            : undefined;
-
   // Fetch data in parallel
-  const [stats, booksResult, reviews, socialLinks, badges, followCounts, isFollowingUser, friendshipData] = await Promise.all([
+  const [stats, shelf, reviews, socialLinks, badges, followCounts, isFollowingUser, friendshipData] = await Promise.all([
     getUserStats(profile.id),
-    getUserBooks(profile.id, { status: statusFilter, limit: 12 }),
+    getProfileShelf(profile.id),
     getUserReviews(profile.id, 5),
     getSocialLinks(profile.id),
     getUserBadgesWithDefinitions(profile.id),
@@ -111,8 +117,6 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
     currentUser && !isOwnProfile ? isFollowing(currentUser.id, profile.id) : Promise.resolve(false),
     currentUser && !isOwnProfile ? getFriendshipStatus(profile.id) : Promise.resolve({ status: "none" as const, requestId: null }),
   ]);
-
-  const books = booksResult.userBooks;
 
   // Migration 056 gates user_books / reading_stats reads on discovery_visible,
   // so for an opted-out reader these come back empty rather than zero-by-fact.
@@ -296,61 +300,14 @@ export default async function UserProfilePage({ params, searchParams }: Props) {
         {!shelfHidden && (
         <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold font-serif">Bookshelves</h2>
+            <h2 className="text-xl font-semibold font-serif">Shelves</h2>
           </div>
 
-          {/* Tab Buttons */}
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-            {[
-              { key: "all", label: "All" },
-              { key: "reading", label: "Reading" },
-              { key: "read", label: "Read" },
-              { key: "want", label: "Want to Read" },
-            ].map(({ key, label }) => (
-              <Link
-                key={key}
-                href={`/users/${username}${key === "all" ? "" : `?tab=${key}`}`}
-                className={cn(
-                  "px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap",
-                  activeTab === key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                )}
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Books Grid */}
-          {books.length > 0 ? (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-              {books.map(
-                (userBook) =>
-                  userBook.book && (
-                    <BookCard
-                      key={userBook.id}
-                      book={{
-                        id: userBook.book.id,
-                        title: userBook.book.title,
-                        author: userBook.book.author,
-                        slug: userBook.book.slug,
-                        cover_url: userBook.book.cover_url,
-                        google_books_id: userBook.book.google_books_id,
-                        isbn: userBook.book.isbn,
-                        average_rating: null,
-                      }}
-                      size="sm"
-                      showRating={false}
-                    />
-                  )
-              )}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">
-              No books in this shelf yet.
-            </p>
-          )}
+          <ProfileShelves
+            shelf={shelf}
+            isOwnProfile={isOwnProfile}
+            shareAs={isOwnProfile && profile.discovery_visible !== false ? profile.username : undefined}
+          />
         </section>
         )}
 
